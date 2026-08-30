@@ -1246,6 +1246,40 @@ export async function getPublicSitemapEntries(siteUrl: string): Promise<Metadata
 
 The generator wires this into `collectModuleSitemapEntries()`, which core's `app/sitemap.ts` calls and appends to the site sitemap. Errors are swallowed per-module so one broken module's sitemap code can't take down the whole sitemap.
 
+### Site-wide head contributions
+
+If your module has something that belongs on **every** public page - structured data describing the site's owner, a verification meta tag - add `lib/head.ts` exporting (core 0.5.1418+):
+
+```ts
+export async function getPublicHead(siteUrl: string): Promise<{
+  jsonLd?: object[]
+  meta?: Array<{ name?: string; property?: string; content: string }>
+}> {
+  // return the JSON-LD blocks and meta tags for this site
+}
+```
+
+The generator wires this into `collectModulePublicHead()`, which core's `app/(public)/layout.tsx` calls once per public page render. JSON-LD objects are serialised with `<` escaped and rendered as `<script type="application/ld+json">` in the body - search engines read JSON-LD from the body as happily as from the head, which is what makes a layout contribution possible at all. Errors are swallowed per-module.
+
+Two rules, both of which cost a real site if you get them wrong:
+
+- **Cache your reads.** This runs on the render path of every public page. Wrap the settings lookup in React's `cache()` so it is one query per request, not one per call - a page that got slower for a tag nobody can see is not an SEO improvement.
+- **Never throw, and default to silence.** A settings table mid-migration, or a database having a moment, must cost the page its structured data and nothing else. Return an empty contribution rather than letting an exception reach the layout.
+
+Do **not** use this hook for per-page metadata. Titles, descriptions, canonical URLs and Open Graph tags belong in your page's own `generateMetadata` - core fills in whatever you leave blank (see below).
+
+### What core fills in for you
+
+Core 0.5.1418 wraps every module page's `generateMetadata` result in `withPublicSeo` (`lib/seo/public-metadata.ts`), which fills in - **only where your page left them blank**:
+
+- `alternates.canonical`, from the address being served
+- `openGraph.url`, `openGraph.type` (`website`), `openGraph.siteName`, and `openGraph.title` / `openGraph.description` mirrored from your `title` / `description`
+- `twitter.card` (`summary_large_image`), plus title and description
+
+`metadataBase` is set on the root layout from `SITE_URL`, so a relative `og:image` path resolves to a full address.
+
+Anything your page sets for itself wins. A paginated listing that wants its canonical pointing at page one, or a post that is an `article` rather than a `website`, just says so and core leaves it alone. Shop's per-variation canonical (`shop.product-canonical-query`, above) works this way.
+
 ## Local development loop
 
 1. Clone your module into a local Cactus install's `modules/` directory:

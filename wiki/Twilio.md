@@ -186,6 +186,8 @@ Go to **Twilio** in the admin sidebar. Each phone number on your Twilio account 
 
 A **Refresh** button sits at the end of the tab bar for when you're waiting on something. Logs show the most recent 50 entries in each direction - for ancient history, the Twilio console remains the archive.
 
+With [Unified Inbox](Unified-Inbox) installed, the same calls, voicemails and texts also appear there as conversations, one per outside number, beside that person's emails and chats. These logs stay exactly as they are: this page is the number's own record, the hub is the person's. Texts reach the hub on its hourly check rather than the instant they arrive.
+
 ---
 
 ## Making a call

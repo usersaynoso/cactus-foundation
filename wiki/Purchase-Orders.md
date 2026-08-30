@@ -22,8 +22,11 @@ The module is finished: everything below is in it, and the buying side of a busi
 - **A history** on every order, every return and every bill, saying who did what and when.
 - **Bills and credits going through to the books** by themselves, where you run UK Bookkeeping.
 - **Reordering** - a level per product, and the draft orders that follow when you drop below it, grouped by supplier and mindful of their minimum.
+- **Buying for a customer order** - one draft per supplier off what somebody has just bought, delivered straight to them, either at the press of a button or the moment they pay.
 - **Suppliers' price lists** - their own catalogue kept on file, so an order is drafted at what they charge today, and you are told the week a code is renamed or stopped.
-- **A link for the supplier** - their own view of their own order, which they can accept, offer a different date on, or tell you something is short - and change nothing at all.
+- **Proforma suppliers** - the ones who invoice before they will confirm anything. Their order waits for their proforma, waits again while you pay it, and only then can they confirm it.
+- **A link for the supplier** - their own view of their own order, where they can download it, send you their proforma, confirm it with their own acknowledgement attached, give you a date line by line, tell you something is short, and say what has actually left them - and change nothing at all.
+- **Despatches and packing slips** - a supplier who sends an order in three lorries tells you about all three, with a tracking number and a tracking link each, and takes away a packing slip for every box.
 - **Reports** - what you have committed to and not yet had, what is late, goods in without an invoice, invoices in without the goods, and what you spend with whom.
 - **Chasing** - a note to a supplier whose order is late, on the schedule you set, or one you send yourself.
 - **Four spreadsheets** to take away, and a tile on your dashboard.
@@ -37,7 +40,7 @@ Purchasing is a set of permissions on your core roles, set from **Users → Role
 - `purchase-orders.access` - see the Purchasing section at all.
 - `purchase-orders.create` - raise and edit orders, and manage the supplier list.
 - `purchase-orders.approve` - approve an order that is over your threshold, or send it back.
-- `purchase-orders.receive` - book deliveries in, and send goods back.
+- `purchase-orders.receive` - book deliveries in, and send goods back. Also recording a despatch a supplier has emailed you about, which `purchase-orders.create` can do as well.
 - `purchase-orders.bills` - enter, query and approve supplier invoices, and record a credit when it arrives.
 - `purchase-orders.catalogues` - keep suppliers' price lists, and import them.
 - `purchase-orders.settings` - change the settings.
@@ -54,10 +57,13 @@ Administrators hold all seven without being given them, as they do everywhere el
 
 For each one you can record the contact details, the account number you buy under, their VAT number, an address, and the terms you actually buy on:
 
+- **How we buy from them** - a credit account, or proforma. Proforma means they invoice before they will confirm anything, and it changes what their own link does: see [Suppliers who want paying first](#suppliers-who-want-paying-first).
 - **Payment terms**, both as words ("Net 30") and as a number of days, so a later release can work out when a bill is due.
 - **Lead time**, in days.
 - **Minimum order value** - the order screen tells you when you are under it.
 - **Carriage paid over** and **carriage charge**.
+- **Discount** - the percentage you have off their list. It is used when you import a price list of theirs that quotes retail prices, and nowhere else; leave it empty for a supplier who sends you trade prices already. Empty is not the same as 0%: one is "nothing recorded", the other is "we have checked, and they give us nothing".
+- **A message on their own order page** - a standing note this supplier reads at the top of every purchase order link you send them. Quote the account number, ring before delivering, nothing after three. It goes to them and only them: never on the order document, never on a packing slip, never in an email. See [The supplier's own link](#the-suppliers-own-link). **Notes**, at the bottom of the same form, is the opposite - that one is for you, and never leaves the building.
 
 **Status** is Enabled, On hold or Disabled. Disabled keeps the record and every order filed against it, and simply drops the name out of the list you pick from. **On hold** does the same, but says why: it is for a supplier you have stopped buying from for now rather than one you have finished with.
 
@@ -81,6 +87,8 @@ Pick the supplier, add your lines, and say where the goods should go.
 
 Each line carries a quantity, a unit ("each", "box", "metre" - it is your word, not ours), a unit cost to four decimal places, an optional discount percentage, and a tax rate.
 
+> **"each" is never printed.** It is the unit every line starts with, so printing it put the word after every quantity on every document, email and screen - "4 each", "1 each", "12 each" - which is noise dressed up as information. A quantity with nothing beside it is a count, and a count is what it nearly always is. Type anything else in the box - boxes, metres, pallets, rolls - and it prints everywhere, because those genuinely change what the number means. The word itself stays in the box and in the CSV export, so you can see what a line is set to and type over it.
+
 > **Why four decimal places on the cost.** Supplier costs routinely go below the penny, and the sums are done to the penny only once, at the line. Two hundred and fifty of something at £1.005 is £251.25, and a system that rounded the unit price first would tell you £250 or £252.50 and then disagree with the supplier's invoice.
 
 **Deliver to** is one of three things: your own address (which you set once, in the settings), straight to the customer, or somewhere else entirely. Sites that drop-ship should set the default to the customer and stop thinking about it.
@@ -100,6 +108,31 @@ Set the threshold to 0 to have every order approved, which is what a business th
 An order that is under the threshold - or a site that leaves approvals off - goes straight out. Nobody is made to approve something the settings say does not need it.
 
 An approver can also **send it back**, with a note, which drops it to draft for whoever raised it.
+
+---
+
+## Suppliers who want paying first
+
+Some suppliers will not lift a finger until the money is in. Set **How we buy from them** to **Proforma** on the supplier and every order you raise for them knows it.
+
+What happens then:
+
+1. You send the order as usual.
+2. The supplier opens their link and it tells them, in as many words, that you pay this one up front. They send you their **proforma invoice** through the page, with their own invoice number and the amount if it is not simply the order total.
+3. You get an email, the file is filed in your media library under Purchasing, and it turns up on the order under **Proforma and supplier documents** with a link to open it.
+4. Somebody here presses **Mark the proforma as paid**, with your payment reference if you want one recorded. That is a person's decision, with their name against it - nothing guesses it off a bank feed.
+5. **They are emailed the moment you press it**, with your payment reference, what was paid, their own proforma number and a fresh link to the order. That email always goes - it is not a tick box - because on these terms the supplier is doing nothing at all until they know the money has left, and a payment nobody mentioned is a week of silence at both ends. Reword it under **Settings → Emails → Templates**, as *Proforma paid*.
+6. The supplier's page changes the moment you do. Now, and not before, they can confirm the order.
+
+**If that email cannot go, the screen says so** - no email address on the supplier, or emails switched off - and the payment still stands. Recording that money has left the building is not something to undo because a mail server was busy; you are simply told to pick the phone up.
+
+Until that button is pressed the supplier's confirm button is not there, and the page says why: *"Send us your proforma first. We will pay it, and then you can confirm the order here."* It is a proper stop rather than a hint, because a supplier who confirms before the money has moved is exactly the confusion this is here to prevent.
+
+**It is frozen onto the order.** Whether an order waits for a proforma is decided when it is raised, off the supplier's terms at that moment. Move a supplier onto an account next year and last year's orders still read as they always did.
+
+**And it can be overridden per order.** A one-off from a supplier you have an account with who wants the money up front, or a proforma supplier who has agreed to put this one on the account: the card on the order has a link either way. It is under **Proforma and supplier documents**, and it disappears once the proforma is marked paid.
+
+If you press paid by mistake, **Take that back** undoes it. The proforma itself stays where it is; only the payment is unwound.
 
 ---
 
@@ -322,6 +355,8 @@ Everything that should be bought is grouped into one draft order per supplier, w
 
 The price on each line is the supplier's own current price list where you keep one and have switched them on, then whatever **that** supplier last charged you for that product, then the cost price in your catalogue. Two suppliers stocking the same chair at different prices never borrow each other's, at any of the three.
 
+Each line is described the way their price list describes it, too, where the list carries the code - your own shop title is written to sell the thing, not to pick it off their shelf. Your name for it stays on the line underneath on the Orders screen. No list, no code on it, and your own name is used exactly as before.
+
 Anything that cannot be ordered is listed under **Waiting on something**, each with its own reason: nobody is set to supply it, the supplier is on hold, nothing is counting it, nobody said how many to buy, or the product has left the catalogue.
 
 ### Who actually presses the button
@@ -348,10 +383,25 @@ for somebody to read and send.
 delivery address off the customer's order rather than to you, copied across
 exactly as they typed it. The supplier is buying the parcel a journey, not two.
 
+**The company heads the label** where the customer gave one at the checkout,
+with the person underneath as the contact - which is how a delivery to a
+business has to be addressed, and how a post room works out whose it is. No
+company, and the person heads the label as before.
+
 **Each line names the service that line has to be sent on**, in the words the
 customer bought - flat-packed, pre-assembled, and the date they were promised.
-What that service costs sits on the order as carriage, which is where this
-module has always kept delivery money.
+The delivery is then priced the way everything else on the sheet is priced -
+down the columns. Under the goods figures on that line sit its own quantity,
+what the service costs for one, and what it comes to across the line, so an
+order split across two or three services says which line each slice of the
+carriage came off and a supplier can check it against their own rates without
+reading a sentence. The money itself still sits on the order as carriage rather
+than in the line total, which is where this module has always kept delivery
+money - a line total that swallowed it would disagree with every supplier
+invoice you ever match against it. A service the customer paid nothing for
+prints its name and no figures, because there is nothing to buy back. The
+emailed copy has no columns to use, so it still says the same two figures in
+words.
 
 **The price is what the product costs you, never what the customer paid.**
 Delivery is bundled into the price on the customer's order, so buying at that
@@ -363,6 +413,14 @@ own price list is used ahead of your cost price where you keep one - see
 your product records one (**Shop → the product → Product codes → Supplier SKU**),
 and under your SKU where it does not, which is what a supplier who has never
 given you a code of theirs reads it as anyway.
+
+**Their words, not yours, either.** Where their price list carries the code, the
+line is described the way THEY describe it on that list. Your shop listing title
+is your own invention - written to sell the thing to a customer, and no help at
+all to somebody picking it off a shelf in their warehouse. Your name for it stays
+on the line underneath on the Orders screen, and is what receiving and the reports
+go on matching against, so nothing is lost. No price list, or a list that does not
+name that code, and your own name is used exactly as before.
 
 **Pressing it twice does not order twice.** The panel lists what has already been
 raised for that order and says so instead. Cancel those first if you genuinely
@@ -378,6 +436,45 @@ dropped in silence, and nothing stops the rest of the order being raised.
 Raising them needs `purchase-orders.create`, and the panel is only there at all
 for somebody who can see purchasing.
 
+### Having it drafted the moment they pay
+
+**Settings → Purchase Orders → Buying for customer orders.** Off until you switch
+it on, and off is how every site starts.
+
+With it on, the drafts are typed for you the instant the money lands - the same
+drafts the button would have made, one per supplier, going straight to the
+customer's address, priced the same way. It makes no difference how they paid:
+card, PayPal, Square, bank transfer you cleared by hand yourself, or an order
+that came to nothing and needed no payment at all.
+
+**It drafts and it stops.** Nothing is approved, nothing is sent, no supplier
+hears a word. What is being automated is the typing, not the buying - a draft
+sitting on the Orders tab commits you to nothing, and somebody still reads it and
+presses Send. Drafts over your approval threshold still need approving, exactly
+as they would if you had typed them.
+
+**You are told when something could not be bought, and only then.** A run nobody
+started has nobody watching it, so if a line could not be matched to a supplier -
+or the whole order could not be - an email says which one and why. When everything
+was bought you hear nothing, because a machine that writes every morning to say
+it is fine is a machine nobody reads by the second week. The drafts are on the
+Orders tab either way, and the customer order's own Purchasing panel says which
+of them appeared by themselves.
+
+**Nothing gets missed if the till hiccups.** If the payment came in while the site
+was mid-deploy, or you switched this on the day after a busy weekend, the overnight
+run picks up anything paid in the **last week** that never had a purchase order
+raised against it. Anything older than a week is left alone: switching this on is
+not a decision to go back through your history and buy it all again.
+
+**A refund after the fact is flagged, not undone.** A customer order cancelled or
+refunded once its purchase orders were already drafted shows a warning on the
+order, because nobody chose to raise those and nobody is watching them. It is left
+for you to sort out: the goods may already be on their way, and that is a
+conversation with the supplier rather than something to cancel behind your own
+back. An order that is *already* cancelled or refunded is never bought for in the
+first place.
+
 ---
 
 ## Suppliers' price lists
@@ -390,17 +487,38 @@ It needs nothing else installed. A supplier publishes a price list whether or no
 
 A list belongs to one supplier and has a name - whatever they call it. "Seating 2026", "Trade price list", "Spring". You can also record where it lives, and when it starts applying.
 
-If you have the Shop module, your shop already keeps a list of each supplier's catalogues, and you can simply **pick one of those** rather than typing the address again. Doing that brings the address across and remembers which one it was, so the same link is not kept in two places drifting apart.
+If you have the Shop module, your shop already keeps a list of each supplier's catalogues, and you can simply **pick one of those** rather than typing the address again. Doing that brings the address across and remembers which one it was, so the same link is not kept in two places drifting apart - and it is what lets **Import** go and read the list rather than asking you for a file.
 
-Nothing is ever fetched from that address. It is there so whoever goes looking next time knows where to look.
+**The prices on it are** says what the numbers in the list mean:
+
+- **What you pay** - a trade list, already net. This is how every list behaves unless you say otherwise.
+- **Retail, less your discount** - the supplier prints what a customer would pay, and your price is that less the percentage on their supplier record. The discount comes off every price as the list is imported, so what ends up on file, and on a purchase order, is what you actually pay. If there is no discount recorded against that supplier, nothing comes off and the import says so rather than pretending.
 
 ### Importing the prices
 
-Upload the supplier's spreadsheet as a CSV. A column of codes and a column of prices is enough, and the headers can say whatever they already say - "Supplier SKU", "Product code", "Code", "Trade price", "Net price" and a good many others are all understood. Where a list carries both a trade price and a retail one, the trade price is the one taken.
+**Import** reads the list straight from the address on it. There is nothing to download and nothing to upload: press it, read what it would change, and say yes. It only ever happens when you press the button - nothing here goes off and fetches anything on a schedule, or in the background, or overnight.
+
+A Google Sheet has to be **shared so that anyone with the link can view it**, otherwise all we get back is Google's sign-in page and the import says exactly that. Which tab the link is on is respected, so a workbook with a tab per range imports the one you linked to.
+
+**Upload instead** is there for everything else: a spreadsheet emailed to you, a list behind a login, a supplier with no link at all. Save it as a CSV and choose the file. Very large files are the one thing to watch: a spreadsheet over about four megabytes cannot be sent up from a browser, and it says so and asks you to put it somewhere with an address instead, where the reading happens on the server and the file never goes near your browser at all.
+
+**A big sheet is fine from a link.** Suppliers rarely send a price list on its own - the same sheet usually carries the photography captions, the body copy and eighty columns of specification alongside, and thirty megabytes of that is an ordinary export rather than a mistake. Only the columns a price list needs are read out of it, so size is not the problem it sounds like: anything up to about sixty megabytes imports, and a very large one takes a few seconds longer to come down. Past that, or if it is still arriving after forty seconds, you are told - and a sheet with just the codes and the prices on it will go through in moments.
+
+Either way the same reading applies. A column of codes and a column of prices is enough, and the headers can say whatever they already say - "Supplier SKU", "Product code", "Code", "Trade price", "Net price", "RRP" and a good many others are all understood. Where a list carries both a trade price and a retail one, the trade price is the one taken.
 
 Pack size, minimum order quantity, lead time, discount group and a discontinued column are all read as well, when they are there.
 
-**You are shown what the file would do before anything happens.** How many prices are in it, which column was read as what, and - comparing it against the list already on file - what is new, what has gone, what has moved price, what they have stopped selling, and what has come back under a **new code**. That last one is why the comparison exists: a supplier who reissues the same chair under a new number leaves everything you sell under the old one quietly unbuyable, and nothing else on your site would ever tell you.
+**The headings do not have to be on the first line.** Most suppliers' spreadsheets are exports from something else, and exports arrive with a blank row, a title, a row of merged group headings, and only then the columns. The first fifteen rows are looked at and the one that reads like a header row is the one used.
+
+### When it reads the wrong column
+
+Some things cannot be guessed. A sheet carrying both a "SKU" and a "Catalogue Code" gives no clue which of them goes on a purchase order, because that is a fact about your supplier rather than about the file. A range sheet with eighty-nine columns will have several that could plausibly be a price.
+
+So under every preview there is **Say which column is which**, which opens itself when the reading has plainly gone wrong. Pick the row the headings are on, then point each thing - their product code, the description, the price, pack size, smallest order, lead time, discount group, no-longer-sold - at the column it actually lives in, or at **Not in this file** where they simply do not send it. Press **Read it again like this** and the preview is worked out afresh.
+
+What you pick is **kept on that list**, so next month's import reads itself. It is kept by heading as well as by position, so a supplier who inserts a column, or adds a row above their headings, does not quietly shift everything along by one. **Work it out for me** forgets the mapping and goes back to reading the headings.
+
+**You are shown what the list would do before anything happens.** Where it was read from, what discount came off it, how many prices are in it, which column was read as what, and - comparing it against the list already on file - what is new, what has gone, what has moved price, what they have stopped selling, and what has come back under a **new code**. That last one is why the comparison exists: a supplier who reissues the same chair under a new number leaves everything you sell under the old one quietly unbuyable, and nothing else on your site would ever tell you.
 
 Then you press the button, or you do not.
 
@@ -408,8 +526,9 @@ Two things are worth knowing:
 
 - **An import replaces the list.** A price list is a statement about a whole range on the day it was published, so anything on file that is not in the file goes. Merging would keep last year's codes alive for ever, which is the exact thing this is here to prevent.
 - **A file that reads as nothing is refused.** Every price a supplier has disappearing because somebody uploaded the wrong sheet is not the sort of thing a confirmation box makes acceptable.
+- **What you agreed to is what you get.** A list fetched from a link is read again when you press the button, and checked against the version you were shown. If the supplier has edited their sheet while you were reading the comparison, nothing is imported and you are handed the new comparison to look at instead.
 
-Rows that cannot be read - no code, a price that says "POA", a code in there twice at two different prices - are listed one by one with the row number the spreadsheet shows, and the rest of the file still imports. Nothing is dropped in silence.
+Rows that cannot be read - no code, a price that says "POA", a code in there twice at two different prices - are counted and the first twenty listed with the row number the spreadsheet shows, and the rest of the file still imports. Nothing is dropped in silence. If most of the file is in that list, the columns are pointing at the wrong things and the picker is the place to fix it.
 
 ### Pricing orders off them
 
@@ -522,8 +641,8 @@ Drag them about, drop the ones you do not want, and every one of them has its ow
 | **Heading** | The word "Purchase order", your order number, the dates, your account number with them, and the revision flag on an amended order. |
 | **Who it is between** | Their details and yours, side by side. |
 | **From** / **To** | The same two, one at a time, for a layout that wants them in different places or at different sizes. |
-| **Deliver to** | Where the goods actually go - which on a drop-shipped order is neither address, and is the single most misread line on a purchase order. |
-| **Lines** | What you are buying: description, their code, quantity, unit cost, line total. |
+| **Deliver to** | Where the goods actually go - which on a drop-shipped order is neither address, and is the single most misread line on a purchase order. The country is left off unless you switch it on, because "GB" under every postcode is noise on a sheet going four miles up the road; switch it on and it prints properly spelled out ("France", not "FR"). |
+| **Lines** | What you are buying: description, their code, quantity, unit cost, line total. Under the description sits anything the supplier has to act on differently - the delivery service and what it costs, your own code, the date wanted, a discount. |
 | **Totals** | Goods, discount, carriage, VAT and the order total, with the currency beside it. |
 | **Terms** | Your standing terms from settings, plus this order's payment and delivery terms. |
 | **Notes** | Whatever was typed on the order *for the supplier*. Notes for you never appear here and cannot be made to. |
@@ -576,18 +695,37 @@ Amending is possible while the supplier can still act on it - sent, acknowledged
 
 Switch **the supplier link** on in settings and every order you email carries a link of its own. It opens that one order, and nothing else on your site.
 
-What the supplier sees is the order exactly as it prints, and under it a short panel where they can:
+What the supplier sees is a panel of everything they can tell you, and under it the order exactly as it prints. **The panel is above the order, not below it**, which sounds like a detail until you have watched somebody scroll past forty lines of desks looking for the button that says yes.
 
-- **accept it** - "yes, we can supply this";
-- **offer a different date**, if what you asked for is not going to happen;
-- **say something is short**, line by line, with how many they cannot send;
-- **leave a message** about anything else.
+**Anything you want that supplier to read is at the very top.** Each supplier record has **A message on their own order page** (Suppliers → edit a supplier), and whatever you write there sits above everything else on every link you send them: quote the account number, ring before delivering, no pallets after three. It is theirs alone - it appears nowhere on the order document, nowhere on a packing slip and in no email, and it is read fresh each time, so changing it changes what they see on orders you sent last month as well. Leave it empty and the page carries no such box. It is not the **Notes** field further down that form, which stays firmly on your side of the desk.
 
-**None of it changes your order.** Accepting it marks the order as acknowledged, which is the one thing it does. A date or a shortage is written down against the order for you to act on - your prices, your quantities and your terms are exactly where you left them. A purchase order somebody else can edit is not a purchase order.
+In the panel they can:
+
+- **download the order as a PDF** - the same file you would email them, printed off the same layout, for their own system;
+- **send you their proforma**, on an order to a supplier you pay up front (see [Suppliers who want paying first](#suppliers-who-want-paying-first));
+- **accept it** - "yes, we can supply this" - and **attach their own order acknowledgement** while they are there, which files their PDF against the order and confirms it in one press. Attaching one is optional; they can simply confirm;
+- **give you a date line by line**, if what you asked for is not going to happen. A supplier sending an order in three drops has three answers, and one box for the lot was never the truth;
+- **say something is short**, line by line, with how many they cannot send at all;
+- **tell you what they have actually sent**, with a tracking number and their own tracking link, and take away a packing slip for that delivery (see [What they have sent, and the packing slip](#what-they-have-sent-and-the-packing-slip));
+- **leave a message** about anything else - about the whole order, or about the particular lines they pick.
+
+**Every line form works the same way: tick the line first, then answer for it.** A ten-line order used to open with ten empty boxes, which reads as ten questions and gets two of them filled in wrong. Now the lines are a tick list, and the box appears on the one they have ticked - a date on **Report a delay**, a quantity on **Report out of stock**, a quantity on **Record a despatch**. The despatch box arrives **already holding everything still owed on that line**, because a whole pallet is the usual answer; they can overtype it for a part load, and **We are sending all of it** still ticks the lot in one press. The out-of-stock box starts empty on purpose - "all of it" is not something anybody should be able to report by accident.
+
+**Neither quantity box will take more than the line has left.** Type four against a line with two still to come and the box turns red, says why, and the send button goes dead until it is sorted - the same answer whether they are reporting a shortage or a despatch, and the same answer if something posts round the page entirely. Nothing is quietly trimmed to fit: a form that takes "ten", files "four" and says thank you has told the supplier something untrue, and the first anybody hears of it is a delivery that does not match. A line they have already sent in full drops off the out-of-stock list, because there is none of it left to be short of - and where a line is part sent, what is left is what they are held to.
+
+**Under each box it says what they have just told you** - "1 of 4 out of stock", "2 of 4 being sent". Two of the forms look near enough identical from a phone in a yard, and a bare box holding "1" does not say which of the two it is.
+
+**Their proforma and their acknowledgement go in a big box they can drop a file onto.** Drag the PDF from wherever they have it open and let go anywhere on the box; the ordinary **Choose file** button sits in the middle of it for everybody else, and the name of the file they picked appears underneath so they can see they picked the right one. The old arrangement was a file button the width of a thumbnail, which in a warehouse on a phone is a target nobody finds.
+
+**Purchase History** at the bottom of the panel is the whole story of that order, both ways round and newest first: the order going out, any changed version of it, reminders you sent, their proforma arriving and you paying it, what they told you, what they despatched, and every delivery you booked in. **Every line says which side it came from before it says anything else** - *From us* or *From you* - because "we paid your proforma" and "you sent your proforma" are usually a day apart and read as each other otherwise. It carries nothing internal: no reasons you cancelled or closed anything, no payment reference, no notes from your side of the desk.
+
+**None of it changes your order.** Accepting it marks the order as acknowledged; a despatch is filed as a despatch and books nothing in. A date or a shortage is written down against the order for you to act on - your prices, your quantities and your terms are exactly where you left them. A purchase order somebody else can edit is not a purchase order.
+
+Two of those can be switched off in settings if you would rather they came by email: **letting suppliers send you files**, and **letting them say what they have sent**. Files arriving through the link are the one place on your site where somebody with no account can put something on it, so they are checked for what they really are rather than what they are called, capped in size, and never run - and if that is still one door too many, the page tells them to email it instead.
 
 ### Handling what they say
 
-Open the order and there is a **What the supplier said** card, newest first. Where they have offered a date there is a **Use 2026-05-04** button, which moves the order's expected date and records that you did.
+Open the order and there is a **What the supplier said** card, newest first. A message they sent about particular lines names them first - *About Oak desk 1600mm; Pedestal: these two are on back order* - so whoever reads it knows whether it is theirs to answer without opening the order to find out. Where they have offered dates there is a **Use these 3 dates** button, which moves each of those lines and pulls the order's own expected date out to the last of them, and records that you did. An older reply that offered one date for the whole order still has its own **Use 2026-05-04** button, and always will.
 
 A shortage has no such button, on purpose. Cutting a line down is a change to an order they are holding a copy of, so it goes the proper way round: amend the order and send them the replacement, or use **Give up on the rest** on the line where that is really what has happened.
 
@@ -623,22 +761,72 @@ Two small things worth knowing:
 
 ---
 
+## What they have sent, and the packing slip
+
+A supplier who ships an order in three lorries used to send you three emails. Now they tell the page.
+
+In the **Record a despatch** block on their link they tick what has gone - each tick filling the quantity box with whatever is still owed on that line - put the date it left them, and add the carrier, a tracking number and a tracking link if there are any. Each of those is a **despatch**, numbered in its own series (DSP-00007 by default), and the moment it is filed they get a **packing slip** to download and put in the box.
+
+- Only what is genuinely left to send is offered. Two browser tabs cannot despatch the same pallet twice, and a quantity typed larger than what is outstanding is refused with a plain explanation rather than quietly cut down to what fits.
+- **The tracking link is theirs to give you.** A supplier who has a page of their own showing where the pallet is can paste it in, and typing `palletways.example/track/882` without the `https://` is fine - it is tidied up for them. It has to be an ordinary web address, and anything else is turned away.
+- Every despatch they have filed stays listed on their page with its own **Download the packing slip** link, so the file can be fetched again next week without anybody asking you for it.
+- On your side, the order grows a **What the supplier has sent** card: every despatch, what was on it, the carrier and tracking (as a link where they gave you one), and the same packing slip to download. A link with no number beside it still shows up, as **Track this delivery**.
+
+The tracking link is for your side of the desk only. It never prints on the packing slip and is never shown to whoever the goods are going to.
+
+### When the supplier will not use the link
+
+Plenty of them will not. They email, or they ring, and somebody here writes it down.
+
+**Record a despatch** on that same card opens a form with what is still to send, a box per line, the date it left them, the carrier, the tracking number and a tracking link. Save it and you get the same row, the same number and the same packing slip - the table simply says *Entered here* rather than *Told to us by the supplier*, so you can always tell which is which.
+
+Two things it does differently from the supplier's own page, both on purpose:
+
+- **It works on an order already marked received**, where theirs does not. Writing up last week's paperwork is an ordinary thing to be doing; a supplier confirming a despatch against an order you have finished with is not.
+- **Anything over what is still to send is trimmed to it.** A supplier who sends more than you ordered is an over-delivery to flag when it turns up (see [More than you ordered](#more-than-you-ordered)), not a packing slip claiming goods that were never on the order. The form says so, and tells you if it had to trim anything.
+
+**Remove** takes a despatch back off, whichever way it was filed, for the day somebody types the wrong quantity or the supplier files the same pallet twice. It unpicks nothing else: goods-in keeps its own records and this does not touch them. The packing slip printed off it stops working, which is right - a slip for a delivery that was never made is a sheet nobody should be able to fetch - though anybody already holding the PDF keeps it, as they would with any file.
+
+Either `purchase-orders.receive` or `purchase-orders.create` can do both. On a small site that is the same person; on a larger one it could be either desk, and a note about goods coming is not a change to what was ordered.
+
+**A despatch is not a delivery.** It books nothing in, counts nothing, moves no stock and changes no status. It is the supplier saying a pallet left them on Tuesday; **Deliveries** is still somebody here saying it turned up and counting it. The two arrive days apart and the day they are merged is the day a stock count moves because a supplier pressed a button.
+
+### The packing slip
+
+The third document the module prints, designed exactly the way the order is: **Appearance → Layouts → Purchase Orders → Packing slip**. Two starting points come with it, and the standard one is published for you so a slip will always print.
+
+Its blocks are its own - a heading carrying the despatch number and the order number, your own name and address, where the box is going, what is in it against what was ordered, how it travelled, and notes - while the **Document style** and **Divider** blocks are the same ones the order and the returns note use. Design your purchasing paperwork once and you have designed all three.
+
+Two things about this document are not negotiable, and they are the whole reason it exists as a document of its own:
+
+- **There is no money on it.** Not a unit cost, not a line total, not an order total. There is no field to print one from and no switch to turn one on. On an order you have drop-shipped, the person opening that box is your customer, and what your supplier charged you for it is between you and your supplier.
+- **Your supplier is not named on it.** Your name is at the top, because that is who your customer bought from.
+
+It also says when there is more to come. A box holding eight of the twelve somebody ordered, with nothing on the paperwork to say so, is the single most common reason a delivery gets reported as wrong when it is not - so the slip prints both figures and a line saying the rest is following.
+
+The wording is yours: **Settings → Purchase Orders → Wording on a packing slip**, including what somebody should do if the box is short or damaged.
+
+---
+
 ## Settings
 
 **Settings → Purchase Orders.**
 
-- **Numbering** - the prefix on order, goods-received and returns numbers. Changing a prefix only affects what comes next; everything already raised keeps the number it was given.
+- **Numbering** - the prefix on order, goods-received, returns and despatch numbers. Despatches have a series of their own because what left the supplier and what you booked in are different things. Changing a prefix only affects what comes next; everything already raised keeps the number it was given.
 - **Approvals** - whether, and over what.
 - **Checking what arrives** - how much over-delivery you will accept without a flag, and how far a supplier's invoice may drift from your order on price and on quantity before it is queried. All three are in use.
 - **Add goods to stock when they arrive** - off by default, and greyed out entirely on a site with nothing keeping stock counts. It covers both directions: deliveries add, returns take off. See [Checking goods in](#checking-goods-in).
 - **Where goods normally go** - your own address, filled in once.
 - **Money** - the currency you keep your books in. Suppliers may of course bill you in theirs; each order and each bill carries its own currency and its own exchange rate. Also the expense category a bill line falls back to when nobody picked one, and **Put approved bills straight into the books**, which is on where you run UK Bookkeeping and greyed out where you do not.
 - **Who is buying** - your own name, address, contact details, VAT number and company number, as they print at the top of an order. Leave a box empty and, where you run the Shop module, whatever is on your invoices is used instead - there is no need to type your VAT number twice. Also the start of the filename a saved PDF gets.
-- **Wording on the order** - the heading, the opening line, your terms, and a footer note. **These are frozen onto an order the first time it is sent**, so re-wording your terms next March does not quietly re-word an order somebody accepted last year.
+- **Wording on the order** - the heading, the opening line, your terms, and a footer note. **These are frozen onto an order the first time it is sent**, so re-wording your terms next March does not quietly re-word an order somebody accepted last year. To be rid of the opening line ("Please supply the following, quoting our order number on all paperwork.") either clear that box, which drops it everywhere, or turn it off on the layout that prints it - **Document layout → the Heading block → Opening line → No** - which leaves the wording where it is for a layout that does want it. The "Just the order" starter layout ships with it off already.
 - **Wording on a returns note** - its own heading, opening line and terms, plus the start of the filename a saved note gets. It has its own wording because "please supply the following" on a note about goods going back is quite the mixed message.
+- **Wording on a packing slip** - the heading, the opening line, and what somebody should do if the box is short or damaged, plus the start of the filename a saved slip gets. Its own wording again, because this one goes in the box and is read by your customer rather than by your supplier.
 - **Reordering** - whether draft orders are raised overnight from your reorder levels. Off by default, and greyed out on a site with no catalogue. See [Reordering](#reordering).
+- **Buying for customer orders** - whether a paid customer order drafts its purchase orders by itself. Off by default, and greyed out on a site with no shop. It drafts and stops; nothing is ever sent to a supplier without somebody sending it. See [Having it drafted the moment they pay](#having-it-drafted-the-moment-they-pay).
 - **Suppliers' price lists** - whether an order line is priced off a supplier's own list where one names the code. Off by default. You can keep lists on file either way; this is the switch that lets them price anything. See [Suppliers' price lists](#suppliers-price-lists).
-- **Chasing and the supplier link** - whether a supplier hears from you when an order is late, how late it has to be, and how often to ask again; and whether every order you send carries a link of its own, and how long those links last. See [Chasing a late supplier](#chasing-a-late-supplier) and [The supplier's own link](#the-suppliers-own-link).
+- **Which inbox this comes from** - only on a site running [Unified Inbox](Unified-Inbox), and only for somebody who may manage it. Which of your inboxes your purchase order emails leave as, so a supplier's reply lands with the people chasing the order rather than in the site's general post. Left alone, they go out as the site's usual address exactly as they always have. Saves itself the moment you pick.
+- **Chasing and the supplier link** - whether a supplier hears from you when an order is late, how late it has to be, and how often to ask again; whether every order you send carries a link of its own, and how long those links last; whether suppliers may **send you files** through that link (their proforma and their acknowledgement); and whether they may **say what they have sent** and take away a packing slip for each delivery. The last two are on, and greyed out entirely with the link itself off. See [Chasing a late supplier](#chasing-a-late-supplier), [The supplier's own link](#the-suppliers-own-link) and [What they have sent, and the packing slip](#what-they-have-sent-and-the-packing-slip).
 
 ---
 
@@ -652,7 +840,7 @@ Purchasing works out for itself what else is on the site, and every screen behav
 - Your trading identity is borrowed from your invoice settings for any box you leave blank in **Who is buying**.
 - Goods can be taken into stock as they arrive, if you switch it on - and whoever is waiting for that product to come back is emailed at the same time. Goods sent back come off the count the same way.
 - Reordering works at all, since it needs something keeping count to work out what to buy.
-- A supplier's price list can be picked from the catalogues your shop already records for them, and your products can be checked against the codes and prices they currently publish.
+- A supplier's price list can be picked from the catalogues your shop already records for them - which is also what lets it be imported straight from the link rather than from a file - and your products can be checked against the codes and prices they currently publish.
 - A customer's order can be bought in at the press of a button, one draft per supplier, delivered straight to them - see [Buying for a customer order](#buying-for-a-customer-order).
 
 **With the UK Bookkeeping module:**
@@ -666,11 +854,15 @@ Purchasing works out for itself what else is on the site, and every screen behav
 
 ## Emails
 
-Six emails are yours to word, under **Settings → Emails → Purchase Orders**. Five go to the supplier - the order itself, an amended order, a chase when it is late, a cancellation, and a returns note - and none of those can be switched off, because a supplier who never sees your cancellation is a supplier who delivers it anyway. The sixth comes the other way: **a supplier replied through their link**, which lands with whoever is doing the buying.
+Seven emails are yours to word, under **Settings → Emails → Purchase Orders**. Six go to the supplier - the order itself, an amended order, a chase when it is late, a cancellation, a returns note, and the note saying you have paid their proforma - and none of those can be switched off, because a supplier who never sees your cancellation is a supplier who delivers it anyway. The seventh comes the other way: **a supplier replied through their link**, which lands with whoever is doing the buying. That one covers everything they can say - accepting the order, a proforma arriving, dates, shortages, a despatch and a plain message - so nothing sits waiting for somebody to happen to open the screen.
 
 The order, the amended order and the returns note carry the PDF as an attachment. The chase does not: the supplier already has the order, and sending the same document again reads as a fresh one. If the PDF will not print for some reason, the email still goes with the lines in the body: an order that reaches the supplier beats one that does not because the paperwork sulked.
 
-The order, the amended order and the chase all offer a `{{portalLink}}` tag, which becomes the supplier's own link and disappears entirely when the link is switched off. It is in the wording as it ships. **If you have already reworded one of those emails yourself, your version is the one that sends** - drop `{{portalLink}}` in where you want it and the link starts travelling with them.
+The order, the amended order, the chase and the proforma-paid note all offer a `{{portalLink}}` tag, which becomes the supplier's own link and disappears entirely when the link is switched off. It is in the wording as it ships. **If you have already reworded one of those emails yourself, your version is the one that sends** - drop `{{portalLink}}` in where you want it and the link starts travelling with them.
+
+On a site running [Unified Inbox](Unified-Inbox), all seven can go out as one of your own inboxes rather than the site's usual address - see **Which inbox this comes from** under [Settings](#settings). The supplier then answers to that address and the reply lands where the buying is done.
+
+The proforma-paid note carries `{{payment}}` - your payment reference and the amount, written for you as a block, so an order paid without a reference does not send *"Payment reference:"* followed by nothing. If you would rather build that sentence yourself, `{{paymentRef}}`, `{{amount}}` and `{{proformaRef}}` are all there as plain values.
 
 ---
 
@@ -682,7 +874,9 @@ Install the module from **Modules** in your admin, then grant whichever of the s
 
 ## Who can open the document page
 
-Both documents have an address of their own, and they are deliberately not public. Anybody signed in with `purchase-orders.access` can open them; the thing that prints the PDF gets a signed link that stops working half an hour after it is made; and a supplier holding a live link of their own can open that one order. Nobody else can read one, even knowing the number - and a link made for an order will not open a returns note, or the other way about.
+All three documents have an address of their own, and they are deliberately not public. Anybody signed in with `purchase-orders.access` can open them; the thing that prints the PDF gets a signed link that stops working half an hour after it is made; and a supplier holding a live link of their own can open that one order, download it as a PDF, and download the packing slip for any delivery on it. Nobody else can read one, even knowing the number - and a link made for an order will not open a returns note or a packing slip, or the other way about.
+
+The supplier's own key is checked twice over on a packing slip: it opens one order, and the delivery being asked for has to be on that order. So a supplier who works out that despatch numbers run in sequence still cannot read somebody else's customer's address.
 
 That is on purpose, and it is different from an invoice. An invoice is a customer's own record and they get a permanent link to it. A purchase order is what *you* pay *your* supplier, the numbers run in sequence, and there is nobody outside the building who should be able to count their way through them.
 

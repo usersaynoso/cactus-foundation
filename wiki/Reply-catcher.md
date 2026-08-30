@@ -2,6 +2,12 @@
 
 If you reply to a contact form message from the Cactus admin inbox, your visitor's reply-to lands wherever your own mailbox happens to live - Gmail, Outlook, iCloud, whatever you use day to day. Cactus never sees it, and the conversation splits in two: half in your admin inbox, half in your actual email.
 
+> **Superseded by [Unified Inbox](Unified-Inbox).** Reply Catcher does a small part of what Unified Inbox does, for the contact form alone. If you have installed Unified Inbox, that is where to answer everything, and Reply Catcher can be turned off and removed once you are happy with it.
+>
+> **Never point both at the same mailbox.** Two things reading one mailbox file everything twice, in two places. Cactus will not let it happen quietly: Unified Inbox spots the clash and refuses to collect that account, saying so on its own settings page. Reply Catcher was there first, so it wins until you decide otherwise.
+>
+> Replies Reply Catcher has already caught stay where they are, on the contact form enquiries they belong to. They are not moved or copied into Unified Inbox.
+
 **Reply Catcher** is an add-on for the [contact form module](Contact-form) that fixes this. Point it at your real mailbox once, and it quietly checks for replies (and for anything you sent by hand from your own email client) and matches them up to the right conversation.
 
 It never changes anything in your mailbox - nothing gets marked read, moved, or deleted. It only reads. And it never changes anything about the contact form module itself - it keeps its own records alongside, so sites that don't install it carry none of this.
@@ -60,4 +66,4 @@ Reply Catcher matches mail to a conversation by sender's email address and by co
 
 ---
 
-**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Managing pages](Managing-pages) · [Appearance and design](Appearance-and-design) · [Managing users](Managing-users) · [Managing media](Managing-media) · [Modules](Modules) · [Unified Inbox](Unified-Inbox) · [Configuration reference](Configuration-reference)

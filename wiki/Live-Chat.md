@@ -48,6 +48,8 @@ Installs managed centrally can instead be pre-provisioned with `LIVECHAT_*` envi
 
 ## Answering
 
+> **With [Unified Inbox](Unified-Inbox) installed, chats are answered there instead**, alongside email, enquiries and phone calls. This module's own inbox tab stands down; the widget, the agent console on the site, the mobile app and everything else here are untouched. Replying from the hub still uses your own agent account, so if you have not connected yours yet it will say so rather than answering as somebody else.
+
 - **Admin → Live Chat**: two-pane inbox. Open/Resolved tabs, unread badges, customer-typing indicator (receive-only - customers never see staff typing), attachments, `/` inserts canned replies, resolve/reopen. Canned replies live on the chat server, so the mobile app shares them.
 - **On the public site**: staff with the `livechat.view` permission see a floating agent console instead of the customer widget - answer without leaving the page. It's styled to match the customer widget (brand header with the Online/Offline switch, avatars, chat bubbles), follows the site's dark mode, and while closed it still announces new messages instantly - the button pulses red with an unread count.
 - **Mobile**: the official Chatwoot app against your chat server. Push notifications come from there.

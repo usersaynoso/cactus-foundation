@@ -45,6 +45,8 @@ An empty field they have not touched yet says nothing at all. Tabbing straight t
 
 Everything that comes in appears under **Inbox** in your admin sidebar. Open a message and you get the full conversation in one place: what they sent, when, and every reply that has gone back.
 
+> **With [Unified Inbox](Unified-Inbox) installed, enquiries are answered there instead.** The contact form's own tab stands down so there are not two places to answer the same person, and everything on this page about fields, spam and tidying up carries on exactly as before. Colleagues who can see the contact form but not the hub keep this tab. Uninstall the hub and it comes straight back, with nothing lost.
+
 You can:
 
 - **Reply** directly from the message, without leaving the site.
