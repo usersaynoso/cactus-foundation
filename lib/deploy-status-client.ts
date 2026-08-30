@@ -58,8 +58,25 @@ export function subscribeDeployStatus(cb: () => void): () => void {
 //
 // Server-renders false and stays false on the first client render, so the button
 // hydrates matching its SSR markup and only then flips.
+//
+// A FAILED build is not one of those windows. `active` also keeps the status
+// panel on screen (DeployStatusLive returns null without it), and that panel is
+// where the Dismiss button lives, so the store cannot simply drop it on ERROR.
+// Reading it raw here was a lockout: a build that errored left every install,
+// update and redeploy button greyed for the life of every later page load,
+// because nothing clears pendingRedeployId on a failure - only a successful
+// deploy or that Dismiss click does. getDeployInFlight() on the server has
+// always answered null for an ERRORed deployment, so the routes would have
+// accepted the work the buttons refused to offer. Watched happen 2026-08-30:
+// a module update whose build failed left the admin unable to apply the fix.
+export function isDeployInFlight(status: DeployStatus): boolean {
+  return status.active && !status.failed
+}
+
 export function useDeployInFlight(): boolean {
-  return useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus).active
+  return isDeployInFlight(
+    useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus)
+  )
 }
 
 export function deployStateLabel(state: string, failed: boolean): string {

@@ -174,6 +174,7 @@ Enabling or disabling a module refreshes the admin sidebar immediately - nav lin
   DELETE FROM "DeployLock" WHERE id = 'singleton';
   ```
   If the same lock keeps reappearing, the update is dying rather than running: check GitHub's [status page](https://www.githubstatus.com/), since a degraded GitHub is the usual cause of an update slow enough to be killed.
+- **A failed deploy still showing in the notification bell** - a build that errors leaves the deploy panel on screen reading "Redeploy failed" until you press **Dismiss**. That is deliberate: dismissing is what reconciles the modules the build was carrying, rolling their pinned versions back to what the site is actually running. Nothing is in flight while it sits there, so installs, updates and redeploys stay available - press Dismiss when convenient and update again. (Before v0.5.1427 those buttons stayed greyed out until the panel was dismissed, which could leave a site unable to apply the very update that fixed its build.)
 
 ## Admin recovery procedures
 
