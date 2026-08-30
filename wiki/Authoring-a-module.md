@@ -276,6 +276,38 @@ For the update flow to apply only new migrations correctly, follow this conventi
 - Use a naming scheme that sorts in the order migrations should run: `001_`, `002_`, `003_`, etc.
 - A migration file should be idempotent where practical (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE IF NOT EXISTS`, etc.) to survive edge cases.
 
+## The build gate: never tag a module nobody has built
+
+A module repo on its own cannot tell you whether its code builds. `tsc` and `eslint` there see a folder of files with no core around them, so the whole class of defects that only a real Next build catches - chiefly a React hook imported into a file with no `'use client'`, which makes it a server component and fails the bundler - sails straight past both. Tag such a version and the first machine ever to build it is a site owner's, mid-update. That happened on 2026-08-30 and it cost a live site its ability to update at all.
+
+So every module repo carries a build gate. Add it with, from a core checkout:
+
+```bash
+node scripts/install-module-ci.mjs your-module-name
+```
+
+That writes `.github/workflows/build-gate.yml` - three lines calling core's reusable workflow. Commit and push it in the module repo. From then on, every push to `main`, every pull request and every `v*` tag:
+
+1. checks out core at its newest release,
+2. drops your module in at the commit under test (not the last released tag - the candidate),
+3. adds anything your manifest lists in `requiresModules`, at the versions core pins,
+4. starts a throwaway Postgres and runs the migrations, yours included,
+5. runs the build exactly as a deploy would.
+
+Red gate means that commit would break every install that took it. **Do not create the GitHub release until the tag's run is green** - the tag existing is harmless, a release is what sites offer their owners.
+
+To reproduce a failure against a specific core, pin it in your caller workflow:
+
+```yaml
+jobs:
+  gate:
+    uses: usersaynoso/cactus-foundation/.github/workflows/module-build-gate.yml@main
+    with:
+      core-ref: v0.5.1400
+```
+
+The gate needs no secrets: core and the module organisation are public repos.
+
 ## Publishing to the module directory
 
 Modules hosted in the `cactus-foundation-modules` GitHub organisation appear automatically in the **Admin - Modules - Available** directory. To list your module:

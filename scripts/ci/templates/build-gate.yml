@@ -1,0 +1,19 @@
+# Cactus module build gate.
+#
+# Managed by core: scripts/install-module-ci.mjs writes this file into every
+# module repo. Edit it there, not here, or the next rollout overwrites you.
+#
+# The work happens in core's reusable workflow, so a fix to the gate reaches every
+# module at once without 30 repos needing a commit.
+name: Build gate
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gate:
+    uses: usersaynoso/cactus-foundation/.github/workflows/module-build-gate.yml@main
