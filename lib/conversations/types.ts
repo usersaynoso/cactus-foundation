@@ -99,6 +99,7 @@ export type ConversationProvider = {
     reply: boolean
     markRead: boolean
     byIdentity: boolean
+    delete?: boolean
   }
   list(opts: ConversationListOptions): Promise<ConversationListPage>
   thread(id: string): Promise<ConversationThread | null>
@@ -106,6 +107,9 @@ export type ConversationProvider = {
   markRead?(id: string): Promise<void>
   /** Everything this provider holds for one person, for a unified timeline. */
   byIdentity?(identity: ConversationIdentity): Promise<ConversationSummary[]>
+  /** Delete a single message. Returns true if it was deleted, false if the
+   *  provider does not support deleting this message (or it no longer exists). */
+  deleteMessage?(messageId: string): Promise<boolean>
 }
 
 /** A provider as core resolved it: the module that published it, the manifest
