@@ -1,4 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
+import { deploymentStatusForReconcile } from '@/lib/deploy/in-flight'
+import { invalidateSiteConfigCache } from '@/lib/config/site'
+import { trackedIdForSettle } from '@/lib/deploy/settle-target'
 import { clearAlert } from '@/lib/notifications/alerts'
 import { declaredLayoutTypesByModule, isModuleInBuild, seedModuleDefaultLayouts } from '@/lib/setup/starterLayouts'
 import { autoPlaceModuleBlocks } from '@/lib/layout/auto-place-blocks'
@@ -155,4 +158,51 @@ export async function markModulesDeployFailed(reason: string, deploymentId?: str
       })
     )
   )
+}
+
+// Settle the PREVIOUS deploy before a new one writes modules.json.
+//
+// Every pin write takes `pendingVersion ?? version` off the Module table, so a row
+// abandoned in 'deploying' by a build that failed keeps handing out the tag that
+// broke it. Nothing cleared that on its own: the failure reconcile only runs from
+// the webhook (Pro plans), the Modules page's own status poll, and the owner
+// pressing Dismiss. A site whose owner went straight from a failed build to
+// "update again" therefore re-pinned the broken version into the new commit and
+// watched the same build fail, indefinitely. Watched happen on 2026-08-30:
+// unified-inbox v0.1.25 failed to build, and the next two core updates both
+// shipped v0.1.25 again.
+//
+// Fails open: an UNKNOWN or unreachable Vercel leaves the rows exactly as they
+// were, which is the behaviour every other reconcile path already has.
+export async function settleFinishedDeploy(): Promise<void> {
+  const deploying = await prisma.module.findMany({
+    where: { status: 'deploying' },
+    select: { deployId: true },
+  })
+  if (deploying.length === 0) return
+
+  const cfg = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { pendingRedeployId: true, pendingRedeployAt: true },
+  })
+  const trackedId = trackedIdForSettle(deploying, cfg?.pendingRedeployId)
+  const state = await deploymentStatusForReconcile({ trackedId, since: cfg?.pendingRedeployAt })
+  if (state !== 'READY' && state !== 'ERROR') return
+
+  if (state === 'READY') {
+    await markModulesDeploySucceeded(trackedId)
+  } else {
+    await markModulesDeployFailed('Vercel deployment failed', trackedId)
+  }
+
+  // The build we just settled is over, so the marker that keeps the admin's deploy
+  // panel armed is stale too. Left set, it survives into the next page load and
+  // re-arms a panel for a deployment nobody is waiting on.
+  if (cfg?.pendingRedeployId) {
+    await prisma.siteConfig.update({
+      where: { id: 'singleton' },
+      data: { pendingRedeployId: null, pendingRedeployAt: null },
+    })
+    invalidateSiteConfigCache()
+  }
 }

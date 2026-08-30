@@ -16,6 +16,7 @@ import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { ensureCronSecret } from '@/lib/vercel/cron-secret'
 import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, LOCK_RACE_MESSAGE } from '@/lib/deploy/lock'
 import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
+import { settleFinishedDeploy } from '@/lib/deploy/reconcile'
 import { findModuleUpdates } from '@/lib/modules/updates'
 import { fetchModuleRequirements, resolveUpdateBatch } from '@/lib/modules/compat'
 import { deadlineFromNow, isDeadlineError, ROUTE_WORK_BUDGET_MS } from '@/lib/updates/deadline'
@@ -110,6 +111,11 @@ export async function POST(request: NextRequest) {
   if (lock) {
     return errorResponse(lockBusyMessage(lock), 409)
   }
+
+  // Settle whatever the LAST build left behind before this one writes pins. A row
+  // stranded in 'deploying' by a failed build still hands out its pendingVersion,
+  // so without this the update re-pins the tag that broke the previous build.
+  await settleFinishedDeploy()
 
   // And the build the last install/update started, which outlives that lock by
   // minutes. A core update on top of an in-flight module deploy is the worst

@@ -29,6 +29,7 @@ import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { ensureCronSecret, cronSecretSatisfied } from '@/lib/vercel/cron-secret'
 import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, LOCK_RACE_MESSAGE, DEFAULT_LOCK_HOLD_MS } from '@/lib/deploy/lock'
 import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
+import { settleFinishedDeploy } from '@/lib/deploy/reconcile'
 import {
   compareVersions,
   getCoreUpdateStatus,
@@ -161,6 +162,11 @@ export async function POST(request: NextRequest) {
   if (lock) {
     return errorResponse(lockBusyMessage(lock), 409)
   }
+
+  // Settle whatever the LAST build left behind before this one writes pins. A row
+  // stranded in 'deploying' by a failed build still hands out its pendingVersion,
+  // so without this the update re-pins the tag that broke the previous build.
+  await settleFinishedDeploy()
 
   // And the build the last one started, which outlives that lock by minutes.
   const inFlight = await getDeployInFlight()
@@ -580,6 +586,11 @@ export async function PATCH(request: NextRequest) {
       503
     )
   }
+
+  // Settle whatever the LAST build left behind before this one writes pins. A row
+  // stranded in 'deploying' by a failed build still hands out its pendingVersion,
+  // so without this the update re-pins the tag that broke the previous build.
+  await settleFinishedDeploy()
 
   const lock = await getActiveDeployLock()
   if (lock) return errorResponse(lockBusyMessage(lock), 409)
