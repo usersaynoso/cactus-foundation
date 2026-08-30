@@ -114,9 +114,17 @@ jobs:
           cache: npm
           cache-dependency-path: core/package-lock.json
 
+      # `npm install`, not `npm ci`, and deliberately. Core's package-lock.json is
+      # generated on macOS, so it does not record the linux-only optional deps that
+      # sharp and unrs-resolver pull in (@emnapi/*), and `npm ci` refuses a lockfile
+      # it considers out of sync. Vercel never hits this - it installs against a warm
+      # cache rather than a strict clean install - so demanding `ci` here would fail
+      # every gate run for a reason no module author can act on, and would say
+      # nothing about the module under test. Everything the lock DOES pin is still
+      # honoured; only the missing platform packages are resolved.
       - name: Install core dependencies
         working-directory: core
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       # The whole point. prebuild puts the module on disk, migrates the throwaway
       # database, regenerates the router/Puck/extension wiring, and runs the client
