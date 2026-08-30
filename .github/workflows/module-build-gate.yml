@@ -77,6 +77,18 @@ jobs:
           ref: ${{ steps.core.outputs.ref }}
           path: core
 
+      # The gate's own tooling comes from core's DEFAULT BRANCH, not the release
+      # being built against. A fix to the composer would otherwise reach no module
+      # until the next core release, while the workflow calling it (pinned @main by
+      # every module's caller) had already moved on.
+      - name: Check out the gate's tooling
+        uses: actions/checkout@v4
+        with:
+          repository: usersaynoso/cactus-foundation
+          ref: main
+          path: core-tooling
+          sparse-checkout: scripts/ci
+
       # Kept with its git history: checkout-modules.mjs restores tracked files with
       # `git checkout HEAD -- .` when a module directory already exists, which is
       # what makes the CANDIDATE commit the thing that gets built rather than the
@@ -105,7 +117,7 @@ jobs:
           CANDIDATE_REPO_URL: https://github.com/${{ github.repository }}
         run: |
           cp modules.json modules.json.core
-          node scripts/ci/compose-module-registry.mjs "modules/${{ steps.module.outputs.name }}"
+          node ../core-tooling/scripts/ci/compose-module-registry.mjs "modules/${{ steps.module.outputs.name }}"
           cat modules.json
 
       - uses: actions/setup-node@v4

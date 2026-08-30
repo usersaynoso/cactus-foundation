@@ -5,8 +5,9 @@ export interface GateRegistryEntry {
   repoUrl: string
   version?: string
 }
+export type ModuleRequirement = string | { name?: string; minVersion?: string }
 export function planModuleRegistry(args: {
-  manifest: { name?: string; requiresModules?: string[] }
+  manifest: { name?: string; requiresModules?: ModuleRequirement[] }
   coreRegistry: { modules?: GateRegistryEntry[] }
   candidateRepoUrl?: string
 }): { modules: GateRegistryEntry[] }

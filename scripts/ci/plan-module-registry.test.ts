@@ -25,9 +25,11 @@ describe('planModuleRegistry', () => {
     expect(plan.modules[0]).not.toHaveProperty('version')
   })
 
-  it('adds required modules at the version core pins', () => {
+  // Every manifest that has the field writes { name, minVersion } objects; the
+  // field has carried bare strings before, and both mean the same to a build.
+  it('adds required modules at the version core pins, from an object entry', () => {
     const plan = planModuleRegistry({
-      manifest: { name: 'unified-inbox', requiresModules: ['shop'] },
+      manifest: { name: 'unified-inbox', requiresModules: [{ name: 'shop', minVersion: '0.1.336' }] },
       coreRegistry,
     })
 
@@ -37,6 +39,26 @@ describe('planModuleRegistry', () => {
       repoUrl: 'https://github.com/cactus-foundation-modules/shop',
       version: 'v0.1.370',
     })
+  })
+
+  it('accepts a bare string requirement too', () => {
+    const plan = planModuleRegistry({
+      manifest: { name: 'unified-inbox', requiresModules: ['shop'] },
+      coreRegistry,
+    })
+
+    expect(plan.modules[1]?.version).toBe('v0.1.370')
+  })
+
+  // Otherwise the sibling builds at a version the candidate was never written
+  // against, and the gate goes red pointing at the wrong module.
+  it('raises a required module to its declared floor when core pins lower', () => {
+    const plan = planModuleRegistry({
+      manifest: { name: 'unified-inbox', requiresModules: [{ name: 'shop', minVersion: '0.1.400' }] },
+      coreRegistry,
+    })
+
+    expect(plan.modules[1]?.version).toBe('v0.1.400')
   })
 
   it('adds nothing else, so a sibling module cannot fail this build', () => {
@@ -56,10 +78,10 @@ describe('planModuleRegistry', () => {
     expect(plan.modules[0]?.repoUrl).toBe('https://github.com/cactus-foundation-modules/brand-new')
   })
 
-  it('refuses a requiresModules name core has never heard of', () => {
+  it('refuses a requiresModules name core has never heard of, and names it', () => {
     expect(() =>
       planModuleRegistry({
-        manifest: { name: 'unified-inbox', requiresModules: ['typo-for-shop'] },
+        manifest: { name: 'unified-inbox', requiresModules: [{ name: 'typo-for-shop' }] },
         coreRegistry,
       })
     ).toThrow(/typo-for-shop/)

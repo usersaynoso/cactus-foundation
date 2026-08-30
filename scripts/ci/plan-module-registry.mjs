@@ -6,6 +6,27 @@
  * carries no version and why nothing beyond requiresModules is added.
  */
 
+// `requiresModules` entries are `{ name, minVersion }` objects in every manifest
+// that has one, but the field has carried bare strings before and a hand-written
+// manifest may still. Both mean the same thing to a build.
+function normaliseRequirement(entry) {
+  if (typeof entry === 'string') return { name: entry, minVersion: undefined }
+  return { name: entry?.name, minVersion: entry?.minVersion }
+}
+
+// Tag comparison, numeric segment by numeric segment, tolerating the leading 'v'
+// core's registry uses and the bare form manifests write. Not a full semver
+// implementation and does not need to be: module tags are v<major>.<minor>.<patch>.
+function compareTags(a, b) {
+  const parts = (v) => String(v).replace(/^v/, '').split('.').map((n) => Number.parseInt(n, 10) || 0)
+  const [pa, pb] = [parts(a), parts(b)]
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
+    if (diff !== 0) return diff
+  }
+  return 0
+}
+
 export function planModuleRegistry({ manifest, coreRegistry, candidateRepoUrl }) {
   const name = manifest?.name
   if (!name) throw new Error('cactus.module.json has no "name"')
@@ -28,13 +49,20 @@ export function planModuleRegistry({ manifest, coreRegistry, candidateRepoUrl })
   const entries = [{ name, repoUrl }]
 
   const missing = []
-  for (const required of manifest.requiresModules ?? []) {
-    const entry = byName.get(required)
+  for (const requirement of manifest.requiresModules ?? []) {
+    const { name: required, minVersion } = normaliseRequirement(requirement)
+    const entry = required ? byName.get(required) : undefined
     if (!entry) {
-      missing.push(required)
+      missing.push(required ?? JSON.stringify(requirement))
       continue
     }
-    entries.push({ name: entry.name, repoUrl: entry.repoUrl, version: entry.version })
+    // minVersion is a floor the candidate declares it needs. Core's pin is normally
+    // well above it, but a sibling core has yet to catch up on would otherwise be
+    // built at a version the candidate has already been written against - a red
+    // gate whose message points at the wrong module entirely.
+    const version =
+      minVersion && compareTags(minVersion, entry.version) > 0 ? `v${String(minVersion).replace(/^v/, '')}` : entry.version
+    entries.push({ name: entry.name, repoUrl: entry.repoUrl, version })
   }
 
   if (missing.length > 0) {
