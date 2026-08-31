@@ -11,11 +11,25 @@
 // module registry sync. Letting the generic reconcile touch it would mean an upstream
 // tag that happens not to carry the file DELETING the only thing that registers the
 // site's cron - which is the exact failure this whole change exists to fix.
+//
+// `.github/` joins them for a harder reason than tidiness. A GitHub App may only write
+// under `.github/workflows/` if it was granted the Workflows permission, which installs
+// do not grant and should not need to. The whole update is one create-a-tree call, so a
+// single workflow file in the target tag fails the entire transaction with "Resource not
+// accessible by integration" and the site cannot update at all - which is exactly what
+// core 0.5.1428 did on 2026-08-31, the moment core first carried a workflow of its own.
+// Core's CI is for developing the platform; a deployed site has no use for it.
+//
+// Note what this rule cannot do: the plan is computed by the RUNNING site, so a version
+// that predates this skip still tries to write any `.github/` file its target carries.
+// Core therefore keeps its own CI out of the shipped tree as well - belt and braces.
 export function isSkippedCorePath(path: string): boolean {
   return (
     path === '.gitmodules' ||
     path === 'modules.json' ||
     path === 'vercel.json' ||
+    path === '.github' ||
+    path.startsWith('.github/') ||
     path.startsWith('modules/')
   )
 }

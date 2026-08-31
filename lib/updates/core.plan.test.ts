@@ -21,6 +21,12 @@ describe('isSkippedCorePath', () => {
     // The install's own cron registration - written explicitly by the sync, never by
     // the generic reconcile, which would otherwise delete it on any tag that lacks it.
     expect(isSkippedCorePath('vercel.json')).toBe(true)
+    // A GitHub App may only write under .github/workflows/ with the Workflows
+    // permission, which installs do not grant. The update is one create-a-tree call,
+    // so a single workflow file in the target tag 403s the WHOLE transaction and the
+    // site cannot update at all (core 0.5.1428, 2026-08-31).
+    expect(isSkippedCorePath('.github/workflows/module-build-gate.yml')).toBe(true)
+    expect(isSkippedCorePath('.github/dependabot.yml')).toBe(true)
   })
   it('treats ordinary core files as writable', () => {
     expect(isSkippedCorePath('lib/updates/core.ts')).toBe(false)
