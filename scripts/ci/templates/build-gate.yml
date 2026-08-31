@@ -3,8 +3,11 @@
 # Managed by core: scripts/install-module-ci.mjs writes this file into every
 # module repo. Edit it there, not here, or the next rollout overwrites you.
 #
-# The work happens in core's reusable workflow, so a fix to the gate reaches every
-# module at once without 30 repos needing a commit.
+# The work happens in the org's reusable workflow, so a fix to the gate reaches every
+# module at once without 30 repos needing a commit. It lives in the organisation's
+# .github repo rather than in core, whose tree is checked out into every install: a
+# GitHub App may only write under .github/workflows/ with a permission installs do
+# not grant, and one workflow file there fails the whole core-update transaction.
 name: Build gate
 
 on:
@@ -16,4 +19,4 @@ on:
 
 jobs:
   gate:
-    uses: usersaynoso/cactus-foundation/.github/workflows/module-build-gate.yml@main
+    uses: cactus-foundation-modules/.github/.github/workflows/module-build-gate.yml@main

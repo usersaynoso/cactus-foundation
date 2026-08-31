@@ -286,7 +286,7 @@ So every module repo carries a build gate. Add it with, from a core checkout:
 node scripts/install-module-ci.mjs your-module-name
 ```
 
-That writes `.github/workflows/build-gate.yml` - three lines calling core's reusable workflow. Commit and push it in the module repo. From then on, every push to `main`, every pull request and every `v*` tag:
+That writes `.github/workflows/build-gate.yml` - three lines calling the module organisation's reusable workflow. Commit and push it in the module repo. From then on, every push to `main`, every pull request and every `v*` tag:
 
 1. checks out core at its newest release,
 2. drops your module in at the commit under test (not the last released tag - the candidate),
@@ -301,7 +301,7 @@ To reproduce a failure against a specific core, pin it in your caller workflow:
 ```yaml
 jobs:
   gate:
-    uses: usersaynoso/cactus-foundation/.github/workflows/module-build-gate.yml@main
+    uses: cactus-foundation-modules/.github/.github/workflows/module-build-gate.yml@main
     with:
       core-ref: v0.5.1400
 ```
