@@ -188,9 +188,10 @@ site. Fewer people wander off, since there is nothing to wander off to.
 
 ### On-page needs your web address whitelisting first
 
-**Do this before you switch it on.** Atoa will not open its window on a site it
-has not been told about, and the shopper sees nothing happen at all - no error,
-no window, nothing.
+**Do this before you switch it on.** On a site Atoa has not been told about,
+their window opens and can only show an error: it is not allowed to ask them
+anything about the payment, so the shopper gets no banks to choose from and no
+way to pay.
 
 In the Atoa dashboard: the **gear icon** in the left sidebar, then **Settings**,
 then **API Access** - the same page your access secret came from. **"Whitelist
@@ -295,10 +296,15 @@ rest of the credentials on API Access, and is easily missed.
 **A payment that never confirmed.** Register the webhook if you have not. If you
 have, check you are registered for the world you are actually trading in.
 
-**Atoa's window does not open, and nothing at all happens.** That is the
-whitelisting: Atoa refuses to open on an address it has not been given. Add your
-web address under **Whitelist your domains** on the API Access page, or switch
-back to sending shoppers to Atoa's own page, which needs no whitelisting.
+**Atoa's window opens and shows "Error processing payment".** That is the
+whitelisting: Atoa will not answer a site it has not been given, so its window
+has nothing to show. Add your web address under **Whitelist your domains** on the
+API Access page, or switch back to sending shoppers to Atoa's own page, which
+needs no whitelisting.
+
+**Atoa's window flashes up and vanishes on its own.** A fault in versions before
+0.1.2, fixed since: any hiccup Atoa reported took the whole window away with it,
+so nobody could read what it said. Update the module.
 
 **Everything works but no money arrives.** Check the environment dropdown. If it
 says sandbox, that is your answer.
