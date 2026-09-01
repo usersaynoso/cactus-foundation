@@ -34,6 +34,7 @@ import { validateMemberSession } from '@/lib/members/session-core'
 import { getModuleRouteTiersCached } from '@/lib/modules/member-extensions'
 import { isPathExcepted, resolveRouteTier } from '@/lib/members/access'
 import { moduleCspOrigins, type ModuleCspDirective } from '@/lib/modules/csp-origins'
+import { originMismatch } from '@/lib/security/origin-check'
 
 // The media Worker's hostname for the img-src allowlist. Prefer an explicit
 // CLOUDFLARE_WORKER_HOSTNAME, but fall back to the hostname of
@@ -309,20 +310,6 @@ async function resolveSiteStatus() {
 
 function sessionToken(request: NextRequest): string | null {
   return request.cookies.get('cactus_session')?.value ?? null
-}
-
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
-
-// Defence-in-depth against cross-site request forgery: the session cookie is
-// already SameSite=lax + httpOnly, which blocks the common cross-site POST
-// vector, but this adds an explicit check. Only rejects when a browser-sent
-// Origin header is present and doesn't match — non-browser clients (which
-// send no Origin) are unaffected, so this never replaces session auth.
-function originMismatch(request: NextRequest): boolean {
-  if (SAFE_METHODS.has(request.method)) return false
-  const origin = request.headers.get('origin')
-  if (!origin) return false
-  return origin !== request.nextUrl.origin
 }
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
