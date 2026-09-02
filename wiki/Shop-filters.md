@@ -1,9 +1,9 @@
 # Shop Filters
 
 The **Filters for Shop** module (`filters-for-shop`) puts a proper filter panel on your
-shop's category and collection pages, designed for catalogues where the interesting
-differences - colour, finish, width - live on a product's *options* rather than on the
-product itself.
+shop's category, collection, tag and supplier pages, designed for catalogues where the
+interesting differences - colour, finish, width - live on a product's *options* rather
+than on the product itself.
 
 > **Where it lives now.** Filters used to have a sidebar link of its own. It is now a **Filters** tab on **Shop → Catalogue**. Old links still work.
 
@@ -311,6 +311,12 @@ is a page in its own right rather than a copy of the first. Right-click, middle-
 "open in new tab" all work properly on **Show more**, because it genuinely is an address.
 
 You do not have to do anything to switch this on.
+
+## On the search results page
+
+With the search module installed, the same panel turns up on `/search` over the product results - built from whatever the search found rather than from a category. Everything behaves as it does on a category page: the ticks, the swatches, the counts, the card photo swapping, the filter sheet on phones. The differences are that it is built over every product the search matched (the 120 most relevant, at most) rather than a page of them, that products page themselves with a "show more" button, and that there is no sort dropdown - the search page has its own relevance/newest control and two of them fighting over the same address would be worse than one.
+
+The panel only appears where it has something to offer: filters nothing in the results matches are dropped, groups left with one tick are dropped, and a set of results with nothing to distinguish it gets no panel at all. There is nothing to set up here - the switch lives on the search block, as **Product filters panel**.
 
 ## Practical notes
 
