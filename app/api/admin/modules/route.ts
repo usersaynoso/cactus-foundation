@@ -126,10 +126,12 @@ export async function POST(request: NextRequest) {
   // as 404. Without this probe that case surfaces as "publish a release first",
   // sending the owner hunting for a release that already exists.
   let repoIsPrivate = false
+  let repoIsArchived = false
   try {
     const octokit = await getGithubClient()
     const { data: probed } = await octokit.rest.repos.get({ owner: repoRef.owner, repo: repoRef.repo })
     repoIsPrivate = probed.private
+    repoIsArchived = probed.archived
   } catch (err: unknown) {
     if ((err as { status?: number }).status === 404) {
       return errorResponse(
@@ -139,6 +141,16 @@ export async function POST(request: NextRequest) {
     // Any other probe failure (rate limit, transient network): fall through -
     // the release resolution below has its own error handling, and a blip here
     // should not invent a scarier message.
+  }
+
+  // Refuse a retired module. An archived repository is how a module is retired,
+  // and it will never get another release or a fix - installing one now would
+  // only mean uninstalling it later. The browse shelf already hides these; this
+  // catches the custom-URL box, which does not.
+  if (repoIsArchived) {
+    return errorResponse(
+      `${repoRef.owner}/${repoRef.repo} has been retired and is no longer available to install.`
+    )
   }
 
   // Refuse a private repo the build cannot clone. Installing it anyway would

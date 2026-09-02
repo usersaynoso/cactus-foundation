@@ -126,11 +126,6 @@
       "version": "v0.1.34"
     },
     {
-      "name": "gemini-watermark-remover",
-      "repoUrl": "https://github.com/cactus-foundation-modules/gemini-watermark-remover",
-      "version": "v0.1.12"
-    },
-    {
       "name": "ultimate-seo",
       "repoUrl": "https://github.com/cactus-foundation-modules/ultimate-seo",
       "version": "v0.1.10"

@@ -77,6 +77,9 @@ type DirectoryEntry = {
   hasTeardown?: boolean
   updateChannel?: 'public' | 'beta'
   hasPublicRelease?: boolean
+  /** Retired upstream. Never offered for install; flagged on the card if it is
+   *  already installed, so the owner knows to remove it in their own time. */
+  deprecated?: boolean
 }
 
 const MODULE_UPDATE_CHECK_THROTTLE_MS = 10 * 60 * 1000
@@ -694,7 +697,9 @@ export default function ModulesPage() {
   }
 
   const installed = entries.filter((e) => e.installed)
-  const available = entries.filter((e) => !e.installed)
+  // A retired module stays visible to the sites that already have it, but it never
+  // appears on the browse shelf again - there is nothing to install any more.
+  const available = entries.filter((e) => !e.installed && !e.deprecated)
   const updatable = installed.filter((m) => m.status === 'update_available')
   const updatableCount = updatable.length
   // What the uninstall dialog may offer, which is every pending update EXCEPT the one
@@ -729,14 +734,23 @@ export default function ModulesPage() {
         <div className="module-card__body">
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
             <div className="module-card__name" style={{ flex: 1 }}>{name}</div>
-            {m.status && (
-              <span className={`badge ${STATUS_BADGE[m.status]?.className ?? 'badge-gray'}`} style={{ flexShrink: 0 }}>
-                {STATUS_BADGE[m.status]?.label ?? m.status}
-              </span>
-            )}
+            {m.deprecated
+              ? <span className="badge badge-red" style={{ flexShrink: 0 }}>Deprecated</span>
+              : m.status && (
+                <span className={`badge ${STATUS_BADGE[m.status]?.className ?? 'badge-gray'}`} style={{ flexShrink: 0 }}>
+                  {STATUS_BADGE[m.status]?.label ?? m.status}
+                </span>
+              )}
           </div>
 
           {m.description && <div className="module-card__desc" title={m.description}>{m.description}</div>}
+
+          {m.deprecated && (
+            <div className="alert alert-warning" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>
+              This one has been retired. It carries on working for now, but there will be no more
+              updates or fixes - uninstall it whenever suits you.
+            </div>
+          )}
 
           {m.lastError && (
             <div className="alert alert-danger" style={{ margin: 0, fontSize: 'var(--text-sm)' }}>{m.lastError}</div>

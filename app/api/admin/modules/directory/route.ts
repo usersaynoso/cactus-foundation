@@ -24,6 +24,10 @@ type DirectoryEntry = {
   hasTeardown?: boolean
   updateChannel?: 'public' | 'beta'
   hasPublicRelease?: boolean
+  /** The module has been retired. Archiving the module's repository on GitHub is
+   *  what retires it: it drops off the browse shelf, refuses fresh installs, and
+   *  sites that already have it get told to uninstall when they are ready. */
+  deprecated?: boolean
 }
 
 let cachedDir: DirectoryEntry[] | null = null
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ modules: mergeWithInstalled(cachedDir, installedModules), localMode })
   }
 
-  let orgRepos: Array<{ name: string; html_url: string; description: string | null }>
+  let orgRepos: Array<{ name: string; html_url: string; description: string | null; archived: boolean }>
   const octokit = await getGithubClient()
   try {
     const { data } = await octokit.rest.repos.listForOrg({
@@ -56,6 +60,7 @@ export async function GET(request: NextRequest) {
       name: r.name,
       html_url: r.html_url,
       description: r.description ?? '',
+      archived: r.archived ?? false,
     }))
   } catch {
     // GitHub unavailable - return installed modules only with a flag
@@ -68,6 +73,9 @@ export async function GET(request: NextRequest) {
 
   const hasPublicReleaseByRepo = await Promise.all(
     orgRepos.map(async (r) => {
+      // A retired module cannot be installed at all, so its release channel is
+      // moot - don't spend an API call working it out.
+      if (r.archived) return true
       try {
         await octokit.rest.repos.getLatestRelease({ owner: MODULE_ORG, repo: r.name })
         return true
@@ -84,6 +92,7 @@ export async function GET(request: NextRequest) {
     description: r.description ?? '',
     installed: false,
     hasPublicRelease: hasPublicReleaseByRepo[i],
+    deprecated: r.archived,
   }))
   cachedAt = now
 

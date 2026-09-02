@@ -91,7 +91,6 @@ Forums, comments, job boards, e-commerce - these are separate **modules** you ad
 - [Boards](https://github.com/cactus-foundation-modules/boards) - a discussion forum, with polls, moderation, and a phpBB/Discourse importer.
 - [Gazette](https://github.com/cactus-foundation-modules/gazette) - a writing-first blog/news module, with tags, series, comments, reactions, an RSS feed, and a WordPress/Medium/Substack importer.
 - [Twilio](https://github.com/cactus-foundation-modules/twilio) - call forwarding for your Twilio numbers with voicemail and opening hours, call and message logs, recording playback, click-to-dial, plus sign-in codes by text message for admins and members.
-- [Gemini Watermark Remover](https://github.com/cactus-foundation-modules/gemini-watermark-remover) - drop in an image from Google Gemini and it comes back watermark-free, straight into your media library.
 - [Ultimate SEO](https://github.com/cactus-foundation-modules/ultimate-seo) - the SEO command centre: site-wide scoring, page-by-page analysis with one-click fixes, a full site crawl audit, sitemap and robots controls, and structured-data blocks for the page builder.
 - [Google Tag](https://github.com/cactus-foundation-modules/google-tag) - tells Google Analytics and Google Ads what your visitors did and what an order was worth, so you can finally see which adverts pay for themselves. Sits behind your cookie banner: nobody is measured who has not said yes, and anyone who changes their mind is honoured on the spot. Works on its own for visitor numbers; add the Shop module and it counts the sales too.
 - [Search](https://github.com/cactus-foundation-modules/search) - one search box for the whole site: pages, products, articles, directory entries, forum threads and member profiles, with live results while typing, a designable results page, and an admin view of what people searched for (including the searches that found nothing).
@@ -260,7 +259,7 @@ Everything in more depth is in the `/wiki` folder:
 - **[Modules](wiki/Modules.md)** - installing, updating, and removing modules
 
 **Module guides**
-- **[Shop](wiki/Shop.md)**, **[Directory](wiki/Directory.md)**, **[Boards](wiki/Boards.md)**, **[Gazette](wiki/Gazette.md)**, **[Twilio](wiki/Twilio.md)**, **[Unified Inbox](wiki/Unified-Inbox.md)**, **[Reply Catcher](wiki/Reply-catcher.md)**, **[Gemini Watermark Remover](wiki/Gemini-Watermark-Remover.md)**, **[Purchase Orders](wiki/Purchase-Orders.md)**
+- **[Shop](wiki/Shop.md)**, **[Directory](wiki/Directory.md)**, **[Boards](wiki/Boards.md)**, **[Gazette](wiki/Gazette.md)**, **[Twilio](wiki/Twilio.md)**, **[Unified Inbox](wiki/Unified-Inbox.md)**, **[Reply Catcher](wiki/Reply-catcher.md)**, **[Purchase Orders](wiki/Purchase-Orders.md)**
 
 **For the curious and the technical**
 - **[Architecture overview](wiki/Architecture-overview.md)** - how everything fits together
