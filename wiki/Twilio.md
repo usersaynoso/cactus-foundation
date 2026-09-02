@@ -181,12 +181,31 @@ Two things worth knowing: the window rolls forward from whenever you press the b
 
 Go to **Twilio** in the admin sidebar. Each phone number on your Twilio account gets its own tab, and each tab shows:
 
-- **Call log** - the number's recent calls, incoming and outgoing, with date, direction, who called whom, how it ended and how long it lasted. Calls that were recorded have a **Listen** button - press it and the recording plays right there in the page. Voicemail messages sit in the same list, next to a **Voicemail** tag so they don't get mistaken for a recorded conversation. Recordings never leave your Twilio account; the site simply plays them to you, and only to admins with permission to manage Twilio.
+- **Call log** - the number's recent calls, incoming and outgoing, with date, direction, who called whom, how it ended and how long it lasted. Calls that were recorded have a **Listen** button - press it and the recording plays right there in the page. Voicemail messages sit in the same list, next to a **Voicemail** tag so they don't get mistaken for a recorded conversation. Recordings never leave your Twilio account; the site simply plays them to you, and only to admins with permission to manage Twilio. Voicemail messages also have a **Delete** button, which asks first and then removes the message from your Twilio account as well as from this list - the only way it stops costing storage. A recorded call has no Delete, on the grounds that a call you chose to record is a record.
+- **Caller** - the last column on each row, for blocking whoever was on the other end. See **Blocking a caller** below.
 - **Message log** - the number's recent text messages, both directions, with the full message text.
 
 A **Refresh** button sits at the end of the tab bar for when you're waiting on something. Logs show the most recent 50 entries in each direction - for ancient history, the Twilio console remains the archive.
 
 With [Unified Inbox](Unified-Inbox) installed, the same calls, voicemails and texts also appear there as conversations, one per outside number, beside that person's emails and chats. These logs stay exactly as they are: this page is the number's own record, the hub is the person's. Texts reach the hub on its hourly check rather than the instant they arrive.
+
+---
+
+## Blocking a caller
+
+Somebody who will not take the hint can be shown the door. Press **Block** on their row in the call log, or add their number by hand in the **Blocked callers** card underneath it, with a note to yourself about why if you like.
+
+A blocked caller's call is dropped the moment it arrives, before anything else gets a say. Nobody's phone rings, no greeting is read out, no voicemail is taken, no missed-call text goes back and no email alert goes out - because none of that would be true. There was no missed call; there was a call that was refused. The caller hears whatever their own network plays for a refused call, and they are told nothing about why.
+
+Worth knowing:
+
+- **One list for the whole site.** A blocked number is blocked on every one of your Twilio numbers, not just the one you were looking at when you blocked them. Blocking somebody five times over would only be five ways to describe one thing.
+- **It only stops calls.** A blocked number can still send you a text, and that text still turns up in the message log. Twilio charges nothing to receive one and there is nothing to drop.
+- **Callers who withhold their number can't be blocked**, because there is nothing to put on the list. What happens to them is set per number under **Call handling**, in **Callers who withhold their number** - see [Callers who withhold their number](#callers-who-withhold-their-number) above.
+- **Nothing already logged changes.** Their past calls, messages and recordings stay exactly where they are. Blocking is about the next call, not the last one.
+- **Unblocking is one press**, from either the call log or the blocked list, and takes effect immediately.
+
+If [Unified Inbox](Unified-Inbox) is installed, the same **Block** button sits at the top of that person's conversation there, and the two lists are the same list.
 
 ---
 

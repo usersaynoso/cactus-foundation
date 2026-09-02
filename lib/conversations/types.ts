@@ -100,6 +100,9 @@ export type ConversationProvider = {
     markRead: boolean
     byIdentity: boolean
     delete?: boolean
+    /** Whether the other party can be refused outright - a caller blocked, a
+     *  sender turned away - by the channel that owns them. */
+    block?: boolean
   }
   list(opts: ConversationListOptions): Promise<ConversationListPage>
   thread(id: string): Promise<ConversationThread | null>
@@ -107,9 +110,31 @@ export type ConversationProvider = {
   markRead?(id: string): Promise<void>
   /** Everything this provider holds for one person, for a unified timeline. */
   byIdentity?(identity: ConversationIdentity): Promise<ConversationSummary[]>
-  /** Delete a single message. Returns true if it was deleted, false if the
-   *  provider does not support deleting this message (or it no longer exists). */
+  /** Delete a single message.
+   *
+   *  `true` means it is gone, which INCLUDES a message the provider no longer
+   *  holds: a consumer asking to be rid of something must not be told "no"
+   *  because the far end got there first, or it is stuck with a row it can
+   *  never clear.
+   *
+   *  `false` means this provider will not delete THIS message - a live call
+   *  log it does not own, a text the network keeps - and is the answer a
+   *  consumer should turn into "that kind of message cannot be deleted here".
+   *  A provider that tried and failed should throw instead, because "it would
+   *  not" and "it cannot" are different answers and only one is worth trying
+   *  again. */
   deleteMessage?(messageId: string): Promise<boolean>
+  /** Refuse the other party on this conversation from here on - the telephony
+   *  sense of blocking a caller. What already happened stays where it is;
+   *  this is about what happens next. Throws when there is nobody to block,
+   *  e.g. a caller who withheld their number. */
+  blockParticipant?(conversationId: string): Promise<void>
+  /** Let them through again. Unblocking somebody who was never blocked is not
+   *  an error - it is the same outcome either way. */
+  unblockParticipant?(conversationId: string): Promise<void>
+  /** Whether the other party on this conversation is blocked right now, so a
+   *  screen can offer the right one of the two rather than guessing. */
+  isParticipantBlocked?(conversationId: string): Promise<boolean>
 }
 
 /** A provider as core resolved it: the module that published it, the manifest

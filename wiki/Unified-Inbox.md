@@ -252,6 +252,8 @@ Three things worth knowing:
 - **Replying to a chat uses your own chat account.** If you have not connected yours yet, the reply is refused with a line telling you so and where to fix it, rather than going out under somebody else's name.
 - **A phone conversation is one outside number**, not one call. Every call, voicemail and text with that number is one story, which is the whole point.
 - **Text messages appear when the hourly check runs**, not the instant they arrive. There is no live feed of incoming texts in this version.
+- **A voicemail message can be thrown away** from the conversation it sits in: a **Delete** button under the message, which asks first and then removes it from the phone system as well as from here. Only the messages people leave - the log of a call, and a text, are kept by the phone system itself and this will say so rather than pretending.
+- **A caller can be blocked** from the top of their conversation, if the channel they came in on can do it. On the phone that means their next call is dropped the moment it arrives: nobody's phone rings, no message is taken and no alert goes out. It does not delete anything they have already said - that is a separate decision, taken message by message - and **Unblock** is one press away. See [Blocking a caller](Twilio#blocking-a-caller).
 
 ---
 
