@@ -336,6 +336,41 @@ whichever link you click. That is deliberate and is not going to change: some
 file types can carry instructions of their own, and a file the browser is willing
 to run has no business being opened inside the admin.
 
+### Where your paperwork is filed
+
+Everything the books keep goes into your own media library, in folders you could
+work through by hand - because one day somebody will have to.
+
+```
+Bookkeeping / 2026 / 08 / Customer Invoices      / INV-1042.pdf
+Bookkeeping / 2026 / 08 / Customer Credit Notes  / CN-0007.pdf
+Bookkeeping / 2026 / 08 / Purchase Receipts      / Screwfix-8817342.pdf
+Bookkeeping / 2026 / 08 / Bank Statements        / Tide Current Account.pdf
+```
+
+The year and month come from the date on the document, not the day you got round
+to uploading it, so August's invoice is in August whenever you deal with it. A
+sales invoice or credit note is named after its own number, because that is what
+identifies it. A purchase receipt is named supplier first and their number
+second, because a receipts folder is read supplier by supplier - and a till
+receipt with no number on it is just filed under the supplier. A statement is
+named after the account it belongs to, not whatever serial number your bank's
+export happened to use.
+
+**A document nobody has worked out yet stays in the month's folder.** A
+photograph has no text in it to read, so nothing knows whether it is money in or
+money out, and putting it in a drawer confidently would be worse than leaving it
+in the tray. The moment you correct what was read off it, or file it against an
+entry, it moves to the right folder and gets the right name.
+
+**Tidy the folders** on the Receipts screen walks everything you have already
+uploaded and moves it to match. Run it as often as you like: a file already in
+the right place is left alone. It only ever moves files this module put there -
+anything that came from elsewhere on your site is left where its owner put it.
+
+Moving one of these by hand in the media library is fine, incidentally. The books
+follow the file wherever it goes.
+
 ### Receipts, before you have typed anything
 
 Paperwork does not arrive in the order the books want it. The invoice comes by
@@ -551,6 +586,30 @@ be explained a few at a time, in any order, and in bulk where they are alike.
 Anything already brought in from an earlier statement is recognised and left
 alone, so importing an overlapping range does not create January twice. The
 screen says how many that is before you commit to anything.
+
+**The statement itself is kept.** Not just the lines read out of it: the file
+goes into your media library under the month it covers, named after the account -
+`Bookkeeping / 2026 / 08 / Bank Statements / Tide Current Account.pdf`. "Show me
+the statement that line came off" is the first thing anybody asks when a figure
+looks odd, and HMRC expect the records kept for six years. If your site has no
+file storage set up yet the lines still come in; it simply tells you no copy was
+kept.
+
+**Importing the same period again brings that statement up to date.** Banks
+reissue statements, corrections turn up, and an export taken too early is missing
+the last few days. So when a file covers a period you already have, the screen
+says which statement it is, when it came in, and how many lines it holds, and
+offers to update it - which is what it does unless you untick the box:
+
+- Anything new in the file is added.
+- Anything the old version had that the new one does not is dropped.
+- **Except** a line you have already explained or deliberately set aside. That
+  stays exactly where it is, and the screen tells you how many did.
+- The new file becomes the copy that is kept.
+
+Untick the box only if it genuinely is a different statement for the same dates.
+Two statements claiming the same month is how a set of books ends up with two
+answers to one question.
 
 ### Reconciling
 
@@ -966,6 +1025,29 @@ Bookkeeping. HMRC run a checker for exactly this, and it answers in seconds
 rather than in ten working days. It only works against the practice service,
 which is where you should be at this point anyway. A clean result is worth
 screenshotting for the application.
+
+### The one HMRC's checker will still complain about
+
+Their checker asks for the network port your browser opened its connection from.
+On the sort of hosting a Cactus site runs on, that connection is answered at an
+edge close to you and only your network address is passed on to the site itself;
+the port stops there and never arrives. The module sends it on hosting that does
+pass it through, and leaves it out rather than making one up on hosting that does
+not.
+
+HMRC allow for this and ask to be told why. Say this in your application:
+
+> Our software runs as a web application behind a hosted edge network. The end
+> user's TCP connection is terminated at the edge and only the client's public IP
+> address is forwarded to our application; the client's source port is not
+> available to us at any point. We therefore cannot populate
+> Gov-Client-Public-Port. Every other header for the WEB_APP_VIA_SERVER
+> connection method is sent.
+
+Everything else on their list, including the licence identifier they ask software
+to declare, is sent on every call. Your licence identifier is generated once for
+your site and never leaves your own database - only a one-way scramble of it goes
+to HMRC, which is what they ask for.
 
 ### Checking it end to end
 
