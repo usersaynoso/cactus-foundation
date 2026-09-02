@@ -134,10 +134,16 @@ export function connectionUri(server: TestServer, database: string, role: TestRo
   // The result must carry a query string whether or not the admin URI had one:
   // callers append their own settings with `&uselibpqcompat=true`, and on a URI
   // with no `?` that produces a database name with an ampersand in it rather
-  // than a parameter. sslmode=prefer negotiates TLS where the server offers it
-  // and connects without where it does not, which covers both the CI service
-  // container and a server that insists.
-  if (![...url.searchParams.keys()].length) url.searchParams.set('sslmode', 'prefer')
+  // than a parameter.
+  //
+  // `disable`, not `prefer`. node-postgres does not implement libpq's negotiation
+  // - it reads sslmode from the string and then either demands TLS or does not,
+  // so `prefer` against a server without TLS is not a fallback but
+  // "The server does not support SSL connections". A URI that named no sslmode
+  // connected without TLS as the admin connection, and this has to match it. A
+  // server that wants TLS says so in CACTUS_TEST_DATABASE_URL, and then there
+  // are parameters to copy and this branch never runs.
+  if (![...url.searchParams.keys()].length) url.searchParams.set('sslmode', 'disable')
   return url.toString()
 }
 
