@@ -248,6 +248,20 @@ If a module migration fails during a build, the build will fail and Vercel will 
 3. If the broken migration was partially applied, you may need to roll it back manually in the database before retrying.
 4. Commit the fix and push - this triggers a new build.
 
+## Making deploys quicker
+
+Most of a deploy is the compile, and the compile is cached: Cactus keeps the bundler's work in `.next/cache`, which Vercel restores from your previous deployment, so a small change recompiles only what actually changed. What is **not** cached is the part that talks to your database before the compile starts - migrations, the module ledger, manifest syncing - and that runs in full on every single deploy. Those steps each print their own duration in the build log (the `[prebuild]` lines), so you can see where the time is going rather than guess.
+
+One lever is worth knowing about if your site has a lot of pages:
+
+| Variable | Effect |
+| --- | --- |
+| `SKIP_BUILD_STATIC_GENERATION=1` | Stops the build from pre-building every published page. Each page is built instead the first time somebody asks for it, and cached from then on. The pages are identical either way, they are just made later. Sensible on preview deployments, and on any site where the deploy spends longer building pages than you want to wait. |
+
+Set it in Vercel's project settings and redeploy. Leave it unset and every published page is pre-built exactly as before.
+
+If deploys are slow for a reason you cannot see here, the build log tells the story from the top: dependency install, then the `[prebuild]` steps with their timings, then the compile.
+
 ## A deploy that never finishes
 
 A build that fails tells you why. A build that *hangs* tells you nothing: the log stops after `Creating an optimized production build ...`, Vercel kills the deployment at its 45-minute limit, and the site quietly stays on the previous version. This has one common cause and one automatic defence.

@@ -70,6 +70,16 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 }
 
 export async function generateStaticParams() {
+  // Vercel's own build-time escape hatch, honoured here so it actually works on a
+  // Cactus site: with SKIP_BUILD_STATIC_GENERATION set, prerender nothing and let
+  // each page build itself when somebody first asks for it. `dynamicParams` is true
+  // and `revalidate` is false, so a page left out of the build is generated on its
+  // first request and cached from then on - the same output, produced later. Worth
+  // switching on for preview deployments, where nobody is waiting on a warm cache,
+  // and on any production site with more published pages than the deploy wants to
+  // sit through. Unset (the default), every published page is prerendered exactly
+  // as before.
+  if (process.env.SKIP_BUILD_STATIC_GENERATION) return []
   try {
     const pages = await prisma.infoPage.findMany({ where: { status: 'published' }, select: { slug: true } })
     return pages.map((p) => ({ slug: p.slug }))

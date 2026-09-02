@@ -76,6 +76,31 @@ async function run() {
     const appliedKey = (moduleName, migrationName) => `${moduleName}::${migrationName}`
     const applied = new Set(appliedRows.map((r) => appliedKey(r.moduleName, r.migrationName)))
 
+    // Every table in the schema, read at most once, for the stale-ledger check
+    // below. That check used to ask information_schema for a count per module,
+    // which on an install with thirty-odd modules is thirty-odd sequential round
+    // trips on every deploy - all of them to establish that nothing is stale,
+    // which is the answer on every build except the rare one recovering a restored
+    // database. Exactly the same shape of waste as the per-migration ledger SELECT
+    // fixed above, and the same fix: ask once, decide in memory. Read lazily, so an
+    // install with no ledger rows at all still pays nothing.
+    //
+    // Safe to cache for the whole run even though migrations below create tables:
+    // a module is checked before its own migrations run, and table prefixes are
+    // unique per module, so no module's check can depend on a table another
+    // module's migration is about to create.
+    let publicTables = null
+    async function tableNames() {
+      if (publicTables === null) {
+        const { rows } = await client.query(
+          `SELECT table_name FROM information_schema.tables
+           WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`
+        )
+        publicTables = rows.map((r) => r.table_name)
+      }
+      return publicTables
+    }
+
     for (const mod of modules) {
       const modulePath = resolve(process.cwd(), 'modules', mod.name)
 
@@ -105,13 +130,11 @@ async function run() {
       const prefix = (mod.tablePrefix ?? '').trim()
       const hasLedgerRows = appliedRows.some((r) => r.moduleName === mod.name)
       if (prefix && hasLedgerRows) {
-        const { rows: tableCount } = await client.query(
-          `SELECT count(*)::int AS count FROM information_schema.tables
-           WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-             AND left(table_name, $1) = $2`,
-          [prefix.length, prefix],
-        )
-        if (tableCount[0].count === 0) {
+        // `left(table_name, n) = prefix` in the old per-module query and
+        // `startsWith` here are the same test: a case-sensitive literal prefix
+        // match on the table name.
+        const hasPrefixedTable = (await tableNames()).some((t) => t.startsWith(prefix))
+        if (!hasPrefixedTable) {
           console.warn(
             `[module-migrations] ${mod.name}: ledger records migrations but no "${prefix}" tables exist - ` +
               `stale ledger (likely a restored database). Purging ledger and re-applying from scratch.`,

@@ -65,6 +65,15 @@ async function run() {
       return
     }
 
+    // Read every manifest off disk first, then write them all in ONE statement.
+    // This used to be an UPDATE per module inside the loop, so an install with
+    // thirty-odd modules paid thirty-odd sequential round trips to a database that
+    // is not in the same building as the build machine - several seconds of a
+    // deploy, every deploy, to write rows that are usually identical to what is
+    // already there.
+    const names = []
+    const manifests = []
+
     for (const mod of modules) {
       const manifestPath = resolve(process.cwd(), 'modules', mod.name, 'cactus.module.json')
 
@@ -77,14 +86,40 @@ async function run() {
         continue
       }
 
-      await client.query(
-        `UPDATE "Module" SET manifest = $1::jsonb WHERE name = $2`,
-        [JSON.stringify(manifest), mod.name]
-      )
-      console.log(`[sync-manifests] ${mod.name}: manifest refreshed`)
+      names.push(mod.name)
+      // Re-serialised from the parsed value rather than passed through as the raw
+      // file text, exactly as before: the parse is what proves the file is valid
+      // JSON, and re-serialising drops whitespace the column would only normalise
+      // away anyway.
+      manifests.push(JSON.stringify(manifest))
     }
 
-    console.log('[sync-manifests] All module manifests synced successfully.')
+    if (names.length === 0) {
+      console.log('[sync-manifests] No readable module manifests. Nothing to do.')
+      return
+    }
+
+    // `IS DISTINCT FROM` makes an unchanged manifest cost nothing: the column is
+    // jsonb, so the comparison is on the parsed value and is not fooled by key
+    // order or whitespace. On the overwhelming majority of deploys nothing has
+    // changed and this writes no rows at all, which is the point - the previous
+    // version rewrote all of them every time.
+    const { rows: updated } = await client.query(
+      `UPDATE "Module" AS m
+          SET manifest = v.manifest::jsonb
+         FROM unnest($1::text[], $2::text[]) AS v(name, manifest)
+        WHERE m.name = v.name
+          AND m.manifest IS DISTINCT FROM v.manifest::jsonb
+    RETURNING m.name`,
+      [names, manifests]
+    )
+
+    for (const row of updated) console.log(`[sync-manifests] ${row.name}: manifest refreshed`)
+    console.log(
+      updated.length === 0
+        ? `[sync-manifests] All ${names.length} module manifest(s) already up to date.`
+        : `[sync-manifests] ${updated.length} of ${names.length} module manifest(s) refreshed.`
+    )
   } finally {
     await client.end()
   }
