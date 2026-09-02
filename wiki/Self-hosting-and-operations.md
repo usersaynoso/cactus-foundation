@@ -248,6 +248,25 @@ If a module migration fails during a build, the build will fail and Vercel will 
 3. If the broken migration was partially applied, you may need to roll it back manually in the database before retrying.
 4. Commit the fix and push - this triggers a new build.
 
+## A deploy that never finishes
+
+A build that fails tells you why. A build that *hangs* tells you nothing: the log stops after `Creating an optimized production build ...`, Vercel kills the deployment at its 45-minute limit, and the site quietly stays on the previous version. This has one common cause and one automatic defence.
+
+**The cause is usually memory, not speed.** The bundler holds the whole of your site's code in memory while it compiles. On a small build machine that can exceed the available RAM, at which point the machine starts swapping and the build makes no progress at all rather than failing outright. This is why a build that took under two minutes on Vercel's larger builder can fail to finish in forty-five on a smaller one: halving the processors would only have doubled the time, but halving the memory can stop it dead. Cactus pins Next.js at `^16.3.4` for exactly this reason - that release cut the bundler's memory use dramatically - so do not pin it lower.
+
+**The defence is built in.** `npm run build` runs the compile under a watchdog. A build that has printed nothing for ten minutes, or has been running for twenty-five, is treated as stuck: it is killed, the bundler's cache is thrown away, and it is tried once more from cold. A build killed by the machine running out of memory gets the same second chance. A build that fails on its own merits - a genuine code error - is not retried, because that would only produce the same error twice. Everything the watchdog does is printed in the build log, prefixed `[next-build]`.
+
+**If it still hangs**, these environment variables are your levers. Set them in Vercel's project settings and redeploy:
+
+| Variable | Effect |
+| --- | --- |
+| `CACTUS_TURBOPACK_BUILD_CACHE=0` | Compiles from scratch every time instead of reusing the previous build's cache. Slower, but rules the cache out as the culprit. This is the first thing to try. |
+| `CACTUS_BUILD_SILENT_LIMIT_MINUTES` | How long a silent build is given before the watchdog calls it stuck. Default `10`. |
+| `CACTUS_BUILD_TOTAL_LIMIT_MINUTES` | How long any single attempt is given in total. Default `25`. |
+| `CACTUS_BUILD_WATCHDOG=0` | Turns the watchdog off entirely. Only useful when you genuinely want the build to run to Vercel's own limit so you can read the whole log. |
+
+If a cold retry with the cache off still cannot finish, the build genuinely does not fit on that machine: raise the build machine size in your Vercel project settings. The build log's `[prebuild]` lines each carry their own duration, so you can also see at a glance whether the time is going on the database and module steps or on the compile itself.
+
 ## Upgrading Cactus core
 
 ### In-product update (recommended)

@@ -28,6 +28,8 @@ import { fileURLToPath } from 'url'
 
 const rootDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 
+const prebuildStarted = Date.now()
+
 // Prisma's CLI phones home for a version check on every invocation and prints an
 // "update available" box that nobody acts on mid-build. Both cost a network round
 // trip on the deploy critical path.
@@ -44,12 +46,13 @@ const prismaCli = existsSync(localPrisma) ? [localPrisma] : ['npx', 'prisma']
 
 function run(label, cmd, args) {
   return new Promise((resolve) => {
+    const started = Date.now()
     const child = spawn(cmd, args, { cwd: rootDir, env, stdio: ['ignore', 'pipe', 'pipe'], shell: false })
     let output = ''
     child.stdout.on('data', (d) => { output += d })
     child.stderr.on('data', (d) => { output += d })
-    child.on('error', (err) => resolve({ label, status: 1, output: `${err.message}\n` }))
-    child.on('close', (status) => resolve({ label, status, output }))
+    child.on('error', (err) => resolve({ label, status: 1, output: `${err.message}\n`, ms: Date.now() - started }))
+    child.on('close', (status) => resolve({ label, status, output, ms: Date.now() - started }))
   })
 }
 
@@ -57,16 +60,23 @@ function run(label, cmd, args) {
 // the database branch, where the order is load-bearing.
 async function runSeries(label, steps) {
   let output = ''
+  let ms = 0
   for (const [cmd, args] of steps) {
     const result = await run(label, cmd, args)
     output += result.output
-    if (result.status !== 0) return { label, status: result.status, output }
+    ms += result.ms
+    if (result.status !== 0) return { label, status: result.status, output, ms }
   }
-  return { label, status: 0, output }
+  return { label, status: 0, output, ms }
 }
 
-function flush({ label, output }) {
-  process.stdout.write(`\n──── ${label} ────\n${output.endsWith('\n') || output === '' ? output : output + '\n'}`)
+// Each step's own duration in its header. Vercel timestamps log lines, but a
+// concurrent branch's output is only flushed when it finishes, so every line in a
+// block carries the same timestamp and the log cannot say which branch was the long
+// pole. Without this the only measurable thing about the prebuild is its total.
+function flush({ label, output, ms }) {
+  const took = typeof ms === 'number' ? ` (${(ms / 1000).toFixed(1)}s)` : ''
+  process.stdout.write(`\n──── ${label}${took} ────\n${output.endsWith('\n') || output === '' ? output : output + '\n'}`)
 }
 
 // 1. Module code on disk. Everything below reads it, so this one is a barrier.
@@ -107,3 +117,5 @@ if (clientGraph.status !== 0) {
   console.error('[prebuild] client graph check failed — aborting build')
   process.exit(clientGraph.status ?? 1)
 }
+
+console.log(`\n[prebuild] Done in ${((Date.now() - prebuildStarted) / 1000).toFixed(1)}s.`)

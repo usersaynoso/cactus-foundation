@@ -17,6 +17,19 @@ function workerImageHost(): string | undefined {
   }
 }
 
+// The Turbopack build cache is the one part of the build that cannot be debugged
+// from here: when it goes wrong the symptom is a build that produces no output at
+// all and is killed by Vercel's 45-minute limit, which is also long enough to make
+// bisecting it by pushing commits impractical. So it is a switch rather than a
+// constant. Set CACTUS_TURBOPACK_BUILD_CACHE=0 in the site's environment variables
+// and redeploy to take it out of the picture; that is an env-var-only change, so it
+// ships through the redeploy API in seconds instead of needing a code change to
+// reach a build that is already broken. scripts/next-build.mjs sets the same
+// variable on itself when it has to retry a stalled build.
+function turbopackBuildCache(): boolean {
+  return process.env.CACTUS_TURBOPACK_BUILD_CACHE !== '0'
+}
+
 const config: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
@@ -97,8 +110,9 @@ const config: NextConfig = {
     // Turbopack writes its compilation cache to .next/cache, which Vercel already
     // restores from the previous deployment. Without this, the 40s compile is paid
     // in full on every deploy even when the diff is a version bump; with it, only
-    // what actually changed is recompiled.
-    turbopackFileSystemCacheForBuild: true,
+    // what actually changed is recompiled. On by default from Next 16.3, stated
+    // here anyway because the value is a switch - see turbopackBuildCache().
+    turbopackFileSystemCacheForBuild: turbopackBuildCache(),
   },
   // draco3d ships an Emscripten glue file whose only way to find its sibling
   // `.wasm` is `readFileSync(__dirname + '/draco_decoder.wasm')`. Bundling that
