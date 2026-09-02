@@ -875,12 +875,15 @@ export const CORE_STARTER_TEMPLATES: Record<string, StarterTemplate[]> = {
 // (no imports of their own), so this stays browser-safe.
 const moduleTemplates = moduleStarterLayouts as Record<string, () => StarterTemplate[]>
 
-// Starters a module offers for a layout type it does not own. There is exactly
-// one such type today and it is `documentFooter`: the strip at the foot of a
-// printed page is core's, but a page number and a registration line are blocks
-// belonging to whichever module prints the paperwork, and so are the starters
-// made of them. Appended rather than substituted - a site with two paperwork
-// modules gets both modules' footers on the menu, not the last one loaded.
+// Starters a module offers for a layout type it does not own. Two cases today.
+// `documentFooter`: the strip at the foot of a printed page is core's, but a
+// page number and a registration line are blocks belonging to whichever module
+// prints the paperwork, and so are the starters made of them. `shopSupplier`:
+// the layout type is shop's, but the whole point of a supplier page is a
+// filtered grid, and the block that draws one belongs to filters-for-shop -
+// shop cannot offer a template made of a block a shop may not have installed.
+// Appended rather than substituted - a site with two paperwork modules gets
+// both modules' footers on the menu, not the last one loaded.
 const contributedTemplates = moduleLayoutStarterContributions as Record<string, (() => StarterTemplate[])[]>
 
 function contributedFor(type: string): StarterTemplate[] {

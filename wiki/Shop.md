@@ -1115,7 +1115,13 @@ The list itself grows a **Page** column with a **View** link on every supplier t
 
 **What lands on the page.** Every product filed under that supplier's name. That's the name on the product itself, so a listing whose supplier was only ever set on its individual variations won't appear - set it on the product too and it will. Renaming a supplier carries the page and its products across, as renaming always has.
 
-**Designing the page.** Supplier pages get a layout of their own under **Appearance → Editing pages**, listed as **Supplier** beside Category, Collection and Tag. One layout serves every supplier - the page fills in which supplier each block is looking at - and two starters come with it: name and grid, or name, write-up and grid. The Filters & Product Grid block works here exactly as it does on a category page, so the same colour, finish and price-band filters you've already built come along with no further wiring. Build nothing and you get a sensible plain page anyway.
+**Designing the page, and where the filters come from.** Supplier pages get a layout of their own under **Appearance → Editing pages**, listed as **Supplier** beside Category, Collection and Tag. One layout serves every supplier - the page fills in which supplier each block is looking at - so this is a job you do once, not once per supplier.
+
+Build nothing and you still get a page: name, write-up and a plain grid of their products. What that plain page does *not* have is the filter panel, for the same reason a category page doesn't until you've designed one. So if you want filters - and on a supplier's whole range you will - make the layout.
+
+Four starters are offered when you create it. Two come from the Shop itself and use the plain product grid; the other two come from the Filters add-on and use the **Filters & Product Grid** block instead, which is the one with the panel on it. **Header, Write-up and Filtered Grid** is the one most shops want, and it arrives already set to load more products as the shopper scrolls, since a supplier's whole range tends to be the longest page on the site. Those two only appear if you have the Filters add-on installed, which is rather the point.
+
+Everything you've already built applies: the same colour, finish and price-band filters as your category pages, with no further wiring. If you have the Product Attributes add-on, its specification filters work here too.
 
 **Putting it in the menu.** **Menus** now offers **Supplier** alongside Category and Collection when you add an item, listing the suppliers that actually have a page - so a menu can never point at one that doesn't. Unpublish a supplier later and the link quietly drops out of the menu on the site while staying in the admin, ready for when you put it back.
 
