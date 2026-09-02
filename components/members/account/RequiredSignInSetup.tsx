@@ -293,6 +293,7 @@ export default function RequiredSignInSetup({ requiredMethods, basePath, emailCo
             className="btn btn-link"
             onClick={() => {
               fetch('/api/members/auth/logout', { method: 'POST' }).finally(() => {
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- signed out a moment ago, so a client-side nav would carry the cache of a dead session
                 window.location.href = `${basePath}/login`
               })
             }}

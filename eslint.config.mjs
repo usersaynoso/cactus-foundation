@@ -11,6 +11,9 @@ const config = [
       'lib/layout/module-layout-types.ts',
       'lib/setup/module-starter-layouts.ts',
       '.next/**',
+      // Vercel's local build output. Gitignored, not project code, and full of
+      // minified chunks that trip source-level rules with nothing to fix in them.
+      '.vercel/**',
       'node_modules/**',
       '.claude/**',
       // Python virtualenvs in the dated scratch folders agents leave in the repo

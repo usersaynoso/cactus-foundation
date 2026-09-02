@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.372"
+      "version": "v0.1.373"
     },
     {
       "name": "address-lookup-for-shop",
@@ -88,7 +88,7 @@
     {
       "name": "space-planner-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/space-planner-for-shop",
-      "version": "v0.1.32"
+      "version": "v0.1.33"
     },
     {
       "name": "reviews-for-shop",
@@ -148,7 +148,7 @@
     {
       "name": "uk-bookkeeping",
       "repoUrl": "https://github.com/cactus-foundation-modules/uk-bookkeeping",
-      "version": "v0.2.25"
+      "version": "v0.2.26"
     },
     {
       "name": "google-tag",

@@ -716,6 +716,7 @@ export default function SetupPage() {
       const data = (await res.json()) as ExistingDbState
 
       if (data.setupCompleted && data.adminPath) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- leaving the setup app for the admin shell, whose adminPath prefix is resolved server-side
         window.location.href = `/${data.adminPath}`
         return
       }
@@ -905,9 +906,11 @@ export default function SetupPage() {
         if (data.redeployError) setFinalisingWarning(data.redeployError)
         setLoading(false)
         cancelPollingRef.current = startHealthPolling(() => {
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a redeploy has just replaced the running app - the old bundle must not carry on
           window.location.href = `/${data.adminPath}/login`
         })
       } else {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- leaving the setup app for the admin shell, whose adminPath prefix is resolved server-side
         window.location.href = `/${data.adminPath}`
       }
     } catch (err: unknown) {

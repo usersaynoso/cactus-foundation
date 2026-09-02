@@ -264,6 +264,7 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
 
   async function handleRevokeAll() {
     const res = await fetch('/api/account/sessions', { method: 'DELETE' })
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- every session was just revoked, so a client-side nav would carry a dead one
     if (res.ok) window.location.href = '/'
   }
 
@@ -294,6 +295,7 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
       if (!res.ok) {
         setDeleteError(d.error ?? 'Deletion failed')
       } else {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the account is gone - nothing cached on the client belongs to anybody now
         window.location.href = '/'
       }
     } finally {

@@ -1041,6 +1041,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       if (newAdminPath && newAdminPath !== savedAdminPath.current) {
         // Full reload, not router.push - the admin shell/layout resolve adminPath
         // server-side, so a client-side nav would still point at the old prefix.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- see the note above - the admin prefix is resolved server-side
         window.location.href = `/${newAdminPath}/config${window.location.search}`
         return true
       }
@@ -1236,6 +1237,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       setDbResetWasHard(dbResetDeleteSetupData)
       setDbResetDone(true)
       if (d.redirectToSetup) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the database was just reset, so every client cache describes a site that is gone
         setTimeout(() => { window.location.href = '/setup' }, 2000)
       }
     } catch (err: unknown) {

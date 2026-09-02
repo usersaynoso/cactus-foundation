@@ -121,6 +121,7 @@ export default function RegisterForm({
       // truth instead.
       if (registerResult.verifyEmailRequired && registerResult.verificationEmailSent !== false) {
         const target = verifyEmailUrl ?? window.location.pathname.replace(/\/register$/, '/verify-email')
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the member session cookie was just set server-side and the layout must re-resolve with it
         window.location.href = `${target}?email=${encodeURIComponent(email)}`
       }
     } catch (err: unknown) {
