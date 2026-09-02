@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1465",
+  "version": "0.5.1466",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -32,7 +32,6 @@
     "@imagekit/nodejs": "^7.8.1",
     "@octokit/auth-app": "^8.2.0",
     "@octokit/rest": "^21.0.0",
-    "@pilio/gemini-watermark-remover": "^1.0.29",
     "@prisma/client": "^6.0.0",
     "@puckeditor/core": "^0.22.0",
     "@simplewebauthn/browser": "^13.0.0",

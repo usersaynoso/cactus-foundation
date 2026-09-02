@@ -74,7 +74,7 @@ export default async function MediaPage({ searchParams }: Props) {
     prisma.tag.findMany({ orderBy: { name: 'asc' }, take: TAG_LIMIT, select: { id: true, name: true, _count: { select: { media: true } } } }),
     getMediaWorkerConfig(),
     listVideoJobs(),
-    // Media-adjacent module tools (e.g. the watermark remover) ride here as tabs
+    // Media-adjacent module tools ride here as tabs
     // rather than each taking a sidebar link of its own.
     resolveExtensionTabs('core.media-tabs', user),
   ])

@@ -10,7 +10,7 @@ import VideoSettingsPanel from './VideoSettingsPanel'
 // stateful client tree, so both tabs stay mounted and the inactive one is just
 // hidden - switching tabs never tears the library's selection or scroll down.
 //
-// Modules that own a media-adjacent tool (e.g. the watermark remover) add their
+// Modules that own a media-adjacent tool add their
 // own tab here through the `core.media-tabs` point rather than taking a sidebar
 // link of their own. Their panels are resolved server-side and arrive as nodes.
 
