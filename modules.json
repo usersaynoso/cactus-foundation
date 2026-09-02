@@ -123,7 +123,7 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.32"
+      "version": "v0.1.33"
     },
     {
       "name": "gemini-watermark-remover",
@@ -163,7 +163,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.26"
+      "version": "v0.1.27"
     }
   ]
 }
