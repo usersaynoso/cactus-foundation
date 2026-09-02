@@ -48,7 +48,7 @@
     {
       "name": "filters-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/filters-for-shop",
-      "version": "v0.1.43"
+      "version": "v0.1.44"
     },
     {
       "name": "product-attributes-for-shop",
@@ -138,7 +138,7 @@
     {
       "name": "search",
       "repoUrl": "https://github.com/cactus-foundation-modules/search",
-      "version": "v0.1.32"
+      "version": "v0.1.33"
     },
     {
       "name": "live-chat",
