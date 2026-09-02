@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { setUrlParams } from '@/lib/admin/tab-url'
+import TimezoneClock from './TimezoneClock'
 import type { MediaProviderType } from '@prisma/client'
 import pkg from '@/package.json'
 import { useUnsavedChanges } from '@/components/admin/useUnsavedChanges'
@@ -1744,6 +1745,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <option key={tz} value={tz}>{tz}</option>
                 ))}
               </select>
+              <TimezoneClock timezone={config.timezone ?? 'UTC'} />
             </div>
             <div className="field" style={{ margin: 0 }}><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
             <div className="field" style={{ margin: 0 }}><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>

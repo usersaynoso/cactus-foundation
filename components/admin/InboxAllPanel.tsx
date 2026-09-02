@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { resolveConversationProviders } from '@/lib/conversations/providers'
+import { formatInSiteTimezone, getSiteTimezone } from '@/lib/config/timezone'
 import type { ConversationChannel, ConversationSummary } from '@/lib/conversations/types'
 
 // Core's own Inbox tab: every channel the installed modules publish, in one
@@ -40,6 +41,7 @@ export async function InboxAllPanel() {
 
   const providers = await resolveConversationProviders(user)
   const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''
+  const timezone = await getSiteTimezone()
 
   // One module's provider failing (an API down, a table not migrated yet) must
   // cost that channel and not the whole page.
@@ -96,7 +98,7 @@ export async function InboxAllPanel() {
                   )}
                 </td>
                 <td style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
-                  {new Date(row.lastMessageAt).toLocaleString('en-GB', {
+                  {formatInSiteTimezone(row.lastMessageAt, timezone, {
                     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                   })}
                 </td>

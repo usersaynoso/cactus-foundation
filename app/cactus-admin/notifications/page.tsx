@@ -7,6 +7,7 @@ import NotificationBulkActions from './NotificationBulkActions'
 import DeployStatusLive from '@/components/admin/DeployStatusLive'
 import VideoJobProgress from '@/components/admin/VideoJobProgress'
 import { isVideoJobInFlight, parseVideoJobNotification } from '@/lib/media/video-job-notification'
+import { formatInSiteTimezone, getSiteTimezone } from '@/lib/config/timezone'
 import type { Metadata } from 'next'
 import type { NotificationType } from '@prisma/client'
 
@@ -52,6 +53,7 @@ export default async function NotificationsPage() {
   }
 
   const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''
+  const timezone = await getSiteTimezone()
 
   const [notifications, total, unread, pendingDeploy] = await Promise.all([
     prisma.notification.findMany({
@@ -159,7 +161,7 @@ export default async function NotificationsPage() {
                     )}
 
                     <p style={{ margin: 'var(--space-1) 0 0 0', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
-                      {new Date(notification.createdAt).toLocaleString()}
+                      {formatInSiteTimezone(notification.createdAt, timezone)}
                     </p>
                   </div>
                 </div>
