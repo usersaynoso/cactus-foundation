@@ -181,7 +181,7 @@ Two things worth knowing: the window rolls forward from whenever you press the b
 
 Go to **Twilio** in the admin sidebar. Each phone number on your Twilio account gets its own tab, and each tab shows:
 
-- **Call log** - the number's recent calls, incoming and outgoing, with date, direction, who called whom, how it ended and how long it lasted. Calls that were recorded have a **Listen** button - press it and the recording plays right there in the page. Voicemail messages sit in the same list, next to a **Voicemail** tag so they don't get mistaken for a recorded conversation. Recordings never leave your Twilio account; the site simply plays them to you, and only to admins with permission to manage Twilio. Voicemail messages also have a **Delete** button, which asks first and then removes the message from your Twilio account as well as from this list - the only way it stops costing storage. A recorded call has no Delete, on the grounds that a call you chose to record is a record.
+- **Call log** - the number's recent calls, incoming and outgoing, with date, direction, who called whom, how it ended and how long it lasted. **One row per call**, however many phones it rang on the way: a call forwarded to your mobile says *forwarded to* underneath the number it came in on, and a call you placed with **Make a call** says *rang you at* underneath the person you rang. How it ended is what happened between the two of you - a forwarded call nobody picked up says so, rather than counting the greeting as a chat - and the length is the talking, with the whole call's length in the tooltip. Calls that were recorded have a **Listen** button - press it and the recording plays right there in the page. Voicemail messages sit in the same list, next to a **Voicemail** tag so they don't get mistaken for a recorded conversation. Recordings never leave your Twilio account; the site simply plays them to you, and only to admins with permission to manage Twilio. Voicemail messages also have a **Delete** button, which asks first and then removes the message from your Twilio account as well as from this list - the only way it stops costing storage. A recorded call has no Delete, on the grounds that a call you chose to record is a record.
 - **Caller** - the last column on each row, for blocking whoever was on the other end. See **Blocking a caller** below.
 - **Message log** - the number's recent text messages, both directions, with the full message text.
 
@@ -217,7 +217,7 @@ At the top of each number's tab is **Make a call**. Enter the number you want to
 2. Answer, and it reads out the number you're about to call. Press any key to connect (or hang up if you've thought better of it).
 3. Your call is put through, and the person on the other end sees your **Twilio number** as the caller ID - not your mobile.
 
-Handy for returning customer calls from the business number rather than your personal one. Your own phone number is remembered in your browser so you only type it once. Both legs of the call are billed at Twilio's usual rates.
+Handy for returning customer calls from the business number rather than your personal one. Your own phone number is remembered in your browser so you only type it once. Both legs of the call are billed at Twilio's usual rates, and both show up as the one row in the call log - the person you rang, not your own mobile twice.
 
 ---
 
