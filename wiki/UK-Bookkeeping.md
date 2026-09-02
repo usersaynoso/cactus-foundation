@@ -120,6 +120,28 @@ for three things reads as all three rather than the first one.
 Entries recorded before this changed keep their wording: the text that sat at the
 top is handed down to the lines the first time you open one to edit it.
 
+**"Money in or out" has a third setting: Internal transfer.** Use it when money
+moves between two accounts you already own - current to savings, current to a
+card you are paying off, cash banked. It is neither a sale nor a cost, so it has
+no category, no VAT and no receipt, and the form puts those questions away as
+soon as you pick it. What it asks instead is: the date it moved, which account it
+came **out of**, which account it went **into**, and how much.
+
+The amount is always positive. To send it the other way round, swap the two
+accounts over rather than typing a minus.
+
+This matters more than it looks. Money moved between your own accounts and never
+recorded leaves both balances wrong by the amount, in opposite directions, for
+ever - and setting the two statement lines aside without recording the transfer
+does exactly that. Recording it properly puts each balance where it belongs and
+touches nothing on the VAT return.
+
+Transfers show in the entries list alongside everything else, marked as
+transfers, reading "Current → Savings" with no VAT figures against them. The **In
+or out** filter has an **Internal transfers** setting if you want only those.
+They also appear under **Journals**, because underneath that is what they are;
+either place, **Open the transfer** takes you back to the form you filled in.
+
 **"Date it was paid" starts empty, and empty means not paid yet.** Fill it in
 when the money actually moves. Until you do, the entry counts as outstanding: it
 sits under **Who owes what**, aged from the invoice date, and it shows in what
@@ -678,10 +700,21 @@ a whole selection at once:
   was for. The category comes pre-picked from what you filed that name under last
   time. Entries are recorded properly unless you tick **Leave them for review**,
   in which case they go in as drafts and reach no VAT return until you post them.
-- **Set it aside.** For the lines that genuinely need no entry - a transfer
-  between two accounts you own, where the other side is already recorded - with a
-  note saying why, because "why is this one ignored" is the question somebody
-  will ask in a year.
+- **Tick it off against a transfer.** Where the line is one half of a movement
+  between two accounts you own, and you have recorded that transfer, it is
+  offered here with an arrow beside it and which end it is - the money leaving,
+  or the money arriving. One transfer accounts for exactly two statement lines,
+  one on each account, so once an end has been ticked off it is not offered
+  against anything else.
+- **Set it aside.** For the lines that genuinely need no entry - one the bank
+  itself printed twice and then corrected - with a note saying why, because "why
+  is this one ignored" is the question somebody will ask in a year.
+
+  **Setting a transfer aside is not the same as recording it.** It clears the
+  line off the list and moves nothing, so both account balances stay wrong by the
+  amount. If the line is money moving between your own accounts, record the
+  transfer (**Money in or out → Internal transfer**) and tick both lines off
+  against it instead.
 
 **An invoice is only offered where it means something.** Its total has to be
 this payment to the penny, or the name has to be an unmistakable match, and
@@ -751,6 +784,14 @@ been imported yet.
 ### Journals
 
 **Bookkeeping → Journals** is for the entries that are not money moving.
+
+The one exception listed here is a transfer between two accounts you own, which
+is money moving and is a journal all the same - two sides that cancel out, no
+category, no VAT. It is recorded on the entry form rather than here (see
+**Recording entries** above), and here it is marked "between your own accounts"
+with **Open the transfer** rather than the ordinary editing buttons: its two
+sides have to keep pointing at the two accounts named on it, and the general
+journal editor has no way of knowing that.
 Depreciation. A cost that belongs in this year but will not be billed until
 next. A bill paid in advance, part of which belongs to next year. Something
 posted against the wrong thing. Money a director put in or took out other than
