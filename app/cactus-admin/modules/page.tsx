@@ -129,6 +129,23 @@ function prerequisiteFrom(
   }
 }
 
+// "Cactus v0.5.2 and 2 module updates" - what else rode out in the deployment the
+// action just started. Install and uninstall both offer the same tick boxes, so they
+// report the outcome the same way.
+function alsoWentOut(d: ModuleActionResponse): string {
+  const queued = d.moduleUpdatesQueued ?? 0
+  return [
+    d.coreUpdatedTo ? `Cactus v${d.coreUpdatedTo.replace(/^v/i, '')}` : null,
+    queued > 0 ? `${queued} module update${queued === 1 ? '' : 's'}` : null,
+  ].filter(Boolean).join(' and ')
+}
+
+// Anything the compatibility check held back, said plainly - otherwise it just sits on
+// the Updates tab afterwards looking like the tick box missed it.
+function heldBackNote(skipped: string[]): string {
+  return `Not included in this deployment: ${skipped.join(', ')}. ${skipped.length === 1 ? 'It stays' : 'They stay'} on the Updates tab - try again once this deployment is live.`
+}
+
 /** Which shelf of the store is on screen. */
 const STORE_TABS = ['installed', 'updates', 'browse', 'custom'] as const
 type StoreTab = (typeof STORE_TABS)[number]
@@ -211,6 +228,8 @@ export default function ModulesPage() {
   const [prerequisiteModal, setPrerequisiteModal] = useState<PrerequisiteModal | null>(null)
   const [uninstallMode, setUninstallMode] = useState<'code_only' | 'code_and_data'>('code_only')
   const [uninstalling, setUninstalling] = useState(false)
+  // True while the uninstall dialog is still finding out what else is waiting.
+  const [uninstallChecking, setUninstallChecking] = useState(false)
   const [checkingModules, setCheckingModules] = useState<Record<string, boolean>>({})
   const [updatingAll, setUpdatingAll] = useState(false)
   const deployInFlight = useDeployInFlight()
@@ -482,11 +501,7 @@ export default function ModulesPage() {
       }
       setInstallModal(null)
       // What else went out in the same deployment, if anything.
-      const queued = d.moduleUpdatesQueued ?? 0
-      const alsoWent = [
-        d.coreUpdatedTo ? `Cactus v${d.coreUpdatedTo.replace(/^v/i, '')}` : null,
-        queued > 0 ? `${queued} module update${queued === 1 ? '' : 's'}` : null,
-      ].filter(Boolean).join(' and ')
+      const alsoWent = alsoWentOut(d)
 
       if (d.redeployTriggered) {
         // Opens the notification bell with live deploy status
@@ -501,14 +516,8 @@ export default function ModulesPage() {
           ' Your changes are waiting to go live - review and redeploy from Notifications.'
         )
       }
-      // Anything the compatibility check held back, said plainly - otherwise it just
-      // sits on the Updates tab afterwards looking like the tick box missed it.
       const skipped = d.moduleUpdatesSkipped ?? []
-      if (skipped.length > 0) {
-        setError(
-          `Not included in this deployment: ${skipped.join(', ')}. ${skipped.length === 1 ? 'It stays' : 'They stay'} on the Updates tab - try again once this deployment is live.`
-        )
-      }
+      if (skipped.length > 0) setError(heldBackNote(skipped))
       if (customUrl.trim() === repoUrl) setCustomUrl('')
       await loadDirectory()
       router.refresh()
@@ -610,10 +619,37 @@ export default function ModulesPage() {
     }
   }
 
+  // Opening the confirm dialog also asks - freshly - whether a Cactus update or other
+  // modules' updates are waiting, because removing a module costs a deployment and
+  // anything ticked can ride out in that same one. Asked in the background rather than
+  // in front of the dialog: this is a destructive confirmation and it should appear the
+  // instant it is clicked. Confirming before the answer lands bundles nothing, which is
+  // exactly what happened before the boxes existed.
   function openUninstallModal(entry: DirectoryEntry) {
     if (!entry.installedId) return
-    setUninstallModal({ id: entry.installedId, name: formatModuleName(entry.repoName), hasTeardown: entry.hasTeardown ?? false })
+    const removingId = entry.installedId
+    setUninstallModal({ id: removingId, name: formatModuleName(entry.repoName), hasTeardown: entry.hasTeardown ?? false })
     setUninstallMode('code_only')
+    setBundleCore(false)
+    setBundleModules(false)
+    setUninstallChecking(true)
+    // The module on its way out is excluded: an update for it is moot, and the server
+    // refuses to pin one into the very commit that removes it.
+    const others = entries.filter((e) => e.installed && e.installedId && e.installedId !== removingId)
+    void (async () => {
+      try {
+        const [core, results] = await Promise.all([
+          loadCoreUpdate(true),
+          Promise.all(others.map((m) => checkModuleUpdate(m.installedId as string, true))),
+        ])
+        // A module the fresh check says nothing about but whose row already reads
+        // "update available" still counts: the check only ever promotes a status.
+        setBundleCore(core !== null)
+        setBundleModules(others.some((m, i) => results[i] || m.status === 'update_available'))
+      } finally {
+        setUninstallChecking(false)
+      }
+    })()
   }
 
   async function confirmUninstall() {
@@ -625,17 +661,29 @@ export default function ModulesPage() {
       const res = await fetch(`/api/admin/modules/${uninstallModal.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: uninstallMode }),
+        body: JSON.stringify({
+          mode: uninstallMode,
+          updateCore: coreUpdate !== null && bundleCore,
+          updateModules: uninstallUpdatable.length > 0 && bundleModules,
+        }),
       })
       const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Uninstall failed')
       if (!parsed.ok) throw new Error(parsed.error ?? 'Uninstall failed')
       const d = parsed.data ?? {}
       setUninstallModal(null)
+      const alsoWent = alsoWentOut(d)
       if (d.redeployTriggered) {
         announceRedeployStarted()
+        if (alsoWent) setNotice(`${alsoWent} went out in the same deployment.`)
       } else {
-        setNotice('Module uninstalled. Your changes are waiting to go live - review and redeploy from Notifications.')
+        setNotice(
+          'Module uninstalled.' +
+          (alsoWent ? ` ${alsoWent} came along with it.` : '') +
+          ' Your changes are waiting to go live - review and redeploy from Notifications.'
+        )
       }
+      const skipped = d.moduleUpdatesSkipped ?? []
+      if (skipped.length > 0) setError(heldBackNote(skipped))
       await loadDirectory()
       router.refresh()
     } catch (err: unknown) {
@@ -649,6 +697,11 @@ export default function ModulesPage() {
   const available = entries.filter((e) => !e.installed)
   const updatable = installed.filter((m) => m.status === 'update_available')
   const updatableCount = updatable.length
+  // What the uninstall dialog may offer, which is every pending update EXCEPT the one
+  // belonging to the module being removed.
+  const uninstallUpdatable = uninstallModal
+    ? updatable.filter((m) => m.installedId !== uninstallModal.id)
+    : []
   const customBusy = Boolean(actionLoading[customUrl.trim()]) || installChecking === customUrl.trim()
   const activeTab: StoreTab = tab ?? (installed.length > 0 ? 'installed' : 'browse')
 
@@ -1168,6 +1221,69 @@ export default function ModulesPage() {
                 </span>
               </label>
             </div>
+
+            {/* Removing a module costs a deployment whatever else is waiting, so offer
+                the same "bring it along" boxes the install dialog does. Fenced off from
+                the destructive choice above, since ticking one of these is nothing like
+                choosing to drop tables. */}
+            {(uninstallChecking || coreUpdate || uninstallUpdatable.length > 0) && (
+              <div
+                style={{
+                  borderTop: '1px solid var(--color-border)',
+                  paddingTop: '1rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                {uninstallChecking ? (
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
+                    Checking whether anything else is waiting to go out…
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 0, marginBottom: '0.75rem' }}>
+                      Removing this takes one deployment. Anything you tick here goes out in the same
+                      one, so you wait once instead of three times.
+                    </p>
+
+                    {coreUpdate && (
+                      <label style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', marginBottom: '0.75rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={bundleCore}
+                          disabled={uninstalling}
+                          onChange={(e) => setBundleCore(e.target.checked)}
+                          style={{ marginTop: '0.2rem' }}
+                        />
+                        <span style={{ fontSize: 'var(--text-sm)' }}>
+                          Also update Cactus to v{coreUpdate.latestVersion.replace(/^v/i, '')}
+                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
+                            This site is on v{coreUpdate.currentVersion.replace(/^v/i, '')}
+                          </div>
+                        </span>
+                      </label>
+                    )}
+
+                    {uninstallUpdatable.length > 0 && (
+                      <label style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={bundleModules}
+                          disabled={uninstalling}
+                          onChange={(e) => setBundleModules(e.target.checked)}
+                          style={{ marginTop: '0.2rem' }}
+                        />
+                        <span style={{ fontSize: 'var(--text-sm)' }}>
+                          Also update {uninstallUpdatable.length === 1 ? 'the module' : `all ${uninstallUpdatable.length} modules`} with updates waiting
+                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
+                            {uninstallUpdatable.map((m) => `${formatModuleName(m.repoName)} → ${showVersion(m.updateAvailable)}`).join(', ')}
+                          </div>
+                        </span>
+                      </label>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
               <button
