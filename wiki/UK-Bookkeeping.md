@@ -559,7 +559,8 @@ is where you add your current account, your card, or petty cash. A statement is
 imported *against* an account, so there has to be one before anything can come
 in.
 
-Then **Bookkeeping → Import**. Drop a statement anywhere on the card, or choose
+Then **Bookkeeping → Bank statements**, and press **Import a statement** in the
+top right. Drop a statement anywhere on the card, or choose
 it.
 
 **A PDF works as well as a CSV.** Download the statement from your online
@@ -610,6 +611,32 @@ offers to update it - which is what it does unless you untick the box:
 Untick the box only if it genuinely is a different statement for the same dates.
 Two statements claiming the same month is how a set of books ends up with two
 answers to one question.
+
+### What you have already imported
+
+**Bookkeeping → Bank statements** is the list of every statement you have
+brought in, newest period first. It answers the question the books could not
+answer before: which months you actually hold, for which account.
+
+That matters more than it sounds. A month nobody ever imported looks exactly
+like a month with nothing in it - right up until the year end, when it turns out
+six weeks of takings were never in the books at all. Reading down the periods
+column and finding a gap takes a moment.
+
+Each row shows the period it covers, the account, what went in and out, the
+closing balance the statement declared, how many lines it holds and how many of
+them you have yet to explain (a link straight to Reconcile), and the file
+itself. Click the filename to open it; there is a **Download** link beside it.
+
+**Statements imported before this feature existed have no file**, and there is
+nothing to fetch one back from - the bytes were never kept. Those rows say **No
+copy kept**, and there is a tick box at the top to show only those, so you can
+work through them. To fix one, import the same file again: the period matches,
+so it offers to bring that statement up to date, every line is already there so
+nothing is recorded twice, and the file is kept this time.
+
+If you have more than one bank account there is a filter at the top to show one
+at a time.
 
 ### Reconciling
 
