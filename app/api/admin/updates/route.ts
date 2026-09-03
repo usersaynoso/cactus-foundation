@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
       // requires the incoming core is satisfied by the build that carries it.
       // Same reason the batch may satisfy its own module chain.
       const installed = await prisma.module.findMany({
-        select: { name: true, version: true, status: true },
+        select: { name: true, version: true, status: true, pendingVersion: true },
       })
       const candidates = await Promise.all(
         found.map(async (m) => ({

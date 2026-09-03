@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
 
   // Check tablePrefix uniqueness
   const existing = await prisma.module.findMany({
-    select: { tablePrefix: true, name: true, status: true, version: true },
+    select: { tablePrefix: true, name: true, status: true, version: true, pendingVersion: true },
   })
   try {
     validateTablePrefixUnique(manifest.tablePrefix, existing.map((m) => m.tablePrefix))
@@ -368,12 +368,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Check declared module dependencies are installed, active, and at minVersion+.
+  // Check declared module dependencies are installed, enabled, and at minVersion+.
   // Anything the batch above accepted counts at its NEW version - it lands in the
-  // same commit as this install.
+  // same commit as this install. status: 'active' is part of that, not decoration:
+  // an accepted candidate is by definition installed and staying installed, and
+  // leaving the row's own 'update_available' on it made the dependency check read
+  // the very module the batch was about to update as missing entirely.
+  // pendingVersion is cleared for the same reason - the batch's tag is the one this
+  // commit pins, and a stale pending tag would otherwise be judged instead.
   const installedForDeps = existing.map((m) => {
     const bumped = acceptedUpdates.find((c) => c.name === m.name)
-    return bumped ? { ...m, version: bumped.tag } : m
+    return bumped ? { ...m, version: bumped.tag, pendingVersion: null, status: 'active' } : m
   })
   const [unmet] = findUnmetModuleDependencies(manifest.requiresModules, installedForDeps)
   if (unmet) {
@@ -620,7 +625,7 @@ export async function PATCH(request: NextRequest) {
   // can satisfy itself inside one build. Mirrors the single-module update path's
   // requiresModules check otherwise.
   const installed = await prisma.module.findMany({
-    select: { name: true, version: true, status: true },
+    select: { name: true, version: true, status: true, pendingVersion: true },
   })
 
   if (!await acquireDeployLock('modules:update-all')) return errorResponse(LOCK_RACE_MESSAGE, 409)

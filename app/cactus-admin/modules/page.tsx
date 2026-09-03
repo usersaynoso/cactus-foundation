@@ -102,12 +102,19 @@ type PrerequisiteModal = {
   /** Only Cactus itself has somewhere else to send them. */
   updatePanel: boolean
   /**
-   * The install that hit the blocker, so "Cactus is too old" can be answered on the
-   * spot - the pending core update rides out in the install's own deployment - rather
-   * than by sending them to another page to wait through a build first.
+   * The action that hit the blocker, so "Cactus is too old" can be answered on the
+   * spot - the pending core update rides out in that action's own deployment - rather
+   * than by sending them to another page to wait through a build first. An update is
+   * offered the same way an install is: both commit modules.json alongside the core
+   * files, so both can carry the core update that unblocks them.
    */
-  retry?: { repoUrl: string; channel: 'public' | 'beta'; requiredVersion: string }
+  retry?: RetrySource & { requiredVersion: string }
 }
+
+/** Which call to make again with "bring Cactus along" ticked. */
+type RetrySource =
+  | { kind: 'install'; repoUrl: string; channel: 'public' | 'beta' }
+  | { kind: 'update'; id: string }
 
 const PREREQUISITE_TITLES: Record<string, string> = {
   core_version_required: 'Cactus needs updating first',
@@ -117,7 +124,7 @@ const PREREQUISITE_TITLES: Record<string, string> = {
 function prerequisiteFrom(
   d: ModuleActionResponse,
   fallback: string,
-  install?: { repoUrl: string; channel: 'public' | 'beta' }
+  source?: RetrySource
 ): PrerequisiteModal | null {
   if (typeof d.code !== 'string' || !d.code.endsWith('_required')) return null
   return {
@@ -126,8 +133,8 @@ function prerequisiteFrom(
     // is already written for a site owner rather than a developer.
     message: d.error ?? fallback,
     updatePanel: d.code === 'core_version_required',
-    retry: d.code === 'core_version_required' && install && d.requiredVersion
-      ? { ...install, requiredVersion: d.requiredVersion }
+    retry: d.code === 'core_version_required' && source && d.requiredVersion
+      ? { ...source, requiredVersion: d.requiredVersion }
       : undefined,
   }
 }
@@ -494,7 +501,7 @@ export default function ModulesPage() {
       const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Install failed')
       const d = parsed.data ?? {}
       if (!parsed.ok) {
-        const blocker = prerequisiteFrom(d, parsed.error ?? 'Install failed', { repoUrl, channel })
+        const blocker = prerequisiteFrom(d, parsed.error ?? 'Install failed', { kind: 'install', repoUrl, channel })
         if (blocker) {
           setInstallModal(null)
           setPrerequisiteModal(blocker)
@@ -542,7 +549,11 @@ export default function ModulesPage() {
     void requestInstall(url, customChannel)
   }
 
-  async function handleAction(id: string, action: 'update' | 'enable' | 'disable') {
+  async function handleAction(
+    id: string,
+    action: 'update' | 'enable' | 'disable',
+    bundle: { updateCore?: boolean } = {}
+  ) {
     setError('')
     setNotice('')
     setLoaderFor(id, true)
@@ -550,22 +561,35 @@ export default function ModulesPage() {
       const res = await fetch(`/api/admin/modules/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, ...bundle }),
       })
       const parsed = await readJsonResponse<ModuleActionResponse>(res, 'Action failed')
       const d = parsed.data ?? {}
       if (!parsed.ok) {
-        const blocker = prerequisiteFrom(d, parsed.error ?? 'Action failed')
+        // Only an update can answer "Cactus is too old" with a button: enable and
+        // disable never touch a deployment, so there is nothing for a core update
+        // to ride out on.
+        const blocker = prerequisiteFrom(
+          d,
+          parsed.error ?? 'Action failed',
+          action === 'update' ? { kind: 'update', id } : undefined
+        )
         if (blocker) {
           setPrerequisiteModal(blocker)
           return
         }
         throw new Error(parsed.error ?? 'Action failed')
       }
+      const alsoWent = alsoWentOut(d)
       if (d.redeployTriggered) {
         announceRedeployStarted()
+        if (alsoWent) setNotice(`${alsoWent} went out in the same deployment.`)
       } else if (action === 'update') {
-        setNotice('Module updated. Your changes are waiting to go live - review and redeploy from Notifications.')
+        setNotice(
+          'Module updated.' +
+          (alsoWent ? ` ${alsoWent} came along with it.` : '') +
+          ' Your changes are waiting to go live - review and redeploy from Notifications.'
+        )
       }
       await loadDirectory()
       router.refresh()
@@ -1391,7 +1415,7 @@ export default function ModulesPage() {
               // with the install in one deployment.
               const retry = prerequisiteModal.retry
               const canFixHere = retry && coreUpdate && compareVersions(coreUpdate.latestVersion, retry.requiredVersion) >= 0
-              const busy = retry ? (actionLoading[retry.repoUrl] ?? false) : false
+              const busy = retry ? (actionLoading[retry.kind === 'install' ? retry.repoUrl : retry.id] ?? false) : false
               return (
                 <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <button className="btn btn-secondary" disabled={busy} onClick={() => setPrerequisiteModal(null)}>
@@ -1408,12 +1432,18 @@ export default function ModulesPage() {
                       disabled={busy}
                       onClick={() => {
                         setPrerequisiteModal(null)
-                        // Core only: the button promises Cactus and the install, and
+                        // Core only: the button promises Cactus and this one action, and
                         // sweeping the other modules in unasked is not what it says.
-                        void performInstall(retry.repoUrl, retry.channel, { updateCore: true })
+                        if (retry.kind === 'install') {
+                          void performInstall(retry.repoUrl, retry.channel, { updateCore: true })
+                        } else {
+                          void handleAction(retry.id, 'update', { updateCore: true })
+                        }
                       }}
                     >
-                      {busy ? 'Installing…' : `Update Cactus and install`}
+                      {busy
+                        ? retry.kind === 'install' ? 'Installing…' : 'Updating…'
+                        : retry.kind === 'install' ? 'Update Cactus and install' : 'Update Cactus and update'}
                     </button>
                   )}
                 </div>

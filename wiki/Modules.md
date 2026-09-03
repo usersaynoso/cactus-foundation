@@ -58,6 +58,8 @@ Each update is still checked for compatibility on its own, exactly as **Update a
 
 **If a module needs a newer Cactus than you're running**, the install is politely refused and you'll be told to update Cactus first - the other way round ends in a broken deployment, which is why we don't let it happen. If the waiting Cactus update is new enough to satisfy it, though, the message comes with an **Update Cactus and install** button: both go out together in one deployment, and there's nothing else for you to do.
 
+**If a module needs another module you've already got**, and that one is either mid-update or has an update waiting, it counts. A module that is installed and switched on satisfies the requirement at whichever version it is going out at - so installing something that wants the newest shop works while shop's own update is still on its way, rather than turning you away for a module sitting right there on the page.
+
 ### Setting up a module
 
 Some modules need extra credentials - for example, a contact form module might need email settings to send you notifications. After installation, any required settings appear as a checklist. Fill them in and save. Cactus applies the settings with another short rebuild.
@@ -89,6 +91,8 @@ If two or more modules all have updates waiting, an **Update all** button appear
 **Update all now checks compatibility one module at a time**, exactly as updating a single module has always done. A module that needs a newer version of Cactus than you're running, or another module you haven't installed, is left on its current version and reported back to you with the reason. The rest go ahead. Previously the bulk button took every latest version on trust, and one module wanting a newer Cactus could stop the site rebuilding at all - a bad afternoon for the sake of a convenience button.
 
 Cactus also reads a module's requirements from the exact release it's about to install, rather than from whatever the module's authors have committed since. What you're told about a version is what that version actually says about itself.
+
+**If the new version needs a newer Cactus**, the update is refused for the same reason an install is - and, as with an install, the message now comes with an **Update Cactus and update** button when the waiting Cactus release is new enough. Both go out in one deployment. Updating Cactus is a settings job, so the button only appears if you're allowed to do that; otherwise you'll be pointed at the update panel as before.
 
 ### "An install is already in progress"
 

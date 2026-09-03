@@ -40,11 +40,21 @@ export const maxDuration = 60
 const Patch = z.object({
   action: z.enum(['update', 'enable', 'disable', 'check-status']).optional(),
   updateChannel: z.enum(['public', 'beta']).optional(),
+  // The same "bring Cactus along" tick the install and uninstall dialogs offer. A
+  // module version that needs a newer core used to be a dead end here: the gate
+  // below judged against the running core and sent the owner off to the update
+  // panel to sit through one build before coming back for a second.
+  updateCore: z.boolean().optional(),
 })
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  // The 60s ceiling starts here, not where the deadline is computed below: by that
+  // point the handler has already spent round trips on GitHub and the deploy checks,
+  // so a budget measured from there can outlive the function it exists to fit inside.
+  const routeStartedAt = Date.now()
+
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'modules.manage')) return errorResponse('Forbidden', 403)
@@ -57,6 +67,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
   const { action, updateChannel: newUpdateChannel } = parsed.data
+  const updateCore = parsed.data.updateCore ?? false
 
   if (newUpdateChannel) {
     await prisma.module.update({ where: { id }, data: { updateChannel: newUpdateChannel } })
@@ -143,6 +154,46 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const inFlight = await getDeployInFlight()
     if (inFlight) return errorResponse(deployInFlightMessage(inFlight), 409)
 
+    // What this update gets judged against. Ticking "update Cactus too" moves the bar
+    // to the version this deploy is MOVING TO, not the one running: core files and
+    // modules.json land in one commit, so a module version that needs the incoming
+    // core is satisfied by the very build that carries it. Same reasoning as the
+    // install and uninstall routes, which have had this since v0.5.1389 - the update
+    // button was the one door still refusing outright.
+    let coreTarget: { currentVersion: string; latestVersion: string } | null = null
+    if (updateCore) {
+      // Updating Cactus itself is a config.manage job. Without this check, modules.manage
+      // alone would be enough to push a core update through the update button.
+      if (!await hasPermission(user, 'config.manage')) {
+        return errorResponse(
+          'Updating Cactus needs the settings permission. Ask an administrator to update Cactus first, then update the module.',
+          403
+        )
+      }
+      const cfg = await prisma.siteConfig.findUnique({
+        where: { id: 'singleton' },
+        select: { coreUpdateChannel: true },
+      })
+      const coreChannel = (cfg?.coreUpdateChannel ?? 'public') as 'public' | 'beta'
+      const coreStatus = await getCoreUpdateStatus({ channel: coreChannel })
+      if (
+        !('localMode' in coreStatus) &&
+        coreStatus.configured &&
+        'updateAvailable' in coreStatus &&
+        coreStatus.updateAvailable
+      ) {
+        coreTarget = { currentVersion: coreStatus.currentVersion, latestVersion: coreStatus.latestVersion }
+      }
+      // Nothing to bundle (local mode, no GitHub, or already current): carry on and
+      // update the module on its own rather than failing over a checkbox.
+    }
+    const effectiveCoreVersion = coreTarget?.latestVersion ?? pkg.version
+
+    // Give the bundled work a budget that ends a little before this function's 60s
+    // ceiling, net of what the checks above already spent. A GitHub slow spell then
+    // produces a real message and a released lock rather than a hard kill.
+    const deadlineAt = deadlineFromNow(ROUTE_WORK_BUDGET_MS - (Date.now() - routeStartedAt))
+
     const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
     if (!release) return errorResponse('No tagged releases found', 404)
 
@@ -169,11 +220,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // the running core has not got, which is the exact outcome the gate exists
     // to prevent.
     const requiresCoreVersion = readDeclaredCoreVersion(rawIncoming)
-    if (requiresCoreVersion && compareVersions(pkg.version, requiresCoreVersion) < 0) {
+    if (requiresCoreVersion && compareVersions(effectiveCoreVersion, requiresCoreVersion) < 0) {
       const displayName = formatModuleDisplayName(mod.repoUrl)
       return NextResponse.json(
         {
-          error: `The new version of "${displayName}" needs Cactus v${requiresCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then update the module.`,
+          error: coreTarget
+            // They ticked the box and it still is not enough - say so, or the message
+            // sends them off to do the very update this attempt already offered.
+            ? `The new version of "${displayName}" needs Cactus v${requiresCoreVersion} or newer. The newest Cactus available is v${coreTarget.latestVersion}, so updating first would still not be enough - try again once a newer Cactus is out.`
+            : `The new version of "${displayName}" needs Cactus v${requiresCoreVersion} or newer - this site is on v${pkg.version}. Update Cactus first from the update panel, then update the module.`,
           code: 'core_version_required',
           moduleName: displayName,
           requiredVersion: requiresCoreVersion,
@@ -198,7 +253,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     if (incoming) {
       const installed = await prisma.module.findMany({
-        select: { name: true, version: true, status: true, repoUrl: true },
+        select: { name: true, version: true, status: true, pendingVersion: true, repoUrl: true },
       })
       const [unmet] = findUnmetModuleDependencies(incoming.requiresModules, installed)
       if (unmet) {
@@ -248,9 +303,39 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ...(incoming ? { manifest: incoming as object } : {}),
         },
       })
+      // With a core update bundled in, the core sync is what does the committing: it
+      // pushes the core files AND modules.json in one commit, so it has to carry every
+      // module's pin - this module's new tag included, which is why it reads
+      // pendingVersion first. startDeferredRedeploy is then told to adopt that push's
+      // build rather than committing a second time and deploying twice.
+      let committedSince: number | undefined
+      if (coreTarget) {
+        const deployStartedAt = Date.now()
+        const allModules = await prisma.module.findMany({
+          where: { status: { notIn: ['failed', 'inactive'] } },
+        })
+        await syncCoreFromUpstream(
+          coreTarget.currentVersion,
+          coreTarget.latestVersion,
+          allModules.map((m) => ({
+            name: m.name,
+            repoUrl: m.repoUrl,
+            version: m.pendingVersion ?? m.version,
+            lastFailedVersion: m.lastFailedVersion,
+          })),
+          { deadlineAt }
+        )
+        // So the update panel reflects the version being deployed rather than a cached
+        // "update available" for the one already going up.
+        invalidateCoreUpdateCache()
+        committedSince = deployStartedAt
+      }
+
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-      const { triggered } = await startDeferredRedeploy()
+      const { triggered } = await startDeferredRedeploy(
+        committedSince !== undefined ? { committedSince } : {}
+      )
       if (!triggered) {
         // No Vercel creds: there's no deploy to track, so apply the update optimistically
         // (promote the version now) and fall back to the deferred-notification flow.
@@ -271,7 +356,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           console.error('[modules] Failed to clear module-update notification:', err)
         }
         await recordDeploymentNeeded({ label: `Module '${mod.name}' updated to v${release.tag.replace(/^v/i, '')}` })
-        return NextResponse.json({ ok: true, status: 'pending_deploy' })
+        return NextResponse.json({
+          ok: true,
+          status: 'pending_deploy',
+          coreUpdatedTo: coreTarget?.latestVersion ?? null,
+        })
       }
     } catch (err: unknown) {
       await prisma.module.update({
@@ -282,7 +371,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return errorResponse(`Update failed: ${err instanceof Error ? err.message : 'Unknown'}`, 500)
     }
 
-    return NextResponse.json({ ok: true, status: 'deploying', redeployTriggered: true })
+    return NextResponse.json({
+      ok: true,
+      status: 'deploying',
+      redeployTriggered: true,
+      coreUpdatedTo: coreTarget?.latestVersion ?? null,
+    })
   }
 
   return errorResponse('Unknown action')
@@ -425,7 +519,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     // running out) here is a clean "try again", not a half-done uninstall.
     try {
       const surviving = (await prisma.module.findMany({
-        select: { name: true, version: true, status: true },
+        select: { name: true, version: true, status: true, pendingVersion: true },
       })).filter((m) => m.name !== mod.name)
       const pendingRows = await prisma.module.findMany({
         where: { status: 'update_available', name: { not: mod.name } },
