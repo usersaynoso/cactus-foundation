@@ -163,6 +163,20 @@ Picking one back up depends on what it is. A saved reply lives under its convers
 
 What is saved is what you typed, line breaks and all, along with who it is going to, the subject and anything you attached. Attachments are still only pointed at rather than copied, so a draft carrying three quotes costs nothing until you press Send.
 
+### Sending it later
+
+Some replies are written at half past eleven at night and would land better at nine in the morning. Under the writing box, next to **Save as a draft**, is **Send it later**: pick the day and the time, press **Schedule it**, and the message waits until then and goes out on its own. You do not have to be there, or even have the site open.
+
+**A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can change what it says, move it to another time, or press **Cancel the timer** and leave it as an ordinary draft. Send it yourself before its time comes and the timer goes with it - there is no second copy.
+
+**It goes at that time or shortly after, never before it.** The site checks its own list on a schedule, so a message set for 09:30 leaves at 09:30 or a little after depending on how your site is set up. Anyone pressing the refresh button in the inbox sends whatever is due at that moment too, which in practice means a message due while somebody is at their desk goes almost at once.
+
+**Times are your site's times.** Nine o'clock means nine o'clock as the site tells the time, whatever clock the computer you typed it on is keeping.
+
+**If it cannot go, it stays here and says so.** An address that has been taken off you between writing the message and its time coming, a mail server having a bad morning, a conversation that has since been deleted - whatever the reason, the writing is kept exactly as it was with the reason beside it on the row, and nothing is quietly thrown away. Fix it and send it, or set another time.
+
+A message set to go out on a shared address is visible to whoever shares it, and anyone who can send as that address can change its time or cancel it - the same rule drafts already follow.
+
 ### Sent
 
 **Sent** is a tab beside Drafts, and it is one row per message that has left, newest first, across every address you are allowed to read. Not one row per conversation: a thread you have answered four times is four things you sent, and "did that quote actually go, and when" is a question about the message rather than about the conversation it sits in.
@@ -228,7 +242,7 @@ Three things worth knowing:
 
 Automatically, **once an hour on a paid hosting plan and once a day on the free one**. That is the hosting plan's limit rather than a choice.
 
-For when you are waiting on something, there is a **refresh button at the top left of the inbox itself** - the circular arrow just to the left of the **All** tab. Press it and the site goes and fetches your post there and then, from every mail account at once, and tells you what it found. There is a minute's cooldown between presses so your mail provider does not take it personally, and it will say so plainly if you are early. The same thing per account still lives on the settings page as **Check now**.
+For when you are waiting on something, there is a **refresh button at the top left of the inbox itself** - the circular arrow just to the left of the **All** tab. Press it and the site goes and fetches your post there and then, from every mail account at once, and tells you what it found. A mailbox opened seconds ago is left alone rather than opened again, so that your mail provider does not take it personally - press anyway and the list still refreshes, and it tells you how recently your mail was looked at rather than refusing you. The same thing per account still lives on the settings page as **Check now**.
 
 The refresh button only appears if you look after the inbox and there is a mail account for it to check - there is no sense offering a button whose only possible answer is no.
 
@@ -252,7 +266,7 @@ Then the conversations. With nothing open the list has the whole width and reads
 
 **Working through several at once.** Every row has a tick box, and above the list there is one that ticks the lot. Tick a few and a bar appears offering the four things you would otherwise open each of them to do: **Mark as done**, **Mark as read**, **Mark as unread** and **Open again**. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
 
-In a conversation you can reply, reply to everybody, forward, or leave an **internal note**. (Starting one from scratch is **Write a message**, above.) A note is not sent to anybody, says so on its face, and deliberately does not bump the conversation or mark it unread: us talking among ourselves should not look like the customer writing again. Mentioning a colleague in a note raises a notification for them, but only if they could open that conversation anyway.
+In a conversation you can reply, reply to everybody, forward, or leave an **internal note**. The writing box is not sitting open under every conversation any more - **Reply**, **Forward** and **Internal note** are buttons in the row of actions at the top, and the box appears when you press one. Press the same one again to put it away. If you left a draft on that conversation it opens with the box already up, so nothing half-written is out of sight. The row of actions stays pinned to the top of the conversation as you scroll, so Reply is one press away however long the thread is. (Starting one from scratch is **Write a message**, above.) A note is not sent to anybody, says so on its face, and deliberately does not bump the conversation or mark it unread: us talking among ourselves should not look like the customer writing again. Mentioning a colleague in a note raises a notification for them, but only if they could open that conversation anyway.
 
 You can assign a conversation to somebody, mark it done, and reopen it. Every one of those is recorded, so "who marked this done" has an answer.
 
@@ -272,7 +286,7 @@ When one comes back this way it says so in **What has been done to this** at the
 
 ### Which way round a conversation reads
 
-By default a conversation reads the way it happened: the first message at the top, the latest at the bottom, and the writing box under the lot.
+By default a conversation reads the way it happened: the first message at the top, the latest at the bottom, and the writing box - once you have asked for it - under the lot.
 
 Tick **Show the newest message at the top of a conversation** on **Settings → Unified Inbox → Collecting** and it turns round - the latest message is the first thing you see when you open one, and the writing box moves up with it so the reply sits beside the thing you are replying to. Handy on a long back and forth where the only part anybody needs is the end of it.
 

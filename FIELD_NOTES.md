@@ -1,4 +1,4 @@
-Last updated: 2026-09-03 (**A layout type added to an EXISTING module now seeds its layout - core **v0.5.1474**, `filters-for-shop` **0.1.47**.** Root cause of the supplier-pages complaint two entries down, and it is structural, not a supplier bug. `Module.layoutsSeededAt` is ONE stamp for a whole module, and `planModuleSeeds` only gives a stamped module another go when `types.every((t) => !typesWithRows.has(t))`. Deskwell's shop has 48 `shopCategory` rows, so that is false forever: **any layout type added to shop in a later update can never seed**. `shopSupplier` reached a live site with starters and no layout, the page fell back to the plain grid, and the filter panel - the whole point - was absent until the owner hand-built a layout.
+Last updated: 2026-09-03 (**Write it now, send it later** - `unified-inbox` v0.1.40, core pin v0.5.1478. A draft can carry a departure time and goes out on its own; the scheduled-send cron claims due rows with SKIP LOCKED and the send route's idempotency key is the draft id, so one message goes once. Previously: **A layout type added to an EXISTING module now seeds its layout - core **v0.5.1474**, `filters-for-shop` **0.1.47**.** Root cause of the supplier-pages complaint two entries down, and it is structural, not a supplier bug. `Module.layoutsSeededAt` is ONE stamp for a whole module, and `planModuleSeeds` only gives a stamped module another go when `types.every((t) => !typesWithRows.has(t))`. Deskwell's shop has 48 `shopCategory` rows, so that is false forever: **any layout type added to shop in a later update can never seed**. `shopSupplier` reached a live site with starters and no layout, the page fell back to the plain grid, and the filter panel - the whole point - was absent until the owner hand-built a layout.
 
 Counting Layout rows cannot fix it. "No rows for this type" reads identically whether the type is new or whether the owner **deleted** its layout on purpose to fall back to the built-in page, and re-minting the latter is core redesigning a live site unasked - which is exactly what the existing narrow test was protecting. So what has actually been seeded is now recorded.
 
@@ -18,6 +18,32 @@ Last updated: 2026-09-03 (**A reply now puts an inbox conversation back in Open 
 
 **Core v0.5.1469 is likewise superseded** - it pins two tags that do not build. It is no longer the newest release, so it is not offered.)
 
+
+---
+
+## unified-inbox - write it now, send it later (v0.1.40, core pin v0.5.1478)
+
+**Migration:** `modules/unified-inbox/migrations/021_scheduled_send.sql`. Four columns on `uin_drafts` - `send_at TIMESTAMP(3)`, `send_state TEXT` (`scheduled` | `sending` | `failed`, CHECKed), `send_error TEXT`, `claimed_at TIMESTAMP(3)` - plus two partial indexes (`uin_drafts_due_idx`, `uin_drafts_claimed_idx`) and a CHECK that a state cannot exist without a time. All TEXT/TIMESTAMP, so the backup schema-coverage backstop needs no new branch. 013 is untouched: an applied migration is never edited, and 021 runs after it on fresh installs anyway.
+
+**A scheduled message is a DRAFT WITH A DEPARTURE TIME, not a third kind of thing.** No new table, no new tab, no new access rule: `draftScope`/`editScope`, the Drafts list, the Drafts count, the cascade when an inbox or a user is deleted and the tidy-up after a send all already govern it. It is deliberately not a status on `uin_messages` - an unsent message must never be walked by retention, webhooks, threading or the Sent list.
+
+**New:** `lib/scheduled.ts` (pure - `decideSendAt` turns a typed wall clock into an instant **in the site's zone** via core's `instantAtWallClock`, `toWallClock` back again, `describeSendAt`/`scheduleLabel`, `plainTextToHtml`, `MIN_LEAD_MS` 60s, `MAX_AHEAD_DAYS` 366, `STALE_CLAIM_MS` 10min) with `lib/scheduled.test.ts`; `lib/scheduled-send.ts` (`runDueScheduledSends`, `SCHEDULED_BUDGET_MS` 20s, `SCHEDULED_BATCH` 10); `components/admin/inbox/SendLater.tsx`; `app/api/cron/scheduled-send/route.ts`.
+
+**New cron job:** `/api/m/unified-inbox/cron/scheduled-send`, `*/5 * * * *` in `cactus.module.json`. The site's dispatcher is hourly (daily on Hobby), so that means "every tick", and the copy says "at that time or shortly after, never before it" rather than promising a minute. `POST /api/m/unified-inbox/admin/check-now` also flushes what is due first, with an 8s slice, and reports `sentOnSchedule` - somebody watching the screen is a better clock than the tick.
+
+**Sending twice is guarded twice.** `claimDueScheduledDrafts` moves the row out of `scheduled` in the same UPDATE that finds it (`... WHERE id IN (SELECT ... FOR UPDATE SKIP LOCKED)`), so a second run gets nothing; and the idempotency key handed to `sendMessage` is `scheduled-<draftId>`, so even two claims land on one `uin_messages` row.
+
+**Rights are checked when it LEAVES, not when it was set.** New in `lib/access.ts`: `canUserReplyToInbox(userId, inboxId)` and `userCanReply(userId)`, the send-side twins of `canUserViewInbox`. Somebody taken off `accounts@` on Friday does not have a message leave as `accounts@` on Monday - it fails with a sentence and the writing is kept.
+
+**`saveDraft` now has three answers about time, not two:** a Date schedules, `null` cancels, and **left out means leave it alone** - the SET clause is assembled from two `Prisma.sql` fragments for exactly that. Pressing "Save as a draft" on a message set for the morning must not quietly cancel the morning. `DraftBody` gains `sendAt` as a wall-clock string (`"2026-09-04T09:00"`, no zone); the drafts route refuses a past time, a time over a year out, a missing address, an empty body and (for a new conversation) missing recipients or subject **at the point somebody presses the button**, not at 3am.
+
+**Live SQL guard:** `lib/scheduled-send.live.test.ts`, opted into with `RUN_INBOX_SCHEDULE_GUARDS=1` against a throwaway `cactus_rt_*` database on the OVH VPS. Nothing else executes these statements - the claim's SKIP LOCKED semantics and the two-fragment SET are claims about Postgres, not about TypeScript.
+
+**UI:** `SendLater` under the box in both composers (reply and new message), the picker's floor (`minSendAt`) computed on the server in the site's zone and carried through `ThreadPane` → `ComposerSlot` → `Composer`. Drafts rows carry a `uin-tag-snoozed` "Goes out ..." tag, or `uin-tag-failed` "Did not go out" with the reason in the title. `DraftReadOnlyView` says the same for a colleague's. New styles: `.uin-sendlater`, `.uin-sendlater-picker`.
+
+**Also in this release, from separate work in the same tree:** `chooseSignatureSource` takes a third argument, `sendingInboxIsSomebodysOwn`, and returns the sending inbox outright when it is true - an address that is somebody's own signs as them whoever pressed Send, so a colleague posting Marcus's draft does not sign it in their own name. `lib/send.ts` asks `inboxIsSomebodysOwn(inbox.id)` first and only reads the sender's own default inbox when the answer is no.
+
+**Wiki:** `Unified-Inbox.md`, new "Sending it later" section.
 
 ---
 
