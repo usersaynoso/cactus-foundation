@@ -13,16 +13,21 @@ export const dynamic = 'force-dynamic'
 // generateMetadata and RootPage both need the singleton config and, when one
 // is assigned, the homepage row. cache() keeps each at a single query per
 // request, same as the [slug] route does for its page row.
+//
+// This one deliberately does NOT swallow its errors. A missing row means the
+// site has never been set up; a failed query means the database is having a
+// moment. Reading the second as the first sends every visitor on the homepage -
+// the address every shared link and every crawler starts from - to the first-run
+// wizard for as long as the blip lasts. Letting it throw gives an error page
+// instead, which is both true and temporary.
 const getRootConfig = cache(() =>
-  prisma.siteConfig
-    .findUnique({
-      where: { id: 'singleton' },
-      select: {
-        setupCompleted: true,
-        siteName: true, tagline: true, description: true, homepageId: true,
-      },
-    })
-    .catch(() => null)
+  prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: {
+      setupCompleted: true,
+      siteName: true, tagline: true, description: true, homepageId: true,
+    },
+  })
 )
 
 const getHomepage = cache((id: string) =>
@@ -63,8 +68,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootPage() {
-  // A failed config read means "not set up", same as before, and redirect()
-  // throws, so it must stay outside any catch.
+  // No row means not set up. A failed read throws out of here on purpose (see
+  // getRootConfig) - and redirect() throws too, so neither may sit in a catch.
   const config = await getRootConfig()
 
   if (!config?.setupCompleted) {

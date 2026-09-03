@@ -255,6 +255,61 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
   return res
 }
 
+// Which kind of failure just happened: "no site here yet" or "the database is
+// having a moment". Only the first may be answered with the setup wizard.
+//
+// Two failures mean genuinely unconfigured, both of them first-run states the
+// wizard exists to get a site out of:
+//   - no DATABASE_URL at all - nothing has been provisioned yet;
+//   - a connection that works but has no schema behind it - the wizard has
+//     written the connection string and the migration runs on the next deploy.
+// Anything else (refused, timed out, pool exhausted, server restarted) is an
+// outage on a site that is already set up, and the wizard is the last thing it
+// should be showing.
+function gateFailureMeansUnconfigured(err: unknown): boolean {
+  if (!process.env.DATABASE_URL?.trim()) return true
+  const code = (err as { code?: unknown } | null)?.code
+  // P2021 table does not exist, P2022 column does not exist.
+  if (code === 'P2021' || code === 'P2022') return true
+  const message = err instanceof Error ? err.message : ''
+  return /does not exist in the current database|relation "[^"]*" does not exist/i.test(message)
+}
+
+// Answer for a request that arrived while the database was unreachable.
+//
+// 503 is the honest reply: it keeps the URL, tells a crawler to come back rather
+// than drop the page from its index, and - unlike the first-run redirect it
+// replaces - never shows the setup wizard to somebody who was trying to buy a
+// chair. Colours come from the CSS system palette so the page follows the
+// reader's light/dark setting without a stylesheet the server cannot reach.
+const UNAVAILABLE_HTML = `<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Back in a moment</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 2rem; min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; background: Canvas; color: CanvasText; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { margin: 0 0 0.75rem; font-size: 1.5rem; font-weight: 600; }
+  p { margin: 0; max-width: 32rem; line-height: 1.6; opacity: 0.75; }
+</style>
+<main>
+  <h1>Back in a moment</h1>
+  <p>This site cannot reach its database right now. Nothing has been lost - please try again shortly.</p>
+</main>
+`
+
+function databaseUnavailable(pathname: string): NextResponse {
+  const headers = { 'Retry-After': '30', 'Cache-Control': 'no-store' }
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503, headers })
+  }
+  return new NextResponse(UNAVAILABLE_HTML, {
+    status: 503,
+    headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
+  })
+}
+
 function withSecurity(res: NextResponse): NextResponse {
   // Security headers serve no purpose on localhost and actively break Turbopack
   // HMR (blob: workers), source maps, and DevTools in development.
@@ -343,13 +398,34 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/setup/') ||
     pathname.startsWith('/api/setup')
 
+  //
+  // A read that THROWS means the database could not be reached. That is not the
+  // same thing as "this site has never been set up", and collapsing the two is
+  // how a thirty-second database blip replaces a live site - shop, orders,
+  // pages, the lot - with a "set up your site" wizard, for every visitor and
+  // every crawler that arrives while it lasts. A failed read therefore answers
+  // 503 and keeps its hands off the wizard. Setup paths are the exception: a
+  // genuine fresh install has no schema to read either, and the wizard is the
+  // one thing that must still answer when the read fails.
   let setupCompleted = false
+  let gateUnavailable = false
   try {
     setupCompleted = isSetupPath
       ? await refreshFirstRunComplete()
       : await isFirstRunComplete()
-  } catch {
-    setupCompleted = false
+  } catch (err) {
+    if (gateFailureMeansUnconfigured(err)) {
+      setupCompleted = false
+    } else {
+      gateUnavailable = true
+    }
+  }
+
+  if (gateUnavailable) {
+    if (isSetupPath || SETUP_PASS.some((p) => pathname.startsWith(p))) {
+      return withSecurity(NextResponse.next())
+    }
+    return withSecurity(databaseUnavailable(pathname))
   }
 
   if (!setupCompleted) {
