@@ -21,6 +21,26 @@ Last updated: 2026-09-03 (**A reply now puts an inbox conversation back in Open 
 
 ---
 
+## unified-inbox - the writing box opens on request, and the header is pinned (v0.1.39, core pin v0.5.1477)
+
+No migration, no API change. The composer was mounted under every conversation whether anybody was writing or not.
+
+**New:** `components/admin/inbox/ComposerOpen.tsx` - `ComposerOpenProvider` (client context holding `{ mode, at } | null`), `ReplyActions` (the Reply / Forward / Internal note buttons, for the head) and `ComposerSlot` (the box itself, where the composer always sat). Two places, one answer, which is why it is a context rather than state in either. Keyed on `thread.id` in `ThreadPane`, so opening the next conversation starts shut.
+
+**Reply to all is deliberately not a fourth button** - it is a variation on Reply and only exists when somebody else is on the message, so it stays a chip inside the box. The Reply button reads as pressed for both.
+
+**Changed:** `Composer` exports `ComposerMode` and takes `requestedMode` / `requestedAt`. `requestedAt` counts presses so a second press of the same button still reads as an instruction; it is applied **during render** (React's adjust-state-on-prop-change idiom), not in an effect - `react-hooks/set-state-in-effect` refuses the effect version, and rightly.
+
+**Not rendered while shut, rather than hidden:** the composer holds a draft, an idempotency token and a beforeunload guard, none of which should be alive on a conversation nobody is writing on. A draft opens the box on the way in - `openAs = draft && draft.mode !== 'new' ? draft.mode : null` - because a draft nobody can see is a draft nobody finishes.
+
+**`cannotReplyReason` moved with it.** It used to be an alert inside the always-open box; with the box shut, a missing Reply button and no explanation reads as a fault, so `ReplyActions` shows the reason beside the buttons when `!canReply`. The composer still shows it too.
+
+**Sticky again, and only above 900px.** `.uin-thread-head` gets `position: sticky; top: 0; z-index: 3` inside the media query where `.uin` is the sticky frame and each pane scrolls its own contents. Below that the page scrolls and the band would pin to the phone's viewport, which is what the comment removed here warned about - the original unpinning was because the composer sat open directly beneath it, and that is no longer true.
+
+**Wiki:** `Unified-Inbox.md`, the reply paragraph and the newest-first paragraph.
+
+---
+
 ## unified-inbox - pressing refresh refreshes, it does not refuse (v0.1.38, core pin v0.5.1476)
 
 No migration. `POST /api/m/unified-inbox/admin/check-now` no longer answers 429 "A check has just run - give it N seconds and try again."
