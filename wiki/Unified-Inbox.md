@@ -167,7 +167,9 @@ What is saved is what you typed, line breaks and all, along with who it is going
 
 Some replies are written at half past eleven at night and would land better at nine in the morning. Under the writing box, next to **Save as a draft**, is **Send it later**: pick the day and the time, press **Schedule it**, and the message waits until then and goes out on its own. You do not have to be there, or even have the site open.
 
-**A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can change what it says, move it to another time, or press **Cancel the timer** and leave it as an ordinary draft. Send it yourself before its time comes and the timer goes with it - there is no second copy.
+**A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can move it to another time, or press **Cancel the timer** and have an ordinary draft back.
+
+**While it is waiting, Send and Save as a draft are not there.** The message has been decided about: one of those would post it this minute and the other looks like the way to keep it, which it is not. Cancel the timer and both come straight back.
 
 **It goes at that time or shortly after, never before it.** The site checks its own list on a schedule, so a message set for 09:30 leaves at 09:30 or a little after depending on how your site is set up. Anyone pressing the refresh button in the inbox sends whatever is due at that moment too, which in practice means a message due while somebody is at their desk goes almost at once.
 
@@ -176,6 +178,30 @@ Some replies are written at half past eleven at night and would land better at n
 **If it cannot go, it stays here and says so.** An address that has been taken off you between writing the message and its time coming, a mail server having a bad morning, a conversation that has since been deleted - whatever the reason, the writing is kept exactly as it was with the reason beside it on the row, and nothing is quietly thrown away. Fix it and send it, or set another time.
 
 A message set to go out on a shared address is visible to whoever shares it, and anyone who can send as that address can change its time or cancel it - the same rule drafts already follow.
+
+### Chasing it up
+
+Next to the day and the time is **Bring it back if nobody replies**, and it offers exactly what **Remind me later** offers on a conversation: **In three hours**, **Tomorrow morning**, **Next week**, or a day and a time of your own. Set one and, once the message has actually gone, the conversation goes quiet until then - and comes straight back to you if nobody has answered.
+
+**The answers are counted from when the message goes out**, not from when you are sitting there setting them. "Tomorrow morning" on something leaving on Friday night means Saturday morning, which is what anybody would expect it to mean.
+
+**It comes back to whoever wrote the message.** On a shared address a colleague can finish and send something you started, and the person waiting on an answer is the one who asked the question - so the conversation is handed to whoever wrote it when it comes back, not to whoever pressed Send. Sending it by hand before its time does the same: the follow-up was written into the message, not into the timer.
+
+**It disappears the moment they reply.** A reply already wakes a snoozed conversation, and that is all this is: the conversation is put to sleep for as long as you said, and their answer wakes it. So you only ever see the chase if there was nothing to chase.
+
+**It rides with the time.** Cancel the timer and the follow-up goes with it, because a message that is not going anywhere has nothing to be chased about. Set another time and pick the follow-up again alongside it.
+
+### When they write first
+
+A message set for Monday morning was written without Monday's post in front of you, and sending it anyway is how you ask a question that has already been answered.
+
+**So mail from the person it is addressed to holds it.** If they write to you before your message leaves, the timer comes off it, nothing is sent, and the writing stays exactly as it was. Their message opens with **A message to them was waiting to go out** across the top of it, saying what yours was about and when it was going to go, with a link straight to it - read what they said, then send yours as it stands, change it, or throw it away.
+
+**Nothing is lost and nothing is sent twice.** The message sits under **Drafts** with **Held - they wrote first** on the row. Put a time back on it and it is queued again as normal.
+
+**A message already going out is left alone.** If their mail arrives in the minute yours is being sent, yours has gone: the site will not pretend otherwise.
+
+Only the **To** line counts - somebody merely copied in writing to you does not hold anything - and only a real message does. An out-of-office or a bounce is the mail system talking, not an answer, and holds nothing.
 
 ### Sent
 
