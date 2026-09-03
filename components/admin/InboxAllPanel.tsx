@@ -1,7 +1,8 @@
 import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { resolveConversationProviders } from '@/lib/conversations/providers'
-import { formatInSiteTimezone, getSiteTimezone } from '@/lib/config/timezone'
+import { formatInSiteTimezone } from '@/lib/config/timezone'
+import { getSiteTimezone } from '@/lib/config/timezone.server'
 import type { ConversationChannel, ConversationSummary } from '@/lib/conversations/types'
 
 // Core's own Inbox tab: every channel the installed modules publish, in one

@@ -1,5 +1,9 @@
-import { getSiteConfig } from '@/lib/config/site'
-
+// Pure timezone maths and formatting. NOTHING in this file may reach the
+// database: it is imported by client components (an inbox list, an order card),
+// and one import of `@/lib/config/site` from here drags Prisma into their
+// bundle - which is exactly what the module build gate caught on the first
+// attempt at this. The reader that looks the site's zone UP lives next door in
+// `timezone.server.ts`.
 // The fallback when a site has never picked one, and the answer whenever a
 // stored value is not a zone this runtime knows. Never throw over a setting:
 // a bad zone name should cost the reader an hour, not the whole page.
@@ -13,14 +17,6 @@ export function normaliseTimezone(value: string | null | undefined): string {
   } catch {
     return DEFAULT_TIMEZONE
   }
-}
-
-// Server components render on a machine whose clock is UTC, so any date they
-// format without naming a zone comes out an hour behind for half the British
-// year. Everything server-rendered that shows a clock time reads this first.
-export async function getSiteTimezone(): Promise<string> {
-  const config = await getSiteConfig().catch(() => null)
-  return normaliseTimezone(config?.timezone)
 }
 
 export function formatInSiteTimezone(
