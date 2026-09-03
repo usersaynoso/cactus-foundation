@@ -1,3 +1,5 @@
+Last updated: 2026-09-03 (**Chase it up, and stand it down** - `unified-inbox` v0.1.41, core pin v0.5.1479. A scheduled message can carry a follow-up - once it has gone the conversation is snoozed until the chase is due and assigned to whoever WROTE the draft, not whoever sent it - and inbound mail from the person a scheduled message is addressed to stands that message down rather than letting it ask a question they have just answered. Migration 022, `lib/follow-up.ts`, `holdScheduledDraftsFor`. Live SQL suite 18/18 and the backup round-trip a real PASS.)
+
 Last updated: 2026-09-03 (**Write it now, send it later** - `unified-inbox` v0.1.40, core pin v0.5.1478. A draft can carry a departure time and goes out on its own; the scheduled-send cron claims due rows with SKIP LOCKED and the send route's idempotency key is the draft id, so one message goes once. Previously: **A layout type added to an EXISTING module now seeds its layout - core **v0.5.1474**, `filters-for-shop` **0.1.47**.** Root cause of the supplier-pages complaint two entries down, and it is structural, not a supplier bug. `Module.layoutsSeededAt` is ONE stamp for a whole module, and `planModuleSeeds` only gives a stamped module another go when `types.every((t) => !typesWithRows.has(t))`. Deskwell's shop has 48 `shopCategory` rows, so that is false forever: **any layout type added to shop in a later update can never seed**. `shopSupplier` reached a live site with starters and no layout, the page fell back to the plain grid, and the filter panel - the whole point - was absent until the owner hand-built a layout.
 
 Counting Layout rows cannot fix it. "No rows for this type" reads identically whether the type is new or whether the owner **deleted** its layout on purpose to fall back to the built-in page, and re-minting the latter is core redesigning a live site unasked - which is exactly what the existing narrow test was protecting. So what has actually been seeded is now recorded.
@@ -18,6 +20,22 @@ Last updated: 2026-09-03 (**A reply now puts an inbox conversation back in Open 
 
 **Core v0.5.1469 is likewise superseded** - it pins two tags that do not build. It is no longer the newest release, so it is not offered.)
 
+
+---
+
+## unified-inbox - chase it up, and stand it down (v0.1.41, core pin v0.5.1479)
+
+**Migration:** `modules/unified-inbox/migrations/022_follow_up_and_hold.sql`. Three columns on `uin_drafts` - `follow_up_minutes INTEGER` (CHECKed 1440..527040), `held_by_thread_id TEXT` (FK `uin_threads` ON DELETE SET NULL) and `held_at TIMESTAMP(3)` - plus a partial index `uin_drafts_held_idx`. INTEGER/TEXT/TIMESTAMP only, so the backup schema-coverage backstop needs no new branch. 021 untouched.
+
+**Follow-up.** A scheduled draft may carry a length of time. Once the message has actually gone the conversation is SNOOZED for that long and ASSIGNED to `draft.author_user_id` - not to whoever pressed Send, because a shared address means a colleague can finish somebody else's message and the person waiting on an answer is the one who asked the question. Expressed as a snooze deliberately: `reopenOnReply` already wakes a snoozed conversation, so a chase nobody needs cancels itself. New `lib/follow-up.ts` (`applyFollowUpAfterSend`) is called from BOTH send paths - the cron in `lib/scheduled-send.ts` and `app/api/send/route.ts` for a hand-sent draft - and never throws: the message has gone.
+
+**`deleteDraft` now goes through `deleteDraftReturning` (DELETE ... RETURNING \*)** so `discardDraftAfterSend` hands back the row it removed; the chase outlives the draft that carried it without a second query racing the delete.
+
+**Standing a message down.** Inbound, non-automated mail whose sender matches a scheduled draft's To line (case-insensitively) clears `send_state` and sets the two held columns - `holdScheduledDraftsFor`, called from `writeSide` in `lib/sync.ts` beside `reopenOnReply`. The TIME IS KEPT so the screen can say what it was going to do; a time with no state is an ordinary draft to every other query. Only `send_state = 'scheduled'` rows: one already claimed as `'sending'` may be at the mail server. Two new thread events, `held` and `awaiting`, both unattended.
+
+**UI:** `SendLater` gains the follow-up menu and the held notice; `ThreadPane` shows the held-draft banner (fed by `draftsHeldByThread`, read through the same visibility clause as every other draft read) and names the chase's owner in the log; `DraftListView` shows `Held - they wrote first` via `scheduleLabel`. `DraftBody` gains `followUpMinutes`, bounded by `decideFollowUp`.
+
+**Verified:** `tsc` clean, `eslint` clean, `npm test` for the module 544 passed, and `RUN_INBOX_SCHEDULE_GUARDS=1` `scheduled-send.live.test.ts` a real PASS against a throwaway VPS database - the migration and all five new statements executed, including the hold's `unnest`/`lower` match and the author-not-sender assignment.
 
 ---
 
