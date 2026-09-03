@@ -254,8 +254,14 @@ export async function seedDefaultLayouts(db: typeof prisma) {
  * unguarded upsert would happily re-mint a layout the owner had deleted in the
  * meantime.
  */
-export async function seedModuleDefaultLayouts(db: typeof prisma, moduleName: string): Promise<number> {
-  return seedTemplates(db, planModuleSeedTemplates(moduleStarterTemplates(moduleName)))
+export async function seedModuleDefaultLayouts(db: typeof prisma, moduleName: string, onlyTypes?: string[]): Promise<number> {
+  const entries = moduleStarterTemplates(moduleName)
+  // `onlyTypes` is the top-up path: a module already seeded that has gained a
+  // layout type since. Narrowed BEFORE planning, so the plan's one-per-type
+  // choice is made over the new types alone and the module's existing layouts
+  // are never reconsidered.
+  const wanted = onlyTypes ? entries.filter((e) => onlyTypes.includes(e.type)) : entries
+  return seedTemplates(db, planModuleSeedTemplates(wanted))
 }
 
 /**
@@ -315,6 +321,42 @@ export function planModuleSeeds<T extends { name: string; layoutsSeededAt?: Date
   })
 }
 
+/**
+ * What a stamped module's seeded-type ledger should become, and which of its
+ * types to seed now (pure - see starterLayouts.test.ts).
+ *
+ * The ledger exists because `layoutsSeededAt` is one stamp for a whole module,
+ * so a module stamped on install can never seed a layout type it gains in a
+ * later update. Supplier pages shipped exactly that way: `shopSupplier` reached
+ * a live site with starters and no layout, and the page fell back to a plain
+ * grid with no filter panel on it.
+ *
+ * Counting Layout rows instead cannot tell the two apart - "no rows for this
+ * type" reads the same whether the type is new or whether the owner deleted its
+ * layout on purpose to fall back to the built-in page, and re-minting that would
+ * change a live site without asking. So what has been seeded is recorded.
+ *
+ * ADOPTION: a module whose ledger is empty was stamped before the ledger
+ * existed. It adopts everything it declares today and seeds nothing, so no site
+ * has a layout minted under it retrospectively. Only types that appear after
+ * that point are ever seeded - which is precisely "new additions".
+ */
+export function planTypeSeeds(
+  moduleName: string,
+  ledger: string[],
+  declaredTypes: Record<string, string[]>,
+): { seed: string[]; ledger: string[] } {
+  const declared = declaredTypes[moduleName] ?? []
+  // Nothing declared in this build means the module's code is absent from it
+  // (see isModuleInBuild). Adopting an empty list would wipe a real ledger and
+  // let the next build re-seed every type, so leave it exactly as it is.
+  if (declared.length === 0) return { seed: [], ledger }
+  if (ledger.length === 0) return { seed: [], ledger: [...declared] }
+  const known = new Set(ledger)
+  const seed = declared.filter((t) => !known.has(t))
+  return { seed, ledger: seed.length ? [...ledger, ...seed] : ledger }
+}
+
 /** The layout types each module in this build declares, keyed by module name.
  *
  * Keyed on the type's own module, not its group's: an add-on hosting its types
@@ -358,7 +400,7 @@ export async function seedPendingModuleLayouts(db: typeof prisma): Promise<numbe
   const [installed, rows] = await Promise.all([
     db.module.findMany({
       where: { status: { in: ['active', 'inactive', 'update_available'] } },
-      select: { id: true, name: true, layoutsSeededAt: true },
+      select: { id: true, name: true, layoutsSeededAt: true, seededLayoutTypes: true },
     }),
     allTypes.length
       ? db.layout.findMany({ where: { type: { in: allTypes } }, select: { type: true }, distinct: ['type'] })
@@ -368,6 +410,30 @@ export async function seedPendingModuleLayouts(db: typeof prisma): Promise<numbe
   const typesWithRows = new Set(rows.map((r) => r.type))
   const seedable = planModuleSeeds(installed, modulesInBuild, declaredTypes, typesWithRows)
 
+  const seedableNames = new Set(seedable.map((m) => m.name))
+
+  // Top-up pass: a module already seeded that has GAINED a layout type since.
+  // Runs before the full seeds below and skips anything in that set, so a module
+  // being seeded from scratch is never handled twice.
+  //
+  // Deliberately does NOT call autoPlaceModuleBlocks: placement is
+  // first-install-only, and re-running it would re-add marker blocks the owner
+  // has since deleted. A new layout type is not a new install.
+  for (const mod of installed) {
+    if (seedableNames.has(mod.name)) continue
+    if (!isModuleInBuild(mod.name)) continue
+    const plan = planTypeSeeds(mod.name, mod.seededLayoutTypes ?? [], declaredTypes)
+    if (plan.seed.length === 0 && plan.ledger === (mod.seededLayoutTypes ?? [])) continue
+    try {
+      if (plan.seed.length > 0) await seedModuleDefaultLayouts(db, mod.name, plan.seed)
+      await db.module.update({ where: { id: mod.id }, data: { seededLayoutTypes: plan.ledger } })
+    } catch (err) {
+      // Ledger left as it was, so a later request retries. The seed itself is
+      // create-only, so a partial run cannot double-write.
+      console.error(`[starterLayouts] Failed to top up layout types for ${mod.name}:`, err)
+    }
+  }
+
   let seeded = 0
   for (const mod of seedable) {
     try {
@@ -376,7 +442,12 @@ export async function seedPendingModuleLayouts(db: typeof prisma): Promise<numbe
       // what makes placement first-install-only, and re-adding a block the owner
       // has since deleted would be core editing their site behind their back.
       await autoPlaceModuleBlocks(db, mod.name)
-      await db.module.update({ where: { id: mod.id }, data: { layoutsSeededAt: new Date() } })
+      await db.module.update({
+        where: { id: mod.id },
+        // Ledger written alongside the stamp: a module seeded from scratch has
+        // had every type it declares considered, so all of them are on it.
+        data: { layoutsSeededAt: new Date(), seededLayoutTypes: declaredTypes[mod.name] ?? [] },
+      })
       seeded++
     } catch (err) {
       // Left unstamped so a later request retries. Every write here is idempotent.

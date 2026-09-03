@@ -581,6 +581,19 @@ model Module {
   // path, and re-seeding would resurrect layouts the owner has since deleted.
   layoutsSeededAt DateTime?
 
+  // Which of this module's layout types have ever been seeded on this site. The
+  // ledger `layoutsSeededAt` could not keep: a module stamped years ago that
+  // gains a NEW layout type in an update would otherwise never seed it, because
+  // the stamp says "done" for the module as a whole. Recording types instead
+  // lets a new one seed while a type the owner has deliberately deleted stays
+  // deleted - the two are indistinguishable by looking at Layout rows alone.
+  //
+  // Empty on a module stamped before this column existed. The first run adopts
+  // whatever that module declares today and seeds nothing, so no live site has a
+  // layout minted under it retrospectively - only types added after that point
+  // are ever seeded. See lib/setup/starterLayouts.ts.
+  seededLayoutTypes String[] @default([])
+
   // Every request that resolves module route tiers, and every admin page load, filters
   // modules by status.
   @@index([status])

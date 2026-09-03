@@ -1117,7 +1117,9 @@ The list itself grows a **Page** column with a **View** link on every supplier t
 
 **Designing the page, and where the filters come from.** Supplier pages get a layout of their own under **Appearance → Editing pages**, listed as **Supplier** beside Category, Collection and Tag. One layout serves every supplier - the page fills in which supplier each block is looking at - so this is a job you do once, not once per supplier.
 
-Build nothing and you still get a page: name, write-up and a plain grid of their products. What that plain page does *not* have is the filter panel, for the same reason a category page doesn't until you've designed one. So if you want filters - and on a supplier's whole range you will - make the layout.
+A Supplier design is now set up for you the first time your site sees supplier pages, and it's the one with the filter panel already on it, so there is normally nothing to do here at all. Sites that had supplier pages before that arrangement existed keep whatever they built and are left alone - deliberately, since nobody wants their pages redesigned by an update.
+
+If you have no design and don't make one, you still get a page: name, write-up and a plain grid of their products. What that plain page does *not* have is the filter panel, for the same reason a category page doesn't until one has been designed. So if you want filters - and on a supplier's whole range you will - make the layout.
 
 Four starters are offered when you create it. Two come from the Shop itself and use the plain product grid; the other two come from the Filters add-on and use the **Filters & Product Grid** block instead, which is the one with the panel on it. **Header, Write-up and Filtered Grid** is the one most shops want, and it arrives already set to load more products as the shopper scrolls, since a supplier's whole range tends to be the longest page on the site. Those two only appear if you have the Filters add-on installed, which is rather the point.
 

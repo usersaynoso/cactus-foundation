@@ -358,6 +358,7 @@ CREATE TABLE "Module" (
     "updateChannel" TEXT NOT NULL DEFAULT 'public',
     "manifest" JSONB,
     "layoutsSeededAt" TIMESTAMP(3),
+    "seededLayoutTypes" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     CONSTRAINT "Module_pkey" PRIMARY KEY ("id")
 );
 

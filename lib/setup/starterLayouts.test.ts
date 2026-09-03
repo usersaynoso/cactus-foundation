@@ -3,6 +3,7 @@ import {
   planStarterCleanup,
   planOrphanLayoutTypes,
   planModuleSeeds,
+  planTypeSeeds,
   planModuleSeedTemplates,
   declaredLayoutTypesByModule,
   stableStringify,
@@ -267,6 +268,60 @@ describe('planOrphanLayoutTypes', () => {
 // layoutsSeededAt on top of that turns "seed once" into "never". A live Shop lost
 // its product, index, checkout and confirmation layouts exactly that way, and 404ed
 // every product URL, because those pages are Puck-only with no hardcoded fallback.
+// The supplier-pages fault (2026-09-03). `layoutsSeededAt` is ONE stamp for a whole
+// module, so a module stamped on install can never seed a layout type it gains in a
+// later update - the stamp already says "done". shopSupplier reached a live site
+// with starters and no layout, and the page fell back to a plain grid with no filter
+// panel, which was the one thing the feature existed for.
+//
+// Counting Layout rows cannot fix it: "no rows for this type" reads identically
+// whether the type is new or whether the owner deleted its layout on purpose. Hence
+// a ledger of what has actually been seeded.
+describe('planTypeSeeds', () => {
+  const types = { shop: ['shopIndex', 'shopProduct', 'shopSupplier'] }
+
+  it('adopts what a pre-ledger module declares today and seeds nothing', () => {
+    // The migration back-fills the ledger EMPTY on purpose. Adoption is what stops
+    // a live site having layouts minted under it retrospectively.
+    expect(planTypeSeeds('shop', [], types)).toEqual({
+      seed: [],
+      ledger: ['shopIndex', 'shopProduct', 'shopSupplier'],
+    })
+  })
+
+  it('seeds only the type that has appeared since, and records it', () => {
+    expect(planTypeSeeds('shop', ['shopIndex', 'shopProduct'], types)).toEqual({
+      seed: ['shopSupplier'],
+      ledger: ['shopIndex', 'shopProduct', 'shopSupplier'],
+    })
+  })
+
+  it('does nothing once every declared type is on the ledger', () => {
+    const ledger = ['shopIndex', 'shopProduct', 'shopSupplier']
+    expect(planTypeSeeds('shop', ledger, types)).toEqual({ seed: [], ledger })
+  })
+
+  it('keeps a type on the ledger after the owner deletes its layout', () => {
+    // The whole point of recording seeds rather than reading rows: deleting a
+    // layout to fall back to the built-in page is a decision, and the next deploy
+    // must not undo it.
+    const ledger = ['shopIndex', 'shopProduct', 'shopSupplier']
+    expect(planTypeSeeds('shop', ledger, types).seed).toEqual([])
+  })
+
+  it('leaves a real ledger untouched when the build has no copy of the module', () => {
+    // Declaring nothing means the code is absent from THIS build (see
+    // isModuleInBuild), not that the module has no types. Adopting an empty list
+    // would wipe the ledger and let the next build re-seed every type it has.
+    const ledger = ['shopIndex', 'shopProduct']
+    expect(planTypeSeeds('shop', ledger, {})).toEqual({ seed: [], ledger })
+  })
+
+  it('seeds nothing for an absent module that has no ledger either', () => {
+    expect(planTypeSeeds('shop', [], {})).toEqual({ seed: [], ledger: [] })
+  })
+})
+
 describe('planModuleSeeds', () => {
   const types = { shop: ['shopIndex', 'shopProduct'], gazette: ['gazetteCategory', 'gazetteEntry'] }
   const unstamped = [{ name: 'shop', layoutsSeededAt: null }, { name: 'gazette', layoutsSeededAt: null }]
