@@ -172,7 +172,41 @@ stamped for every flow. A starter layout is published for you on install, so a f
 the day it is created. Two blocks are available there:
 
 - **Discovery: Heading** - the flow's heading, its standfirst and its designed intro.
-- **Discovery: Guided Flow** - the wizard itself.
+- **Discovery: Guided Flow** - the wizard itself. Its settings are:
+  - **Flow** - which flow this block runs. On a flow's own page leave it alone: the page
+    fills it in. Anywhere else - a homepage, a category page, a landing page - pick the
+    flow from the list and the whole wizard runs there.
+  - **Result columns** - how many products across.
+  - **Questions** - where the last step's questions sit on a computer screen. **Down the
+    left** of the products, which is the default, or **Across the top** of them, where
+    they appear as a row of controls above the grid and arrive closed so the products stay
+    in view. Same setting, same two answers, as the filter grid's own. Tablets and phones
+    ignore it and keep the "Narrow down" bar either way.
+  - **On a phone or tablet, step three** - whether reaching the last step **opens on the
+    products** (the default) or **opens the questions** for the shopper. Only on the way
+    in: somebody who closes the drawer is not shown it again, and a link that lands
+    straight on the last step always opens on the products it was shared for.
+  - **Options in the drawer** - whether a question's options on a phone or tablet run
+    **side by side**, three or four across a tablet's width, or **one per line**. A phone
+    is one column either way; there is no room for a second.
+  - **Under the first step** - **just the choices**, which is how it arrives, or
+    **compare and "not sure yet"** as well. On a flow that opens on "what are you looking for?"
+    skipping asks for the whole shop, which is what the shop's own grid is for; on a flow
+    already narrowed to one category the first step is a real question and both buttons
+    earn their place.
+  - **Products start sorted by** - the order the results arrive in before anybody touches
+    the Sort by dropdown. Best selling by default. The page is drawn in that order rather
+    than sorted after it appears, so nothing rearranges under the shopper.
+  - **Card layout** - which product card design the results use.
+
+Under a step's choices, "Compare these" and "Not sure yet" fill the gap at the end of the
+last row where the choices leave one, and take a centred row of their own where they do
+not. Choice cards lift on hover exactly as the product cards further on do, and their
+pictures are cropped square whatever shape they were uploaded in.
+
+A choice's **What is this?** link appears only where that choice has an explanation
+written for it, so a step you would rather keep plain is a step with those boxes left
+empty.
 
 There is also **Discovery: Launcher**, droppable on any page: a card that drops a shopper
 into the middle of a flow. Point it at a flow address and, optionally, a starting choice
