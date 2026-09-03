@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.374"
+      "version": "v0.1.376"
     },
     {
       "name": "address-lookup-for-shop",
@@ -113,12 +113,12 @@
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.38"
+      "version": "v0.1.40"
     },
     {
       "name": "contact-form-reply-catcher",
       "repoUrl": "https://github.com/cactus-foundation-modules/reply-catcher",
-      "version": "v0.1.11"
+      "version": "v0.1.13"
     },
     {
       "name": "twilio",
@@ -158,7 +158,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.32"
+      "version": "v0.1.34"
     }
   ]
 }
