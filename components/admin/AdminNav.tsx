@@ -501,7 +501,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
       )}
 
       <div className="admin-nav-footer">
-        <div className="admin-nav-row">
+        <div className={`admin-nav-row admin-nav-account-row${collapsed ? ' admin-nav-account-row--collapsed' : ''}`}>
           <Link
             href={`${base}/account`}
             data-nav-item=""
@@ -512,18 +512,18 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
             <span className="admin-nav-icon">{NAV_ICONS.account}</span>
             {!collapsed && 'My Account'}
           </Link>
+          <form action="/api/auth/logout" method="POST">
+            <button
+              type="submit"
+              data-nav-item=""
+              className={`admin-nav-logout${collapsed ? ' admin-nav-logout--collapsed' : ''}`}
+              aria-label="Sign out"
+              {...tipProps('Sign out')}
+            >
+              <span className="admin-nav-icon">{NAV_ICONS.logout}</span>
+            </button>
+          </form>
         </div>
-        <form action="/api/auth/logout" method="POST">
-          <button
-            type="submit"
-            data-nav-item=""
-            className={`admin-nav-logout${collapsed ? ' admin-nav-logout--collapsed' : ''}`}
-            {...tipProps('Sign out')}
-          >
-            <span className="admin-nav-icon">{NAV_ICONS.logout}</span>
-            {!collapsed && 'Sign out'}
-          </button>
-        </form>
         {!collapsed && (
           <button
             type="button"

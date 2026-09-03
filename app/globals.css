@@ -2084,6 +2084,22 @@ a:hover {
   gap: 0;
 }
 
+/* Account link and sign-out share one footer row: the link takes the space,
+   the sign-out sits at the right as an icon on its own. Collapsed, there is
+   no room side by side, so they stack as two icon rows. */
+.admin-nav-account-row {
+  display: flex;
+  align-items: center;
+}
+.admin-nav-account-row > a {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.admin-nav-account-row--collapsed {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .admin-nav-logout {
   background: none;
   border: none;
@@ -2093,7 +2109,6 @@ a:hover {
   font-weight: var(--font-medium);
   cursor: pointer;
   padding: var(--space-2) var(--space-3);
-  width: 100%;
   text-align: left;
   transition: color var(--dur-base);
   display: flex;
@@ -2105,6 +2120,7 @@ a:hover {
 }
 .admin-nav-logout--collapsed {
   justify-content: center;
+  width: 100%;
   padding: var(--space-2);
 }
 
