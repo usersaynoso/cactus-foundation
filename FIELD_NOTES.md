@@ -21,6 +21,22 @@ Last updated: 2026-09-03 (**A reply now puts an inbox conversation back in Open 
 
 ---
 
+## unified-inbox - pressing refresh refreshes, it does not refuse (v0.1.38, core pin v0.5.1476)
+
+No migration. `POST /api/m/unified-inbox/admin/check-now` no longer answers 429 "A check has just run - give it N seconds and try again."
+
+**Three things were wrong with the old rule.** It refused the WHOLE request when ANY one account had been visited inside the minute, so a second mailbox that was hours stale went uncollected. It refused rather than refreshing, so the press did nothing at all - the client only calls `router.refresh()` on an ok. And it used one cooldown for a round the page ran on its own and one a person pressed for, which are not the same question.
+
+**New:** `lib/check-cooldown.ts` - `COOLDOWN_MS` (60s, automatic), `PRESSED_COOLDOWN_MS` (10s, pressed), `cooldownFor(automatic)`, `dueForCheck(accounts, cooldownMs, now)` returning `{ due, restedSeconds }`. Pure, with `lib/check-cooldown.test.ts` (9 cases) - the whole point being that this rule is only ever wrong in ways `tsc` has no opinion about.
+
+**Changed:** the route filters to the due accounts and syncs those one at a time against one shared deadline (as `syncAllConnections` does; it no longer calls it). All resting is `200 { ok: true, checked: false, message: 'Your mail was checked N seconds ago, so this is up to date.' }` - the screen reloads on the back of it. Successful checks now carry `checked: true`.
+
+**Changed:** `components/admin/inbox/CheckNowButton.tsx` posts `{ auto: quiet }` - the interval's rounds are `auto: true` and keep the minute; a press gets the ten seconds.
+
+**Wiki:** `Unified-Inbox.md`, the refresh-button paragraph.
+
+---
+
 ## unified-inbox - our own reply, recognised when a relay rewrote its Message-ID (v0.1.37, core pin v0.5.1475)
 
 No migration. Fixes replies appearing twice in a conversation: once as the row the send path wrote, once as the delivered copy collected from IMAP.
