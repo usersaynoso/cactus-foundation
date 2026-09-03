@@ -1,4 +1,4 @@
-Last updated: 2026-09-03 (**A reply now cancels a snooze in the unified inbox** - `unified-inbox` v0.1.35, core pin v0.5.1472. Previously: **The timezone sweep, pinned and finished - core **v0.5.1471** pinning `shop` **v0.1.376**, `unified-inbox` **v0.1.34**, `contact-form` **v0.1.40**, `contact-form-reply-catcher` **v0.1.13** and `advanced-shipping-for-shop` **v0.1.50**.** All five gates green on their tags, all five released. Sequence, for the record, because it could not be done in one pass: core v0.5.1470 shipped the `timezone.ts` / `timezone.server.ts` split with the four pins wound back to their last building versions, the modules were then tagged and gated against it, and this release re-pins them.
+Last updated: 2026-09-03 (**A reply now puts an inbox conversation back in Open - snoozed or done** - `unified-inbox` v0.1.36, core pin v0.5.1473. v0.1.35 did the snoozed half. Previously: **The timezone sweep, pinned and finished - core **v0.5.1471** pinning `shop` **v0.1.376**, `unified-inbox` **v0.1.34**, `contact-form` **v0.1.40**, `contact-form-reply-catcher` **v0.1.13** and `advanced-shipping-for-shop` **v0.1.50**.** All five gates green on their tags, all five released. Sequence, for the record, because it could not be done in one pass: core v0.5.1470 shipped the `timezone.ts` / `timezone.server.ts` split with the four pins wound back to their last building versions, the modules were then tagged and gated against it, and this release re-pins them.
 
 **Dead tags, left in place deliberately:** `shop` v0.1.375, `unified-inbox` v0.1.33, `contact-form` v0.1.39 and `contact-form-reply-catcher` v0.1.12 exist as git tags but have **no GitHub release** - their gates failed (or, for the last two, their code was superseded before release). Nothing pins them and the updater only ever offers releases, so they are inert. Do not create releases for them.
 
@@ -7,23 +7,29 @@ Last updated: 2026-09-03 (**A reply now cancels a snooze in the unified inbox** 
 
 ---
 
-## unified-inbox - a reply cancels a snooze (in the working tree, unreleased)
+## unified-inbox - a reply puts a conversation back in Open (in the working tree, unreleased)
 
-Module **v0.1.35**, core pin **v0.5.1472**. No migration: `uin_events.kind` is free text and `uin_events.user_id` is already nullable.
+Module **v0.1.36**, core pin **v0.5.1473**. Supersedes v0.1.35, which did this for `snoozed` only. No migration: `uin_events.kind` is free text and `uin_events.user_id` is already nullable.
 
-**New:** `lib/db.ts` `wakeSnoozedThread(threadId): Promise<boolean>` - single statement, `WHERE "id" = $1 AND "status" = 'snoozed'`, returns whether a snooze was actually cancelled so the caller writes one timeline entry rather than one per polled message. Sits beside `wakeDueThreads()` (unchanged, still the time-elapsed sweep run on the way into the list).
+**API change (v0.1.35 -> v0.1.36):** `wakeSnoozedThread(id): Promise<boolean>` is gone, replaced by `reopenOnReply(id): Promise<ReopenedFrom>` where `ReopenedFrom = 'snoozed' | 'done' | null`. Widened from `"status" = 'snoozed'` to `"status" <> 'open'`, so both ways out of Open are reversed by one rule.
 
-**New event kind:** `'woken'` added to `ThreadEventKind`, written with `user_id` NULL. Detail is `{ direction }` from mail, `{ providerModule }` from another module's channel.
+**The statement is the unusual bit.** The old status has to come back to the caller, and plain `RETURNING` hands back the value just written - so it is a CTE that selects `id, status` under `FOR UPDATE`, then `UPDATE ... FROM "before" ... RETURNING "before"."status"`. `FOR UPDATE` is also what settles two ticks racing: the second blocks, re-reads under EvalPlanQual, finds the row open and matches nothing. Executed for real, not assumed.
 
-**Changed:** `lib/sync.ts` `writeSide()` calls `wakeSnoozedThread` after `touchThread` when `!automated`, both directions - an inbound message here is the customer, and an OUTBOUND one is a colleague answering outside this hub, because a reply typed here is turned away earlier by `findOutboundByMessageId`. `lib/provider-sync.ts` does the same when `stored > 0`, after `recountProviderThread`.
+**Why `done` mattered more than `snoozed`:** `unreadCounts` (db.ts) counts `unread = true AND "status" <> 'done'`. A reply to a done conversation set `unread`, bumped `last_message_at` and produced no badge anywhere - unread and invisible, indefinitely. A snoozed one at least resurfaced via `wakeDueThreads`. `unreadCounts` is deliberately left as it is; reopening is the fix.
 
-**Deliberately does not wake:** automated mail (out-of-office, bounce - same `automated` flag E7 uses for the unread flag), internal notes (`insertNote` still touches nothing), and this hub's own send (never reaches `touchThread`).
+**New event kind:** `'woken'` added to `ThreadEventKind`, written with `user_id` NULL. Detail carries `{ was: 'snoozed' | 'done' }` plus `{ direction }` from mail or `{ providerModule }` from another module's channel.
 
-**Changed:** `components/admin/inbox/ThreadPane.tsx` - new `UNATTENDED_EVENTS` map so an actorless event renders its own whole sentence instead of "Somebody ...".
+**Changed:** `lib/sync.ts` `writeSide()` calls `reopenOnReply` after `touchThread` when `!automated`, both directions - an inbound message here is the customer, and an OUTBOUND one is a colleague answering outside this hub, because a reply typed here is turned away earlier by `findOutboundByMessageId`. `lib/provider-sync.ts` does the same when `stored > 0`, after `recountProviderThread`.
 
-**Gate:** `lib/snooze-wake.live.test.ts`, `RUN_INBOX_SNOOZE_GUARDS=1`, needs `OVH_SERVER`/`OVH_USER`/`OVH_PASSWORD`. Seven tests against a real throwaway Postgres: wakes and clears the stamp together, idempotent, leaves `done` and `open` alone, touches no bystander, accepts a null `user_id` on the event, and the woken row appears in the Open list. A skip is a fail.
+**Deliberately does not reopen:** automated mail (out-of-office, bounce - same `automated` flag E7 uses for the unread flag, and the thing that stops a mailing list dragging a finished conversation back weekly), internal notes (`insertNote` still touches nothing), and this hub's own send (never reaches `touchThread`).
 
-**New script:** `npm run test:inbox-guards` - runs `snooze-wake.live.test.ts` and `internal-threads.live.test.ts` with both flags set, `--no-file-parallelism`.
+**Changed:** `components/admin/inbox/ThreadPane.tsx` - `unattendedEvent(event)` replaces the `UNATTENDED_EVENTS` map, since the wording now depends on `detail.was`. An actorless event renders its own whole sentence instead of "Somebody ...".
+
+**Retention is unaffected:** `threadsDueForRetention` filters on `last_message_at`, never on status.
+
+**Gate:** `lib/reopen-on-reply.live.test.ts` (renamed from `snooze-wake.live.test.ts`), `RUN_INBOX_REOPEN_GUARDS=1` (renamed from `RUN_INBOX_SNOOZE_GUARDS`), needs `OVH_SERVER`/`OVH_USER`/`OVH_PASSWORD`. Eight tests against a real throwaway Postgres: opens from `snoozed` and from `done` and reports which, clears the stamp with it, idempotent from both, leaves `open` alone, touches no bystander, accepts a null `user_id` on the event, moves the row between the status tabs' lists, and restores the unread badge that `done` suppresses. A skip is a fail.
+
+**Script:** `npm run test:inbox-guards` - runs `reopen-on-reply.live.test.ts` and `internal-threads.live.test.ts` with both flags set, `--no-file-parallelism`.
 
 ---
 
