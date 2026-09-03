@@ -138,7 +138,7 @@
     {
       "name": "search",
       "repoUrl": "https://github.com/cactus-foundation-modules/search",
-      "version": "v0.1.38"
+      "version": "v0.1.39"
     },
     {
       "name": "live-chat",
