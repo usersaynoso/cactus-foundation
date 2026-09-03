@@ -97,6 +97,21 @@ address and a button appears under the results; leave either blank and the produ
 the end of the flow, which is what most shops want. Nothing is ever filled in for you
 from whatever modules happen to be installed.
 
+### What each step asks
+
+The three questions a shopper reads on their way through are yours to write, on the flow's
+own settings:
+
+- **What the first step asks** - "What are you looking for?" unless you say otherwise.
+- **What the steps after it ask** - "Which sort of desks?" by default, taking the wording
+  from the choice just made. Write your own and put `{choice}` where that answer should
+  appear: "Which sort of {choice} do you need?". Leave `{choice}` out entirely and the
+  same sentence is asked at every depth.
+- **What the last step asks** - "What matters to you?" unless you say otherwise.
+
+Leave a box empty and you get the wording above, which means a later improvement to it
+reaches you. Fill one in and it is yours until you clear it again.
+
 ### Questions
 
 Which of your filter groups the last step asks, in what order, worded how.
@@ -107,13 +122,18 @@ you improve that, never where you make it work at all. Per group you can:
 
 - ask it in your own words ("How much height do you need?" rather than "Height");
 - write a line explaining what the feature is, before the options;
-- put it up front or under "More options";
+- mark it important, which puts it before the rest (every question is shown either way);
 - allow one answer or several;
 - not ask it at all.
 
 By default the wording applies everywhere in the flow. You can also set it for one choice
 only, for the cases where the same word means something different on a chair than on a
 desk.
+
+Pictures on a choice, and on an option's explanation, are chosen from your **media
+library** - the same picker as everywhere else, so you can upload from it and the media
+screen counts the picture as in use rather than offering it up for deletion. Optimise,
+rename or move that picture later and every flow showing it follows automatically.
 
 ### Guidance
 
@@ -182,6 +202,14 @@ the day it is created. Two blocks are available there:
     they appear as a row of controls above the grid and arrive closed so the products stay
     in view. Same setting, same two answers, as the filter grid's own. Tablets and phones
     ignore it and keep the "Narrow down" bar either way.
+
+    Across the top, opening a question spreads it over the whole row with its options
+    side by side, and opening another closes it. The row then sticks to the top of the
+    window as the shopper scrolls into the products, so the answers stay within reach; the
+    open question closes itself at that point, because a full-width one pinned over the
+    products would hide what the shopper scrolled down for. A site whose header is taller
+    or shorter than usual can move where it sticks by setting `--pdt-sticky-top` in its
+    own styles; it defaults to 7rem.
   - **On a phone or tablet, step three** - whether reaching the last step **opens on the
     products** (the default) or **opens the questions** for the shopper. Only on the way
     in: somebody who closes the drawer is not shown it again, and a link that lands
