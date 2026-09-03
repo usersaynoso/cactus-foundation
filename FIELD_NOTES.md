@@ -21,6 +21,26 @@ Last updated: 2026-09-03 (**A reply now puts an inbox conversation back in Open 
 
 ---
 
+## unified-inbox - our own reply, recognised when a relay rewrote its Message-ID (v0.1.37, core pin v0.5.1475)
+
+No migration. Fixes replies appearing twice in a conversation: once as the row the send path wrote, once as the delivered copy collected from IMAP.
+
+**The mechanism, read off the live database, not inferred.** Brevo's relay replaces the `Message-ID` we set with one of its own (`<uuid>@smtp-relay.sendinblue.com`) - the API answer echoes ours, so `EmailLog.providerId` holds our id and looks fine, while the mail on the wire carries the relay's. When the delivered copy is collected (which happens on every message between two of the site's own addresses, and on any account that files a copy of its own outgoing mail into a folder we read), `findOutboundByMessageId` cannot recognise it and it is filed as a second message. The Sent-folder copy is unaffected - we APPEND our own bytes, so it still carries our id. `append_to_sent` is **not** the trigger, despite looking like one.
+
+**New:** `lib/relay-copy.ts` - `chooseRelayCopy(candidates, incoming)`, `RELAY_COPY_WINDOW_MS` (120s), `OutboundCandidate`. Pure, no database. Matches on sender, exact `to` and `cc` sets, normalised subject and time, and picks the nearest by time so two replies a minute apart pair off one-to-one.
+
+**New:** `lib/db.ts` `unlocatedOutboundNear({ fromAddress, sentAt, windowMs })` - outbound email rows with `connection_id IS NULL`, which is the "never been found in a mailbox" marker (the send path leaves it empty; `attachLocation` fills it, so a row is claimable once). `recordRelayIdentity(id, relayMessageId)` writes the relay's id to `provider_message_id`.
+
+**Changed:** `lib/sync.ts` - `matchRelayCopy()` runs when `findOutboundByMessageId` returns nothing and the sender is one of this account's own addresses; its result feeds the existing `ours` branch unchanged, so the internal path still writes the colleague's side.
+
+**Second thing it fixes:** `threadsForMessageIds` already matched `provider_message_id`, but nothing ever populated it - `deliver()` returns null because core does not hand Brevo's id back. A customer's reply quotes the relay's id in `In-Reply-To`, so header threading was falling through to the subject heuristic on every reply to a message this hub sent. Claiming a copy fills that column in.
+
+**Gate:** `lib/relay-copy.test.ts` (9 cases) plus a real-database case in `lib/internal-threads.live.test.ts` - claims the row, proves it cannot be claimed twice, and proves the relay id then leads to the conversation. `npm run test:inbox-guards`, 16 tests, real PASS.
+
+**Existing duplicate rows are not cleaned up by this.** The fix stops new ones. Deskwell's 19 were removed by hand on 2026-09-03 - each duplicate merged into the row it was a copy of (relay id onto `provider_message_id`, location by COALESCE) and then deleted, `message_count` recounted on the six conversations involved, with a JSON backup and a verified rollback script. A pairing that was not one to one aborted the transaction.
+
+---
+
 ## unified-inbox - a reply puts a conversation back in Open (in the working tree, unreleased)
 
 Module **v0.1.36**, core pin **v0.5.1473**. Supersedes v0.1.35, which did this for `snoozed` only. No migration: `uin_events.kind` is free text and `uin_events.user_id` is already nullable.
