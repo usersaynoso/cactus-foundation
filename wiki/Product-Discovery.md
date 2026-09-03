@@ -204,11 +204,11 @@ the day it is created. Two blocks are available there:
     ignore it and keep the "Narrow down" bar either way.
 
     Across the top, opening a question spreads it over the whole row with its options
-    side by side, and opening another closes it. The row then sticks to the top of the
-    window as the shopper scrolls into the products, so the answers stay within reach; the
-    open question closes itself at that point, because a full-width one pinned over the
-    products would hide what the shopper scrolled down for. A site whose header is taller
-    or shorter than usual can move where it sticks by setting `--pdt-sticky-top` in its
+    side by side, and opening another closes it. The questions then scroll away with the
+    rest of the page, and once they have gone a "Narrow down" button appears at the top of
+    the window - the same button a phone gets, wearing the same colours - which takes the
+    shopper back up to them. A site whose header is taller or shorter than usual can move
+    where that button sits, and where the jump lands, by setting `--pdt-sticky-top` in its
     own styles; it defaults to 7rem.
   - **On a phone or tablet, step three** - whether reaching the last step **opens on the
     products** (the default) or **opens the questions** for the shopper. Only on the way
