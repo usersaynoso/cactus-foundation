@@ -104,6 +104,17 @@ What keeps the two straight behind the scenes is each value's **slug** - a short
 
 One small caution: a dropdown shows text only, so two values called "Black" read identically there. The product's Variations tab points this out when it happens - switch the option to swatches or pictures, or rename one of them.
 
+### Seeing which products use a value
+
+Every value chip carries a small number beside it: how many products use that value. Click the number and a new tab opens listing them, so the chips you were reading stay where they were.
+
+Two different sorts of use are counted, because they behave differently if you delete the value:
+
+- **Ticked on a product** - the value is switched on for that product, or for one of its variations. Variations are gathered under the product they belong to rather than listed one by one, so a range with three hundred of them takes up a line rather than a page.
+- **Copied onto a variation choice** - the value was used to build a choice on a product's Variations tab. That copy has a life of its own from then on, and it stays behind if the value here is deleted.
+
+This is the page to open before tidying up. Two values that look like duplicates are often nothing of the sort - one is holding up a hundred products and the other is holding up nothing - and this tells you which is which before you press delete rather than after.
+
 ### Putting them in order
 
 Every attribute and every group has a pair of arrows. Use them to shuffle things up and down until the screen reads the way you think about your stock.

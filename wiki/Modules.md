@@ -107,6 +107,17 @@ Only one install, update or removal can run at a time, which is why a second one
 
 > **Heads up:** "Remove code and data" is permanent and cannot be undone. If you think you might reinstall the module later, choose "Remove code only" to keep your data safe.
 
+### Bringing everything else along
+
+Removing a module costs a rebuild just like installing one does, so the uninstall dialog makes the same offer. While it's open, Cactus has a quick look for anything else waiting and adds the tick boxes below the data choice, ticked by default:
+
+- **Also update Cactus to v…** - shown when a Cactus update is waiting. As with installing, only offered if you're allowed to change settings.
+- **Also update the modules with updates waiting** - shown when any of your *other* modules has a newer release. An update for the module you're removing is not offered, for reasons we hope are obvious.
+
+The look takes a second, so you'll briefly see "Checking whether anything else is waiting to go out…". Confirm before it finishes and the removal simply goes out on its own, exactly as it always did. Nothing waiting means no tick boxes at all.
+
+Everything ticked goes out in the same rebuild as the removal, so you wait once instead of three times. Each update is still checked for compatibility on its own: anything that isn't happy is left where it is and reported back with the reason, while the rest go ahead.
+
 ---
 
 ## Cactus's own update channel

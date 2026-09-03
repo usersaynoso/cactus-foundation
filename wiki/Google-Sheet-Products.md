@@ -231,6 +231,8 @@ The Products and Variations tabs cover the bulk of a catalogue: names, web addre
 
 Both tabs also carry the **smallest order** - `min_order_quantity` on Products, **Min Qty** on Variations - for anything you will not sell one of. A blank cell means one at a time on the Products tab, and on the Variations tab it means "whatever the product itself says". A 1 means the same as a blank in both places, so a sheet written before these columns existed Pulls back without changing a thing.
 
+The Products tab also carries **`featured_hidden`**, the tick that keeps a product off the featured shelves on your pages (Best sellers, Just in, Staff picks, On offer). `true` keeps it off them, `false` - or a sheet written before the column existed, which simply leaves the setting alone - lets it appear as normal. The product carries on showing everywhere else either way: its categories, collections, search and its own page. See [Shop](Shop#keeping-a-product-off-the-featured-shelves).
+
 Stock and trade price are the two you can switch off if you'd rather they weren't in there - see **What goes in the sheet**.
 
 ### Attribute columns

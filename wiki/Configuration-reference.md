@@ -36,7 +36,7 @@ The preference is saved immediately and the update check refreshes straight away
 | Description | A longer description used in page metadata | — |
 | Homepage | The page shown at the root of your site (`/`) | — |
 | Main menu | The default navigation menu shown in the site header | — |
-| Timezone | All timestamps in the admin are shown in this time zone | `UTC` |
+| Timezone | The clock the site keeps. Times and dates worked out on the server - notifications, the Inbox, contact-form messages, order dates on a customer's own order page and receipt, and delivery estimates - are all shown in this zone. A live clock beside the dropdown shows the current time there, so you can check it rather than trust it. Screens drawn in your own browser (the media library, order screens in the admin) still follow your computer's clock, which only differs if you are working from another country. | `UTC` |
 | Locale | Sets the language attribute and date formatting. Does not translate the admin interface. | `en-GB` |
 | Date format | How dates are displayed (e.g. `DD/MM/YYYY`) | `DD/MM/YYYY` |
 | Time format | How times are displayed (e.g. `HH:mm`) | `HH:mm` |
