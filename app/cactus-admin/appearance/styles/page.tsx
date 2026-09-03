@@ -990,11 +990,30 @@ function ButtonsPreview({ tokens, mode }: { tokens: DesignTokens; mode: 'light' 
       ] as const).map(([name, base, hover]) => (
         <div key={name} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.6875rem', color: 'var(--color-muted)', width: 62, flexShrink: 0 }}>{name}</span>
-          <span style={base}>Button</span>
+          <PreviewButton base={base} hover={hover}>Button</PreviewButton>
           <span style={hover}>Hover</span>
         </div>
       ))}
     </div>
+  )
+}
+
+// The swatches are styled inline (the values come straight from the unsaved
+// token state, so there is no stylesheet to hang a `:hover` rule off), which
+// means a real pointer hover has to be tracked in state. The first swatch
+// therefore behaves like the button on the page - it takes the hover styles
+// while the pointer is over it - while the second one stays parked in its
+// hover appearance as a side-by-side reference.
+function PreviewButton({ base, hover, children }: { base: React.CSSProperties; hover: React.CSSProperties; children: React.ReactNode }) {
+  const [over, setOver] = useState(false)
+  return (
+    <span
+      style={{ ...(over ? hover : base), cursor: 'pointer', transition: 'background 0.15s, color 0.15s, border-color 0.15s' }}
+      onMouseEnter={() => setOver(true)}
+      onMouseLeave={() => setOver(false)}
+    >
+      {children}
+    </span>
   )
 }
 
