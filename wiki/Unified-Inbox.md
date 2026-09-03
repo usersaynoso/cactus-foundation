@@ -4,7 +4,7 @@ Every conversation with every customer and supplier in one place: email, live ch
 
 It is not a CRM. There are no pipelines, no deals and no lead scoring. People exist here for one reason only: so two emails, a live chat and a phone call from the same human collapse into one story.
 
-You will find it under **Inbox** in the admin sidebar, as a tab called **Unified Inbox**. Its settings live under **Settings → Unified Inbox**.
+You will find it under **Inbox** in the admin sidebar, as a tab called **Unified Inbox**. Its settings live under **Settings → Unified Inbox**, split across a row of tabs so that changing a folder name no longer means scrolling past a retention policy.
 
 ---
 
@@ -13,6 +13,24 @@ You will find it under **Inbox** in the admin sidebar, as a tab called **Unified
 - Your site needs its email set up already (**Settings → Email**), because that is what sends your replies. See the [configuration reference](Configuration-reference).
 - You need the app password for whichever mailbox you want to read. Most providers call it an "app password" and make you generate one; searching for "[your provider] app password" gets you there. iCloud's is at appleid.apple.com.
 - If you already run [Reply Catcher](Reply-catcher), read the section at the bottom of this page first. The two must never be pointed at the same mailbox.
+
+---
+
+## Where everything lives
+
+**Settings → Unified Inbox** opens on a row of tabs, one job each. Whichever you are on is remembered in the address bar, so a refresh or a bookmark comes back to it rather than dropping you at the beginning.
+
+| Tab | What is on it |
+| --- | --- |
+| **Overview** | Whether it is working, how much has been collected, and a short list of anything wanting your attention - with a button beside each one that takes you to where it is fixed. On a site with nothing set up yet it is a three-step start instead. |
+| **Mail accounts** | The mailboxes it reads. Test connection, Check now, and how far the first collection has got. |
+| **Inboxes** | The addresses people write to: where each is collected from, how its replies go out, what they are signed with, and who may read them. |
+| **Collecting** | How far back to go, how long to keep things, attachments, and which way round a conversation reads. |
+| **Sent replies** | Whether to find out what became of a reply after it left. |
+| **People** | Telling colleagues from customers, and the shape of your order and quote numbers. |
+| **Other apps** | Telling something else on the internet when the post arrives. |
+
+Start a form on one tab, wander off to another and come back, and what you had typed is still there. Nothing is saved until you press the Save button on that tab, mind.
 
 ---
 
@@ -35,6 +53,8 @@ One mail account can feed several inboxes. That is the normal case: a single mai
 1. Give it a name you will recognise (**What to call it**).
 2. Fill in the **Mail server**, your **Username** (usually the full email address) and the app password.
 3. Save, then press **Test connection**. It either lists the folders it can see or tells you in plain English what went wrong.
+
+The folders it finds are remembered against the account, so the folder boxes on your addresses become menus rather than something to type from memory. They are only ever refreshed when you ask - by **Test connection** here, or by **Update folders** on an address.
 
 ### What gets read, and what does not
 
@@ -61,16 +81,23 @@ The pair go together on a personal account: the first stops it reading your priv
 
 ## Adding an inbox
 
-**Settings → Unified Inbox → Inboxes → Add an inbox.**
+**Settings → Unified Inbox → Inboxes → Add an inbox.** The form asks for a lot at once, so it is grouped: the address itself, where it is collected from, how its replies go out, its signature, and who may read it.
 
 - **Address** is what people write to. Post arriving for that address is filed here.
 - **Mail account** is which connection collects it. Leave it as "not collected from a mailbox" for a send-only address.
-- **Folder to read** is normally the main inbox.
+- **Folder to read** is normally the main inbox. Once the mail account has been tested, this is a menu of the folders that account actually has, spelled the way the mail server spells them - which saves guessing between "Sent", "Sent Items" and "Sent Messages". **Update folders** beside it asks the mail server again, for a folder you have made since. Made one this minute and would rather not wait? Choose **Type a folder name myself** and write it in.
+- **Sent folder** is the same menu, and optional: left as "work it out from the mail account", the server is asked which folder it treats as Sent.
 - **Catch-all**: one inbox can be nominated to take anything that arrives at the mail account but matches no address you have listed. Without one, that post is filed under **Not filed**, which only an administrator can see, and the settings page tells you how much is sitting there.
 - **Name on replies** and **Signature** are what your customer sees when you answer. Signatures have a section of their own below.
 - **Who can read this inbox** is covered under "Who can see what" below.
 
 Post is filed by the address it was delivered to, then by the To line, then by Cc, then by the catch-all. There are no rules for sender or subject in this version.
+
+**Mail between two of your own addresses lands in both of them.** Write from `chris@` to `marcus@` and there are two conversations afterwards: one in Marcus's inbox, unread, where he can answer it exactly as he would a customer's, and one in yours, showing as something you sent. His reply joins both of them. Each side is a conversation in its own right - mark one done, snooze it or hand it to somebody, and the other is left alone, because the two of you are not finished with it at the same moment.
+
+Copy a third address in and it gets a conversation too. Nobody has to go looking through a colleague's tab for a message that was addressed to them.
+
+This is not how it used to behave. Until this update a colleague email was filed once, on whichever of the two addresses the site happened to read first, and a reply followed it there - so answering a colleague could put your answer somewhere they could not see it. Conversations already collected are put right on the update: the site reads that mail again the next time it checks, and fills in the sides that were missing. Nothing is collected twice.
 
 ### Signatures
 
@@ -88,6 +115,8 @@ Pasted and block-built signatures can carry fill-in tags, so one design works fo
 
 **Show me how it will look** renders the signature exactly as the email will, before you save it, which is a cheaper way to discover that the logo is enormous.
 
+**One exception, and it is a useful one.** If somebody has been given an inbox of their own (see [Giving somebody an inbox of their own](#giving-somebody-an-inbox-of-their-own)), the signature they wrote there is the one that goes out on their replies wherever they send from - so a purchasing manager answering out of `sales@` still signs off in their own name. If their own address has no signature, the address the reply is leaving from provides it, exactly as before.
+
 If you already had a signature before this arrived, it is still there and still goes out unchanged, sitting under **HTML**.
 
 ---
@@ -102,7 +131,11 @@ If one address needs to go out through a different account altogether, **How rep
 
 ### Writing a new one
 
-Not everything starts with somebody writing to you. **Write a message** sits at the right-hand end of the row of addresses and opens a blank message in a box over the top of the list: who it is going to, a Cc if you want one, a subject, what you want to say, and anything from your media library attached to it. The conversations stay where they were underneath, and closing the box - the cross, **Cancel**, or the Escape key - puts you straight back to them.
+Not everything starts with somebody writing to you. **Write a message** sits at the right-hand end of the row of addresses and opens a blank message in a box over the top of the list: who it is going to, a Cc if you want one, a subject, what you want to say, and anything from your media library attached to it - or dragged straight onto the box.
+
+**The To and Cc lines suggest people for you.** Click into either one before typing a word and the addresses that inbox has been dealing with are already listed, most recent first, with the name and company where the site knows them. Type and the list narrows. Arrow keys move through it, Return or Tab takes the highlighted one, Escape puts the list away without closing the message. Pick somebody and only the part you were typing is replaced, so a line that already has two people on it keeps them.
+
+The suggestions are that address's own correspondents rather than everybody the site has ever met, which is usually the shorter and better list. Your own addresses are never suggested, and neither is anybody already on the line. Nobody is offered an address out of an inbox they are not allowed to read. The conversations stay where they were underneath, and closing the box - the cross, **Cancel**, or the Escape key - puts you straight back to them.
 
 **It goes out as whichever inbox you were looking at.** Standing in `accounts@` and pressing Write means writing as `accounts@`, which is almost always what you meant. The **From** menu at the top of the message is there for the times it is not: pick any of your addresses and the message leaves as that one instead, with that inbox's name on replies and its signature, and the answer comes back to that inbox. Only addresses you are allowed to send from appear in the menu, so nothing on it can turn round and refuse you.
 
@@ -136,7 +169,7 @@ What is saved is what you typed, line breaks and all, along with who it is going
 
 Each row says who it went to, what it was about, which of your addresses it left as and who here wrote it. Where the site is watching for it, what became of it is on the row too - on its way, opened, or never arrived (see [Finding out what happened after you pressed Send](#finding-out-what-happened-after-you-pressed-send)). Clicking one opens the conversation it belongs to, which is where the answer to it will turn up.
 
-Replies sent from here, messages written from here, and your other modules' automatic post that goes out as one of your inboxes all appear. Internal notes do not: nobody was sent one.
+Replies sent from here, messages written from here, and your other modules' automatic post that goes out as one of your inboxes all appear. So does anything you sent to a colleague at another of your own addresses, even though it is sitting in their inbox as post for them. Internal notes do not: nobody was sent one.
 
 ### Copying replies to your Sent folder
 
@@ -146,7 +179,7 @@ If the copy fails, your email has still gone. The message will say the copy did 
 
 ### Finding out what happened after you pressed Send
 
-**Sent** means the email service took the message. It does not mean it arrived, and it certainly does not mean anybody read it. Two switches on the settings page, both **off until you turn them on**, fill that gap.
+**Sent** means the email service took the message. It does not mean it arrived, and it certainly does not mean anybody read it. Two switches on **Settings → Unified Inbox → Sent replies**, both **off until you turn them on**, fill that gap.
 
 **Tell me when a reply is delivered, opened or bounces.** Brevo tells the site what became of each message and the answer appears under the reply itself: *Delivered 09:14*, *Opened 11:32*, or *It did not arrive* with the reason behind it. Useful when you are deciding whether it is worth chasing somebody, and rather more useful than guessing.
 
@@ -158,7 +191,15 @@ Both of these amount to keeping a note of what somebody did with an email you se
 
 ### Attachments
 
-You can attach anything from your media library. There is a ceiling of about nine megabytes for everything on one message, which is what the email services themselves allow, and **an attachment that will not fit is refused before you send** rather than quietly dropped on the way out. A file you have not put in the media library yet needs uploading there first.
+You can attach anything from your media library. There is a ceiling of about nine megabytes for everything on one message, which is what the email services themselves allow, and **an attachment that will not fit is refused before you send** rather than quietly dropped on the way out.
+
+You can also **drag a file straight onto the message** - onto the reply box under a conversation, or anywhere on the box where you are writing a new one. Drag several at once and they all go on. The box says "Drop to attach" while the file is over it, the files appear as tags underneath as they arrive, and a cross takes one back off. Nothing is sent until you press Send, as ever.
+
+Files dropped this way have to be **under four megabytes each**, which is the hosting platform's limit on what one upload may carry rather than ours. Something bigger has to go into your media library first, which has a route for large files this one does not, and then on with **Attach a file**.
+
+A few things are refused, and each says why: a folder (drop the files inside it instead), and anything that is a program or a script rather than a document, because the email services will not deliver one of those anyway and finding that out at Send is finding it out too late. If you need to send one, put it in a zip.
+
+A dropped file goes into your site's storage, not into your media library: it is a customer's paperwork, and it has no more business in the picker you build pages from than an invoice that arrived in `accounts@`. A file you drop on and then think better of - never sent, never saved as a draft - is cleared away by the site a week later. A draft holding one keeps it for as long as the draft lives.
 
 ---
 
@@ -191,13 +232,15 @@ For when you are waiting on something, there is a **refresh button at the top le
 
 The refresh button only appears if you look after the inbox and there is a mail account for it to check - there is no sense offering a button whose only possible answer is no.
 
-The first collection does not fetch everything at once. New post is picked up straight away, and the history is walked backwards a batch at a time over the following checks until it reaches as far back as you asked for under **How far back to go when starting out** (twelve months to begin with). A mailbox with years in it takes a while to fill in, and the settings page shows the progress while it does.
+If you would rather not keep pressing it, **Settings → Unified Inbox → Collecting → Check for new mail while the inbox is open** does the pressing for you: pick a wait - a minute, two, five, ten, or half an hour - and the inbox goes and looks that often on its own while you have it open. It only runs on a tab you are actually looking at, it stops the moment that tab goes behind something else or you close the page, and it says nothing at all - new post simply appears in the list, in bold, where post has always appeared. A banner across the top announcing mail that is already on the screen underneath it is one thing to read too many. Only people who look after the mail accounts get it, for the same reason the button is only theirs. Off to begin with, and worth picking the longest wait you can live with: every check is a bit more work for your hosting.
+
+The first collection does not fetch everything at once. New post is picked up straight away, and the history is walked backwards a batch at a time over the following checks until it reaches as far back as you asked for under **Collecting → How far back to go** (twelve months to begin with). A mailbox with years in it takes a while to fill in, and the settings page shows the progress while it does.
 
 ---
 
 ## The screen
 
-Along the top is a row of tabs: **All**, then each of your addresses with its unread count, then the chat, form and phone conversations, then **Sent** (everything that has left - see [Sent](#sent) above), **Drafts** (your own half-written messages) and, for whoever looks after the site, **Not filed**. **Write a message** sits at the end of that row, and the refresh button sits at the start of it, before **All** (see [How often it checks](#how-often-it-checks)).
+Along the top is a row of tabs: your own address first if you have been given one, then **All**, then each of your addresses with its unread count, then the chat, form and phone conversations, then **Sent** (everything that has left - see [Sent](#sent) above), **Drafts** (your own half-written messages) and, for whoever looks after the site, **Not filed**. **Write a message** sits at the end of that row, and the refresh button sits at the start of it, before **All** (see [How often it checks](#how-often-it-checks)).
 
 Opening a conversation, searching, writing a message and every other button on this screen now change only the part of the screen that changed. They used to fetch the whole page again, sidebar and all, which is why the inbox had a habit of blinking at you between clicks. The address in your browser still says exactly what you are looking at, so a view can still be sent to a colleague and the back button still behaves.
 
@@ -205,9 +248,21 @@ Underneath is a second row for where a conversation stands - **Open**, **Snoozed
 
 Then the conversations. With nothing open the list has the whole width and reads across in one line, the way a mail program does. Open one and the screen splits: the list becomes a column on the left, the conversation fills the middle, and on a wide screen what the rest of your site knows about that person sits on the right. On a phone you see one at a time, with **Back to the list** to return.
 
+**Closing one again.** At the top left of any open conversation there is a **× Close**, which shuts it and hands the whole width back to the list. On a phone the same link reads **Back to the list**, because there the list is not on the screen at all. The same goes for a person's page.
+
+**Working through several at once.** Every row has a tick box, and above the list there is one that ticks the lot. Tick a few and a bar appears offering the four things you would otherwise open each of them to do: **Mark as done**, **Mark as read**, **Mark as unread** and **Open again**. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
+
 In a conversation you can reply, reply to everybody, forward, or leave an **internal note**. (Starting one from scratch is **Write a message**, above.) A note is not sent to anybody, says so on its face, and deliberately does not bump the conversation or mark it unread: us talking among ourselves should not look like the customer writing again. Mentioning a colleague in a note raises a notification for them, but only if they could open that conversation anyway.
 
-You can assign a conversation to somebody, snooze it until a date, mark it done, and reopen it. Every one of those is recorded, so "who marked this done" has an answer.
+You can assign a conversation to somebody, mark it done, and reopen it. Every one of those is recorded, so "who marked this done" has an answer.
+
+**Remind me later** puts a conversation to sleep and brings it back when you asked for it. Three ready-made answers - in three hours, tomorrow morning, next week - cover most of it, and under them there is a day-and-time box for the rest: the morning somebody said they would ring back, the day after a delivery is due. It will not accept a time that has already been.
+
+**A reply cancels it.** Setting a conversation to come back on Thursday is a bet that nothing will happen before Thursday, so anything happening settles the bet. The moment somebody writes on it, it stops being snoozed and goes straight back under **Open**, unread, where you would have seen it anyway. That covers the customer answering, and it covers a colleague answering them from their own phone or from Outlook rather than from here - either way somebody is dealing with it now, and it should not be hidden until Thursday.
+
+Three things deliberately leave the snooze where it is. An out-of-office and a bounce, because that is the mail system talking rather than a person, and a reminder should not be cancelled by an automatic reply from somebody's holiday. An internal note, for the same reason it does not bump the conversation or mark it unread - us talking among ourselves is not the customer writing back. And your own reply sent from here, because you set the reminder knowing full well you were about to answer.
+
+When one is woken this way it says so in **What has been done to this** at the foot of the conversation, with the time, so a conversation turning up in Open on Tuesday when you asked for Thursday is explained rather than mysterious.
 
 **Search** covers subjects, senders and the text of messages, and it only ever searches the inboxes you are allowed to read.
 
@@ -215,7 +270,7 @@ You can assign a conversation to somebody, snooze it until a date, mark it done,
 
 By default a conversation reads the way it happened: the first message at the top, the latest at the bottom, and the writing box under the lot.
 
-Tick **Show the newest message at the top of a conversation** on **Settings → Unified Inbox** and it turns round - the latest message is the first thing you see when you open one, and the writing box moves up with it so the reply sits beside the thing you are replying to. Handy on a long back and forth where the only part anybody needs is the end of it.
+Tick **Show the newest message at the top of a conversation** on **Settings → Unified Inbox → Collecting** and it turns round - the latest message is the first thing you see when you open one, and the writing box moves up with it so the reply sits beside the thing you are replying to. Handy on a long back and forth where the only part anybody needs is the end of it.
 
 It is a site setting rather than a personal one, so everybody reads the same way round.
 
@@ -226,6 +281,22 @@ Most sites end up with one inbox they live in and two or three they glance at, a
 If you would rather not use a mouse for it, put the keyboard focus on an address, hold **Alt** and press the left or right arrow keys.
 
 The order belongs to the site rather than to you, so everybody who opens the inbox sees the same one - which means only people who can manage inboxes can change it. If you can read the inbox but not manage it, the addresses simply sit where whoever looks after the site has put them, and nothing drags.
+
+### Giving somebody an inbox of their own
+
+Most people on a site live in one address. Somebody who does purchasing wants `purchasing@` in front of them the moment they open the inbox, not a list of everything the company has ever been sent.
+
+**Settings → Unified Inbox → Inboxes → Edit an inbox → Who can read it.** Beside each name there is **Their own inbox**. Tick it and, for that person only:
+
+- the address sits first along the row of tabs, ahead of **All**;
+- it is what they land on when they open the inbox, instead of **All**;
+- its signature goes at the foot of their replies, whichever address they are answering from.
+
+**All** does not go anywhere - it moves along one, to second - and the rest of the addresses follow in the usual order. Everybody else's row is exactly as it was: this is one person's arrangement, not the site's, so it does not shuffle the tabs for anybody else and it does not affect the order you have dragged the addresses into.
+
+**One address each.** Ticking the box on a second inbox moves the person there rather than giving them two; the screen says whose address it currently is before you do it. Untick it and they go back to opening on **All**, which is where everybody starts.
+
+You can only give somebody an address they can actually read, so if the inbox has a guest list, they need to be on it. Take them off it later and they quietly go back to **All** rather than landing on a tab that will not open.
 
 ### Reading email safely
 
@@ -266,7 +337,7 @@ Organisations are guessed from the email domain, with the usual free providers l
 Some things worth saying plainly:
 
 - **A role address is one person.** `accounts@supplier.com` might be four people in real life, and here it is one. That is by design; splitting it would mean guessing.
-- **Your own people never become customers.** Your inboxes, your staff's own addresses and anything at your own domains are excluded. If it guesses your domains wrongly, set them yourself under **Your own domains**.
+- **Your own people never become customers.** Your inboxes, your staff's own addresses and anything at your own domains are excluded. If it guesses your domains wrongly, set them yourself under **People → Your own domains**.
 - **There is no directory of everyone who has ever emailed you**, on purpose. That is where a conversation hub turns into a CRM by accident.
 - People can be **merged** when the same human turns up twice, and a merge can be put back afterwards. A person can be **split** apart again if two people got folded into one.
 
@@ -276,7 +347,7 @@ Some things worth saying plainly:
 
 When a person's address matches something else on your site, it appears in the panel on the right: their orders, their purchase orders, their unpaid bills, their quotes, their member account. Each one is a link through to the real record. Nothing is ever written to those records from here, only read, and a module you have not installed simply shows nothing.
 
-When somebody quotes an order number, a purchase order number or a quote reference in a message, it is attached to the conversation automatically. **Nothing is attached until the number is checked and found to exist**, anything attached that way says it was found automatically, and it comes off in one click. If your reference numbers are an unusual shape, the three boxes under **Spotting references** take your own pattern.
+When somebody quotes an order number, a purchase order number or a quote reference in a message, it is attached to the conversation automatically. **Nothing is attached until the number is checked and found to exist**, anything attached that way says it was found automatically, and it comes off in one click. If your reference numbers are an unusual shape, the three boxes under **People → Spotting references** take your own pattern.
 
 ### Attaching an order or a purchase order yourself
 
@@ -306,6 +377,8 @@ Three permissions, handed out through [Managing users](Managing-users) as usual:
 | `unifiedinbox.reply` | Reply, forward, note, assign, snooze, mark done |
 | `unifiedinbox.manage` | Settings, mail accounts, inboxes, merging people, export and erase |
 
+Giving somebody an inbox of their own is a convenience, not a permission: it decides what they open on and what they sign off as, and nothing about what they are allowed to read.
+
 On top of that, **each inbox has its own list of who may read it**. Leave the list empty and anybody with the view permission can read that inbox. Name anybody at all and it is those people and nobody else. A shop assistant does not need `accounts@`.
 
 That applies to searching and to the **All** view as well, not only to opening a conversation: a snippet from an inbox you cannot open never appears in your results at all. Administrators are the exception, on the grounds that whoever edits the guest lists could add themselves to one in two clicks anyway.
@@ -316,7 +389,7 @@ That applies to searching and to the **All** view as well, not only to opening a
 
 ### The retention window
 
-**Delete conversations older than** is blank to begin with, which means nothing is ever removed. Set a number of months and a daily tidy-up removes conversations whose last message is older than that, along with any files attached to them. **There is no way to get them back afterwards.**
+**Collecting → Delete conversations older than** is blank to begin with, which means nothing is ever removed. Set a number of months and a daily tidy-up removes conversations whose last message is older than that, along with any files attached to them. **There is no way to get them back afterwards.**
 
 The whole conversation goes, never half of it. Deleting the old half of a thread and keeping the recent half leaves something that reads as though your customer opened with a reply.
 
@@ -340,7 +413,7 @@ The export file carries the same three sentences at the top, because whoever ope
 
 ## Telling something else when the post arrives
 
-Under **Settings -> Unified Inbox**, at the bottom, you can have an inbox notify a
+Under **Settings → Unified Inbox → Other apps** you can have an inbox notify a
 web address every time a message arrives. Nothing about the inbox itself changes,
 and switching it all off breaks nothing.
 
@@ -357,13 +430,29 @@ Each one has:
 - **Whether to include what the message actually said.** Off by default, and worth
   leaving off unless the other end genuinely needs it. Switching it on sends a
   copy of your post to that address every time one arrives.
-- **A signing password**, optional. If the other end expects one, every note is
-  stamped with it so it can tell the message really came from your site.
-- **Extra headers**, optional, written one per line as `Name: value`. This is where
-  a key goes if the address you are telling asks for one.
+- **A signing password.** If the other end expects one, every note is stamped with
+  it so it can tell the message really came from your site.
+- **Extra headers**, written one per line as `Name: value`. This is where a key
+  goes if the address you are telling asks for one.
 
-Passwords and keys are kept locked away and never shown again once saved. The
-screen only tells you whether one is set.
+### One password and one set of headers for the lot
+
+At the top of the page sit a **signing password** and a set of **extra headers**
+shared by every subscription. Most sites tell one thing about their post - a
+workflow tool, an ops channel - from several inboxes, and typing the same key
+into five places means changing it in five places on the day it is rotated. Set
+it once here and every subscription set to "shared" follows on its next send.
+
+Each subscription then chooses, for the password and for the headers separately:
+**use the shared one**, **give this one its own**, or **neither**. Anything set
+up before this carries on exactly as it was - a subscription that had its own
+keeps using it, and one that had none stays unsigned until you say otherwise.
+
+Neither the shared password nor the shared headers are ever shown again once
+saved: the boxes replace them rather than edit them, and there is a **Remove it**
+beside each when one is set. The list says which of the two each subscription is
+actually using, so "shared, but nothing shared is set" cannot quietly look like
+"signed".
 
 Notes go out on the mail check's schedule rather than the moment a message lands,
 so an address that is slow or switched off can never hold up your mail. One that
