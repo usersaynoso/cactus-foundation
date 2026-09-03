@@ -32,11 +32,15 @@ So this module separates the two:
   band has a from and an up-to figure (either end can be left open) and matches against
   the price the product card actually shows - the "From £..." figure where there is one.
   Price bands work for products with no variations at all.
-- On a category page the panel also offers a **Category** section automatically: the
-  page's own sub-categories, so a shopper can narrow a parent category's rolled-up grid
-  to one branch without leaving the page. No setup involved - it reads the category
-  tree, counts like any other group, and only offers sub-categories that actually have
-  products in the grid. It can be switched off per page with the block's
+- The panel also offers a **Category** section automatically, and it leads the panel.
+  On a category page its ticks are that page's own sub-categories, so a shopper can
+  narrow a parent category's rolled-up grid to one branch without leaving the page. On
+  a page that is not a category - a tag page, a collection, a supplier, or a filter page
+  built over the whole catalogue - the ticks are your top-level categories instead
+  (Office Desks, Office Tables, Office Seating), which is the widest cut a shopper can
+  make on a shelf that spans the lot. No setup involved either way - it reads the
+  category tree, counts like any other group, and only offers categories that actually
+  have products in the grid. It can be switched off per page with the block's
   "Category filter" setting.
 
 ## What shoppers get
