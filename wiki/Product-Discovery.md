@@ -225,6 +225,11 @@ the day it is created. Two blocks are available there:
   - **Products start sorted by** - the order the results arrive in before anybody touches
     the Sort by dropdown. Best selling by default. The page is drawn in that order rather
     than sorted after it appears, so nothing rearranges under the shopper.
+  - **The "Narrow down" button** and its text, hovered and not - four colours, each
+    picked from your own palette on Appearance, Styles, Colours, and each able to carry a
+    different answer for dark mode. Leave them alone and the button looks as it always
+    has. The button floats over the products on a phone rather than sitting on a band of
+    its own, so only the button itself is painted.
   - **Card layout** - which product card design the results use.
 
 Under a step's choices, "Compare these" and "Not sure yet" fill the gap at the end of the
