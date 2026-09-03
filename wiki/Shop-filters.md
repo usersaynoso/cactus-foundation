@@ -11,6 +11,11 @@ Requires the [Shop](Shop) and [Shop Variations](Shop-variations) modules. If
 [Product Attributes](Product-attributes) is installed too, filters can also match
 spec values - and price-band groups need neither.
 
+> **For shoppers who do not know what to tick.** A filter panel assumes somebody already
+> knows what they want. [Product Discovery](Product-Discovery) is a guided flow over this
+> same vocabulary - the same groups, the same filters, the same matching - that walks
+> them through it instead, explaining every option on the way. Nothing is set up twice.
+
 ## The idea
 
 Your products don't share one tidy "Blue". One chair's upholstery is *Stevia Blue*,

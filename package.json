@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1484",
+  "version": "0.5.1485",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -15,6 +15,7 @@
     "test:shop-sql": "vitest run lib/backup/shop-sql.test.ts",
     "test:ledger-guards": "RUN_LEDGER_GUARDS=1 vitest run modules/uk-bookkeeping/lib/ledger-guards.live.test.ts modules/uk-bookkeeping/lib/ledger-projection.live.test.ts modules/uk-bookkeeping/lib/import-roundtrip.live.test.ts modules/uk-bookkeeping/lib/category-accounts.live.test.ts modules/uk-bookkeeping/lib/documents.live.test.ts modules/uk-bookkeeping/lib/vat-boxes.live.test.ts --testTimeout 120000 --no-file-parallelism",
     "test:inbox-guards": "RUN_INBOX_REOPEN_GUARDS=1 RUN_INBOX_INTERNAL_GUARDS=1 vitest run modules/unified-inbox/lib/reopen-on-reply.live.test.ts modules/unified-inbox/lib/internal-threads.live.test.ts --testTimeout 120000 --no-file-parallelism",
+    "test:discovery-sql": "RUN_DISCOVERY_SQL=1 vitest run modules/product-discovery-tool/lib/discovery-sql.live.test.ts --testTimeout 300000 --no-file-parallelism",
     "check:module-pins": "CHECK_MODULE_PINS=1 vitest run lib/modules/pin-check.live.test.ts",
     "db:migrate": "prisma migrate dev",
     "db:push": "echo 'Use prisma migrate dev instead of db push \u2014 see AGENTS.md' && exit 1",

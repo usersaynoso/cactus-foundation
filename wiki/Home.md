@@ -28,6 +28,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Directory](Directory) | Map-based listings with categories, featured entries, geocoding and a CSV importer |
 | [Product Attributes](Product-attributes) | Letting shoppers filter your shop by material, colour, room or anything else you choose |
 | [Shop Filters](Shop-filters) | Grouped filters for big catalogues: one Blue covers every blue-ish upholstery colour, and filtered cards show and open the blue version of each product |
+| [Product Discovery](Product-Discovery) | A guided buying flow: type, then sort, then features, with every option explained and compared side by side |
 | [Product 3D views](Product-3D-views) | Letting shoppers turn a product round in 3D instead of squinting at one photograph |
 | [Product downloads](Product-downloads) | Putting the manual, the spec sheet and the drawing on the product page for anyone to take |
 | [Product Add-ons](Product-Add-ons) | Offering screens, trays and other products alongside a product, sized and coloured to match, bought together as one tidy basket group |
