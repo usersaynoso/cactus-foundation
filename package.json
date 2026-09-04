@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1515",
+  "version": "0.5.1516",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "test:backup-roundtrip": "RUN_BACKUP_ROUNDTRIP=1 vitest run lib/backup/roundtrip.test.ts",
     "test:shop-sql": "vitest run lib/backup/shop-sql.test.ts",
-    "test:ledger-guards": "RUN_LEDGER_GUARDS=1 vitest run modules/uk-bookkeeping/lib/ledger-guards.live.test.ts modules/uk-bookkeeping/lib/ledger-projection.live.test.ts modules/uk-bookkeeping/lib/import-roundtrip.live.test.ts modules/uk-bookkeeping/lib/category-accounts.live.test.ts modules/uk-bookkeeping/lib/documents.live.test.ts modules/uk-bookkeeping/lib/vat-boxes.live.test.ts --testTimeout 120000 --no-file-parallelism",
+    "test:ledger-guards": "RUN_LEDGER_GUARDS=1 vitest run modules/uk-bookkeeping/lib/ledger-guards.live.test.ts modules/uk-bookkeeping/lib/ledger-projection.live.test.ts modules/uk-bookkeeping/lib/import-roundtrip.live.test.ts modules/uk-bookkeeping/lib/category-accounts.live.test.ts modules/uk-bookkeeping/lib/documents.live.test.ts modules/uk-bookkeeping/lib/vat-boxes.live.test.ts modules/shop/lib/db/refund-netting.live.test.ts --testTimeout 120000 --no-file-parallelism",
     "test:po-sql": "RUN_PO_SQL=1 vitest run modules/purchase-orders/lib/sql-guards.live.test.ts --testTimeout 300000 --no-file-parallelism",
     "test:inbox-guards": "RUN_INBOX_REOPEN_GUARDS=1 RUN_INBOX_INTERNAL_GUARDS=1 RUN_INBOX_ADOPTION_GUARDS=1 vitest run modules/unified-inbox/lib/reopen-on-reply.live.test.ts modules/unified-inbox/lib/internal-threads.live.test.ts modules/unified-inbox/lib/folder-adoption.live.test.ts --testTimeout 120000 --no-file-parallelism",
     "test:filters-sql": "RUN_FILTERS_SQL=1 vitest run modules/filters-for-shop/lib/matching-sql.live.test.ts --testTimeout 300000 --no-file-parallelism",
