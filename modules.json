@@ -58,7 +58,7 @@
     {
       "name": "product-discovery-tool",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-discovery-tool",
-      "version": "v0.1.6"
+      "version": "v0.1.7"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
