@@ -8,11 +8,17 @@
 # .github repo rather than in core, whose tree is checked out into every install: a
 # GitHub App may only write under .github/workflows/ with a permission installs do
 # not grant, and one workflow file there fails the whole core-update transaction.
+#
+# Tags and PRs only, deliberately. A release is a commit on main immediately
+# followed by a `v*` tag on that same commit, so gating both built the identical
+# tree twice: 159 runs across the org in the first four days, and every one of
+# them polled from a session waiting on it. The tag is what installs actually
+# take, so the tag is what has to be green. Push a commit to main you want built
+# without releasing it, and workflow_dispatch is there.
 name: Build gate
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
