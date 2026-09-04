@@ -6,6 +6,8 @@ import {
   vpsConfigFromEnv, createTestRole, createTestDatabase, connectionUri,
   dropTestDatabase, dropTestRole, dropStaleTestObjects, TEST_PREFIX,
 } from './vps-database'
+import { rememberAddressForMember } from '@/modules/shop/lib/db/addresses'
+import type { ShpAddress } from '@/modules/shop/lib/types'
 
 // Shop's migrations carry $$-quoted DO blocks, which is exactly why the
 // round-trip's own splitter refuses the module. Semicolons inside a dollar-quoted
@@ -181,5 +183,101 @@ describe.skipIf(!cfg)('supplier page SQL against a real database', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]!.short_description).toBe('One line')
     expect(rows[0]!.has_designed_description).toBe(true)
+  }, 60_000)
+})
+
+// The address book's one statement, executed. rememberAddressForMember builds
+// its dedupe key in SQL and its "first address wins the default" flag in the
+// INSERT itself, both of which are invisible to every other gate: a typo in
+// either parses as a perfectly good TypeScript string and only misbehaves once
+// Postgres has it. Runs the real function against a throwaway database rather
+// than a copy of its SQL, so the two cannot drift.
+describe.skipIf(!cfg)('address book SQL against a real database', () => {
+  let db: PrismaClient
+  let dbName: string
+  let roleName: string
+
+  beforeAll(async () => {
+    const suffix = `${Date.now()}`.slice(-9)
+    dbName = `${TEST_PREFIX}addr_${suffix}`
+    roleName = `${TEST_PREFIX}role_addr_${suffix}`
+    const role = await createTestRole(cfg!, roleName)
+    await createTestDatabase(cfg!, dbName, role)
+    db = new PrismaClient({ datasources: { db: { url: connectionUri(cfg!, dbName, role) } } })
+
+    const initSql = path.join(process.cwd(), 'prisma/migrations/20260626000000_init/migration.sql')
+    for (const s of splitPgStatements(readFileSync(initSql, 'utf8'))) {
+      await db.$executeRawUnsafe(s)
+    }
+    const dir = path.join(process.cwd(), 'modules/shop/migrations')
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
+      for (const s of splitPgStatements(readFileSync(path.join(dir, f), 'utf8'))) {
+        await db.$executeRawUnsafe(s)
+      }
+    }
+  }, 300_000)
+
+  afterAll(async () => {
+    await db?.$disconnect()
+    if (dbName) await dropTestDatabase(cfg!, dbName)
+    if (roleName) await dropTestRole(cfg!, roleName)
+  }, 120_000)
+
+  const address = (over: Partial<ShpAddress> = {}): ShpAddress => ({
+    firstName: 'Ada', lastName: 'Lovelace',
+    line1: '12 Bridge Street', city: 'Bath', postcode: 'BA1 1AA', country: 'GB', ...over,
+  })
+
+  async function book(memberId: string) {
+    return db.$queryRawUnsafe<Array<{ label: string | null; is_default: boolean; line1: string }>>(`
+      SELECT "label", "is_default", "address"->>'line1' AS line1
+        FROM "shp_saved_addresses" WHERE "member_id" = $1 ORDER BY "created_at" ASC`, memberId)
+  }
+
+  it('files the first delivery address as the default and never files that door twice', async () => {
+    const member = 'mbr-delivery'
+    await rememberAddressForMember(member, address(), { client: db })
+    // Same door, typed the way a different person types it. The key drops case
+    // and spacing, so this is not a second address.
+    await rememberAddressForMember(member, address({ postcode: 'ba1  1aa', firstName: 'Someone', lastName: 'Else' }), { client: db })
+    await rememberAddressForMember(member, address({ line1: '9 Mill Lane', postcode: 'BS1 2BB' }), { client: db })
+
+    const rows = await book(member)
+    expect(rows.map((r) => r.line1)).toEqual(['12 Bridge Street', '9 Mill Lane'])
+    // Only the first, and only ever one.
+    expect(rows.map((r) => r.is_default)).toEqual([true, false])
+  }, 60_000)
+
+  it('files a billing address labelled, and never as the default even when it is the first', async () => {
+    const member = 'mbr-billing'
+    await rememberAddressForMember(member, address({ firstName: '', lastName: '', line1: '1 Head Office Way', postcode: 'EC1 1AA' }),
+      { label: 'Billing address', canBecomeDefault: false, client: db })
+
+    let rows = await book(member)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.label).toBe('Billing address')
+    // The default is what the next checkout offers to deliver to, and this
+    // address carries no name and no phone number - it must not be it.
+    expect(rows[0]!.is_default).toBe(false)
+
+    // The delivery address that comes after it still gets the default, since
+    // the member has none.
+    await rememberAddressForMember(member, address(), { client: db })
+    rows = await book(member)
+    expect(rows.map((r) => [r.line1, r.is_default])).toEqual([
+      ['1 Head Office Way', false],
+      ['12 Bridge Street', true],
+    ])
+  }, 60_000)
+
+  it('does not file a billing address at a door already in the book', async () => {
+    const member = 'mbr-same-door'
+    await rememberAddressForMember(member, address(), { client: db })
+    await rememberAddressForMember(member, address({ firstName: '', lastName: '' }),
+      { label: 'Billing address', canBecomeDefault: false, client: db })
+
+    const rows = await book(member)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.label).toBeNull()
   }, 60_000)
 })
