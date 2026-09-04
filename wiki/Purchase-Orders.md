@@ -26,6 +26,8 @@ The module is finished: everything below is in it, and the buying side of a busi
 - **Suppliers' price lists** - their own catalogue kept on file, so an order is drafted at what they charge today, and you are told the week a code is renamed or stopped.
 - **Proforma suppliers** - the ones who invoice before they will confirm anything. Their order waits for their proforma, waits again while you pay it, and only then can they confirm it.
 - **A link for the supplier** - their own view of their own order, where they can download it, send you their proforma, confirm it with their own acknowledgement attached, give you a date line by line, tell you something is short, and say what has actually left them - and change nothing at all.
+- **Their paperwork, filed from either end** - the proforma and the acknowledgement can come through their link or be uploaded by you, and their own reference number is read off the file where you have left the box empty.
+- **Proof of payment** - the screenshot or the remittance, filed against the order and sent to the supplier on the payment email, to their accounts department where that is a different desk.
 - **Despatches and packing slips** - a supplier who sends an order in three lorries tells you about all three, with a tracking number and a tracking link each, and takes away a packing slip for every box.
 - **Reports** - what you have committed to and not yet had, what is late, goods in without an invoice, invoices in without the goods, and what you spend with whom.
 - **Chasing** - a note to a supplier whose order is late, on the schedule you set, or one you send yourself.
@@ -58,6 +60,7 @@ Administrators hold all seven without being given them, as they do everywhere el
 For each one you can record the contact details, the account number you buy under, their VAT number, an address, and the terms you actually buy on:
 
 - **How we buy from them** - a credit account, or proforma. Proforma means they invoice before they will confirm anything, and it changes what their own link does: see [Suppliers who want paying first](#suppliers-who-want-paying-first).
+- **Accounts department**, and **send the payment note to accounts** - their finance desk, where that is a different inbox from the one that takes orders. On proforma terms it usually is: the address to send the payment to is printed on the invoice. Tick the box and the *"we have paid your proforma"* note, with your proof of payment attached, goes there instead. Everything else - the order, an amendment, a chase, a cancellation - still goes to the people who take orders, and your **Copy to** address is copied in either way. The box needs an accounts address to tick.
 - **Payment terms**, both as words ("Net 30") and as a number of days, so a later release can work out when a bill is due.
 - **Lead time**, in days.
 - **Minimum order value** - the order screen tells you when you are under it.
@@ -118,21 +121,42 @@ Some suppliers will not lift a finger until the money is in. Set **How we buy fr
 What happens then:
 
 1. You send the order as usual.
-2. The supplier opens their link and it tells them, in as many words, that you pay this one up front. They send you their **proforma invoice** through the page, with their own invoice number and the amount if it is not simply the order total.
+2. The supplier opens their link and it tells them, in as many words, that you pay this one up front. They send you their **proforma invoice** through the page, with their own invoice number and the amount if it is not simply the order total. Or they email it, or post it, and you file it yourself - see [Filing their paperwork yourself](#filing-their-paperwork-yourself).
 3. You get an email, the file is filed in your media library under Purchasing, and it turns up on the order under **Proforma and supplier documents** with a link to open it.
-4. Somebody here presses **Mark the proforma as paid**, with your payment reference if you want one recorded. That is a person's decision, with their name against it - nothing guesses it off a bank feed.
-5. **They are emailed the moment you press it**, with your payment reference, what was paid, their own proforma number and a fresh link to the order. That email always goes - it is not a tick box - because on these terms the supplier is doing nothing at all until they know the money has left, and a payment nobody mentioned is a week of silence at both ends. Reword it under **Settings → Emails → Templates**, as *Proforma paid*.
-6. The supplier's page changes the moment you do. Now, and not before, they can confirm the order.
+4. If you have a screenshot of the payment or a remittance, put it against the order as the **proof of payment** - the same **Choose file** arrangement, in its own row.
+5. Somebody here presses **Mark the proforma as paid**, with your payment reference if you want one recorded. That is a person's decision, with their name against it - nothing guesses it off a bank feed. With a proof of payment on the order the button reads **Mark it paid and send the proof**, and the tick box beside it is what decides whether the file travels.
+6. **They are emailed the moment you press it**, with your payment reference, what was paid, their own proforma number, your proof of payment attached if you asked for it, and a fresh link to the order. That email always goes - it is not a tick box - because on these terms the supplier is doing nothing at all until they know the money has left, and a payment nobody mentioned is a week of silence at both ends. Reword it under **Settings → Emails → Templates**, as *Proforma paid*.
+7. The supplier's page changes the moment you do. Now, and not before, they can confirm the order.
+
+**The proof of payment is the thing that actually gets an order released.** "We have paid it" is a sentence; a picture of the payment is evidence, and most accounts departments want the second one. It is filed against the order rather than living in somebody's sent items, so the answer to *what did we send them* is on the order six weeks later. If you file one after you have already marked the proforma paid, the card offers **Email them the proof** on its own - and **Send the proof again** once it has gone, for the supplier who has lost it.
 
 **If that email cannot go, the screen says so** - no email address on the supplier, or emails switched off - and the payment still stands. Recording that money has left the building is not something to undo because a mail server was busy; you are simply told to pick the phone up.
 
 Until that button is pressed the supplier's confirm button is not there, and the page says why: *"Send us your proforma first. We will pay it, and then you can confirm the order here."* It is a proper stop rather than a hint, because a supplier who confirms before the money has moved is exactly the confusion this is here to prevent.
+
+**The status says where it has got to.** An order on proforma terms is *sent* for the whole of the dance, which is true and tells nobody anything, so the badge says the useful thing instead: **Waiting for proforma**, then **Proforma received** - in the colour the module uses for "somebody here has to do something" - and then **Proforma paid**. It reads the same way on the Orders list, so a screenful of orders shows at a glance which ones are sitting on your desk. Once the supplier confirms, the badge goes back to saying **Acknowledged**, which by then is the more useful fact. Nothing underneath has changed: filtering the Orders list by status still works off the real statuses, and the order document prints the real one.
 
 **It is frozen onto the order.** Whether an order waits for a proforma is decided when it is raised, off the supplier's terms at that moment. Move a supplier onto an account next year and last year's orders still read as they always did.
 
 **And it can be overridden per order.** A one-off from a supplier you have an account with who wants the money up front, or a proforma supplier who has agreed to put this one on the account: the card on the order has a link either way. It is under **Proforma and supplier documents**, and it disappears once the proforma is marked paid.
 
 If you press paid by mistake, **Take that back** undoes it. The proforma itself stays where it is; only the payment is unwound.
+
+---
+
+## Filing their paperwork yourself
+
+Not every supplier will use the link. Plenty email the proforma, attach the acknowledgement to a reply, or post the thing - and before, that left you with a file in your inbox and an order that said *not here yet* for ever.
+
+**Proforma and supplier documents** on the order takes all three files from this end, with a **Choose file** button on each row: their proforma, their acknowledgement, and your own proof of payment. A PDF, JPEG, PNG or WebP up to 15 MB. Whichever way a file arrives - through their link or from you - it lands in the same place, is filed in your media library under Purchasing, and shows on the order as a link to open.
+
+**Their own number is read off the file.** Every supplier puts their reference on their paperwork next to a label saying what it is - *Invoice No.* on a proforma, *Sales No.* on an acknowledgement - and where you have left the box empty, that is where the number comes from. The screen tells you it did it and shows you what it read.
+
+Two things it will not do. It never overwrites a number you have typed - if the box has something in it, that is the answer. And it never reads *your* order number back to you off their paperwork, which is on there too, usually under *Cust Order No.*
+
+**Every number is yours to type or correct.** Both boxes - **Their invoice number** on the proforma, **Their sales order number** on the acknowledgement - take a number straight from you, with a **Save** button that appears the moment you change one. For a supplier who reads it down the phone, a scan with nothing readable in it, a photograph, or a guess that read the wrong line, just type it in. Emptying the box clears it.
+
+Files are stored and checked for being what they claim to be. **They are not scanned for viruses** - nothing on this platform is, and pretending otherwise would be worse than saying so.
 
 ---
 
@@ -383,10 +407,13 @@ for somebody to read and send.
 delivery address off the customer's order rather than to you, copied across
 exactly as they typed it. The supplier is buying the parcel a journey, not two.
 
-**The company heads the label** where the customer gave one at the checkout,
-with the person underneath as the contact - which is how a delivery to a
-business has to be addressed, and how a post room works out whose it is. No
-company, and the person heads the label as before.
+**The company heads the label** where the customer wrote one into their
+delivery address, with the person underneath as the contact - which is how a
+delivery to a business has to be addressed, and how a post room works out whose
+it is. A company name given further up the checkout, as a contact detail rather
+than as part of the address, is left off the label: naming your employer is not
+the same as asking for the parcel to go there. No company on the address, and
+the person heads the label as before.
 
 **Each line names the service that line has to be sent on**, in the words the
 customer bought - flat-packed, pre-assembled, and the date they were promised.
@@ -715,6 +742,8 @@ In the panel they can:
 
 **Under each box it says what they have just told you** - "1 of 4 out of stock", "2 of 4 being sent". Two of the forms look near enough identical from a phone in a yard, and a bare box holding "1" does not say which of the two it is.
 
+**Where they leave the reference box empty, their number is read off the file they sent** - the same reading described in [Filing their paperwork yourself](#filing-their-paperwork-yourself), and just as correctable from your side afterwards. It is one less thing to copy out of a PDF they have already sent you, which is a box most suppliers skip.
+
 **Their proforma and their acknowledgement go in a big box they can drop a file onto.** Drag the PDF from wherever they have it open and let go anywhere on the box; the ordinary **Choose file** button sits in the middle of it for everybody else, and the name of the file they picked appears underneath so they can see they picked the right one. The old arrangement was a file button the width of a thumbnail, which in a warehouse on a phone is a target nobody finds.
 
 **Purchase History** at the bottom of the panel is the whole story of that order, both ways round and newest first: the order going out, any changed version of it, reminders you sent, their proforma arriving and you paying it, what they told you, what they despatched, and every delivery you booked in. **Every line says which side it came from before it says anything else** - *From us* or *From you* - because "we paid your proforma" and "you sent your proforma" are usually a day apart and read as each other otherwise. It carries nothing internal: no reasons you cancelled or closed anything, no payment reference, no notes from your side of the desk.
@@ -825,7 +854,7 @@ The wording is yours: **Settings → Purchase Orders → Wording on a packing sl
 - **Reordering** - whether draft orders are raised overnight from your reorder levels. Off by default, and greyed out on a site with no catalogue. See [Reordering](#reordering).
 - **Buying for customer orders** - whether a paid customer order drafts its purchase orders by itself. Off by default, and greyed out on a site with no shop. It drafts and stops; nothing is ever sent to a supplier without somebody sending it. See [Having it drafted the moment they pay](#having-it-drafted-the-moment-they-pay).
 - **Suppliers' price lists** - whether an order line is priced off a supplier's own list where one names the code. Off by default. You can keep lists on file either way; this is the switch that lets them price anything. See [Suppliers' price lists](#suppliers-price-lists).
-- **Which inbox this comes from** - only on a site running [Unified Inbox](Unified-Inbox), and only for somebody who may manage it. Which of your inboxes your purchase order emails leave as, so a supplier's reply lands with the people chasing the order rather than in the site's general post. Left alone, they go out as the site's usual address exactly as they always have. Saves itself the moment you pick.
+- **Which inbox this comes from** - only on a site running [Unified Inbox](Unified-Inbox), and only for somebody who may manage it. Which of your inboxes your purchase order emails leave as, so a supplier's reply lands with the people chasing the order rather than in the site's general post. Pick one and each order you send also starts a conversation in that inbox, holding what you sent and the document that went with it, for the supplier's reply to land under. Left alone, they go out as the site's usual address exactly as they always have. Saves itself the moment you pick.
 - **Chasing and the supplier link** - whether a supplier hears from you when an order is late, how late it has to be, and how often to ask again; whether every order you send carries a link of its own, and how long those links last; whether suppliers may **send you files** through that link (their proforma and their acknowledgement); and whether they may **say what they have sent** and take away a packing slip for each delivery. The last two are on, and greyed out entirely with the link itself off. See [Chasing a late supplier](#chasing-a-late-supplier), [The supplier's own link](#the-suppliers-own-link) and [What they have sent, and the packing slip](#what-they-have-sent-and-the-packing-slip).
 
 ---
@@ -860,7 +889,11 @@ The order, the amended order and the returns note carry the PDF as an attachment
 
 The order, the amended order, the chase and the proforma-paid note all offer a `{{portalLink}}` tag, which becomes the supplier's own link and disappears entirely when the link is switched off. It is in the wording as it ships. **If you have already reworded one of those emails yourself, your version is the one that sends** - drop `{{portalLink}}` in where you want it and the link starts travelling with them.
 
-On a site running [Unified Inbox](Unified-Inbox), all seven can go out as one of your own inboxes rather than the site's usual address - see **Which inbox this comes from** under [Settings](#settings). The supplier then answers to that address and the reply lands where the buying is done.
+On a site running [Unified Inbox](Unified-Inbox), all seven can go out as one of your own inboxes rather than the site's usual address - see **Which inbox this comes from** under [Settings](#settings). The supplier then answers to that address and the reply lands where the buying is done - underneath a copy of the email you sent them, which is filed in that inbox as it goes out, attachment and all. No more reading one half of a conversation.
+
+The proforma-paid note is the one email that can go somewhere else: set an **Accounts department** address on the supplier and tick the box beside it, and that note goes to their finance desk instead of the ordering one. See [Suppliers](#suppliers).
+
+The proforma-paid note can carry **your proof of payment as an attachment**, where one is filed against the order and you asked for it to go. Nothing in the wording has to mention it: the sentence saying it is attached is added for you, and only when something actually is.
 
 The proforma-paid note carries `{{payment}}` - your payment reference and the amount, written for you as a block, so an order paid without a reference does not send *"Payment reference:"* followed by nothing. If you would rather build that sentence yourself, `{{paymentRef}}`, `{{amount}}` and `{{proformaRef}}` are all there as plain values.
 

@@ -306,6 +306,8 @@ Open an order and everything sits in two columns. Down the left: what was bought
 
 Also on the page: a note of how many orders this customer has placed and what they've spent, copy buttons for the email address and the delivery address, a link to everything else they've bought, and a **Print** button that turns the page into a tidy packing slip with the admin furniture stripped out.
 
+**What was bought, in the emails.** Every email that lists an order's contents - the confirmation, the how-to-pay one, the payment receipt, your own new-order alert and the part-dispatched note - lays the items out as a proper table, with each product's photograph beside it, the quantity and the price. It used to be a plain list, which read correctly on a phone's text-only view and ran together into one unbroken paragraph everywhere else: five items, their options and their delivery notes, all in a single sentence nobody could pick apart. The photograph is the product's own picture, the same one on the thank-you page, so a variation with no photograph of its own shows a blank space rather than the wrong colour. Anything captured with the line - engraving, options, a delivery note - still sits underneath its own item. **Both the name and the photograph are links**, going to that exact thing: the product they bought, or the precise variation of it, which opens on the right colour and size rather than the range's front page. A line whose product has since been deleted stays as plain text, on the grounds that a link to nothing is worse than no link.
+
 **Emailing a customer.** Press **Email customer** to send a one-off message about this order - the "your sofa is stuck in Dover" sort of message that no automatic email covers. It goes out from your usual sending address and is added to the order's history, so the record stays complete.
 
 **"Here is how to pay."** A shopper who chooses bank transfer or cash leaves your checkout owing you money, and until now the only place they were told where to send it was the thank-you page - read once, in a hurry, and impossible to find a week later when they finally open their banking app. They now get an email the moment they order: what they bought, what it comes to, your account details or your collection wording straight from the Payments tab, their order number to quote as the reference, and a line saying that delivery times start from the day the payment reaches you and not the day they ordered. That last sentence settles the most common argument on this sort of order, and it is in the wording rather than buried in a policy page.
@@ -322,9 +324,15 @@ That message is editable like every other one, under **Settings → Email → Te
 
 Orders rarely leave in one tidy box. Two of the four items are on the shelf, the third is on a lorry somewhere, and the fourth is a pre-order that won't land until next month. Marking the whole order as shipped would be a fib, so an order can now be dispatched a bit at a time.
 
-Open the order and press **Dispatch items**. You get a line for every item with anything still owed, each capped at the number still to go out, so you can send two of the five today and the rest on Friday. Optionally add the courier, a tracking number, a note, and the date the parcel actually went out - handy on a Monday morning, when you're recording something that left on Friday afternoon.
+Open the order and press **Dispatch items**. You get a line for every item with anything still owed, each capped at the number still to go out, so you can send two of the five today and the rest on Friday. Optionally add the courier, a tracking number, a **tracking link**, a note, and the date the parcel actually went out - handy on a Monday morning, when you're recording something that left on Friday afternoon.
 
 Once recorded, each item shows how many have gone and how many are still to follow, a **Parcels** list appears with every parcel so far, and the badges at the top of the order read **Partly dispatched** or **All dispatched**. That badge is worked out from what's actually left the building rather than being a status you set, so it can't drift out of step with reality and there's no extra status to remember to change. The same badge shows on the orders list, and you can filter the whole list by it.
+
+**Where the courier details go.** All of them - courier, tracking number and tracking link - are typed into **Dispatch items**, because they belong to a parcel rather than to an order. Sending the lot in one box? Press **Dispatch items**, tick everything and fill them in there; the Status card carries no boxes of its own, which spares you the puzzle of two places asking for the same number. The email for a whole-order dispatch still quotes whatever the parcels carry, however many there are.
+
+**The tracking link.** A tracking number on its own is homework - the customer has to work out whose website to paste it into. Paste the carrier's own link for the parcel into the **Tracking link** box and the dispatch email carries a **Track your parcel** link instead. It has to be a proper web address; anything else is politely refused rather than quietly sent to somebody.
+
+The **Order shipped** message says considerably more than it used to as well: what was in the order, where it is going, and the courier and tracking number off whichever parcels have been recorded. Anything you had already put in your own wording that the message never actually knew - the item list, the total, the delivery address - now arrives filled in rather than as a blank space.
 
 Ticking **Email the customer** sends the **Part of an order dispatched** message, which lists what's in this parcel and what's still to come, and reassures them that separately sent parcels often arrive a day or two apart. When the parcel is the one that finishes the order off, the same email says so instead. It's editable like every other message under **Settings → Email → Templates**.
 
@@ -444,7 +452,31 @@ Before an invoice has been raised, that spot says when one is coming - "Your VAT
 
 **Download PDF** prints the layout you designed through a real browser, so the PDF and the page cannot drift apart. If your hosting cannot run the printer, switch the PDF off and the link goes back to the on-screen invoice, which carries on regardless.
 
+The same PDF is **attached to the email that tells a customer their order is complete**, so the invoice arrives in the inbox rather than waiting behind a link. That is the message people keep, and their accounts department files what turns up attached to it. It is on by default; untick **Attach the invoice to the "your order is complete" email** under **Settings → Shop → Invoices** if you would rather they came and fetched it.
+
+Nothing is attached where there is nothing to attach - an order you have not invoiced yet, a shop that raises invoices by hand, or an invoice you have since voided. The email goes out as it always did in that case, and so it does if the printer has a bad day: an order that is finished gets said so whether or not the paperwork printed.
+
 The **printable receipt** beside it opens in its own tab and prints as a receipt and nothing else: your site header, menu and footer come off the paper, which is what everybody assumed it did all along. The customer's order is still sitting where they left it when they're done. It also says **"This is not a VAT invoice"** on the face of it, so nobody files the wrong piece of paper.
+
+### Letting the customer put their own invoice details right
+
+Somebody orders on the company card. A fortnight later their accounts department comes back: the invoice needs to be in the holding company's name, and it needs to go to the head office, not the site they had it delivered to. Without this, that is a telephone call to you and a job on your morning.
+
+**Settings → Shop → Checkout → Changing the invoice details afterwards** hands it back to them. Switched on, a signed-in customer opening their own order sees **Who your invoice is made out to** with the company and the address on it, and a **Change these** button. Nothing there touches the delivery address - where the parcel goes stays yours to decide, which matters rather a lot once it has been picked.
+
+What happens next depends on what they change, and the difference is the taxman's rather than ours:
+
+- **Before you have raised the invoice** - nothing has gone out, so nothing has to be undone. The order is corrected, and the invoice, whenever it goes, goes correctly first time.
+- **They move the address, invoice already sent** - same company, same registration, same sale. The address on the invoice is corrected where it stands, and the PDF from then on carries the new one. No new number, nothing for anybody's VAT return to notice, and the document keeps a note of what it said before.
+- **They change the company, invoice already sent** - a different company is a different customer as far as HMRC is concerned, and an invoice made out to one firm cannot quietly become an invoice to another. So it is not rewritten. The invoice you sent is cancelled by a credit note, and a fresh invoice goes out in the new name.
+
+That last one has a switch of its own - **let them change the company name after the invoice has gone out** - because plenty of owners would rather have that conversation themselves. Leave it off and the customer is told to get in touch, while the address half carries on working. It needs invoices and credit notes both switched on, for the good reason that without a credit note the same sale would sit in your books twice.
+
+Nobody triggers it by accident. Change the company on an invoiced order and the page stops and says, in as many words, that the invoice will be cancelled by a credit note and a new one issued, and that nothing about what they paid changes. Only then does anything happen.
+
+Afterwards, **all three documents stay on their order page** - the original invoice marked "(cancelled)", the credit note, and the new invoice - because their own accountant has very likely filed the first one already and will want to see how it was undone. They get one email covering both new documents, with the new invoice attached, rather than a bare "credit note issued" that reads as though money is coming back.
+
+Your books are told about both: the credit reverses the sale, the replacement books it again, and the two net off in the same VAT return. An invoice that has already been partly refunded is left alone - the customer is asked to get in touch, because crediting it twice is not something a button should be able to do.
 
 ### Sending it to your books
 
@@ -537,6 +569,10 @@ Figures are printed as positive amounts under a "Credit note" heading, which is 
 ### What the customer sees
 
 Credit notes appear beside the invoice on their own order page in their account - and, like the invoice, save as a PDF when clicked - and they get emailed a copy when one is raised - both switchable, the email under **Settings → Shop → Invoices → Credit notes** and the on-page link under **Who can see it**. The wording of that email lives with every other email on the site, under **Settings → Emails**. **Download PDF** works exactly as the invoice's does.
+
+That email now carries the credit note itself, attached as a PDF, rather than a link to go and fetch it from. Somebody filing a refund wants a file, and a link is one step more than they will take. Untick **Attach it to that email as a PDF** if you would rather it did not - and if PDFs are switched off altogether, or the printer has a bad day, the link goes back in its place so nobody is left with neither.
+
+One other thing while we were in there: the email has always had a line for the reason you gave, and that line has never once printed. It does now.
 
 ### On the order
 
@@ -974,6 +1010,8 @@ Sell to businesses and sooner or later somebody's accounts department will ask y
 
 There's a third switch: **let customers add it later, from their own order page**. Plenty of business buyers haven't got the number on the day - they order on the Tuesday and their finance team raises the purchase order the following week - and without this they have to ring you to get it on their paperwork. Switched on, a signed-in customer opening their order sees the number (or "Not given") with an **Add it** button beside it, and whatever they type goes on their invoice. Switched off, they can still see the number they gave at checkout; they just can't move it.
 
+The company and the invoice address can be handed back to them in the same way - see **Letting the customer put their own invoice details right** under Invoices, which is a slightly bigger question because an invoice that has already gone out cannot simply be rewritten.
+
 Once it's on, that number follows the order about:
 
 - It's on the order in the admin, and you can **add or change it there** - which matters, because it usually turns up the morning after the order does, when somebody rings with the number their finance team has finally raised.
@@ -987,6 +1025,16 @@ Once it's on, that number follows the order about:
 One thing worth knowing: an invoice you've already issued keeps the reference it was issued with. Change it on the order afterwards and the invoice doesn't quietly rewrite itself, because a document already sitting in somebody's filing is a record rather than a view. If a number went out wrong, that's a credit note and a fresh invoice, same as anything else on an invoice.
 
 An invoice that went out with the box **empty** is the exception, and the useful one: there's nothing there to contradict, so a number added later prints on it the next time it's opened or downloaded. That's the whole point of letting customers add their own - the invoice they were sent before their purchase order existed comes back with the purchase order number on it. Same for a credit note. And it's why a customer can't change a number that's already on an issued invoice: they're told it's gone out with that number on it and asked to get in touch, which is a conversation rather than a text box.
+
+### A separate billing address
+
+Most people want the parcel and the invoice to go to the same place. Some don't: the buyer at a head office, the tenant whose landlord pays, the practice manager whose accounts department sits two towns away. **Settings → Shop → Checkout → Billing address** lets them say so.
+
+Switched on, the delivery step grows one tickbox at the bottom - *my billing address is different to the delivery address* - and nothing else until somebody ticks it. Tick it and a second address form unfolds underneath, asking for the address and the postcode and nothing else - no name, because the invoice goes to whoever placed the order and their name is already on it, and no phone number, because the number on an order belongs to whoever is standing at the door. Where you've got the address lookup add-on installed, it works in the billing form too, so it's still a postcode and a pick from a list rather than five boxes to type.
+
+The billing address rides along with the order and prints where you'd expect it: on the invoice and the proforma, on the customer's own receipt, and on the order in your admin beside the delivery address. An order without one bills to the delivery address exactly as it always has, so switching this on changes nothing whatsoever for the customers who don't need it - which will be most of them.
+
+Change your mind and switch it off and the tickbox goes; orders already placed keep the billing address they were given, since a document that's already been sent isn't something to quietly rewrite.
 
 ### Tickboxes at checkout
 

@@ -39,7 +39,11 @@ The difference from an ordinary filter panel is that **every option says what it
   answer that was fine until an earlier one was removed - the nearest sets are offered:
   "6 without *Glass top*". Configurable off.
 - **Products opened with the right options already chosen**, so nobody answers the same
-  question twice.
+  question twice. All of them, not just the last one - the answers given on the way down
+  the tree count as much as the ticks at the end, so a shopper who chose "Rivet Forge"
+  as their sort of chair lands on a page already set to Rivet Forge. Only their own
+  answers, mind: questions the flow never asked are left for them on the product page
+  rather than filled in on their behalf.
 - **Two or three results side by side**, with the features the flow asked about as the
   rows.
 - **The whole state in the address**, so back and forward work and a result set can be
@@ -207,9 +211,11 @@ the day it is created. Two blocks are available there:
     side by side, and opening another closes it. The questions then scroll away with the
     rest of the page, and once they have gone a "Narrow down" button appears at the top of
     the window - the same button a phone gets, wearing the same colours - which takes the
-    shopper back up to them. A site whose header is taller or shorter than usual can move
-    where that button sits, and where the jump lands, by setting `--pdt-sticky-top` in its
-    own styles; it defaults to 7rem.
+    shopper back up to them. It sees itself out at the other end: scroll past the last
+    product and it goes, so on a home page with the flow as one block among many it does
+    not follow the reader down over everything else. A site whose header is taller or
+    shorter than usual can move where that button sits, and where the jump lands, by
+    setting `--pdt-sticky-top` in its own styles; it defaults to 7rem.
   - **On a phone or tablet, step three** - whether reaching the last step **opens on the
     products** (the default) or **opens the questions** for the shopper. Only on the way
     in: somebody who closes the drawer is not shown it again, and a link that lands

@@ -114,7 +114,9 @@ So this module separates the two:
   bookmarked, or returned to with the back button.
 - **The cards dress for the occasion.** With Blue ticked, a product that comes in blue
   shows the blue variation's own picture - and clicking through opens the product with
-  the blue options already chosen, ready to add to the basket. (Both behaviours can be
+  blue already chosen, ready for the shopper to pick the rest. Only what was actually
+  ticked is answered for them: tick a finish and the finish is chosen, while the colour,
+  the arms and everything else are still theirs to decide. (Both behaviours can be
   switched off in settings.)
 - On cards with the little photo arrows, the filter and the arrows cooperate: tick two
   colours and the arrows flick between exactly those two colours' pictures, and hovering
@@ -239,9 +241,13 @@ Under **Settings > Shop > Filters**:
 
 A rule is an *(option name, value label)* pair - "Upholstery Colour: Stevia Blue". A
 product matches a filter when any of its **enabled** variations carries a ticked value.
-The first matching variation (in your variant order) lends the card its photo and its
-link; the link is the variation's own address, which Shop Variations already turns into
-the parent product's page with that combination pre-selected.
+The first matching variation (in your variant order) lends the card its photo.
+
+The card's *link* carries the ticks themselves: blue *and* oak, named on the address, so
+the product page opens with those two chosen and nothing else assumed. Where two ticks
+sit in the same group (blue *or* green) only one of them can be true at a time, so the
+first is used. Ticks with no option behind them - a price band, a spec - dress the card
+but choose nothing, because there is nothing on the product page for them to choose.
 
 Spec rules work the same way but read Product Attributes values instead, from the
 product itself or any of its variations. Spec and price matches don't swap the card

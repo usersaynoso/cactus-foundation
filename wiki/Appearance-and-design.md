@@ -47,7 +47,7 @@ Set the typography, colours (text, background, border), border radius, padding, 
 
 The Button block also offers **Secondary** and **Outline** options, each with its own section further down the tab - set their colours and hover state independently, or leave a field empty to have that variant keep following your primary colour (a filled block of it for Secondary, a border and text colour for Outline) rather than a custom one. Typography, border width, radius and padding are shared across all three variants.
 
-A **live preview** sits pinned to the bottom of the tab, showing all three variants in their normal and hover states, side by side in light and dark mode. It updates as you type, before you save, so you can see the effect of every tweak without leaving the page.
+A **live preview** sits pinned to the bottom of the tab, showing all three variants in their normal and hover states, side by side in light and dark mode. It updates as you type, before you save, so you can see the effect of every tweak without leaving the page. Put your pointer on the first of each pair and it changes exactly as it will on the site, so you can watch the hover happen rather than only read it off the sample beside it.
 
 Everything on this tab is sitewide: change it here and every button on every page follows. When you want one button to stand apart without disturbing the rest, leave this tab alone and set that block's **Style** to **Custom** in the page editor instead - it gets its own colours, hover colours and border, and ignores the settings on this tab entirely.
 

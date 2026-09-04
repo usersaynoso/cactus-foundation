@@ -87,11 +87,12 @@ The pair go together on a personal account: the first stops it reading your priv
 - **Mail account** is which connection collects it. Leave it as "not collected from a mailbox" for a send-only address.
 - **Folder to read** is normally the main inbox. Once the mail account has been tested, this is a menu of the folders that account actually has, spelled the way the mail server spells them - which saves guessing between "Sent", "Sent Items" and "Sent Messages". **Update folders** beside it asks the mail server again, for a folder you have made since. Made one this minute and would rather not wait? Choose **Type a folder name myself** and write it in.
 - **Sent folder** is the same menu, and optional: left as "work it out from the mail account", the server is asked which folder it treats as Sent.
+- **Everything in that folder belongs to this address**: for a folder you fill yourself rather than one the mail server sorts. With it on, anything sitting in the folder above is collected and filed here, even when it was sent to an old address of yours that this site has never heard of - drag it in and it turns up. Post that names one of your other addresses on its To or Cc line still goes to that address; this only settles what would otherwise have been filed under Not filed. Two addresses cannot both own the same folder: point two at one folder with this on and neither claims it, and filing goes back to the addresses.
 - **Catch-all**: one inbox can be nominated to take anything that arrives at the mail account but matches no address you have listed. Without one, that post is filed under **Not filed**, which only an administrator can see, and the settings page tells you how much is sitting there.
 - **Name on replies** and **Signature** are what your customer sees when you answer. Signatures have a section of their own below.
 - **Who can read this inbox** is covered under "Who can see what" below.
 
-Post is filed by the address it was delivered to, then by the To line, then by Cc, then by the catch-all. There are no rules for sender or subject in this version.
+Post is filed by the address it was delivered to, then by the To line, then by Cc, then by the folder it was found in where that folder has been told it owns its post, then by the catch-all. There are no rules for sender or subject in this version.
 
 **Mail between two of your own addresses lands in both of them.** Write from `chris@` to `marcus@` and there are two conversations afterwards: one in Marcus's inbox, unread, where he can answer it exactly as he would a customer's, and one in yours, showing as something you sent. His reply joins both of them. Each side is a conversation in its own right - mark one done, snooze it or hand it to somebody, and the other is left alone, because the two of you are not finished with it at the same moment.
 
@@ -131,7 +132,7 @@ If one address needs to go out through a different account altogether, **How rep
 
 ### Writing a new one
 
-Not everything starts with somebody writing to you. **Write a message** sits at the right-hand end of the row of addresses and opens a blank message in a box over the top of the list: who it is going to, a Cc if you want one, a subject, what you want to say, and anything from your media library attached to it - or dragged straight onto the box.
+Not everything starts with somebody writing to you. **Write a message** sits at the right-hand end of the row with the search box, just past it, and opens a blank message in a box over the top of the list: who it is going to, a Cc if you want one, a subject, what you want to say, and anything from your media library attached to it - or dragged straight onto the box.
 
 **The To and Cc lines suggest people for you.** Click into either one before typing a word and the addresses that inbox has been dealing with are already listed, most recent first, with the name and company where the site knows them. Type and the list narrows. Arrow keys move through it, Return or Tab takes the highlighted one, Escape puts the list away without closing the message. Pick somebody and only the part you were typing is replaced, so a line that already has two people on it keeps them.
 
@@ -252,14 +253,17 @@ So two of the modules that send the most now carry a box of their own:
 - **Settings → Purchase Orders → Which inbox this comes from** - the address your purchase orders, chases, cancellations and returns notes leave as.
 - **Settings → Shop → Notifications → Which inbox this comes from** - the address your order confirmations, despatch notes and the rest of your customer post leave as.
 
-Pick one of your inboxes and that mail goes out as that address, under the name it answers on, and replies come home to it. A supplier answering a purchase order lands in the inbox the people chasing that order are already reading, in the same conversation as everything else that supplier has ever said. Each box saves the moment you choose - there is no separate Save to press.
+Pick one of your inboxes and that mail goes out as that address, under the name it answers on, and replies come home to it. A supplier answering a purchase order lands in the inbox the people chasing that order are already reading. Each box saves the moment you choose - there is no separate Save to press.
+
+**The message itself is filed too.** Sending a purchase order to a supplier starts a conversation in that inbox, holding exactly what went to them - the wording, who it went to, who was copied in, and the document that travelled with it. When the supplier answers, their reply lands underneath it, so whoever picks it up is reading both halves rather than an answer to a question nobody can see. It arrives already read, because you sent it: it does not mark the inbox unread or count as something waiting for you.
 
 Leave both as **the site's usual address** and nothing whatsoever changes. That is what they are set to, and a site that never opens them sends exactly what it sent before.
 
 Three things worth knowing:
 
 - The box only appears if you may manage this module's settings. Somebody who runs the shop but has no business repointing the site's mail does not see it.
-- **The email itself is not copied into the conversation.** It went through your email service rather than through your mailbox, so what shows in here is the reply, starting a conversation of its own. What the site sent is still on that person's timeline, in the site's own record of what went out.
+- **Only the modules you have pointed at an inbox are filed.** Everything else carries on exactly as it did, and nothing core sends on its own account - a password reset, a sign-in code - is ever filed as a conversation. Those are not conversations, and they have no business sitting in a shared inbox.
+- **The document is kept only if your site has file storage set up.** Without it the message is still filed, in full, with no paperclip - rather than a paperclip that opens onto an error.
 - Delete an inbox and any module pointed at it quietly goes back to the site's usual address. Nothing stops sending.
 
 ---
@@ -280,7 +284,7 @@ The first collection does not fetch everything at once. New post is picked up st
 
 ## The screen
 
-Along the top is a row of tabs: your own address first if you have been given one, then **All**, then each of your addresses with its unread count, then the chat, form and phone conversations, then **Sent** (everything that has left - see [Sent](#sent) above), **Drafts** (your own half-written messages) and, for whoever looks after the site, **Not filed**. **Write a message** sits at the end of that row, and the refresh button sits at the start of it, before **All** (see [How often it checks](#how-often-it-checks)).
+Along the top is a row of tabs: your own address first if you have been given one, then **All**, then each of your addresses with its unread count, then the chat, form and phone conversations, then **Sent** (everything that has left - see [Sent](#sent) above), **Drafts** (your own half-written messages) and, for whoever looks after the site, **Not filed**. The refresh button sits at the start of that row, before **All** (see [How often it checks](#how-often-it-checks)). **Write a message** sits a row below, at the right-hand end of the status tabs, just past the search box - except on **Drafts** and **Sent**, which have no status tabs, where it goes back to the end of the address row.
 
 Opening a conversation, searching, writing a message and every other button on this screen now change only the part of the screen that changed. They used to fetch the whole page again, sidebar and all, which is why the inbox had a habit of blinking at you between clicks. The address in your browser still says exactly what you are looking at, so a view can still be sent to a colleague and the back button still behaves.
 
@@ -534,7 +538,7 @@ Said out loud rather than left to be discovered:
 
 - **Two people replying at the same time** is not handled. Nothing warns you that a colleague is typing an answer to the same conversation.
 - **Labels** of your own. Status, assignee and the inbox itself are what there is.
-- **Rules for filing by sender or subject.** Filing is by the address post was delivered to, plus a catch-all.
+- **Rules for filing by sender or subject.** Filing is by the address post was delivered to, plus the whole-folder option and a catch-all.
 - **Live incoming text messages.** Texts appear on the hourly check.
 - **Suggested replies.** Nothing here writes anything for you.
 
