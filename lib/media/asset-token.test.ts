@@ -1,32 +1,38 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 
+let mod: typeof import('./asset-token')
+
 // Set before the module under test is imported: the signing key is derived from
 // SESSION_SECRET, and getSessionSecret throws without one.
-beforeAll(() => {
+beforeAll(async () => {
   process.env.SESSION_SECRET ??= 'test-session-secret-for-asset-token-specs'
   process.env.CLOUDFLARE_WORKER_URL ??= 'https://media.example.com'
+  // Resolved once, here, rather than inside each it(): paying the module
+  // resolution in the first test charged it against the 5s per-test timeout,
+  // which a loaded full-suite run occasionally lost.
+  mod = await import('./asset-token')
 })
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
 
 describe('asset read tokens', () => {
-  it('accepts a token it just minted', async () => {
-    const { signAssetToken, verifyAssetToken } = await import('./asset-token')
+  it('accepts a token it just minted', () => {
+    const { signAssetToken, verifyAssetToken } = mod
     const key = 'media/R2/Shop/Chairs/Ada/3d/abc123-ada.glb'
     expect(verifyAssetToken(key, signAssetToken(key))).toBe(true)
   })
 
-  it('refuses a token minted for a different object', async () => {
-    const { signAssetToken, verifyAssetToken } = await import('./asset-token')
+  it('refuses a token minted for a different object', () => {
+    const { signAssetToken, verifyAssetToken } = mod
     const token = signAssetToken('media/R2/one.glb')
     // The whole point: a token lifted off one model's url is no use against
     // another, so scraping one page does not unlock the catalogue.
     expect(verifyAssetToken('media/R2/two.glb', token)).toBe(false)
   })
 
-  it('refuses a tampered signature and a tampered expiry', async () => {
-    const { signAssetToken, verifyAssetToken } = await import('./asset-token')
+  it('refuses a tampered signature and a tampered expiry', () => {
+    const { signAssetToken, verifyAssetToken } = mod
     const key = 'media/R2/one.glb'
     const token = signAssetToken(key)
     const [exp, sig] = token.split('.') as [string, string]
@@ -36,8 +42,8 @@ describe('asset read tokens', () => {
     expect(verifyAssetToken(key, `${Number(exp) + DAY}.${sig}`)).toBe(false)
   })
 
-  it('refuses a token that has expired', async () => {
-    const { signAssetToken, verifyAssetToken } = await import('./asset-token')
+  it('refuses a token that has expired', () => {
+    const { signAssetToken, verifyAssetToken } = mod
     const key = 'media/R2/one.glb'
     const now = Date.UTC(2026, 6, 19, 12, 0, 0)
     const token = signAssetToken(key, now)
@@ -48,8 +54,8 @@ describe('asset read tokens', () => {
   })
 
   describe('expiry bucketing', () => {
-    it('gives every render inside a bucket the identical expiry', async () => {
-      const { assetTokenExpiry } = await import('./asset-token')
+    it('gives every render inside a bucket the identical expiry', () => {
+      const { assetTokenExpiry } = mod
       const start = Date.UTC(2026, 6, 19, 0, 0, 0)
       // Two renders eleven hours apart must agree, or each visitor gets a unique
       // url, every url is a cache miss, and signing has quietly made the site
@@ -57,8 +63,8 @@ describe('asset read tokens', () => {
       expect(assetTokenExpiry(start + HOUR)).toBe(assetTokenExpiry(start + 12 * HOUR))
     })
 
-    it('always leaves at least a day of life on a fresh token', async () => {
-      const { assetTokenExpiry } = await import('./asset-token')
+    it('always leaves at least a day of life on a fresh token', () => {
+      const { assetTokenExpiry } = mod
       // Sampled across a full bucket, including the boundary, because the failure
       // mode is a token minted moments before a rollover and dead on arrival.
       for (let minutes = 0; minutes <= 24 * 60; minutes += 7) {
@@ -71,8 +77,8 @@ describe('asset read tokens', () => {
   })
 
   describe('signAssetUrl', () => {
-    it('stamps a token on a model url', async () => {
-      const { signAssetUrl, verifyAssetToken, ASSET_TOKEN_PARAM } = await import('./asset-token')
+    it('stamps a token on a model url', () => {
+      const { signAssetUrl, verifyAssetToken, ASSET_TOKEN_PARAM } = mod
       const key = 'media/R2/Shop/Chairs/Ada/3d/abc123-ada.glb'
       const signed = new URL(signAssetUrl(`https://media.example.com/${key}`))
 
@@ -80,8 +86,8 @@ describe('asset read tokens', () => {
       expect(verifyAssetToken(key, signed.searchParams.get(ASSET_TOKEN_PARAM) ?? '')).toBe(true)
     })
 
-    it('leaves images alone', async () => {
-      const { signAssetUrl } = await import('./asset-token')
+    it('leaves images alone', () => {
+      const { signAssetUrl } = mod
       // Image urls are written into rich text, stored page props and emails, and
       // are built by the browser for srcsets. Signing one would strand every url
       // the site has already written down, so the Worker never gates them.
@@ -89,21 +95,21 @@ describe('asset read tokens', () => {
       expect(signAssetUrl(url)).toBe(url)
     })
 
-    it('leaves a url that is not ours alone', async () => {
-      const { signAssetUrl } = await import('./asset-token')
+    it('leaves a url that is not ours alone', () => {
+      const { signAssetUrl } = mod
       const url = 'https://cdn.somewhere-else.example/models/thing.glb'
       expect(signAssetUrl(url)).toBe(url)
     })
 
-    it('keeps an existing query string', async () => {
-      const { signAssetUrl, ASSET_TOKEN_PARAM } = await import('./asset-token')
+    it('keeps an existing query string', () => {
+      const { signAssetUrl, ASSET_TOKEN_PARAM } = mod
       const signed = new URL(signAssetUrl('https://media.example.com/media/R2/a.glb?v=2'))
       expect(signed.searchParams.get('v')).toBe('2')
       expect(signed.searchParams.get(ASSET_TOKEN_PARAM)).toBeTruthy()
     })
 
-    it('signs every format the viewer can load', async () => {
-      const { signAssetUrl, ASSET_TOKEN_PARAM } = await import('./asset-token')
+    it('signs every format the viewer can load', () => {
+      const { signAssetUrl, ASSET_TOKEN_PARAM } = mod
       for (const ext of ['glb', 'gltf', 'obj', 'fbx', '3ds']) {
         const signed = new URL(signAssetUrl(`https://media.example.com/media/R2/a.${ext}`))
         expect(signed.searchParams.get(ASSET_TOKEN_PARAM), ext).toBeTruthy()
