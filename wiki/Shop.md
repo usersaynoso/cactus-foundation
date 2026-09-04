@@ -464,7 +464,7 @@ The **printable receipt** beside it opens in its own tab and prints as a receipt
 
 Somebody orders on the company card. A fortnight later their accounts department comes back: the invoice needs to be in the holding company's name, and it needs to go to the head office, not the site they had it delivered to. Without this, that is a telephone call to you and a job on your morning.
 
-**Settings → Shop → Checkout → Changing the invoice details afterwards** hands it back to them. Switched on, a signed-in customer opening their own order sees **Who your invoice is made out to** with the company and the address on it, and a **Change these** button. Nothing there touches the delivery address - where the parcel goes stays yours to decide, which matters rather a lot once it has been picked.
+**Settings → Shop → Checkout → Changing the invoice details afterwards** hands it back to them. Switched on, a signed-in customer opening their own order sees the company and the address on the order's **Billing address** card, and a **Change these** button under them. Nothing there touches the delivery address - where the parcel goes stays yours to decide, which matters rather a lot once it has been picked.
 
 What happens next depends on what they change, and the difference is the taxman's rather than ours:
 
