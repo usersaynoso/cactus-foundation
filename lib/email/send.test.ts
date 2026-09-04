@@ -9,6 +9,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const log = vi.hoisted(() => ({ recordEmailSend: vi.fn() }))
 vi.mock('@/lib/email/log', () => log)
+// Filing a copy of a module's mail is lib/email/record.test.ts's subject, not
+// this file's; stubbed so it does not reach for a module table nobody mocked.
+vi.mock('@/lib/email/record', () => ({ recordOutboundModuleEmail: vi.fn() }))
+// A module sender is lib/email/identity.ts's own subject. Stubbed here so these
+// tests do not drag the whole generated extension-point graph in behind them -
+// null is what a site with no such module installed answers anyway.
+vi.mock('@/lib/email/identity', () => ({ resolveOutboundEmailIdentity: vi.fn().mockResolvedValue(null) }))
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     siteConfig: {

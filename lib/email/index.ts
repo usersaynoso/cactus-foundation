@@ -108,6 +108,47 @@ async function withOutboundIdentity(payload: EmailPayload): Promise<EmailPayload
   }
 }
 
+/**
+ * Offers a module's automatic email to whatever wants to keep a copy of it (see
+ * lib/email/record.ts), so a supplier's reply has the message that prompted it
+ * sitting above it rather than arriving out of nowhere.
+ *
+ * Only for mail a module asked for. Core's own password resets and receipts are
+ * not conversations and have no business turning up in somebody's inbox as one.
+ *
+ * NEVER throws. The message has gone; this is filing on top of it.
+ */
+async function keepCopyForModule(
+  message: EmailPayload,
+  ids: { messageId?: string; providerId?: string },
+): Promise<void> {
+  if (!message.moduleName) return
+  try {
+    const { recordOutboundModuleEmail } = await import('@/lib/email/record')
+    const sender = await resolveSender(message)
+    await recordOutboundModuleEmail({
+      moduleName: message.moduleName,
+      ...(message.templateKey ? { templateKey: message.templateKey } : {}),
+      from: { name: sender.fromName, address: sender.fromAddress },
+      ...(message.replyTo ? { replyTo: message.replyTo } : {}),
+      to: [message.to],
+      cc: message.cc ?? [],
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
+      ...(ids.messageId ? { messageIdHeader: ids.messageId } : {}),
+      ...(ids.providerId ? { providerMessageId: ids.providerId } : {}),
+      sentAt: new Date(),
+      // What actually travelled. Anything too big was dropped on the way out,
+      // and a copy claiming an attachment the supplier never got is a copy that
+      // lies about what we sent them.
+      attachments: usableAttachments(message.attachments),
+    })
+  } catch (error) {
+    console.error('[email] could not keep a copy of', message.moduleName, 'mail', error)
+  }
+}
+
 export async function sendEmail(payload: EmailPayload): Promise<void> {
   const message = await withOutboundIdentity(payload)
 
@@ -133,6 +174,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
       messageId,
       providerId,
     })
+    await keepCopyForModule(message, { messageId, providerId })
   } catch (err) {
     // Logged and then rethrown: the caller's own error handling is unchanged,
     // and the ledger is the only place a failed send is visible afterwards.
