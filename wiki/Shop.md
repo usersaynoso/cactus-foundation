@@ -332,7 +332,9 @@ Once recorded, each item shows how many have gone and how many are still to foll
 
 **The tracking link.** A tracking number on its own is homework - the customer has to work out whose website to paste it into. Paste the carrier's own link for the parcel into the **Tracking link** box and the dispatch email carries a **Track your parcel** link instead. It has to be a proper web address; anything else is politely refused rather than quietly sent to somebody.
 
-The **Order shipped** message says considerably more than it used to as well: what was in the order, where it is going, and the courier and tracking number off whichever parcels have been recorded. Anything you had already put in your own wording that the message never actually knew - the item list, the total, the delivery address - now arrives filled in rather than as a blank space.
+The link shows on the customer's own **order page** too, under **Your parcels** - one **Track** link per parcel, named after the parcel where there is more than one. That is the page people go back to once the email is buried, and it used to give them the number and leave them to it.
+
+The **Order shipped** message says considerably more than it used to as well: what was in the order, where it is going, the courier and tracking number off whichever parcels have been recorded, and a **Track your parcel** link for each of those parcels that has one. Each link is labelled with its own tracking number, so an order that went out in three boxes gives three links rather than one nobody can tell apart. Anything you had already put in your own wording that the message never actually knew - the item list, the total, the delivery address - now arrives filled in rather than as a blank space.
 
 Ticking **Email the customer** sends the **Part of an order dispatched** message, which lists what's in this parcel and what's still to come, and reassures them that separately sent parcels often arrive a day or two apart. When the parcel is the one that finishes the order off, the same email says so instead. It's editable like every other message under **Settings → Email → Templates**.
 
@@ -581,6 +583,16 @@ A **Credit notes** panel appears on the order once there is something to show, l
 There is no void here, and none coming. An invoice can be withdrawn because it may be wrong before anybody acts on it. A credit note follows money that has already left your account and arrived in somebody else's, and there is no document that undoes that - if one is raised in error the answer is to invoice again, which is what an accountant would tell you too.
 
 If a refund somehow has no credit note against it - the books were down, or credit notes were switched off at the time - the panel says so and offers **Raise the credit note**. Pressing it twice does not make two.
+
+### Refunded before the invoice went out
+
+Money sometimes goes back before the order ever reaches the point where you invoice it - a line turns out to be unavailable while the order is being picked, and you refund it there and then. **No credit note is needed for that, and none is raised.** There is nothing to credit, because nothing has been invoiced yet.
+
+Instead the invoice simply goes out without it. When the order does reach whatever you invoice on, the refunded units are already off the document: off the lines, off the subtotal, off the VAT and off the total, with the rate summary adding up to what your customer actually kept and paid for. Delivery stays put, because that was not handed back. Refund part of a line's value rather than the whole thing and only that part comes off.
+
+The **Credit notes** panel says which happened in plain words, so a refund with no document beside it never reads as a job somebody forgot. A refund that was left off the invoice says so and offers no button - raising one would hand the same money back twice in your books, and the panel will not let you.
+
+Refunds after the invoice has gone out are unchanged: those are credit notes, exactly as above. The rule is that every refund is dealt with once - either it is left off the invoice or it is credited off it, never both and never neither.
 
 ### Sending it to your books
 
