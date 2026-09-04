@@ -1,5 +1,6 @@
 import type { PaperFormat, Page } from 'puppeteer-core'
 import { getSiteUrl } from '@/lib/config/env'
+import { resolvePrintBrowser } from '@/lib/documents/chromium'
 import { docPageSetup, PDF_FOOTER_REGION_ID, type DocPageSetup } from '@/lib/documents/page-settings'
 
 // Turning a designed document into a PDF.
@@ -15,40 +16,9 @@ import { docPageSetup, PDF_FOOTER_REGION_ID, type DocPageSetup } from '@/lib/doc
 // core's now, so the next module that prints something inherits the lot.
 //
 // Both heavy packages are dynamically imported, so a site that never presses the
-// button never loads a browser. They are declared in next.config.ts's
-// serverExternalPackages, and @sparticuz/chromium's brotli packs are traced into
-// every /api/m/** function there - which is what makes this work deployed as
-// well as locally.
-//
-// Two environments, deliberately different:
-//
-//  - Deployed (Linux serverless): @sparticuz/chromium supplies the binary, and
-//    its args are the ones that make chromium survive a read-only filesystem
-//    with no /dev/shm worth speaking of.
-//  - A developer's own machine: there is no Linux binary to unpack, so it uses a
-//    locally installed Chrome. CHROME_PATH names it; failing that the usual
-//    macOS and Linux install paths are tried. If none is there, the caller gets
-//    a clear refusal rather than a stack trace.
-
-const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-const MAC_CHROMIUM = '/Applications/Chromium.app/Contents/MacOS/Chromium'
-const LINUX_CHROME = '/usr/bin/google-chrome'
-const LINUX_CHROMIUM = '/usr/bin/chromium'
-
-/** True on a serverless/Linux deployment, where the packaged chromium is the one
- *  to use. AWS_LAMBDA_FUNCTION_NAME is set on Vercel's Node runtime. */
-function isServerless(): boolean {
-  return Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.VERCEL)
-}
-
-async function localChromePath(): Promise<string | null> {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH
-  const { existsSync } = await import('fs')
-  for (const candidate of [MAC_CHROME, MAC_CHROMIUM, LINUX_CHROME, LINUX_CHROMIUM]) {
-    if (existsSync(candidate)) return candidate
-  }
-  return null
-}
+// button never loads a browser. Which browser, and where it comes from deployed
+// versus locally, is lib/documents/chromium.ts's problem - it is the same answer
+// for every module that prints something.
 
 /**
  * The site-relative URL a document is printed from, with a nonce on the end.
@@ -417,31 +387,24 @@ export type RenderDocumentPdfOptions = {
 export async function renderDocumentPdf(options: RenderDocumentPdfOptions): Promise<Uint8Array> {
   const { path, pageSetup, footerCss = '', label = 'document' } = options
 
-  const [{ default: puppeteer }, chromiumModule] = await Promise.all([
+  const [{ default: puppeteer }, browserResult] = await Promise.all([
     import('puppeteer-core'),
-    isServerless() ? import('@sparticuz/chromium') : Promise.resolve(null),
+    // Deployed, this fetches the chromium pack and unpacks it to /tmp the first
+    // time a cold container prints, so it throws when the pack cannot be had.
+    // Reported as an unavailable browser rather than a generic fault, because
+    // that is what it is and the fix is a setting (CHROMIUM_PACK_URL).
+    resolvePrintBrowser().catch((error: unknown) => {
+      throw new DocumentPdfUnavailableError(
+        `The packaged browser could not be prepared: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }),
   ])
-  const chromium = chromiumModule?.default ?? null
-
-  // executablePath() unpacks the brotli-packed browser, so it throws when the
-  // packs are missing from the deployment - the file tracer cannot see them
-  // (they are read by fs against the package's own directory), which is why
-  // next.config.ts names them in outputFileTracingIncludes. Reported as an
-  // unavailable browser rather than a generic fault, because that is what it is
-  // and the fix is a build setting.
-  let executablePath: string | null = null
-  try {
-    executablePath = chromium ? await chromium.executablePath() : await localChromePath()
-  } catch (error) {
-    throw new DocumentPdfUnavailableError(
-      `The packaged browser could not be unpacked: ${error instanceof Error ? error.message : String(error)}`,
-    )
-  }
-  if (!executablePath) {
+  if (!browserResult) {
     throw new DocumentPdfUnavailableError(
       'No browser is available to make a PDF. Install Google Chrome locally, or set CHROME_PATH.',
     )
   }
+  const { executablePath, args } = browserResult
 
   // A launch failure is the other half of the same story: the binary is there
   // but will not run (a missing shared library, no memory left in the function).
@@ -450,7 +413,7 @@ export async function renderDocumentPdf(options: RenderDocumentPdfOptions): Prom
   try {
     browser = await puppeteer.launch({
       executablePath,
-      args: chromium ? chromium.args : ['--no-sandbox', '--disable-dev-shm-usage'],
+      args,
       headless: true,
       // Sized to a sheet of A4 at 96dpi, so a layout with a breakpoint in it
       // prints its desktop shape rather than its phone one.

@@ -83,7 +83,7 @@
     {
       "name": "quote-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/quote-for-shop",
-      "version": "v0.1.31"
+      "version": "v0.1.32"
     },
     {
       "name": "abandoned-carts-for-shop",
@@ -93,7 +93,7 @@
     {
       "name": "space-planner-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/space-planner-for-shop",
-      "version": "v0.1.34"
+      "version": "v0.1.35"
     },
     {
       "name": "reviews-for-shop",
@@ -108,12 +108,12 @@
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.21"
+      "version": "v0.1.22"
     },
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.26"
+      "version": "v0.1.27"
     },
     {
       "name": "contact-form",

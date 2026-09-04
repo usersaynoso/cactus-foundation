@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1525",
+  "version": "0.5.1526",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -40,7 +40,7 @@
     "@puckeditor/core": "^0.22.0",
     "@simplewebauthn/browser": "^13.0.0",
     "@simplewebauthn/server": "^13.0.0",
-    "@sparticuz/chromium": "^149.0.0",
+    "@sparticuz/chromium-min": "149.0.0",
     "@supabase/storage-js": "^2.108.2",
     "@types/aos": "^3.0.8",
     "@vercel/blob": "^2.4.1",

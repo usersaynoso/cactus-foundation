@@ -191,11 +191,33 @@ if (!watchdogArmed) {
   )
 }
 
+/**
+ * Trim what Vercel is about to save as the build cache. Runs only after a build
+ * that succeeded, because it reads the file traces that build wrote, and it can
+ * never fail the deploy - see scripts/prune-build-cache.mjs.
+ */
+function pruneBuildCache() {
+  return new Promise((resolve) => {
+    const child = spawn('node', ['scripts/prune-build-cache.mjs'], {
+      cwd: rootDir,
+      env: process.env,
+      stdio: 'inherit',
+      shell: false,
+    })
+    child.on('error', (err) => {
+      console.warn(`[next-build] Could not prune the build cache: ${err.message}`)
+      resolve()
+    })
+    child.on('close', () => resolve())
+  })
+}
+
 async function main() {
   const first = await runBuild(process.env, 1)
 
   if (first.status === 0) {
     console.log(`[next-build] next build finished in ${first.elapsed}.`)
+    await pruneBuildCache()
     return 0
   }
 
@@ -215,6 +237,7 @@ async function main() {
 
   if (second.status === 0) {
     console.log(`[next-build] next build finished in ${second.elapsed} on the second attempt.`)
+    await pruneBuildCache()
     return 0
   }
   if (second.retryable) {

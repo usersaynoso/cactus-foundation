@@ -122,13 +122,14 @@ const config: NextConfig = {
   // dev. Keeping the package external preserves the real `__dirname`; the trace
   // include below then makes sure the wasm actually ships next to it. meshopt
   // needs neither - it base64-inlines its wasm.
-  // puppeteer-core and @sparticuz/chromium must stay external for the same class
-  // of reason: the chromium package ships a brotli-packed browser it unpacks from
-  // its own directory at runtime and then hands the path to puppeteer, so bundling
-  // either one breaks the paths they resolve against themselves. Only a module
-  // that prints a document (Quote for Shop's PDF route) loads them, and it does so
-  // through a dynamic import, so nothing else pays for them being here.
-  serverExternalPackages: ['draco3d', 'puppeteer-core', '@sparticuz/chromium'],
+  // puppeteer-core and @sparticuz/chromium-min must stay external for the same
+  // class of reason: the chromium package unpacks a browser into /tmp at runtime
+  // and then hands the path to puppeteer, so bundling either one breaks the paths
+  // they resolve against themselves. Only a route that prints a document loads
+  // them, and it does so through a dynamic import, so nothing else pays for them
+  // being here. See lib/documents/chromium.ts for why it is the "-min" package
+  // and where the browser itself now comes from.
+  serverExternalPackages: ['draco3d', 'puppeteer-core', '@sparticuz/chromium-min'],
   typescript: {
     // `next build` runs a full tsc pass that duplicates the `tsc --noEmit` gate
     // every change already goes through (see CLAUDE.md work loop). On Vercel it
@@ -151,19 +152,17 @@ const config: NextConfig = {
     // Modules can ship browser assets (e.g. ML model + wasm) served same-origin
     // by a module route that reads them via fs. Generic glob (no module name)
     // so any module's assets/ dir is traced into the module-API function.
-    '/api/m/**': [
-      './modules/*/assets/**',
-      // @sparticuz/chromium ships its browser as brotli packs and finds them by
-      // resolving `../bin` against its own file URL, then reading them with fs -
-      // invisible to the file tracer, exactly like draco3d's wasm above. Without
-      // this the deployed function has the package but not its browser, and
-      // executablePath() throws "The input directory does not exist", which is
-      // what made quote-for-shop's PDF route 500 on the first live shop to press
-      // the button. ~66MB into the module-API function, which is the price of a
-      // PDF; the alternative (@sparticuz/chromium-min) trades it for a required
-      // env var and a download on every cold start.
-      './node_modules/@sparticuz/chromium/bin/**',
-    ],
+    // @sparticuz/chromium's brotli packs used to be forced in here: the full
+    // package finds its browser by resolving `../bin` against its own file URL
+    // and reading it with fs, invisible to the file tracer exactly like draco3d's
+    // wasm above, and without the include executablePath() threw "The input
+    // directory does not exist" - which is what made the first live shop's PDF
+    // route 500. That cost ~66MB in this function and another 66MB in
+    // node_modules, and node_modules is half of what Vercel keeps as the build
+    // cache, which has a hard 1.5GB limit that this site was going over on every
+    // other deploy. It is @sparticuz/chromium-min now, which has no bin directory
+    // to trace: see lib/documents/chromium.ts.
+    '/api/m/**': ['./modules/*/assets/**'],
     // draco3d's decoder wasm is read via fs at runtime (see serverExternalPackages
     // above), so the file tracer can't see it statically. Force it into every
     // function that can run the 3D-model optimiser: the two explicit optimise
