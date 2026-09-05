@@ -10,6 +10,7 @@ import { sanitizeSvg } from '@/lib/sanitize'
 import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isVideoDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
+import { workerUrl } from '@/lib/media/worker-url'
 import { planResize, sizeLabel, type ResizeBox } from '@/lib/media/resize-plan'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
@@ -148,17 +149,13 @@ function extensionForMimeType(mimeType: string): string {
 // uniqueness), an exact name may not.
 const filenameLabel = nanoidLabel
 
-export function workerUrl(): string {
-  // trim() before anything else: a stray trailing space or newline in the env
-  // value (Vercel keeps whatever was pasted, invisible ones included) survives
-  // into `${workerUrl()}/${key}`, putting a space in the MIDDLE of every upload
-  // PUT target and stored serving url - which the browser rejects outright as a
-  // "bad URL" before it even sends the request. Every other reader of this value
-  // (the CSP host, the image-loader allowlist) runs it through `new URL().origin`,
-  // which trims for them, so the fault hides everywhere except the raw string
-  // concatenation here. Strip surrounding whitespace and any trailing slashes.
-  return process.env.CLOUDFLARE_WORKER_URL?.trim().replace(/\/+$/, '') ?? ''
-}
+// Re-exported rather than defined here so that a caller wanting only the worker's
+// address does not have to import this file - and with it sharp, the S3 client,
+// the glTF optimiser and jsdom - to get it. Re-exported at all so that every
+// existing `import { workerUrl } from '@/lib/media/upload'` keeps working; the
+// functions below use it too, which is why it is imported as well as exported.
+// See lib/media/worker-url.ts.
+export { workerUrl }
 
 // Same origin as workerUrl(), but throws a clear, user-facing error when it is
 // missing or not a usable absolute http(s) url instead of handing back an empty

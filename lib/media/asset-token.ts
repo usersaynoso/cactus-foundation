@@ -1,7 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { getSessionSecret } from '@/lib/config/env'
 import { MODEL_EXTENSION_TYPES } from '@/lib/media/limits'
-import { workerUrl } from '@/lib/media/upload'
+// From the leaf module, not '@/lib/media/upload': this file signs the media urls
+// on every public page, and upload.ts brings sharp, the S3 client, the glTF
+// optimiser and jsdom with it. See lib/media/worker-url.ts.
+import { workerUrl } from '@/lib/media/worker-url'
 
 // Signed read tokens for the media assets that are worth stealing.
 //

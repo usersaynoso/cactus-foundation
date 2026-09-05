@@ -171,6 +171,39 @@ const config: NextConfig = {
     '/api/admin/media/bulk-optimise': ['./node_modules/draco3d/draco_decoder.wasm'],
     '/api/admin/media/record': ['./node_modules/draco3d/draco_decoder.wasm'],
   },
+  // The other half of the tracer's story: files it copies into every function and
+  // that no function can ever load.
+  //
+  // @prisma/client ships the query engine AND the query compiler as base64-inlined
+  // WebAssembly for all five dialects it supports - CockroachDB, MySQL, SQL Server,
+  // SQLite and PostgreSQL - and the tracer, which cannot know which one is live,
+  // takes all ten into every route. That is 53 MB per function. Measured on a real
+  // build of this site: 261 traces, 462 MB of distinct files, 29.8 GB written across
+  // the functions, and 14 GB of it - 47% - was this. Vercel hashes and uploads that
+  // pile in "Deploying outputs", which is why the step costs 80-120s.
+  //
+  // None of it can run here. The wasm client is for Edge and for driver adapters:
+  // this schema declares neither (no `driverAdapters` preview feature, no
+  // `engineType`), no route sets `runtime = 'edge'`, and proxy.ts is Node-only by
+  // design - see its own header. What actually serves every query is the native
+  // engine, node_modules/.prisma/client/libquery_engine-<platform>.node, which is
+  // traced separately and is deliberately NOT touched here.
+  //
+  // Keyed on '**' because these are route globs, matched with `contains` semantics
+  // (see outputFileTracingIncludes above): '**' is every route. Exclude patterns are
+  // resolved against the project root and matched the same way, so a leading './'
+  // is the project directory - see collect-build-traces.js.
+  //
+  // If a future Cactus ever does want the wasm client - an Edge route, or a driver
+  // adapter - this block is what has to come out first, or the build will trace a
+  // client whose engine is missing and the route will fail at runtime, not at build.
+  outputFileTracingExcludes: {
+    '**': [
+      './node_modules/@prisma/client/runtime/query_engine_bg.*.wasm-base64.*',
+      './node_modules/@prisma/client/runtime/query_compiler_bg.*.wasm-base64.*',
+      './node_modules/.prisma/client/query_engine_bg.wasm',
+    ],
+  },
   // Security headers are applied in proxy.ts
 }
 
