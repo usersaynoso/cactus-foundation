@@ -103,6 +103,58 @@ describe('the sender', () => {
   })
 })
 
+describe('Reply-To', () => {
+  // A Reply-To exists to say "answer somewhere other than the sender". Pointing
+  // it at the sender says nothing and is not free: the spam scorers an owner
+  // checks their mail against mark a message down for carrying a redundant one,
+  // and it is the kind of mark that only ever appears on machine-written mail.
+
+  it('goes out when it names somewhere other than the sender', async () => {
+    await sendEmail({
+      ...BASE,
+      from: { address: 'noreply@deskwell.co.uk' },
+      replyTo: 'hi@deskwell.co.uk',
+    })
+    expect(brevoBody().replyTo).toEqual({ email: 'hi@deskwell.co.uk' })
+  })
+
+  it('is left off when it only repeats the From address', async () => {
+    await sendEmail({
+      ...BASE,
+      from: { address: 'hi@deskwell.co.uk' },
+      replyTo: 'hi@deskwell.co.uk',
+    })
+    expect(brevoBody().replyTo).toBeUndefined()
+  })
+
+  it('is left off when it repeats the SITE address the payload did not name', async () => {
+    // The From here is resolved from the site config rather than the payload,
+    // so the comparison has to happen after that is worked out, not before.
+    await sendEmail({ ...BASE, replyTo: 'noreply@deskwell.co.uk' })
+    expect(brevoBody().replyTo).toBeUndefined()
+  })
+
+  it('does not care about case or stray spaces', async () => {
+    await sendEmail({
+      ...BASE,
+      from: { address: 'hi@deskwell.co.uk' },
+      replyTo: '  Hi@Deskwell.CO.UK ',
+    })
+    expect(brevoBody().replyTo).toBeUndefined()
+  })
+
+  it('applies the same rule over SMTP, not only Brevo', async () => {
+    vi.stubEnv('BREVO_API_KEY', '')
+    vi.stubEnv('SMTP_HOST', 'smtp.example.com')
+
+    await sendEmail({ ...BASE, from: { address: 'hi@deskwell.co.uk' }, replyTo: 'hi@deskwell.co.uk' })
+    expect(sendMail.mock.calls[0]![0].replyTo).toBeUndefined()
+
+    await sendEmail({ ...BASE, from: { address: 'hi@deskwell.co.uk' }, replyTo: 'sales@deskwell.co.uk' })
+    expect(sendMail.mock.calls[1]![0].replyTo).toBe('sales@deskwell.co.uk')
+  })
+})
+
 describe('the transport', () => {
   it('is the environment\'s when the payload does not say otherwise', async () => {
     await sendEmail(BASE)

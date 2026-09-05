@@ -212,6 +212,7 @@ async function dispatch(payload: EmailPayload): Promise<string | undefined> {
 /** Returns the provider's own id for the message, when it gives one. */
 async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<string | undefined> {
   const sender = await resolveSender(payload)
+  const replyTo = replyToWorthSending(payload, sender.fromAddress)
   const files = usableAttachments(payload.attachments)
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -223,7 +224,7 @@ async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<str
       sender: { name: sender.fromName, email: sender.fromAddress },
       to: [{ email: payload.to }],
       ...(payload.cc?.length ? { cc: payload.cc.map((e) => ({ email: e })) } : {}),
-      ...(payload.replyTo ? { replyTo: { email: payload.replyTo } } : {}),
+      ...(replyTo ? { replyTo: { email: replyTo } } : {}),
       ...(payload.headers && Object.keys(payload.headers).length ? { headers: payload.headers } : {}),
       subject: payload.subject,
       htmlContent: payload.html,
@@ -257,6 +258,7 @@ type SmtpOverrides = { host?: string; port?: string; user?: string; pass?: strin
 async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Promise<string | undefined> {
   const { createTransport } = await import('nodemailer')
   const sender = await resolveSender(payload)
+  const replyTo = replyToWorthSending(payload, sender.fromAddress)
   const transporter = createTransport({
     host: overrides?.host ?? process.env.SMTP_HOST,
     port: parseInt(overrides?.port ?? process.env.SMTP_PORT ?? '587', 10),
@@ -269,7 +271,7 @@ async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Pr
     from: `"${sender.fromName}" <${sender.fromAddress}>`,
     to: payload.to,
     ...(payload.cc?.length ? { cc: payload.cc.join(', ') } : {}),
-    ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+    ...(replyTo ? { replyTo } : {}),
     ...(payload.headers && Object.keys(payload.headers).length ? { headers: payload.headers } : {}),
     subject: payload.subject,
     html: payload.html,
@@ -295,6 +297,26 @@ async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Pr
  * because an email with a bare address in the From line looks like spam to
  * both a person and a filter.
  */
+/**
+ * The Reply-To worth sending, which is none at all when it is the From address
+ * written out a second time.
+ *
+ * Reply-To exists to say "answer somewhere other than the sender". Pointing it
+ * at the sender says nothing, and is not free: the spam scorers every owner
+ * checks their mail against treat a redundant Reply-To as one more small mark
+ * against a message, and it is the kind of mark that only ever appears on mail
+ * a machine assembled.
+ *
+ * Compared case-insensitively and trimmed, because "Emma@Deskwell.co.uk" and
+ * "emma@deskwell.co.uk " are one mailbox and neither of them is a reason to
+ * write the header out.
+ */
+function replyToWorthSending(payload: EmailPayload, fromAddress: string): string | undefined {
+  const replyTo = payload.replyTo?.trim()
+  if (!replyTo) return undefined
+  return replyTo.toLowerCase() === fromAddress.trim().toLowerCase() ? undefined : replyTo
+}
+
 async function resolveSender(payload: EmailPayload): Promise<{ fromName: string; fromAddress: string }> {
   const config = await getEmailConfig()
   if (!payload.from?.address) return config

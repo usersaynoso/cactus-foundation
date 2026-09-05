@@ -2,7 +2,7 @@
 
 Every conversation with every customer and supplier in one place: email, live chat, contact form enquiries, phone calls, voicemail and text messages, with your own records sitting beside them. One screen instead of five, and a shared history instead of whatever happens to be on somebody's phone.
 
-It is not a CRM. There are no pipelines, no deals and no lead scoring. People exist here for one reason only: so two emails, a live chat and a phone call from the same human collapse into one story.
+It is not a CRM. There are no pipelines, no deals and no lead scoring. People exist here so that two emails, a live chat and a phone call from the same human collapse into one story - and, since the [Contacts](#contacts) tab arrived, so that you have somewhere to write down their mobile number and where to post things. That is an address book. It stops there.
 
 You will find it under **Inbox** in the admin sidebar, as a tab called **Unified Inbox**. Its settings live under **Settings → Unified Inbox**, split across a row of tabs so that changing a folder name no longer means scrolling past a retention policy.
 
@@ -27,7 +27,8 @@ You will find it under **Inbox** in the admin sidebar, as a tab called **Unified
 | **Inboxes** | The addresses people write to: where each is collected from, how its replies go out, what they are signed with, and who may read them. |
 | **Collecting** | How far back to go, how long to keep things, attachments, and which way round a conversation reads. |
 | **Sent replies** | Whether to find out what became of a reply after it left. |
-| **People** | Telling colleagues from customers, and the shape of your order and quote numbers. |
+| **People** | Telling colleagues from customers, the categories you file contacts under, and the shape of your order and quote numbers. |
+| **Campaigns** | Your business name and address for the unsubscribe footer, how long to leave between writing to the same person twice, and how long a finished campaign's log is kept. |
 | **Other apps** | Telling something else on the internet when the post arrives. |
 
 Start a form on one tab, wander off to another and come back, and what you had typed is still there. Nothing is saved until you press the Save button on that tab, mind.
@@ -284,7 +285,7 @@ The first collection does not fetch everything at once. New post is picked up st
 
 ## The screen
 
-Along the top is a row of tabs: your own address first if you have been given one, then **All**, then each of your addresses with its unread count, then the chat, form and phone conversations, then **Sent** (everything that has left - see [Sent](#sent) above), **Drafts** (your own half-written messages) and, for whoever looks after the site, **Not filed**. The refresh button sits at the start of that row, before **All** (see [How often it checks](#how-often-it-checks)). **Write a message** sits a row below, at the right-hand end of the status tabs, just past the search box - except on **Drafts** and **Sent**, which have no status tabs, where it goes back to the end of the address row.
+Along the top is a row of tabs: your own address first if you have been given one, then **All**, then each of your addresses with its unread count, then the chat, form and phone conversations, then **Sent** (everything that has left - see [Sent](#sent) above), **Drafts** (your own half-written messages), **Contacts** (the address book - see [Contacts](#contacts) below) and, for whoever looks after the site, **Not filed**. The refresh button sits at the start of that row, before **All** (see [How often it checks](#how-often-it-checks)). **Write a message** sits a row below, at the right-hand end of the status tabs, just past the search box - except on **Drafts** and **Sent**, which have no status tabs, where it goes back to the end of the address row.
 
 Opening a conversation, searching, writing a message and every other button on this screen now change only the part of the screen that changed. They used to fetch the whole page again, sidebar and all, which is why the inbox had a habit of blinking at you between clicks. The address in your browser still says exactly what you are looking at, so a view can still be sent to a colleague and the back button still behaves.
 
@@ -386,8 +387,159 @@ Some things worth saying plainly:
 
 - **A role address is one person.** `accounts@supplier.com` might be four people in real life, and here it is one. That is by design; splitting it would mean guessing.
 - **Your own people never become customers.** Your inboxes, your staff's own addresses and anything at your own domains are excluded. If it guesses your domains wrongly, set them yourself under **People → Your own domains**.
-- **There is no directory of everyone who has ever emailed you**, on purpose. That is where a conversation hub turns into a CRM by accident.
+- **There is a directory now**, under the **Contacts** tab, and it was left out of earlier versions on purpose - an address book is where a conversation hub turns into a CRM by accident. What it holds is names, numbers and where to post something. There is no stage, no value, no next action and no forecast, and there is not going to be. See [Contacts](#contacts) below.
 - People can be **merged** when the same human turns up twice, and a merge can be put back afterwards. A person can be **split** apart again if two people got folded into one.
+
+---
+
+## Contacts
+
+The **Contacts** tab is the address book. It is the same people the section above describes, listed instead of waited for.
+
+Everybody who writes in is already in it. What is new is that you can now write things down about them, and add somebody who has never written at all.
+
+### What a contact holds
+
+A first name and a last name, separately, so the list sorts by surname the way an address book does. Then a job title, the organisation they work for, any number of [categories](#categories), as many email addresses and phone numbers as they actually use, a website, a postal address in the usual British parts - address, town, county, postcode, country - and a note.
+
+Somebody the post introduced us to may only ever have had one name, read off the From line. Opening their card splits it into the two boxes for you, so **Jane Smith** arrives as Jane and Smith and you can correct it if the guess was wrong.
+
+**Phone numbers are not just text.** A number typed onto a card is a number the site recognises: when that person telephones, the call lands on their record rather than starting a stranger.
+
+**One address belongs to one person.** If you type in an address that somebody else here already has, it stays with them and the card tells you so, rather than quietly moving it. Two people holding one mailbox is a merge for you to decide on - see the section above.
+
+### Organisations
+
+The second half of the tab. Most appear on their own, one per company that writes in from its own domain. Each has a card with a name, a mail domain, an address, a phone number, a website and a note, and says how many contacts are in it - which is what makes **Acme Ltd** with fourteen contacts and **Acme Limited** with one obvious enough to tidy up.
+
+You can add one yourself, which is the only way the haulier who only ever telephones is going to be in there. Leave the mail domain blank for a company that never emails; fill it in and the next person who writes in from that domain joins them automatically.
+
+**Removing an organisation keeps everybody in it.** They keep their own records and simply stop showing the name. A contact is not the company they work for, and no conversation, order or invoice is touched.
+
+### Categories
+
+The labels you file contacts under: **Supplier**, **Trade customer**, **Haulier**, **Do not ring** - whatever suits how you actually work. A row of them sits above the list, and pressing one narrows the list to it. Pressing it again takes the filter off.
+
+A contact can be in several at once, on purpose. Somebody can genuinely be a supplier and a customer, and a field that only allows one would have you picking which of two true things to record.
+
+**You make a category by using it.** Open a contact, press **Edit their details**, and the Categories line offers everything the site already has as ticks, plus **New category** for one that does not exist yet. Nothing is saved until you save the card, so a label typed onto a contact you then abandon does not leave a category behind.
+
+**Renaming and removing** them is under **Settings → Unified Inbox → People**, along with the order they appear in and how many contacts are in each - which is what makes an empty one worth removing and a typo worth renaming. **Removing a category keeps everybody who was in it.** They keep their records and simply stop showing the label.
+
+One thing said plainly, because it is the line this feature must not cross: **a category is not a stage.** Nothing moves between them on its own, nothing else on the site reads them, and there is no order to them beyond the one you drag them into. It is the label on the drawer, not a sales process.
+
+### Adding one by hand
+
+**New contact**, at the right-hand end of the Contacts row. Fill in what you know - a phone number on its own is a perfectly good contact - and save. Anybody who can reply to the post can do this; you do not have to look after the site.
+
+### Bringing an address book in from a file
+
+**Import a file**, beside it. This one is for whoever looks after the site: two thousand contacts in one press is a wider thing than correcting one of them.
+
+Three steps.
+
+1. **Choose the file.** A CSV, saved out of a spreadsheet or exported from wherever your contacts are now. There is a blank one to download if you would rather start from ours.
+2. **Match the columns.** Every column in your file is listed with its best guess at what it is - and it has seen what Outlook, Google Contacts and most accounts packages call things, so an ordinary export usually needs nothing changed. Change anything that looks wrong, and set anything you do not want to **Leave this column out**. A single **Name** column is understood and split into first and last, and a **Category**, **Group**, **Type** or **Tags** column is understood as categories - several to a cell if they are separated by commas, semicolons or pipes.
+3. **Check and bring them in.** The first five rows are shown as they would actually be saved, so a column in the wrong place is visible before rather than after. There is also a **Category** box here for putting *everybody* in the file into one, for when what four hundred contacts have in common is the file rather than anything written in it - it goes on top of whatever a category column says, never instead of it. Then press the button.
+
+Three things it does that are worth knowing:
+
+- **Somebody already here is left exactly as they are**, unless you tick **Fill in contacts already here**. Off is the safe answer: a file with half its columns blank would otherwise blank those fields for everybody in it. Running the same import twice with it off changes nothing the second time.
+- **One company named a thousand times is one organisation.** Names are matched however they are typed, so `Acme Ltd` and `acme ltd` do not become two.
+- **An import only ever adds a category, never takes one off.** A sheet saying "Supplier" is telling you one thing about somebody, not the whole of what they are, so anybody already labelled keeps what they had. And "Supplier" and "supplier" are one category rather than two.
+- **A row that will not go in is reported by its row number**, the same number your spreadsheet shows down the left, along with what was wrong with it. The rest still go in.
+
+Five thousand rows at a time is the limit. Split a bigger file and bring it in in two goes.
+
+**The file never leaves your computer.** It is read in your browser so the matching step has something to show you, and only the rows you can see are sent to the site. There is no copy of your address book sitting in storage afterwards, which is rather the point.
+
+---
+
+## Links in a message
+
+Pressing a link in somebody's email does not follow it. It opens a small panel first, showing where that link actually goes: the site it lands on, the whole address written out, and - when the two are not the same thing - what the link said versus where it points.
+
+That gap is the entire mechanism of every phishing email ever sent. "View your invoice" over an address in another country looks exactly like "View your invoice", and a mail program that follows the press without showing you where you are going is helping. From the panel you can **open it in a new tab**, **copy the address** to paste somewhere that checks it, or **close** and go no further. Nothing loads until you choose.
+
+Addresses in plain-text messages are links now too - they used to be text you could not press at all. Anything that is not an ordinary web or email address is shown and refused: the panel tells you what it is, and will not open it.
+
+Holding cmd (or ctrl) while you press still opens a link straight away in a new tab, the way it does everywhere else.
+
+## Campaigns
+
+The same email to a great many people, one at a time, slowly, from an address that is already a real mailbox on this site.
+
+That last part is the whole idea. This is not a newsletter service and it is not trying to be one: no template gallery, no rented sending domain, no branded footer with a picture in it. It is the same composer you already use, pointed at a list from your address book, with a clock in front of it - one message every ninety seconds inside working hours, so two thousand emails leave looking like two thousand emails a person sent rather than one burst a filtering service is paid to notice.
+
+You will find it as **Campaigns** along the top of the hub, next to Contacts. It has its own permission, so somebody who can answer the post is not automatically somebody who can write to five thousand customers.
+
+### Writing one
+
+One page, top to bottom, in the order you would think about it, with **one Save button** at the bottom. It is in the same place whatever you are doing and it saves the whole thing, so there is never a question about which button saved which half.
+
+**Who it goes to** - the address it comes from, and which of your contacts get it. Pick one or more of the labels from your address book, or none of them for everybody. It counts them for you as you go, and it tells you who is being left out and why: people who have unsubscribed, addresses that have bounced, colleagues at your own domain, anybody another campaign wrote to in the last week, two contacts sharing one address. **Saving is what writes the list down** - there is no second button to press - and once it is written it is fixed, because a list that changes every time somebody imports a spreadsheet is a list whose finish date moves. **Top up** later adds anybody who has appeared since and leaves everybody already on it alone.
+
+**What it says** - the subject and the message. Write it as you would write an email, because it is one. Somebody's name goes in with `{{first_name|there}}` - the bit after the bar is what anybody with no first name on their record gets, so nobody receives "Hello ,". There are five of these: first name, surname, whole name, company and their email address, and there is a row of buttons that types them for you. It will show you how the message reads for three real people off your own list, chosen so that the one with no first name is first. You can turn the signature off for this campaign, and you can send yourself a test - which you have to, before it will start.
+
+**When it goes** - the clock. **Every box here can be left empty, and each one tells you what empty means.** No hours set means any hour of the day and night; weekdays-only left unticked means Saturdays and Sundays count too. Nothing is filled in for you, because a time you did not type is a decision somebody else made on your behalf. There is a start date if you want one, the gap between messages, days to sit out entirely - weekdays-only still sends on Christmas Day - a daily ceiling, and a warm-up that starts small and doubles, worth switching on if this mailbox normally sends a handful a day and is about to send three hundred. It tells you how many a day that works out at and roughly when it will finish.
+
+**Before it can go** - the checklist, underneath the form. Anything with a cross by it stops the campaign; anything with an exclamation mark is a warning you can read and press past. **Start sending only appears once there is nothing left to fix and nothing left unsaved**, so a button you press and get refused is not a thing that happens here. Leaving the sending hours empty is one of those warnings: perfectly reasonable for a reminder, less so for a mailshot that lands at three in the morning on a Sunday.
+
+**Progress** - the button at the top, once it is on its way: everybody on the campaign and where they have got to, filterable. Who has had it, who replied, who bounced, who unsubscribed, and who was left out with the reason written beside them. Anybody still waiting has a **Send now** beside them, for when you do not want to wait for the clock - it skips the hours and the gap, not the checks, and it will not go out of a campaign that has never been started.
+
+### Follow-ups
+
+A campaign can carry up to three follow-ups, each with its own wait and its own wording. They only go to people who have said nothing: a reply from any address you hold for that person stands the chase down, and so does a bounce or an unsubscribe. An out-of-office does not - a fortnight in Spain is not an answer.
+
+A follow-up with no subject of its own goes out as a reply to the first message, so it lands in the same conversation in their mail program rather than arriving as a stranger asking whether they saw the last one. That is usually what you want.
+
+### What it does on its own
+
+Three things stop a campaign without being asked, and all three exist because nobody watches a screen for a fortnight.
+
+- **Too many bad addresses.** If more than five in a hundred come straight back, it stops and says so. A list full of dead addresses is how a domain ends up in a filter, and stopping at forty is a great deal cheaper than stopping at four hundred.
+- **The mail service saying no.** An unverified sending address or a rejected key would fail the same way for every message behind it, so it stops rather than failing nine hundred times.
+- **The address disappearing.** Delete the inbox it sends from and it stops, with everything it has already sent kept exactly as it was.
+
+**Pause** and **Resume** are yours to press. Pausing takes effect at the next gap - whatever was going out at the time finishes. **Stop for good** ends it, follow-ups included.
+
+### Sending the whole thing again
+
+A finished campaign carries **Send it all again** on the bar at the bottom. It is mostly for the campaign you fire at a test mailbox twenty times while you get the wording right, and for the reminder that goes to the same list every September.
+
+It is behind a warning, and the warning is the honest bit rather than the polite bit:
+
+- **Everybody on the list gets it a second time**, the people who have already had it included. A customer who receives the same email twice unsubscribes, and they are right to.
+- **The record of the last run goes.** Who opened it, what bounced, who replied - the progress table starts again from nothing, and there is no getting it back.
+- **Unsubscribes and dead addresses are kept.** Anybody who opted out stays out, and so does every address that bounced. That much survives whatever else this does.
+- **It comes back as a draft.** Nothing leaves until you press Start sending, and the checks run again first.
+
+A campaign marks itself **finished** the moment the last person on it has been dealt with. Adding people to a finished campaign with **Top up** sets it going again, because adding somebody to a finished campaign is somebody saying it is not finished. Paused and stopped are left where they are: both of those were a decision, and a top-up is not a way to overturn one.
+
+### Unsubscribing, and the law
+
+Every campaign message carries a footer with your business name and address and a link to stop receiving them. Somebody who uses it is off the list within the second - not just that campaign but every campaign this site will ever send, because "unsubscribe" means from you rather than from one mailshot. It works without a login, it keeps working long after that campaign has been deleted, and mail programs that offer their own unsubscribe button will show one.
+
+You can switch the footer off per campaign. Before you do: marketing email in the UK is expected to carry a way to opt out, and without one people press the spam button instead - which does far more damage to whether your ordinary email arrives than an unsubscribe ever could. The screen says so, once, and then it is your call.
+
+The **Do-not-email list** holds everybody who is off the list, and why. You can add an address by hand - somebody who asked you at a trade show - and take one off, for the address that bounced during an outage and works again on Thursday. It stops campaigns only: replies, order confirmations and anything somebody has specifically asked you for still go out, which is right and is what the law expects.
+
+Your business name and address for that footer go in **Settings → Unified Inbox → Campaigns**, along with how many days must pass before any campaign may write to the same person again. Seven is the default and it is a guard rather than a preference: two campaigns should not both land on the same customer on the same morning.
+
+### What keeps it moving
+
+This is worth two minutes of your attention, because it decides whether a campaign keeps to the pace you set.
+
+While the Campaigns screen is open in front of you, it sends on time. When nobody is looking, it relies on your site's own scheduled round, which on most hosting comes past about once an hour - so an unattended campaign creeps along rather than keeping to your ninety seconds.
+
+If you want it to keep proper time with nobody watching, the When section shows an address you can point any free website-pinger at, once a minute. Treat it like a password: anybody who has it can nudge your campaigns along. Asking it too often is harmless - the gap is kept on our side, and a request that arrives early sends nothing at all.
+
+### What it deliberately does not do
+
+- **No attachments.** A mailshot with a PDF on it goes to the junk folder, and a few thousand copies through your own mailbox is a bad afternoon for everybody. Link to it instead.
+- **No click tracking.** Rewriting every link in an email is what marketing mail does, and it is one of the things filters look for.
+- **No conversation per send.** Five thousand of them would bury your actual correspondence. A **reply** makes a conversation, on the next check, exactly as any other email does - which is the only part you wanted in the inbox anyway.
+- **No A/B subject lines**, no scores, no funnels. It is still an inbox.
 
 ---
 
@@ -417,13 +569,16 @@ One honest limitation: your site's own notification emails, such as "somebody ha
 
 ## Who can see what
 
-Three permissions, handed out through [Managing users](Managing-users) as usual:
+Four permissions, handed out through [Managing users](Managing-users) as usual:
 
 | Permission | What it allows |
 |---|---|
-| `unifiedinbox.view` | Read conversations |
-| `unifiedinbox.reply` | Reply, forward, note, assign, snooze, mark done |
-| `unifiedinbox.manage` | Settings, mail accounts, inboxes, merging people, export and erase |
+| `unifiedinbox.view` | Read conversations, and read the address book |
+| `unifiedinbox.reply` | Reply, forward, note, assign, snooze, mark done, add and correct a contact, make a category |
+| `unifiedinbox.manage` | Settings, mail accounts, inboxes, merging people, export and erase, importing an address book, removing an organisation, renaming or removing a category |
+| `unifiedinbox.campaigns` | Write, start, pause and stop campaigns, and manage the do-not-email list |
+
+**Campaigns is its own permission on purpose.** Renaming a folder and emailing five thousand customers are not the same act, and a site that has given somebody the first has not thereby given them the second. Sending a campaign from an address still needs permission to reply from that address as well - a campaign is a great many replies, and it is not a way round the guest list.
 
 Giving somebody an inbox of their own is a convenience, not a permission: it decides what they open on and what they sign off as, and nothing about what they are allowed to read.
 
@@ -449,7 +604,7 @@ On a person's page, an administrator can download everything held about them as 
 
 **Erase covers this hub and nothing else.** The dialog counts up what will go before you press anything, and says in the same breath what will not:
 
-- their conversations, messages, attached files, addresses and phone numbers, and everything worked out about them: **removed**;
+- their conversations, messages, attached files, addresses and phone numbers, everything worked out about them, and every campaign row holding their name: **removed**;
 - their orders, invoices, quotes, purchase orders and member account: **untouched**, and named by module so you know where to go next;
 - your site's record that automated emails were sent to them, which holds their address and the subject lines: **untouched**.
 
@@ -528,7 +683,7 @@ The tidy ending is to turn Reply Catcher's mailbox connection off, or uninstall 
 
 ## If you uninstall it
 
-Choosing "remove code and data" takes every conversation, message and person with it. **The attachment files in your media storage are not taken**, because they live outside the database. They stop being claimed by anything, so the media library's **Unused** count picks them up and offers them for deletion. It is one more step rather than a hidden leak, but it is a step somebody has to take.
+Choosing "remove code and data" takes every conversation, message, person and campaign with it - the do-not-email list included, so be sure before you do it on a site that has ever sent one. **The attachment files in your media storage are not taken**, because they live outside the database. They stop being claimed by anything, so the media library's **Unused** count picks them up and offers them for deletion. It is one more step rather than a hidden leak, but it is a step somebody has to take.
 
 ---
 
