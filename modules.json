@@ -28,7 +28,7 @@
     {
       "name": "google-shopping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-shopping-for-shop",
-      "version": "v0.1.9"
+      "version": "v0.1.10"
     },
     {
       "name": "stock-import-for-shop",
@@ -98,7 +98,7 @@
     {
       "name": "reviews-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/reviews-for-shop",
-      "version": "v0.1.10"
+      "version": "v0.1.13"
     },
     {
       "name": "directory",
