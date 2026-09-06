@@ -118,7 +118,7 @@
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.41"
+      "version": "v0.1.42"
     },
     {
       "name": "contact-form-reply-catcher",
@@ -128,7 +128,7 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.36"
+      "version": "v0.1.38"
     },
     {
       "name": "ultimate-seo",
@@ -163,7 +163,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.51"
+      "version": "v0.1.53"
     }
   ]
 }
