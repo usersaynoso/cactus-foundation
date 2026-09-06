@@ -27,7 +27,7 @@ You will find it under **Inbox** in the admin sidebar, as a tab called **Unified
 | **Inboxes** | The addresses people write to: where each is collected from, how its replies go out, what they are signed with, and who may read them. |
 | **Collecting** | How far back to go, how long to keep things, attachments, and which way round a conversation reads. |
 | **Sent replies** | Whether to find out what became of a reply after it left. |
-| **People** | Telling colleagues from customers, the categories you file contacts under, and the shape of your order and quote numbers. |
+| **People** | Telling colleagues from customers, whether to show people's own pictures, the categories you file contacts under, and the shape of your order and quote numbers. |
 | **Campaigns** | Your business name and address for the unsubscribe footer, how long to leave between writing to the same person twice, and how long a finished campaign's log is kept. |
 | **Other apps** | Telling something else on the internet when the post arrives. |
 
@@ -285,15 +285,54 @@ The first collection does not fetch everything at once. New post is picked up st
 
 ## The screen
 
-Along the top is a row of tabs: your own address first if you have been given one, then **All**, then each of your addresses with its unread count, then the chat, form and phone conversations, then **Sent** (everything that has left - see [Sent](#sent) above), **Drafts** (your own half-written messages), **Contacts** (the address book - see [Contacts](#contacts) below) and, for whoever looks after the site, **Not filed**. The refresh button sits at the start of that row, before **All** (see [How often it checks](#how-often-it-checks)). **Write a message** sits a row below, at the right-hand end of the status tabs, just past the search box - except on **Drafts** and **Sent**, which have no status tabs, where it goes back to the end of the address row.
+The inbox is laid out the way a mail program is: one box the height of the window, split into columns, each scrolling on its own. Nothing on it scrolls the page.
+
+**Down the left is the rail** - everywhere you can go, in a list rather than a row of tabs. Your own name and picture sit at the top of it, with the pen button that starts a new message. Under that, four groups:
+
+| Group | What is in it |
+| --- | --- |
+| **Yours** | Your own address if you have been given one, then **All**, then **Assigned to me**, **Drafts** and **Sent**. The handful of places one person opens all day. |
+| **Team inboxes** | The shared addresses, each with a coloured dot and the number of unread conversations beside it. |
+| **Channels** | The chat, form and phone conversations, where another part of the site owns them. |
+| **Everything else** | **Contacts** (the address book), **Campaigns** if you are allowed them, and, for whoever looks after the site, **Not filed**. |
+
+The refresh button is at the foot of the rail, under a line (see [How often it checks](#how-often-it-checks)).
+
+**The coloured dots** are worked out from the address itself, so a site with six inboxes gets six different colours without anybody being asked to pick them, and the same address is the same colour on every screen and for every colleague. There is nothing to set and nothing to keep in step.
+
+**Assigned to me** is new, and it is a place rather than a filter: it gathers everything handed to you across every address you can read. The old **Mine** button above the list has gone, because it did the same job less well.
+
+On a narrower window there is no room for a column of it, so the rail lies down into a single strip along the top and everything stays in the same order.
+
+**Next to it is the list**, with its own head: the search box first, then where a conversation stands - **Open**, **Snoozed**, **Done**, **All** - each with the number behind it and the total at the end of the row, then the narrower cuts: unread only, or the ones assigned to a particular colleague. All of that stays put while the conversations scroll underneath it, which it did not before.
+
+**Newest or oldest first.** The button beside the search box turns the list round. Newest first is the ordinary way to read an inbox; oldest first is how you clear a backlog, because working from the bottom means the top does not keep moving while you do it. It is remembered in the address like everything else here, so it can be sent to a colleague, and it goes back to normal on its own the next time you open the inbox fresh.
+
+Each conversation is three lines - who it is from and whose desk it is on, what it is about, and how it begins - with the date at the top right. Unread ones are in bold with a dot beside the name. Two more things ride on a row: a **turned arrow** on the last line when the last word was yours, which answers "am I waiting on them, or are they waiting on me" without opening anything, and a **number** on the right when there is more than one message in it.
 
 Opening a conversation, searching, writing a message and every other button on this screen now change only the part of the screen that changed. They used to fetch the whole page again, sidebar and all, which is why the inbox had a habit of blinking at you between clicks. The address in your browser still says exactly what you are looking at, so a view can still be sent to a colleague and the back button still behaves.
 
-Underneath is a second row for where a conversation stands - **Open**, **Snoozed**, **Done**, **Everything** - each with the number behind it, and the search box at the end. Under that sit the narrower cuts: unread only, the ones assigned to you, or the ones assigned to a particular colleague.
+**To the right of the list is the reading pane**, where whatever you open lands: a conversation, somebody's page, a contact's card. It is always there, saying **Nothing open** until you pick something, rather than appearing and shoving the rest of the screen sideways. On a wide screen a fourth column joins it, carrying what the rest of your site knows about the person you are reading - their orders, their quotes, their invoices.
 
-Then the conversations. With nothing open the list has the whole width and reads across in one line, the way a mail program does. Open one and the screen splits: the list becomes a column on the left, the conversation fills the middle, and on a wide screen what the rest of your site knows about that person sits on the right. On a phone you see one at a time, with **Back to the list** to return.
+On a phone you see one at a time: the list, or the thing you opened from it, with **Back to the list** to return.
 
-**Closing one again.** At the top left of any open conversation there is a **× Close**, which shuts it and hands the whole width back to the list. On a phone the same link reads **Back to the list**, because there the list is not on the screen at all. The same goes for a person's page.
+**Closing one again.** There is a **×** at the top right of anything open, level with its title, which shuts it and gives the width back. On a phone the same link reads **Back to the list**, because there the list is not on the screen at all. The same goes for a person's page.
+
+### People's own pictures
+
+By default everybody appears as a circle with their initials in it.
+
+Plenty of people have published a picture of themselves against their email address at **Gravatar** or **Libravatar** - two long-standing services that do nothing else. Tick **Show people's own pictures beside their messages** on **Settings → Unified Inbox → People** and those pictures appear in place of the initials, on the list, on a contact's row, beside each message, and against your own name at the top of the rail. Nobody is asked to sign up for anything, and nothing changes for anyone who has not.
+
+**It is off until you turn it on, and here is the trade.** To find out whether somebody has a picture, your site has to ask those two services about their address - so those services learn that you hold it. Three things are done to keep that as small as it can be:
+
+- The address itself is never sent. Only a one-way scramble of it goes, which cannot be turned back into the address.
+- The asking is done by your site, not by your browser. Gravatar and Libravatar never learn who on your team is reading their mail, or from where.
+- The picture is then served from your own site, so nothing on the page points at anybody else.
+
+Even so, it is somebody else being told something about your customer, which is why it is your decision rather than one that arrives with an update. If your customers' company runs its own picture service, that is asked first and the two big ones are never troubled at all.
+
+Turn it off again and everybody is back to initials immediately, including on a page somebody left open.
 
 **Working through several at once.** Every row has a tick box, and above the list there is one that ticks the lot. Tick a few and a bar appears offering the four things you would otherwise open each of them to do: **Mark as done**, **Mark as read**, **Mark as unread** and **Open again**. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
 
@@ -325,9 +364,9 @@ It is a site setting rather than a personal one, so everybody reads the same way
 
 ### Putting the addresses in your own order
 
-Most sites end up with one inbox they live in and two or three they glance at, and alphabetical order has no opinion about which is which. **Drag an address left or right along the row of tabs and it stays there.** It saves as you drop it - there is nothing to press afterwards.
+Most sites end up with one inbox they live in and two or three they glance at, and alphabetical order has no opinion about which is which. **Drag an address up or down the Team inboxes group and it stays there.** It saves as you drop it - there is nothing to press afterwards.
 
-If you would rather not use a mouse for it, put the keyboard focus on an address, hold **Alt** and press the left or right arrow keys.
+If you would rather not use a mouse for it, put the keyboard focus on an address, hold **Alt** and press the up or down arrow keys.
 
 The order belongs to the site rather than to you, so everybody who opens the inbox sees the same one - which means only people who can manage inboxes can change it. If you can read the inbox but not manage it, the addresses simply sit where whoever looks after the site has put them, and nothing drags.
 
@@ -337,11 +376,11 @@ Most people on a site live in one address. Somebody who does purchasing wants `p
 
 **Settings → Unified Inbox → Inboxes → Edit an inbox → Who can read it.** Beside each name there is **Their own inbox**. Tick it and, for that person only:
 
-- the address sits first along the row of tabs, ahead of **All**;
+- the address sits at the top of the rail under **Yours**, ahead of **All**, and comes out of **Team inboxes**;
 - it is what they land on when they open the inbox, instead of **All**;
 - its signature goes at the foot of their replies, whichever address they are answering from.
 
-**All** does not go anywhere - it moves along one, to second - and the rest of the addresses follow in the usual order. Everybody else's row is exactly as it was: this is one person's arrangement, not the site's, so it does not shuffle the tabs for anybody else and it does not affect the order you have dragged the addresses into.
+**All** does not go anywhere - it moves down one, to second - and the rest of the addresses follow in the usual order. Everybody else's rail is exactly as it was: this is one person's arrangement, not the site's, so it does not shuffle the rail for anybody else and it does not affect the order you have dragged the addresses into.
 
 **One address each.** Ticking the box on a second inbox moves the person there rather than giving them two; the screen says whose address it currently is before you do it. Untick it and they go back to opening on **All**, which is where everybody starts.
 
@@ -449,6 +488,9 @@ Three things it does that are worth knowing:
 - **An import only ever adds a category, never takes one off.** A sheet saying "Supplier" is telling you one thing about somebody, not the whole of what they are, so anybody already labelled keeps what they had. And "Supplier" and "supplier" are one category rather than two.
 - **A row that will not go in is reported by its row number**, the same number your spreadsheet shows down the left, along with what was wrong with it. The rest still go in.
 
+- **A big file goes up in pieces**, a few hundred rows at a time, and the button counts them off as it goes. That is why a long import no longer stops halfway with a message about the file being unreadable: it never was, there was simply too much of it to send in one go. If something does stop it partway, the contacts already brought in stay in - bring the rest in on their own rather than running the whole file again.
+- **If a row is refused, it says which row and which column** - "row 414, column H" - rather than telling you the file could not be read and leaving you to find it.
+
 Five thousand rows at a time is the limit. Split a bigger file and bring it in in two goes.
 
 **The file never leaves your computer.** It is read in your browser so the matching step has something to show you, and only the rows you can see are sent to the site. There is no copy of your address book sitting in storage afterwards, which is rather the point.
@@ -471,19 +513,23 @@ The same email to a great many people, one at a time, slowly, from an address th
 
 That last part is the whole idea. This is not a newsletter service and it is not trying to be one: no template gallery, no rented sending domain, no branded footer with a picture in it. It is the same composer you already use, pointed at a list from your address book, with a clock in front of it - one message every ninety seconds inside working hours, so two thousand emails leave looking like two thousand emails a person sent rather than one burst a filtering service is paid to notice.
 
-You will find it as **Campaigns** along the top of the hub, next to Contacts. It has its own permission, so somebody who can answer the post is not automatically somebody who can write to five thousand customers.
+You will find it as **Campaigns** in the rail down the left of the hub, under **Everything else**, next to Contacts. It has its own permission, so somebody who can answer the post is not automatically somebody who can write to five thousand customers.
 
 ### Writing one
 
-One page, top to bottom, in the order you would think about it, with **one Save button** at the bottom. It is in the same place whatever you are doing and it saves the whole thing, so there is never a question about which button saved which half.
+One page, top to bottom, in the order you would think about it, with **one Save button** at the bottom. It is in the same place whatever you are doing and it saves the whole thing, so there is never a question about which button saved which half. The name is at the top, typed where you read it.
+
+**Save is there on every campaign, finished ones included.** Two things lock once the first message has gone - who it goes to, and the wording of that first message, because some people have already had it and two versions of one mailshot with no way to tell who got which helps nobody. Everything else stays yours to change: the name, the follow-ups, the clock. (Previously a finished campaign had no Save button at all, while its boxes still let you type - so the changes went nowhere.)
 
 **Who it goes to** - the address it comes from, and which of your contacts get it. Pick one or more of the labels from your address book, or none of them for everybody. It counts them for you as you go, and it tells you who is being left out and why: people who have unsubscribed, addresses that have bounced, colleagues at your own domain, anybody another campaign wrote to in the last week, two contacts sharing one address. **Saving is what writes the list down** - there is no second button to press - and once it is written it is fixed, because a list that changes every time somebody imports a spreadsheet is a list whose finish date moves. **Top up** later adds anybody who has appeared since and leaves everybody already on it alone.
 
 **What it says** - the subject and the message. Write it as you would write an email, because it is one. Somebody's name goes in with `{{first_name|there}}` - the bit after the bar is what anybody with no first name on their record gets, so nobody receives "Hello ,". There are five of these: first name, surname, whole name, company and their email address, and there is a row of buttons that types them for you. It will show you how the message reads for three real people off your own list, chosen so that the one with no first name is first. You can turn the signature off for this campaign, and you can send yourself a test - which you have to, before it will start.
 
-**When it goes** - the clock. **Every box here can be left empty, and each one tells you what empty means.** No hours set means any hour of the day and night; weekdays-only left unticked means Saturdays and Sundays count too. Nothing is filled in for you, because a time you did not type is a decision somebody else made on your behalf. There is a start date if you want one, the gap between messages, days to sit out entirely - weekdays-only still sends on Christmas Day - a daily ceiling, and a warm-up that starts small and doubles, worth switching on if this mailbox normally sends a handful a day and is about to send three hundred. It tells you how many a day that works out at and roughly when it will finish.
+**When it goes** - the clock, and it is two things rather than fifteen. First, when not to begin before, if you care. Then **one sentence telling you what the pace actually comes to**: *"About 320 a day, at any hour, any day of the week, 90 seconds apart"*, with roughly when it will finish underneath. That sentence is the answer, so most people read it and move on.
 
-**Before it can go** - the checklist, underneath the form. Anything with a cross by it stops the campaign; anything with an exclamation mark is a warning you can read and press past. **Start sending only appears once there is nothing left to fix and nothing left unsaved**, so a button you press and get refused is not a thing that happens here. Leaving the sending hours empty is one of those warnings: perfectly reasonable for a reminder, less so for a mailshot that lands at three in the morning on a Sunday.
+Everything behind it is under **Change the pace, the hours or the days**: sending hours, weekdays only, days to sit out entirely - weekdays-only still sends on Christmas Day - the gap between messages, how much to vary it, a daily ceiling, and a warm-up that starts small and doubles, worth switching on if this mailbox normally sends a handful a day and is about to send three hundred. **Every box in there can be left empty, and each one tells you what empty means.** No hours set means any hour of the day and night. Nothing is filled in for you, because a time you did not type is a decision somebody else made on your behalf.
+
+**Before it can go** - the checklist, underneath the form. Anything with a cross by it stops the campaign; anything with an exclamation mark is a warning you can read and press past. **Start sending appears once there is nothing left to fix**, and if you have typed something since your last save it saves that first - one press, not two. It used to disappear the moment you touched anything, which is exactly when you had just finished writing. Leaving the sending hours empty is one of those warnings: perfectly reasonable for a reminder, less so for a mailshot that lands at three in the morning on a Sunday.
 
 **Progress** - the button at the top, once it is on its way: everybody on the campaign and where they have got to, filterable. Who has had it, who replied, who bounced, who unsubscribed, and who was left out with the reason written beside them. Anybody still waiting has a **Send now** beside them, for when you do not want to wait for the clock - it skips the hours and the gap, not the checks, and it will not go out of a campaign that has never been started.
 

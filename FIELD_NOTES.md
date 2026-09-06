@@ -1,4 +1,4 @@
-Last updated: 2026-09-05 (**Reviews go to Google, and Google asks your customers for one** - `google-shopping-for-shop` + `reviews-for-shop`, uncommitted working tree. Two halves of Google's review programme, and neither needs a core change.
+Last updated: 2026-09-06 (**Reviews go to Google, and Google asks your customers for one** - `google-shopping-for-shop` + `reviews-for-shop`, uncommitted working tree. Two halves of Google's review programme, and neither needs a core change.
 
 **The review feed.** `reviews-for-shop` gains `lib/published-reviews-provider.ts`, registered on a new vendor-neutral extension point **`shop.product-reviews`** (`reviewsPublishedReviewsProvider({limit, offset})`): published reviews of ACTIVE, non-catalogue-hidden products, newest live first, ordered by `COALESCE(published_at, created_at) DESC, id ASC` so paging cannot repeat or skip a row, each carrying `ratingMax`, `verifiedPurchase`, `invited` (a `LEFT JOIN rvw_invites` on order+product) and the order number. No email, no IP, no shop reply. It is a PUBLISHER, so gsf never imports it - the same optional-companion seam `lib/delivery-timing.ts` already uses, which is what keeps the build green on a site without the reviews module.
 
@@ -120,6 +120,67 @@ Last updated: 2026-09-03 (**A reply now puts an inbox conversation back in Open 
 
 
 ---
+
+## unified-inbox - the whole screen, rebuilt as a mail program (working tree, unreleased)
+
+A visual rebuild of `/hq/inbox`, no schema and no API change. Every route, permission, query and access rule is exactly as it was.
+
+**The shape.** It was a page: two strips of tabs, a row of filter chips, then a list beside whatever was open, the lot of it scrolling as one document. It is now **one framed box the height of the window, divided by hairlines into four panes** - rail, list, reading pane, context - each scrolling its own contents. `.uin-app` in `components/admin/inbox/styles.tsx` is a named-area grid with four cuts: one column under 900px (the rail lies down as a scrolling strip and the list and the reading pane take turns, driven by `data-open`), list + reading pane at 900px, the rail stands up as a column at 1200px, and the context panel takes a fourth column at 1500px. `data-context` guards that last one, or a conversation with nothing attached left a twenty-rem strip of empty ground on the end.
+
+**`components/admin/inbox/NavRail.tsx`** (new) replaces `InboxTabs.tsx` (deleted). Same props, same links, same drag-to-reorder and the same Alt+arrow keyboard equivalent - up and down now rather than left and right. Two behaviour changes worth knowing: the drag handlers moved off each row and onto the `<ul>`, reading the address back off `data-uin-id` under the pointer (fourteen addresses was fourteen identical sets of five handlers, and passing them through a child component's props tripped `react-hooks/refs`, because the compiler follows `move -> save -> lastServerKey.current` and calls the whole object ref-tainted); and "Write a message" is now offered on every list rather than only where the status row was not drawn.
+
+**`StatusTabs.tsx`** is a segmented control (`.uin-seg`) rather than core's `TabStrip`, and no longer carries the search or the compose button. **`Filters.tsx`** gained the search box and lost the total. **`ContactsToolbar.tsx`** uses the same segmented control for People/Organisations. Nothing in the module imports `TabStrip` any more except the settings tab, and the `.uin-tab*` classes are gone with it.
+
+**`InboxPanel.tsx`**: the head of the list column (`.uin-col-head`) now holds the view's name, its total, the segments and the filters, so all of it stays put while the rows scroll under it. The reading pane (`.uin-read`) is **always drawn**, with a "Nothing open" placeholder when it is empty. `PersonView`, `ContactCard`, `OrganisationCard` and `ContactImport` all render `.uin-thread` already, so they need no wrapper; bare notices get their air from `.uin-read > .uin-empty`.
+
+**`.uin-thread-top`** is new markup in `ThreadPane` and those four: subject on the left, the way out hard against the right - a cross on a wide window, "Back to the list" on its own line on a phone. Rows lost the wide across-in-one-line variant and its container query (the list column is never the full screen any more), the date moved to the top right of a row via `column-reverse` on `.uin-row-meta`, and messages lost their internal rules so a conversation reads as a run of messages rather than a stack of forms.
+
+**Grounds.** The rail and the context panel are `--color-bg`, the list and the reading pane `--color-surface`. That is the one pairing in core's palette that differs in BOTH themes; `--color-bg-subtle` is the same colour as `--color-surface` in dark mode, which is the trap documented at the top of `styles.tsx` and the reason `.uin-bulk` moved off it too. No hex anywhere in the sheet.
+
+**Campaigns** keeps the rail and nothing else: `.uin-app-wide` is `overflow-x: clip` with `overflow-y: visible`, because the campaign form's save bar is `position: sticky; bottom: 0` and any scroll container round it makes the bar sit at the bottom of the form instead of the bottom of the screen.
+
+**Gates:** `tsc --noEmit` clean, `eslint .` clean, `vitest run modules/unified-inbox` 698 passed / 0 failed.
+
+**Second pass - the rail, the list head, the rows, and people's own pictures.**
+
+**Rail.** Four groups now: **Yours** (the pinned address, All, *Assigned to me*, Drafts, Sent), **Team inboxes**, **Channels**, **Everything else**. Whoever is reading sits at the head of it with their picture and a square pen button. Each address carries a **coloured dot**, derived from its id by `toneFor()` into five semantic tokens (`--color-primary`, `--color-info`, `--color-warning`, `--color-destructive`, `--color-text-secondary`) - five and not more because a sixth would have to be a hex value, and the standing rule is that a hex is a colour that is wrong in one of the two themes. **Assigned to me** is new and is a place rather than a filter chip; the "Mine" chip is gone, so the two things that meant the same thing and disagreed about being on are now one. It costs one extra `countThreads`. Keyboard reorder is simpler: the team list holds nothing but movable addresses, so a link's index in it IS the address's position and the old pinned/All offset arithmetic is gone.
+
+**List head.** Search first, in a bordered box with the magnifier inside it (`.uin-search`), with the one control that changes order rather than contents beside it. Then plain text tabs with an underline on the chosen one (`.uin-tabs` / `.uin-tab`) - the pill segmented control from the first pass is gone, and so is `.uin-seg*`. The total rides at the end of the tab row. The view-name row now only draws on Drafts and Sent, which have no tab row to carry it.
+
+**Sort.** `?sort=oldest`. Two `Prisma.sql` constants (`THREAD_LIST_ORDER`, `THREAD_LIST_ORDER_OLDEST`) picked by a boolean - **nothing a reader types reaches an ORDER BY**. `NULLS` flips with the direction. `threadListQuery` takes `oldestFirst`; `threadsForPerson` still passes the default.
+
+**Rows.** `Sender › whoever has it` (the assignee, or the address it came in on), the turned reply arrow on the preview when `lastDirection === 'out'`, and a message-count circle. `messageCount` and `lastDirection` were already on `ThreadListRow`, so none of that needed a query change; `personId` did, and is one extra column in the SELECT.
+
+**Avatars - Gravatar and Libravatar.** New `lib/avatars.ts` + `lib/avatars.test.ts` (15 tests) and `app/api/avatar/[kind]/[id]/route.ts`.
+- **SHA-256 only.** Both services file an account under the MD5 *and* the SHA-256 of the same address, so trying the legacy hash too is a fourth round trip that can never find anything the third did not.
+- **Three sources in order:** the sender's own domain if it publishes `_avatars-sec._tcp` (Libravatar federation, cached an hour, positives and negatives), then `seccdn.libravatar.org`, then `www.gravatar.com`. `d=404` on all three, which is what makes the chain work at all - without it each service answers with a generated pattern and the first one always "succeeds".
+- **SSRF guard, and it is the reason federation is safe to have.** A federated host comes out of DNS belonging to *whoever sent us mail*. `isPublicAddress()` refuses loopback, RFC1918, CGNAT, link-local (**including 169.254.169.254**, the cloud metadata endpoint), multicast, reserved, ULA, and IPv4-in-IPv6. Every address the name resolves to must pass. https only - the plain `_avatars._tcp` record on port 80 is never used. 4s timeout, 512KB cap, `image/*` content-type required.
+- **Addressed by WHO, never by hash:** `/api/m/unified-inbox/avatar/person/<id>` and `/user/<id>`. No email and no hash appears in any page's markup, no third party learns a reader's IP, and no CSP `img-src` origin has to be opened up. Same shape as core's `app/api/members/avatar-proxy`. `private, max-age=86400` on a hit, `private, max-age=3600` on a miss (the common case), `nosniff` plus a `default-src 'none'; sandbox` CSP on the response.
+- **Off by default**, migration `028_avatars.sql` (`show_avatars BOOLEAN NOT NULL DEFAULT FALSE`, idempotent, no dollar-quoting). The reason is written in the migration and matches the line this module already takes about `trackOpens`: asking a third party whether it holds a picture for an address tells that third party we hold the address, and these are customers' addresses. One tick on **Settings → Unified Inbox → People**.
+- `<Avatar>` lays the picture *over* the initials rather than instead of them, so nothing shifts when one arrives and a 404 shows what was always there. Drawn on list rows, contact rows, message heads and the rail. **Not** on Sent, Drafts or organisation rows - no person id to key on, and a hash in the URL is exactly what this design refuses.
+
+**Gates, second pass:** `tsc --noEmit` clean, `eslint .` clean, `check-client-graph.mjs` clean, `vitest run modules/unified-inbox` 713 passed / 0 failed. Both ORDER BY variants **executed** against the live database read-only (no gate runs raw SQL - see `reference_raw_sql_untested_by_npm_test`). **`npm run test:backup-roundtrip` a real PASS, 4/4, no skips**, with `unified-inbox` in the built module list - required because 028 adds a column.
+
+
+
+**Third pass - two real bugs, and the sections the first two passes did not touch.**
+
+**BUG: a finished campaign could not be saved at all.** `CampaignEditor` gated the Save button on `editable = !settled`, so on a `done` or `stopped` campaign the button was not rendered - while `WhenSection`'s boxes stayed editable, which is the worst shape a form can have: it takes your typing and has nowhere to put it. Save now draws on every status. Who it goes to and the first message stay locked by the sections themselves, which is where the server's rule actually lives.
+
+**BUG, same area: the route refused a save on PRESENCE of `categoryIds`, not on a change.** `if (!isDraft && data.categoryIds !== undefined)`. The whole form saves in one press, so a started campaign posts its own unchanged labels every time - meaning no started campaign could have its name corrected or its clock changed either. Now compared with `sameCategoryIds()` (moved to `lib/campaigns/guards.ts`, 5 tests). Related: `WhatSection` locked the first message on `running`, but the server's rule is `!isDraft`, so a **paused** campaign offered a box whose save was refused. Now `firstLocked = status !== 'draft'`, and it says why in the form.
+
+**BUG: contact import died with "That file could not be read."** Two separate causes collapsed into one useless sentence.
+- `await request.json().catch(() => null)` fed `null` to Zod, so a body the host refused for **size** produced the same message as a malformed file. A few thousand contacts is megabytes of JSON. The client now posts in **chunks of 250** (`IMPORT_CHUNK`) with a `rowOffset`, adding the summaries up and stopping at the first refusal while keeping what already went in - and the route tells a body that never arrived (413, plain English) apart from one that did not fit the shape.
+- The schema answered a dozen bounds with one sentence. `describeImportFault()` (moved to `lib/contacts.ts`, 5 tests) names the row and column: *"row 414, column H"*. Row numbers carry the chunk offset, so the line named is the line in the spreadsheet. Cell cap raised 5,000 → 20,000 chars (a notes column pasted out of a CRM runs to a page); columns 200 → 500; `importContacts` takes `rowOffset` so a problem is numbered against the file.
+
+**Campaign editor, de-cluttered.** `WhenSection` opened with fifteen controls - two clocks, a weekday tick, a holiday list, three number boxes, a warm-up tick and another box under it. Now: when to begin, then **one sentence saying what the pace comes to** ("About 320 a day, at any hour, any day of the week, 90 seconds apart"), with all seven knobs behind a disclosure. The sentence is the answer, not a summary of the settings. The name moved out of its own bordered section into the header as a borderless inline field. **Start sending now saves first if anything is unsaved** - it used to be absent until Save had been pressed, so the button vanished exactly when somebody had just finished typing.
+
+**Restyled to match the shell:** composer (toolbar strips top and bottom, one outline, quiet ground), new-message modal, `.uin-fields` (hairlines, no outer box), recipient suggestions, confirm dialog, link peek, drop overlay, pagination, send-later, contact card, category chips, person timeline, and the whole of campaigns - sections are now ruled off rather than four outlined cards inside an outlined pane holding outlined blocks holding outlined fields. `.uin-camp-why` disclosures got a rotating triangle.
+
+**Correction from the second pass:** I replaced the segmented pill on the status tabs with underlined text tabs, reasoning from memory that mail programs underline. The reference screenshot plainly shows a filled pill; the pill is back. Its ground is `--color-surface-raised`, not `--color-bg-subtle` - on a `--color-surface` pane those are the same colour in dark mode, which is the trap at the top of the stylesheet.
+
+**Gates, third pass:** `tsc --noEmit` clean, `eslint .` clean, `check-client-graph.mjs` clean, `vitest run modules/unified-inbox` **723 passed / 0 failed** (+10). No migration and no raw SQL touched this round, so neither the backup round-trip nor a live SQL run is re-triggered.
+
 
 ## core + gazette + boards + space-planner-for-shop - the build cache stops being thrown away (working tree, unreleased)
 
