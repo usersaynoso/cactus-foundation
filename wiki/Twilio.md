@@ -219,6 +219,8 @@ At the top of each number's tab is **Make a call**. Enter the number you want to
 
 Handy for returning customer calls from the business number rather than your personal one. Your own phone number is remembered in your browser so you only type it once. Both legs of the call are billed at Twilio's usual rates, and both show up as the one row in the call log - the person you rang, not your own mobile twice.
 
+**The same call, from wherever you happen to be.** This module also offers the call to the rest of the site, so anything with a customer's number on the screen can ring it without you coming back here first - the Unified Inbox does exactly that, from the small arrow beside its write button. It is the same two-leg call with the same caller-ID checks, billed the same way and logged in the same place; only the button is somewhere else.
+
 ---
 
 ## Sign-in codes by text message

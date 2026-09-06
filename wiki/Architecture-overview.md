@@ -634,6 +634,23 @@ Core owns two generic pieces here. Neither names any module, and both earn their
 
 **`serverOnly` on an extension entry.** `scripts/generate-module-extension-points.mjs` decides what reaches the client-visible `extension-points.public.ts` by one rule: is the file under `components/admin/`. That is right for a React panel and wrong for a plain function. A conversation provider lives in its module's `lib/`, so by that rule it was public, and its graph - a mail client's IMAP library, a telephony SDK - became reachable from a public page. Any manifest entry may now say `serverOnly: true` and is withheld wherever its file sits.
 
+### The dialler point
+
+`core.conversation-provider` publishes what has already been said. It has no way to **start** a conversation, and there is a real difference between a screen that shows a customer's number and a screen that rings it.
+
+`core.dialler` is the other half: the site's own numbers to call out from, and one method that places a call. The contract is in `lib/dialler/types.ts` - `DiallerNumber`, `DialRequest`, `DialResult`, `Dialler` - and `lib/dialler/registry.ts` resolves it through the same `INSTALLED_MODULE_WHERE` gate, permission filter and shape check as the conversation providers. Core dials nothing itself and names no provider, exactly as it names none for text messages.
+
+**Two-leg by design.** `DialRequest` carries `callMeAt` as well as `to` and `from`, because nothing here dials a customer and hopes somebody is holding the phone: the site rings whoever pressed the button first, says who is about to be rung, and connects the two once they answer. A provider that worked any other way would be placing calls into an empty room.
+
+**A refusal is a value, not an exception.** `DialResult` is `{ ok: true }` or `{ ok: false, reason }`, because "that number is not on the account" is a sentence for the person at the keyboard rather than a stack trace.
+
+Two functions, and which one to call matters:
+
+- `firstDialler(user)` answers "is there a dialler at all" out of the database. Cheap. This is what a screen deciding whether to draw a menu entry must ask.
+- `callerNumbers(user)` answers "what can it call from", which reaches a telephony API over the network. This belongs to the screen that opens, where somebody is waiting for an answer anyway. An empty list means there is nothing to place a call with - no module, no credentials, or no number - three causes with one answer as far as a screen is concerned.
+
+Set `serverOnly: true` on the entry: a dialler carries telephony credentials and must never reach a browser bundle. Twilio publishes the only one today (`twilio-dialler`, `modules/twilio/lib/dialler.ts`), wrapping the same click-to-dial its own settings screen uses.
+
 ### The outgoing email log
 
 `EmailLog` is a delivery ledger: one row per recipient per send, written by `sendEmail()` on success and on failure. It holds the address, cc list, subject, template key, which module asked, the status and error, the `Message-ID` we set, the provider's own id, and the time. **It never holds a body.** An archive would grow without limit and have to be pruned to keep the site alive, which is a worse failure than not having one.
@@ -770,7 +787,7 @@ Blocks marked **Template block** are most useful in Header/Footer templates but 
 
 ### Admin sidebar
 
-The admin left sidebar is collapsible. Clicking the `‹` / `›` toggle button collapses it to icon-only mode (56 px wide), freeing horizontal space. The preference is persisted in `localStorage`. The sidebar **auto-collapses** whenever a page or template editor is opened, so the Puck canvas always has maximum width on load. The footer holds the theme toggle, a **My Account** link (to `/{adminPath}/account`), and **Sign out**, in that order. The theme toggle stays available when collapsed: it becomes a single round button showing the active mode's icon that **cycles** Light → Auto → Dark → Light on each click.
+The admin left sidebar is collapsible. Clicking the `‹` / `›` toggle button collapses it to icon-only mode (56 px wide), freeing horizontal space. The preference is persisted in `localStorage`. The sidebar **auto-collapses** whenever a page or template editor is opened, so the Puck canvas always has maximum width on load, and whenever the **Inbox** is opened, since that screen is a three-column mail reader and the rail buys it back a column on a laptop. Leaving either screen expands it again; the predicate is `isSidebarRailRoute()` in `lib/nav/sidebar-rail-routes.ts` (Puck editors plus any route ending `/inbox`), and a manual click of the toggle while on one of those screens stands - the shell stops treating the collapse as its own and leaves the sidebar as you left it. The footer holds the theme toggle, a **My Account** link (to `/{adminPath}/account`), and **Sign out**, in that order. The theme toggle stays available when collapsed: it becomes a single round button showing the active mode's icon that **cycles** Light → Auto → Dark → Light on each click.
 
 Section order top to bottom: **Dashboard**, then **Inbox** if any installed module publishes into `core.inbox-tabs`, then any ungrouped module nav links rendered inline as plain links with no heading (modules with no `navGroupLabel` - since the 2026-08-10 tidy that is most of them: Gazette, Boards, SEO, Space Planner and the rest), then **Content**, **People**, **System**, then any labelled module nav groups (modules that set `navGroupLabel` - only Shop still does, for its Catalogue and Trading links).
 

@@ -237,7 +237,12 @@ const MATCH_PATTERN = [
 
 const SHARED_TYPES = [
   `// eslint-disable-next-line @typescript-eslint/no-explicit-any`,
-  `type ApiHandlerModule = Record<string, ((...args: any[]) => Promise<Response>) | undefined>`,
+  `type ApiHandler = (...args: any[]) => Promise<Response>`,
+  `// A route file exports its handlers AND Next's own segment config - maxDuration,`,
+  `// dynamic, runtime, revalidate. Typing this as a map of handlers alone made every`,
+  `// route that sets one of those a type error here, in a generated file nobody can`,
+  `// edit, so the shape is left open and the handler is narrowed where it is read.`,
+  `type ApiHandlerModule = Record<string, unknown>`,
   `type ApiRouteLoader = () => Promise<ApiHandlerModule>`,
   `type PageModule = () => Promise<{ default: React.ComponentType<any>; generateMetadata?: (...args: any[]) => any }>`,
 ]
@@ -308,7 +313,7 @@ admin.push(`  for (const route of routes) {`)
 admin.push(`    const extracted = matchPattern(route.pattern, path)`)
 admin.push(`    if (extracted !== null) {`)
 admin.push(`      const handler = await route.load()`)
-admin.push(`      const fn = handler[method]`)
+admin.push(`      const fn = handler[method] as ApiHandler | undefined`)
 admin.push(`      if (!fn) return new Response('Method not allowed', { status: 405 })`)
 admin.push(`      return fn(req, { params: Promise.resolve(extracted) })`)
 admin.push(`    }`)
@@ -447,7 +452,7 @@ pub.push(`  for (const route of routes) {`)
 pub.push(`    const extracted = matchPattern(route.pattern, path)`)
 pub.push(`    if (extracted !== null) {`)
 pub.push(`      const handler = await route.load()`)
-pub.push(`      const fn = handler[method]`)
+pub.push(`      const fn = handler[method] as ApiHandler | undefined`)
 pub.push(`      if (!fn) return new Response('Method not allowed', { status: 405 })`)
 pub.push(`      return fn(req, { params: Promise.resolve(extracted) })`)
 pub.push(`    }`)

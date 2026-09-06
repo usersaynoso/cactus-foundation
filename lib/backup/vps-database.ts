@@ -231,9 +231,34 @@ export async function createTestDatabase(
   return { name, connectionUri: connectionUri(cfg, name, owner) }
 }
 
+/**
+ * Where the CLIENT should connect, which is not always where the server is.
+ *
+ * Provisioning goes over SSH and the test then connects to Postgres directly,
+ * which is right everywhere the direct port is open. It is not open everywhere:
+ * a network that allows 22 and quietly swallows 5432 leaves the TCP handshake
+ * succeeding and the protocol timing out, which reads exactly like a database
+ * that is down and is not one. Where that happens the way through is an SSH
+ * tunnel, and these two say where its near end is:
+ *
+ *   ssh -N -L 55432:127.0.0.1:5432 user@server
+ *   OVH_DB_HOST=127.0.0.1 OVH_DB_PORT=55432 npm run test:backup-roundtrip
+ *
+ * Unset - which is every ordinary run - this is the server itself on 5432 and
+ * nothing about the suites changes. TLS is still required either way: the
+ * server presents its certificate through the tunnel the same as without one.
+ */
+function clientEndpoint(cfg: VpsConfig): { host: string; port: string } {
+  return {
+    host: process.env.OVH_DB_HOST || cfg.host,
+    port: process.env.OVH_DB_PORT || '5432',
+  }
+}
+
 export function connectionUri(cfg: VpsConfig, database: string, role: TestRole): string {
   assertSafeName(database)
-  return `postgresql://${role.name}:${role.password}@${cfg.host}:5432/${database}?sslmode=require`
+  const { host, port } = clientEndpoint(cfg)
+  return `postgresql://${role.name}:${role.password}@${host}:${port}/${database}?sslmode=require`
 }
 
 export async function dropTestDatabase(cfg: VpsConfig, name: string): Promise<void> {

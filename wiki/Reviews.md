@@ -141,6 +141,14 @@ Your shop permissions do not carry over. Somebody allowed to edit the catalogue 
 
 ---
 
+## Sending your reviews to Google
+
+Reviews you have published can be handed to Google Shopping, so the stars show against your listings there. Nothing here does that on its own - it is a switch in the [Google Shopping](Google-Shopping) module, which reads the published reviews from this one and serves them at their own feed address.
+
+Only **published** reviews travel, along with the star rating, the wording, the reviewer's name and the product. Reviews sitting in your queue, reviews you turned down and everybody's email address stay here.
+
+Reviews that came from the invitation emails above are marked to Google as having been asked for after delivery, which is a distinction they care about.
+
 ## What it does not do
 
 - **Photographs with reviews.** Not yet. Shoppers' photos need a moderation flow of their own, and half-built it is worse than absent.

@@ -674,7 +674,17 @@ The figure refreshes itself once a day, in the same overnight run that sends you
 
 A file doesn't have to carry every column. Anything the file leaves out is left exactly as it is on your site rather than being wiped, so a spreadsheet of just names and prices does only what it says. A column that *is* there but left blank is taken at its word and clears that field - which is how you empty something on purpose.
 
-**Export CSV** goes the other way - a full download of your current catalogue, handy for backups or bulk editing outside Cactus.
+### A few columns only
+
+The import window asks what's in your file. The first choice, **Whole products**, is the one above: it adds anything new and updates the rest, and wants the full set of columns.
+
+The second, **A few columns only**, is for the small sheet a supplier sends you - most often a list of sale prices. It matches each row to a product you already have by its product code (or its web address), changes only the columns in the file, and never adds anything. A row that matches nothing is skipped and listed in the log by name, so a typo'd code turns up as a line to fix rather than a stray new product to hunt down later.
+
+That means a sale is three columns wide: the product code, the sale price, and the sale code the supplier wants while the offer is on. There's a **Download the sale price template** link in the window that gives you exactly those. Leave a sale price blank and the product comes off sale, so the same sheet ends the offer as started it.
+
+**Export CSV** goes the other way - a download of your current catalogue, handy for backups or bulk editing outside Cactus. It asks which columns you want first, grouped so you can tick a whole set at a time: the basics, prices and VAT, stock, catalogue, words and pictures, size and weight, pre-orders, downloads, and related products. Everything is ticked to begin with, which gives you the full file exactly as before. Untick the lot bar a few and you get a narrow sheet instead - product code, categories and nothing else, say, for a quick tidy-up in a spreadsheet.
+
+Whatever you pick is remembered on that computer, so the next export opens with the same ticks. Keep the **product code** ticked if you mean to change the file and put it back in: that's what each row is matched on, and a file without it has nothing to match. A cut-down sheet uploads through the **A few columns only** option above.
 
 ---
 

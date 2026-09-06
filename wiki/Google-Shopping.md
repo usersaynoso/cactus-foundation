@@ -112,6 +112,36 @@ A service the shop cannot put a firm number on gets left out rather than misquot
 
 **On tax classes.** The charge follows the product: a variation uses its own tax class, or its parent listing's where it has none of its own, exactly as its price does. Only a product with no tax class anywhere - itself or its parent - sends its delivery charge without VAT, and that product is already selling at the wrong price too, so it is a catalogue problem rather than a delivery one.
 
+## Customer reviews on Google
+
+Two separate things, and a shop can have either on its own. Both live under **Shop → Settings → Google Shopping → Customer reviews on Google**.
+
+### Sending your reviews to Google
+
+Needs the [Reviews](Reviews) module, or any other module that publishes reviews. Without one, the switch says so and stays off - there would be nothing to send.
+
+Switch **Serve the review feed** on and copy the **review feed address**. It is the product feed's address with one extra parameter on the end, and it carries the same key. In Merchant Center it goes in as a **second** data source - the product reviews one - not in place of the product feed.
+
+Google will not read it until they have let you into the product reviews programme, which is a form on their side. Ask for it from the Merchant Center account the feed is filed under.
+
+What travels: every review you have **published**, with its star rating, its wording, the reviewer's name as they gave it, when it went live, and the product it is about with whatever brand and barcode that product carries. Reviews still waiting in your queue, and reviews you turned down, stay here - as does anything about a product you have kept **out** of the product feed. Email addresses never travel, and neither do your buying codes.
+
+Reviews collected by the invitation emails the Reviews module sends are marked as such, because Google treats "we asked after delivery" and "somebody wrote in unprompted" differently. A review with no name on it goes as anonymous rather than under an invented one.
+
+### Letting Google ask your customers
+
+Switch **Offer Google's survey when an order is placed** on and fill in your **Merchant Center account number** (the field further up the same tab - nothing appears without it).
+
+From then on, a customer who has paid sees Google's own small dialog on the confirmation page asking whether they would like to be surveyed about their order. If they say yes, Google emails them after the delivery date and asks how it went. Those answers are what produce the star rating beside your name in Google adverts, and - where the barcode is known - reviews of the products themselves.
+
+- **Where it appears** is Google's choice of five positions plus a bottom tray. Their own finding is that the middle of the page gets said yes to far more often than a corner.
+- **Usual working days to delivery** is what Google is told when nothing else can say. Where [Advanced Shipping](Advanced-Shipping) (or any delivery module) knows the timing for a product, that is used instead, and the slowest thing in the order decides.
+- If your cookie banner carries a **Marketing** category, the dialog waits until the shopper has accepted it. If it does not, there is nothing to wait for and the dialog appears as soon as the page does.
+
+**Switching this on shares the order's email address with Google**, which is what lets them send the survey. Your privacy notice needs to say so.
+
+**One thing to do by hand on an existing site.** The survey rides on a marker block on your **Order Confirmation** layout. Sites that install the module from now on get it placed for them; a site that already had the module needs it added once, in **Design → Layouts → Order Confirmation**, from the block list as **Google Review Survey**. It draws nothing on the page - the dialog is Google's - and once it is there it stays.
+
 ## Duplicate pages, canonicals and structured data
 
 Two things ship in the Shop module itself to keep Google happy about all those variation links:

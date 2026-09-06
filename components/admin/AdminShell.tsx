@@ -9,6 +9,7 @@ import SessionExpiryWatcher from './SessionExpiryWatcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AdminPathProvider } from './AdminPathContext'
 import { isPuckEditorRoute } from '@/lib/puck/editor-routes'
+import { isSidebarRailRoute } from '@/lib/nav/sidebar-rail-routes'
 import type { ResolvedNavSection } from '@/lib/nav/admin-menu'
 
 type Props = {
@@ -30,7 +31,7 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
   const [collapsed, setCollapsed] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const pathname = usePathname()
-  // Track whether the sidebar was auto-collapsed by the editor so we can restore it on exit
+  // Track whether the sidebar was auto-collapsed by the screen so we can restore it on exit
   const autoCollapsedRef = useRef(false)
 
   // Read the saved preference after mount, not during the initial render — reading
@@ -53,14 +54,15 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
 
   const effectiveCollapsed = collapsed && !isMobileViewport
 
-  // Auto-collapse when entering a Puck editor to maximise canvas space; auto-expand when leaving
+  // Auto-collapse on the screens that want the width - the Puck editors and the
+  // Inbox - and auto-expand again on the way out.
   useEffect(() => {
-    const inEditor = isPuckEditorRoute(pathname)
-    if (inEditor && !autoCollapsedRef.current) {
+    const wantsRail = isSidebarRailRoute(pathname)
+    if (wantsRail && !autoCollapsedRef.current) {
       autoCollapsedRef.current = true
       setCollapsed(true)
       localStorage.setItem('cactus-sidebar-collapsed', 'true')
-    } else if (!inEditor && autoCollapsedRef.current) {
+    } else if (!wantsRail && autoCollapsedRef.current) {
       autoCollapsedRef.current = false
       setCollapsed(false)
       localStorage.setItem('cactus-sidebar-collapsed', 'false')
