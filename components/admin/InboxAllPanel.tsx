@@ -19,6 +19,7 @@ const CHANNEL_LABELS: Record<ConversationChannel, string> = {
   form: 'Form',
   phone: 'Phone',
   sms: 'Text',
+  whatsapp: 'WhatsApp',
 }
 
 type Row = ConversationSummary & { moduleName: string }

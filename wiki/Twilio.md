@@ -1,6 +1,6 @@
 # Twilio
 
-The Twilio module connects your site to your [Twilio](https://www.twilio.com) account. It forwards calls made to your Twilio phone numbers wherever you like, takes a voicemail when nobody answers (with opening hours per number, if you'd rather your phone didn't ring at midnight), shows each number's call and text message history (with playback of any recordings), lets you make outbound calls that show your Twilio number as caller ID, and sends sign-in codes by text message instead of email.
+The Twilio module connects your site to your [Twilio](https://www.twilio.com) account. It forwards calls made to your Twilio phone numbers wherever you like, takes a voicemail when nobody answers (with opening hours per number, if you'd rather your phone didn't ring at midnight), shows each number's call and text message history (with playback of any recordings), lets you make outbound calls that show your Twilio number as caller ID, carries WhatsApp on the same account, and sends sign-in codes by text message instead of email.
 
 > **Where it lives now.** The call and text logs used to have a **Twilio** link in the sidebar. They are now a **Calls & texts** tab inside **Settings → Twilio**, alongside the rest of the phone settings. Old links still work.
 
@@ -69,6 +69,8 @@ Until a text-capable number is added, sign-in codes carry on arriving by email a
 ## Call forwarding
 
 Go to **Settings → Twilio → Call handling**. If you have more than one Twilio number, pick the one you're setting up from the row along the top - you work on one number at a time, which beats scrolling past four of them to reach the fifth. A dot next to a number means it has changes you haven't saved yet; switching between numbers doesn't lose them.
+
+If two of your numbers should behave identically, you don't have to set both up - see [One number that behaves like another](#one-number-that-behaves-like-another) below.
 
 Each number has:
 
@@ -177,6 +179,27 @@ Two things worth knowing: the window rolls forward from whenever you press the b
 
 ---
 
+## One number that behaves like another
+
+Most businesses that end up with two numbers want them doing the same thing. The text number, the number off the old van, the one on the leaflets from 2019 - they all ring the same phone, take the same messages and close at the same time. Setting them up separately works right up until you change your opening hours and remember one of them a fortnight later.
+
+At the top of each number on **Settings → Twilio → Call handling** is **Call handling**, with two kinds of answer:
+
+- **Set up on its own, below** - the number has its own settings, which is how every number starts.
+- **Do exactly what [another number] does** - the number copies that one. Everything: forwarding, the second number to try, greetings and recordings, voicemail, missed-call texts, opening hours, bank holidays, how withheld numbers are treated. Pick this and the settings underneath disappear, because there's nothing left to set.
+
+From then on the two stay in step by themselves. Change the opening hours on your main line and the text number is already closed at the same time - nothing to copy across, nothing to forget.
+
+A few things worth knowing:
+
+- **Callers still ring the number they dialled.** Copying settings doesn't divert anything. Anything sent back to a caller - a missed-call text, say - comes from the number they actually rang, not the one it copies.
+- **The number's own settings are kept, not thrown away.** Put it back on its own and everything it had before comes straight back, exactly as it was.
+- **Only one step.** A number that's copying another can't be copied itself, and a number other numbers copy can't go off and copy a third. The page says so and won't let you tie a knot in it. This means the answer to "what does this number do?" is always one number away, never four.
+- **Set the original up first.** You can only copy a number that's already been given some settings of its own.
+- If the number you were copying ever leaves your Twilio account, the copier quietly goes back to its own settings rather than falling over.
+
+---
+
 ## Call and message logs
 
 Go to **Twilio** in the admin sidebar. Each phone number on your Twilio account gets its own tab, and each tab shows:
@@ -254,6 +277,55 @@ Customers choose whether they want texts, email, or both, on the page they land 
 There's nothing on this tab until something on your site sends a text - it says as much rather than showing you an empty list.
 
 Editing the wording needs the **Edit text message templates** permission (`sms.templates`), which is separate from the email one on purpose: texts cost money per send, so you may want fewer hands on them.
+
+---
+
+## WhatsApp
+
+The same Twilio account will carry WhatsApp, and the **WhatsApp** tab under **Settings → Twilio** is where you switch it on. Once it is running, WhatsApp conversations turn up in [Unified Inbox](Unified-Inbox) as their own channel beside the emails, chats and calls, and can be answered from there.
+
+### Getting a number people can message
+
+WhatsApp is not like texting: you cannot simply pick one of your numbers and start. Meta has to approve the number first, which is done in the Twilio console under Messaging and takes a few days.
+
+While you are waiting, **Twilio's test number** is offered in the same menu. It works immediately, with one catch: everybody you want to message has to send Twilio a join code from their own phone first. Fine for trying it out with your own mobile, no use for customers.
+
+**Handled in** is the country your messages go through, and it wants to match wherever that number's calls and texts already go. Pick one of your own numbers from the menu above and it fills itself in.
+
+### The 24-hour rule
+
+This is the part that surprises everybody, so it is worth reading twice.
+
+**WhatsApp only lets you write freely for 24 hours after somebody last messaged you.** Outside that window, Meta will not carry an ordinary message. It is their rule, it applies to every business on WhatsApp, and there is no setting anywhere that turns it off.
+
+What you can send outside the window is a **template** - wording Meta has approved in advance. So a delivery update, an appointment reminder or a "your quote is ready" all work perfectly well at any hour; a chatty follow-up two days later does not.
+
+The site treats this as a fact rather than a footnote. Try to send an ordinary message to somebody who wrote three days ago and you are told so, with the reason, and offered a template instead. The alternative - quietly accepting the message and letting Meta bin it - would have you believing you had replied to somebody who never heard from you.
+
+### Templates
+
+Write your templates in the Twilio console, under Content Template Builder, and send them to Meta for approval. Each approved one gets an id starting `HX`. Add it on the **Approved templates** card with:
+
+- **What you call it** - the name your staff will pick from. Twilio's own name for a template is rarely one anybody would say out loud.
+- **Twilio id** - the `HX…` id, copied across.
+- **Blanks** - how many gaps the template has for you to fill in. A template reading "Your order {{1}} is on its way, {{2}}" has two.
+
+Only templates on this list can be sent from the site. That is deliberate: the id comes from a box somebody types into, and a site that would send any id at all would happily put somebody else's approved wording in front of your customer.
+
+### Sending one, and reading what came back
+
+**Send a message** does both kinds. Choose the person's number, then either write a message (which goes only if the 24-hour window is open) or pick a template and fill in its blanks.
+
+**Recent WhatsApp messages** lists everything to and from your WhatsApp number, newest first, with photographs and files people have sent as links you can open. Anybody whose window has closed is marked *needs a template now*, so you can see at a glance who you can write to freely.
+
+Twilio holds these messages, not the site, so how far back the list goes is up to your Twilio account rather than to us.
+
+### Worth knowing
+
+- **It is its own channel.** In the Unified Inbox, WhatsApp sits separately from **Phone**, because it is a different thing to answer: the calls and texts of the phone channel have no window and no approved wording. You can hide either of them in the inbox's own Settings without stopping either being collected.
+- **Messages arrive on the hourly check**, the same as texts, rather than the instant they are sent.
+- **Nothing is deleted and nobody is blocked from here.** The block list stops calls, and Twilio's own retention decides how long messages last.
+- **Costs.** Twilio and Meta both charge for WhatsApp, and a template sent outside the window costs more than a reply inside it. Cactus adds nothing on top, but the pricing is worth reading before you send a few thousand.
 
 ---
 

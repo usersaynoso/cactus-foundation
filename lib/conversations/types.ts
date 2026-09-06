@@ -21,7 +21,7 @@
 // from both halves of the app.
 // ---------------------------------------------------------------------------
 
-export type ConversationChannel = 'email' | 'chat' | 'form' | 'phone' | 'sms'
+export type ConversationChannel = 'email' | 'chat' | 'form' | 'phone' | 'sms' | 'whatsapp'
 
 /** The outside party. Every field optional because channels differ: a phone
  *  call has a number and no email, a web form has an email and no number. */

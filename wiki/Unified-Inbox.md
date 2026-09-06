@@ -1,6 +1,6 @@
 # Unified Inbox
 
-Every conversation with every customer and supplier in one place: email, live chat, contact form enquiries, phone calls, voicemail and text messages, with your own records sitting beside them. One screen instead of five, and a shared history instead of whatever happens to be on somebody's phone.
+Every conversation with every customer and supplier in one place: email, live chat, contact form enquiries, phone calls, voicemail, text messages and WhatsApp, with your own records sitting beside them. One screen instead of five, and a shared history instead of whatever happens to be on somebody's phone.
 
 It is not a CRM. There are no pipelines, no deals and no lead scoring. People exist here so that two emails, a live chat and a phone call from the same human collapse into one story - and, since the [Contacts](#contacts) tab arrived, so that you have somewhere to write down their mobile number and where to post things. That is an address book. It stops there.
 
@@ -176,7 +176,7 @@ If you are looking at **All**, at **Not filed**, or at one of the other channels
 
 There is a small arrow beside the write button. It opens three other things you might have meant.
 
-**Discussion** is a conversation with your colleagues that no customer ever sees. Put it to the people you want on it - start typing a name in the To line and pick them off the list, and each one sits there as a tag you can take off again - pick which of your addresses it is in, give it a subject, say your piece, and it appears in that inbox alongside the real post - except that nothing on it is ever sent anywhere. There is no reply arrow on a discussion, only the note line at the foot of it and, behind the dots on any message, the full note box for one with a file on it - because there is nobody outside it to reply to. Whoever can read that address can read the discussion, and nobody else can. Tick more than one address and each gets its own discussion, so each team can answer in their own rather than talking over one another in a conversation with two guest lists.
+**Discussion** is a conversation with your colleagues that no customer ever sees. Put it to the people you want on it - start typing a name in the To line and pick them off the list, and each one sits there as a tag you can take off again - give it a subject, say your piece, and it appears alongside the real post - except that nothing on it is ever sent anywhere. You are not asked where to put it: it starts in your own inbox, or, if nobody has given you one of your own, in whichever address you happen to be looking at. There is no reply arrow on a discussion, only the note line at the foot of it and, behind the dots on any message, the full note box for one with a file on it - because there is nobody outside it to reply to. Whoever can read that address can read the discussion, and nobody else can.
 
 It is the same internal note the inbox has always had, with one thing added: somewhere to put the first one. "A word about the Henderson order" no longer has to wait for the Hendersons to write in.
 
@@ -198,13 +198,13 @@ It is the same internal note the inbox has always had, with one thing added: som
 
 Switching between **Reply** and **Reply to all** on the message's own menu refills the line, which is exactly what those two mean. Once you have edited it yourself, your answer stands and nothing rewrites it again.
 
-**Which of the four you are writing is said along the top of the box** - *Reply*, *Reply to all*, *Forward* or *Internal note* - beside the two ways out of it. It used to be a row of buttons that also switched between them, which was a second place to make a choice you had already made on the message itself, and the commonest way to send a customer something meant for a colleague. Change your mind and press the arrow, or the dots, on the message you are answering.
+**The box no longer wears a title strip.** It used to spend a whole row along the top saying *Reply* - naming the button you had just pressed, on the screen where you are trying to read a customer's message. Which one you are writing is decided on the message itself, with the arrow or the dots beside it, and changing your mind means pressing one of those rather than anything in here.
 
-**Cc, Bcc and Subject are links at the end of that line.** None of them takes up a line until you ask for it, because most replies want none of the three. Press **Subject** and the line opens on what the subject would have been - **Re: whatever it was** - so you can change it rather than start it. Leave it alone and nothing changes.
+**Cc, Bcc and Subject are links at the end of the To line.** None of them takes up a line until you ask for it, because most replies want none of the three. Press **Subject** and the line opens on what the subject would have been - **Re: whatever it was** - so you can change it rather than start it. Leave it alone and nothing changes.
 
-**The arrow at the top right opens the reply in a window of its own**, over the whole screen, for the reply that turns out to be a letter. It is the same box either way - nothing you have typed is lost going out or coming back - and the arrow in the corner, or the Escape key, puts it back under the conversation.
+**The two ways out of the box sit at the right-hand end of that same line**, where the strip along the top used to carry them. The arrow **opens the reply in a window of its own**, over the whole screen, for the reply that turns out to be a letter. It is the same box either way - nothing you have typed is lost going out or coming back - and the arrow in the corner of that window, or the Escape key, puts it back under the conversation. On an internal note, which has no To line, the pair sit at the end of the sentence saying nobody outside can see it.
 
-**The cross beside it closes the reply**, and asks first if there is anything in it: **Save it as a draft**, **Throw it away**, or **Keep writing**. See [Drafts](#drafts).
+**The cross beside it closes the reply**, and it is the one place the draft is asked about: **Save it as a draft**, **Throw it away**, or **Keep writing** - the same three answers the new-message box gives. It asks whether you have just typed something or came back to a draft you saved yesterday; only a genuinely empty box shuts without a word. There used to be a **Throw the draft away** button on the strip along the bottom as well, which put a destructive press a thumb away from Send and asked the same question in a second place. See [Drafts](#drafts).
 
 ### Making it look like something
 
@@ -238,19 +238,23 @@ Opening a conversation shows your own draft on it, if you left one. There is one
 
 Picking one back up depends on what it is. A saved reply lives under its conversation, so clicking it opens the conversation with your words still in the box, the customer's message above them, and set to whichever of Reply, Reply to all and Forward you had chosen. A message you had not finished starting opens the writing box again exactly as you left it - recipients, subject, attachments and all.
 
-**Sending clears it away.** The draft goes at the moment the message actually leaves, so nothing is left sitting in the list to be sent again next week. **Throw the draft away** does the same thing without sending anything.
+**Walking away is instant.** Clicking a tab, another conversation or anything else while you are half way through a reply takes you there straight away, and the draft is put down behind you. It used to wait for the save to finish before the screen moved, which on a slow line looked like a click the site had ignored. If putting it down somehow fails, it tries once more on its own.
+
+**Sending clears it away.** The draft goes at the moment the message actually leaves, so nothing is left sitting in the list to be sent again next week. To be rid of one without sending it, close the reply with the cross and answer **Throw it away**. On the new-message box that is still a **Throw the draft away** button on the strip along the bottom as well.
 
 What is saved is what you typed, line breaks and all, along with who it is going to, the subject and anything you attached. Attachments are still only pointed at rather than copied, so a draft carrying three quotes costs nothing until you press Send.
 
 ### Sending it later
 
-Some replies are written at half past eleven at night and would land better at nine in the morning. **Send Later**, on the strip along the bottom, opens the same short menu the clock at the top of a conversation opens - **In three hours**, **Tomorrow morning**, **Next week**, or **Day & Time** for a month to pick from - each with the day and time it actually lands on written beside it. It used to be an alarm clock icon, which was a picture of a thing rather than the name of one.
+Some replies are written at half past eleven at night and would land better at nine in the morning. The **alarm clock**, sitting with the send buttons at the right-hand end of the strip along the bottom, opens the same short menu the clock at the top of a conversation opens - **In three hours**, **Tomorrow morning**, **Next week**, or **Day & Time** for a month to pick from - each with the day and time it actually lands on written beside it. It sits there rather than over with the paperclip because choosing a time changes what the buttons beside it do, and a control a foot away from the thing it changes is a control nobody connects to it.
 
-Picking a time does not send or save anything yet. It puts the time on the line above the buttons, where you can also set a chase, and **Save it for then** appears to commit it. **Not later after all** takes the time back off. Once it is set the message waits until then and goes out on its own; you do not have to be there, or even have the site open.
+Picking a time does not send or save anything yet. It puts the time on the line above the buttons, where you can also set a chase - and the two send buttons change to say what they would now do. **Send now** becomes **Send later**, and **Send & snooze** becomes **Send later & snooze**. There is no third button: there used to be a **Save it for then** beside them, which meant three ways to send on one strip with two of them a thumb apart. **Cancel send later** takes the time back off and everything reads as it did.
 
-**Putting the conversation to sleep is a separate press, and it survives the send.** There used to be a Send later & snooze button doing both at once; the two are given separately now. Set the message for Monday morning, then use the clock at the top of the conversation to put the conversation to sleep until Friday, and Friday is when you see it again - the message going out on Monday does not wake it up. If you have also set a chase, whichever of the two is later wins.
+Once it is set the message waits until then and goes out on its own; you do not have to be there, or even have the site open.
 
-**A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can move it to another time from the same **Send Later** menu, or press **Cancel the timer** on that menu and have an ordinary draft back.
+**Putting the conversation to sleep can be part of the same press.** **Send later & snooze** sets the departure and puts the conversation to sleep behind it, so you see it again when you said and not when the message happens to leave. Or do the two separately: set the message for Monday morning, then use the clock at the top of the conversation to put it to sleep until Friday, and Friday is when it comes back - the message going out on Monday does not wake it up. If you have also set a chase, whichever of the two is later wins.
+
+**A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can move it to another time from the same alarm clock, or press **Cancel the timer** on that menu and have an ordinary draft back.
 
 **While it is waiting, the send buttons are not there.** The message has been decided about, and sending it now would contradict that. Cancel the timer and they come straight back.
 
@@ -264,7 +268,7 @@ A message set to go out is still a draft, so it follows the same rule as one: it
 
 ### Chasing it up
 
-Once you have picked a time for it to go, the line above the buttons says so - **Set to go out tomorrow at 09:00** - and beside it is **No chase**. Press that and it offers exactly what the clock at the top of a conversation offers: **In three hours**, **Tomorrow morning**, **Next week**. Set one and, once the message has actually gone, the conversation goes quiet until then - and comes straight back to you if nobody has answered.
+Once you have picked a time for it to go, the line above the buttons says so - **Set to go out tomorrow at 09:00** - and beside it is **Chase it if nobody replies**. Press that and it offers exactly what the clock at the top of a conversation offers: **In three hours**, **Tomorrow morning**, **Next week**. Set one and, once the message has actually gone, the conversation goes quiet until then - and comes straight back to you if nobody has answered. It used to sit there as a tag reading "No chase", which is a thing announcing what it is not doing; now it says what it is offering, and only starts calling itself a chase once there is one.
 
 **The answers are counted from when the message goes out**, not from when you are sitting there setting them. "Tomorrow morning" on something leaving on Friday night means Saturday morning, which is what anybody would expect it to mean.
 
@@ -276,7 +280,7 @@ Once you have picked a time for it to go, the line above the buttons says so - *
 
 ### Send it and put it to bed
 
-Some replies end the matter for a fortnight: the answer is sent, and there is nothing more to do until the supplier gets back to you. **Send & snooze** sits next to **Send now** and does both in one press - it opens the same short menu the alarm clock at the top of the conversation opens, sends the message, and puts the conversation to sleep until whenever you said.
+Some replies end the matter for a fortnight: the answer is sent, and there is nothing more to do until the supplier gets back to you. **Send & snooze** sits next to **Send now** and does both in one press - it opens the same short menu the clock at the top of the conversation opens, sends the message, and puts the conversation to sleep until whenever you said. Pick a departure time first and it becomes **Send later & snooze**, which sets the message going and puts the conversation to sleep without sending anything now.
 
 It is on the new-message box as well, where it puts the conversation you have just started to sleep. Their reply wakes it either way, as a reply always does, so you only see it again at the time you picked if nobody has answered by then.
 
@@ -322,7 +326,7 @@ Both of these amount to keeping a note of what somebody did with an email you se
 
 You can attach anything from your media library. There is a ceiling of about nine megabytes for everything on one message, which is what the email services themselves allow, and **an attachment that will not fit is refused before you send** rather than quietly dropped on the way out.
 
-**Attach a file** is the paperclip at the left-hand end of the strip along the bottom, beside **Send Later** and the formatting buttons, with the ways to send it at the other end. On a narrow window the strip wraps and the send buttons stay hard right.
+**Attach a file** is the paperclip at the left-hand end of the strip along the bottom, beside the price tag and the formatting buttons, with the ways to send it at the other end. On a narrow window the strip wraps and the send buttons stay hard right.
 
 You can also **drag a file straight onto the message** - onto the reply box under a conversation, or anywhere on the box where you are writing a new one. Drag several at once and they all go on. The box says "Drop to attach" while the file is over it, the files appear as tags underneath as they arrive, and a cross takes one back off. Nothing is sent until you press Send, as ever.
 
@@ -336,17 +340,23 @@ A dropped file goes into your site's storage, not into your media library: it is
 
 Half the questions a shop gets are answered with a product. **The price tag beside the paperclip** opens your catalogue, and what you pick is printed under your message the way the lines of an order confirmation are printed: the photograph, the name, and the price, each one linking to its own page.
 
+**The catalogue opens over the screen rather than inside the message.** It used to unfold underneath what you were writing, which pushed the message itself off the bottom of the pane the moment you went looking for a chair - and a catalogue is a thing you rummage in, so it is the wrong thing to put in the middle of a sentence. Close it and the message is exactly where you left it.
+
 Three things can go on, and the difference is worth knowing:
 
 - **A product**, for something that comes one way only.
 - **A listing that has variations** - the chair that comes in eight colours. It goes on quoted from its cheapest ("From £419.00") and links to the page where the customer picks, which is usually what you want when somebody has asked what a range costs.
 - **One exact variation**, when they have asked about the black one with the high back. **Choose one of eight** under the listing opens the ones that can actually be bought, and the options that make each one are printed under its name in the message.
 
+**A long range is narrowed rather than scrolled.** Open a listing that comes in six hundred combinations and you get a short row of menus above the list - one for each thing that actually varies: **Width**, **Storage**, **Finish**, **Leg Finish**. Choose the ones you have been asked about and the list comes down to what is left; **Show them all** puts it back. Anything that is the same across the whole range gets no menu, because choosing it would rule nothing out.
+
 **Prices carry "+ VAT" where the tax genuinely applies and your shop quotes its prices without it.** Nothing is added where the price on your site already includes the tax, or where the product is not taxed at all - and if your shop calls its tax something other than VAT, the message calls it that too.
 
 There is no heading row and no quantity: this is you showing somebody two chairs, not sending them a receipt for something they have not bought. Delivery times are left off for the same reason - what a thing costs and what it looks like is the answer to "which one did you mean", and how long it takes to arrive depends on where it is going.
 
-**Nothing is written into your message until you send it.** What you pick appears as tags under the box, a cross takes one back off, and the catalogue stays open while you add several. Prices and names are read **at the moment you press Send**, not when you picked - so a quote you saved on Friday and sent on Monday goes out at Monday's prices, and anything withdrawn in between is simply left off rather than quoted at a price you no longer sell it for.
+**You see it as they will see it.** What you pick is drawn directly under what you are writing, laid out the way it will arrive - photograph, name, options, price - rather than listed as a row of little tags on the button strip, which told you what was attached and nothing whatever about what the message would look like. A cross on each one takes it back off, and the catalogue stays open while you add several.
+
+Prices and names are read **at the moment you press Send**, not when you picked - so a quote you saved on Friday and sent on Monday goes out at Monday's prices, and anything withdrawn in between is simply left off rather than quoted at a price you no longer sell it for. That is also why the block under your writing stays on a white background whatever theme you are using: it is a picture of what leaves the building, not part of the screen you are looking at.
 
 The picker is only there if your site has a shop and you are allowed to see it. Internal notes never carry products - a note is for your colleagues, who can open the catalogue themselves - and neither do live chat or text message replies, which have nowhere to put a picture.
 
@@ -578,13 +588,19 @@ Tick **Show the newest message at the top of a conversation** on **Settings → 
 
 It is a site setting rather than a personal one, so everybody reads the same way round.
 
-### Putting the addresses in your own order
+### Putting the rail in your own order
 
-Most sites end up with one inbox they live in and two or three they glance at, and alphabetical order has no opinion about which is which. **Drag an address up or down the Team inboxes group and it stays there.** It saves as you drop it - there is nothing to press afterwards.
+Most sites end up with one inbox they live in and two or three they glance at, and alphabetical order has no opinion about which is which. **Drag a row up or down and it stays there.** It saves as you drop it - there is nothing to press afterwards.
 
-If you would rather not use a mouse for it, put the keyboard focus on an address, hold **Alt** and press the up or down arrow keys.
+Three of the groups can be rearranged: **Shared inboxes**, **Team inboxes** and **Channels**. Each keeps to itself, because an order only means anything against the other things in the same list - a live chat sitting in the middle of your email addresses would be nobody's idea of tidy. **Yours** is the exception and does not move: what sits there is decided by whose post it is, not by where anybody dragged it.
 
-The order belongs to the site rather than to you, so everybody who opens the inbox sees the same one - which means only people who can manage inboxes can change it. If you can read the inbox but not manage it, the addresses simply sit where whoever looks after the site has put them, and nothing drags.
+Nothing announces any of this while you are simply running your eye down the rail. It is a list of places to go and it behaves like one; take hold of a row and the pointer closes into a hand, which is the moment it starts mattering.
+
+If you would rather not use a mouse for it, put the keyboard focus on a row, hold **Alt** and press the up or down arrow keys.
+
+The order belongs to the site rather than to you, so everybody who opens the inbox sees the same one - which means only people who can manage inboxes can change it. If you can read the inbox but not manage it, everything simply sits where whoever looks after the site has put it, and nothing drags.
+
+One quiet detail about the channels: you can only rearrange the ones you can see, and what somebody may see is decided by the module each channel belongs to. Move the two you have and the ones you do not stay exactly where they were for the colleagues who do.
 
 ### Giving somebody an inbox of their own
 
@@ -606,7 +622,7 @@ You can only give somebody an address they can actually read, so if the inbox ha
 
 ### Reading email safely
 
-A message someone else wrote is shown inside its own sealed frame, on a light background in both light and dark mode. It takes up as much room as the message actually needs - a two-line reply is two lines, a long newsletter is as long as it is, and neither has a scrollbar of its own inside the page's. A message written wider than the column you are reading it in is shrunk until the whole of it fits, the way a phone shows a desktop-width email, rather than being given a scrollbar along the bottom that hides half of it. The whole message is on the page and the page scrolls it, which is rather the point. A message that will not say how big it is gets a generous height rather than the letterbox it used to get. The sender chose their colours assuming a white page, and repainting the background dark while leaving their text alone is how a message ends up black on black. The rest of the screen follows your theme as usual.
+A message someone else wrote is shown inside its own sealed frame, on a light background in both light and dark mode. It takes up as much room as the message actually needs - a two-line reply is two lines, a long newsletter is as long as it is, and neither has a scrollbar of its own inside the page's. Messages that kept one anyway were losing a fraction of a pixel in the measuring: a message a hair over five hundred pixels tall was given exactly five hundred, and the hair left over was a scrollbar over the whole thing. The frame is now measured to the fraction, rounded up rather than down, and given a couple of pixels of room to spare. A message written wider than the column you are reading it in is shrunk until the whole of it fits, the way a phone shows a desktop-width email, rather than being given a scrollbar along the bottom that hides half of it. The whole message is on the page and the page scrolls it, which is rather the point. A message that will not say how big it is gets a generous height rather than the letterbox it used to get. The sender chose their colours assuming a white page, and repainting the background dark while leaving their text alone is how a message ends up black on black. The rest of the screen follows your theme as usual. Sites sat behind a content network need one extra thing from it: Cloudflare will happily rewrite the frame on its way out, swapping every address in a message for the words "[email protected]" and shuffling the frame's own script into something no browser will run, which left messages stuck at their opening size with the layout cut about. The frame now tells Cloudflare to leave it alone, and it clips nothing at all until it has actually scaled a message to fit - so if anything ever does stop that script, the message spills over and can still be read rather than quietly losing its right-hand side.
 
 **Pictures hosted elsewhere are not loaded until you ask.** Press **Show pictures** and they are fetched by the site rather than by your browser, so a marketing email learns nothing about you, your location or when you opened it. Links open in a new tab.
 
@@ -624,6 +640,8 @@ There is a setting called **Fetch everything as it arrives**. It currently behav
 
 Install the [live chat](Live-Chat), [contact form](Contact-form) or [Twilio](Twilio) modules alongside this one and their conversations appear here too, under **Other channels**.
 
+One module can bring more than one channel. Twilio brings two: **Phone** for calls, voicemail and texts, and **WhatsApp** on its own. They are separate because they are separate things to answer - WhatsApp will only carry an ordinary message for 24 hours after somebody last wrote, and the phone has no such rule - and each has its own switch under **Channels**.
+
 When Unified Inbox is installed, **this is where those messages are answered**. The contact form's own inbox tab and the live chat's own inbox tab stand down, because having two places to answer the same enquiry is how one of them stops being read. Each module keeps everything else it does: the chat widget, the form block, the phone numbers, its own settings. Uninstall Unified Inbox and their tabs come straight back, with nothing lost.
 
 A colleague who is allowed to see the contact form but not this hub keeps their own tab. Nobody is locked out of their own messages.
@@ -638,6 +656,8 @@ It also stops appearing under **Other channels**, because it is in an inbox now 
 
 Whichever inbox it lands in, the conversation says which form it came from - the form's own title, on the line under the buttons where attached orders and quotes sit. It is not something anybody attached, so it does not open anything and it cannot be taken off: it is what the conversation is.
 
+**Once you have read one, it stays read.** Reading an enquiry here now tells the contact form so, which is what stops the next collection finding an enquiry the form still thinks nobody has looked at and turning it bold again. If a channel cannot be told - or will not listen - it no longer matters: nothing goes back to unread unless a genuinely newer message has arrived on it. Somebody writing again still does exactly what it always did.
+
 Moving one afterwards is allowed and it stays moved. Nothing drags it back to where the form says it should be.
 
 ### Switching a channel off
@@ -648,12 +668,15 @@ It is worth having once your forms are pointed at real inboxes: a **Contact form
 
 The one catch, and it is on the screen too: an enquiry from a form that names no inbox has nowhere else to be seen, so it will not be shown at all while its channel is off.
 
+An enquiry that does name an inbox carries on as normal in that inbox, and you answer it there exactly as you would with the channel switched on - the reply still goes back out through the form, with your signature on it. Switching a channel off tidies the left-hand side; it never takes the Reply button off a conversation you can still see.
+
 Three things worth knowing:
 
 - **Replying to a chat uses your own chat account.** If you have not connected yours yet, the reply is refused with a line telling you so and where to fix it, rather than going out under somebody else's name.
 - **A phone conversation is one outside number**, not one call. Every call, voicemail and text with that number is one story, which is the whole point. Calls that were forwarded to somebody's mobile, and calls placed with **Make a call**, count as one call apiece and belong to the customer - your own mobile never turns up in the list as though it were a customer of yours.
 - **Text messages appear when the hourly check runs**, not the instant they arrive. There is no live feed of incoming texts in this version.
 - **A voicemail message can be thrown away** from the conversation it sits in: a **Delete** button under the message, which asks first and then removes it from the phone system as well as from here. Only the messages people leave - the log of a call, and a text, are kept by the phone system itself and this will say so rather than pretending.
+- **A WhatsApp reply has a clock on it.** WhatsApp only lets a business write freely for 24 hours after the customer's last message; after that Meta takes nothing but wording it has approved in advance. Reply here after the window has closed and you are told so plainly, rather than being shown a sent message the customer never gets. The approved wording is sent from **Settings → Twilio → WhatsApp**, which is also where you add it. See [WhatsApp](Twilio#whatsapp).
 - **A caller can be blocked** from the top of their conversation, if the channel they came in on can do it. On the phone that means their next call is dropped the moment it arrives: nobody's phone rings, no message is taken and no alert goes out. It does not delete anything they have already said - that is a separate decision, taken message by message - and **Unblock** is one press away. See [Blocking a caller](Twilio#blocking-a-caller).
 
 ---
@@ -850,13 +873,15 @@ Who you are talking to is not repeated there. Every message in the conversation 
 
 If that line has more on it than will fit, it stops with an ellipsis rather than pushing the message down the screen. The arrow at the end of it opens the full list, which is also where anything is added or taken off.
 
+**A conversation with nothing on it yet has no line at all.** It used to get one anyway, reading "No context yet" - a whole row of a pinned header spent saying there was nothing to say. The arrow moves up instead, onto the end of the line that already reads *Email - General Enquiries - 1 message - last message 20:32*, where it costs nothing and is still exactly where you would go to attach the first one.
+
 **Anything you put on a message out of your catalogue joins that line once the message has gone**, beside the orders and the purchase orders, and clicking it opens the product in a new tab. So a conversation that started "have you got that in oak" says what it was about a fortnight later, without anybody reading back through it. Quote the same chair twice and it appears once.
 
-## What sits beside a conversation
+## What the rest of the site knows about them
 
-When a person's address matches something else on your site, it appears in the panel on the right: their orders, their quotes, their unpaid invoices, their member account. Each one is a link through to the real record.
+When a person's address matches something else on your site - their orders, their quotes, their unpaid invoices, their member account - it appears on **their own page**, reached by clicking their name anywhere in the inbox. Each one is a link through to the real record. Nothing is ever written to those records from here, only read, and a module you have not installed simply shows nothing.
 
-**Purchasing is deliberately not one of them.** A supplier's conversation is almost always about one purchase order, that order is already its context and named at the top of the header, and a second longer list of everything else open with them was the same answer again at greater length - underneath the messages, on any window not very wide indeed. Purchase orders are still spotted in messages, still added, and still offered when you add one by hand. Nothing is ever written to those records from here, only read, and a module you have not installed simply shows nothing.
+**It is no longer stacked under the conversation.** It used to be a fourth column beside the messages on a very wide window - and on anything narrower, a run of headings *underneath* the note line at the bottom of the conversation, which is to say below however many thousand pixels of quoted email the thread happened to hold. Nobody ever scrolled to it, and putting it there cost the site a question to every record-keeping module every time anybody opened a conversation. What is worth knowing beside a conversation is what the conversation is *about*, and that is the one line in the header above. The rest is one click away, on the page it belongs on.
 
 When somebody quotes an order number, a purchase order number or a quote reference in a message, it becomes context on the conversation automatically. **Nothing is added until the number is checked and found to exist**, anything added that way says it was found automatically, and it comes off in one click. If your reference numbers are an unusual shape, the three boxes under **People → Spotting references** take your own pattern.
 

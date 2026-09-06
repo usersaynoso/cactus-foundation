@@ -56,9 +56,9 @@ An empty field they have not touched yet says nothing at all. Tabbing straight t
 
 ## What happens after they press Send
 
-Your thank-you message appears above the form, and the form stays where it is with every box emptied ready for another go. It used to swap the form out for the message, which was tidy right up until somebody had a second thing to ask and had to reload the page to get the form back.
+Your thank-you message takes the place of the Send button, and the form stays where it is with every box emptied ready for another go. It answers the press they just made, in the spot they were already looking at, and with no button there they cannot send the same enquiry twice by pressing it again. It used to swap the whole form out for the message, which was tidy right up until somebody had a second thing to ask and had to reload the page to get the form back.
 
-Start typing again and the thank-you note goes away, so nobody is left looking at "thanks, we'll be in touch" over a half-written second enquiry.
+Start typing again and the thank-you note goes, the Send button comes back, and nobody is left looking at "thanks, we'll be in touch" over a half-written second enquiry.
 
 ---
 
