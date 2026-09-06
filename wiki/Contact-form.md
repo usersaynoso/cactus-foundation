@@ -14,6 +14,19 @@ Edit any page, and add the **Contact Form** block wherever you want it. That is 
 
 You can put one on as many pages as you like. They all feed the same inbox.
 
+### The form's title
+
+Every form has a **Form title** - "Get in touch", "Request a quote". Two separate settings, because they are two separate questions:
+
+- **Form title** - what the form is called. Worth filling in even when nobody sees it, because it is how you tell one form's enquiries from another's everywhere else on the site.
+- **Show the form title** - whether it is drawn as a heading above the form. Turn it off when the page already says what the form is, so the words are not there twice.
+
+### Where the enquiries go
+
+If you have the Unified Inbox, the block gains a **Deliver enquiries to** setting listing your inboxes. Point the sales form at sales@ and the accounts form at accounts@, and each enquiry arrives in that inbox as ordinary post: it counts towards that inbox, it is read by whoever reads that inbox, and it stops appearing under the separate **Contact form** heading. Leave it on **Nowhere** and everything carries on exactly as it did.
+
+Without the Unified Inbox installed the setting is not offered at all, because there is nowhere else for a message to go.
+
 ---
 
 ## Choosing which fields to ask for
@@ -38,6 +51,14 @@ The form no longer saves up its complaints until someone presses Send.
 - **Message** - a quiet grey note in the bottom corner of the message box counts them up to the ten characters the form asks for, and disappears once they get there. It is a nudge, not a telling-off. The proper warning in red only appears if they leave the message box still short, or press Send.
 
 An empty field they have not touched yet says nothing at all. Tabbing straight through a blank form does not turn it red - that is what Send is for.
+
+---
+
+## What happens after they press Send
+
+Your thank-you message appears above the form, and the form stays where it is with every box emptied ready for another go. It used to swap the form out for the message, which was tidy right up until somebody had a second thing to ask and had to reload the page to get the form back.
+
+Start typing again and the thank-you note goes away, so nobody is left looking at "thanks, we'll be in touch" over a half-written second enquiry.
 
 ---
 

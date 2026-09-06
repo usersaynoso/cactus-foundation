@@ -46,6 +46,15 @@ export type ConversationSummary = {
    *  slash and no admin path), because the admin path is per-site and only the
    *  rendering page knows it: "inbox?tab=contact-form&id=42". */
   href: string
+  /** Where the sender addressed this, when the channel let them choose: a
+   *  destination id published through `core.message-destinations`. Opaque
+   *  everywhere but the module that published it, and absent on every channel
+   *  that has nothing to choose between. */
+  destinationId?: string | null
+  /** What on the site this came from, when the channel has something more
+   *  particular to say than its own name - which form, which widget, which
+   *  number. A name for a person to read, never an id. */
+  sourceLabel?: string | null
 }
 
 export type ConversationAttachment = {
@@ -143,4 +152,52 @@ export type ResolvedConversationProvider = {
   moduleName: string
   id: string
   provider: ConversationProvider
+}
+
+// ---------------------------------------------------------------------------
+// Message destinations - "where should something sent from the public side of
+// the site be delivered?"
+//
+// A public form, a booking request, a callback slip: each of them collects
+// something from a stranger and has to put it somewhere. On a site with no
+// mailbox module there is one answer and it needs no field. On a site that
+// keeps several addresses, the owner wants THIS form to land in sales@ and THAT
+// one in accounts@, and the collecting module has no business knowing what an
+// address is, who owns it or which module holds them.
+//
+// So a module publishes `core.message-destinations`: a list of places, each
+// with an id it made up and a name a person would recognise. A collecting
+// module offers that list, stores the id it was given and hands it back
+// untouched (see `ConversationSummary.destinationId`); nothing between the two
+// ever looks inside it. Core learns no module name at either end.
+//
+// Types only, like everything else in this file - the resolver lives in
+// lib/conversations/destinations.ts, because it reads the database.
+// ---------------------------------------------------------------------------
+
+export const MESSAGE_DESTINATION_POINT = 'core.message-destinations'
+
+/** One place something can be delivered. The id is the publishing module's own
+ *  and means nothing anywhere else; the label is what a person picks from. */
+export type MessageDestination = {
+  id: string
+  label: string
+  /** One line under the name - an address, a department - or null. */
+  detail?: string | null
+}
+
+/** What one module offers, kept as a group so a picker can say where each
+ *  choice comes from when a site has two modules publishing destinations. */
+export type MessageDestinationGroup = {
+  moduleName: string
+  /** What this module calls the set: "Inboxes", "Teams". */
+  label: string
+  destinations: MessageDestination[]
+}
+
+/** What a module publishes at `core.message-destinations`. Server-only by
+ *  nature: it reads that module's own tables. */
+export type MessageDestinationProvider = {
+  label: string
+  list(): Promise<MessageDestination[]>
 }

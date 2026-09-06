@@ -164,7 +164,7 @@ Not everything starts with somebody writing to you. **Write a message** sits at 
 
 **The To and Cc lines suggest people for you.** Click into either one before typing a word and the addresses that inbox has been dealing with are already listed, most recent first, with the name and company where the site knows them. Type and the list narrows. Arrow keys move through it, Return or Tab takes the highlighted one, Escape puts the list away without closing the message. Pick somebody and only the part you were typing is replaced, so a line that already has two people on it keeps them.
 
-The suggestions are that address's own correspondents rather than everybody the site has ever met, which is usually the shorter and better list. Your own addresses are never suggested, and neither is anybody already on the line. Nobody is offered an address out of an inbox they are not allowed to read. The conversations stay where they were underneath, and closing the box - the cross, **Cancel**, or the Escape key - puts you straight back to them.
+The suggestions are that address's own correspondents rather than everybody the site has ever met, which is usually the shorter and better list. Your own addresses are never suggested, and neither is anybody already on the line. Nobody is offered an address out of an inbox they are not allowed to read. The conversations stay where they were underneath, and closing the box - the cross at the top right, or the Escape key - puts you straight back to them, offering to keep what you had written as a draft on the way. There is no Cancel button any more: a button whose whole job was to lose a screenful of typing was not worth the row it sat on.
 
 **It goes out as whichever inbox you were looking at.** Standing in `accounts@` and pressing Write means writing as `accounts@`, which is almost always what you meant. The **From** menu at the top of the message is there for the times it is not: pick any of your addresses and the message leaves as that one instead, with that inbox's name on replies and its signature, and the answer comes back to that inbox. Only addresses you are allowed to send from appear in the menu, so nothing on it can turn round and refuse you.
 
@@ -176,17 +176,19 @@ If you are looking at **All**, at **Not filed**, or at one of the other channels
 
 There is a small arrow beside the write button. It opens three other things you might have meant.
 
-**Discussion** is a conversation with your colleagues that no customer ever sees. Pick which of your addresses it is for, give it a subject, say your piece, and it appears in that inbox alongside the real post - except that nothing on it is ever sent anywhere. There is no reply arrow on a discussion, only the note line at the foot of it and, behind the dots on any message, the full note box for one with a file on it - because there is nobody outside it to reply to. Whoever can read that address can read the discussion, and nobody else can. Tick more than one address and each gets its own discussion, so each team can answer in their own rather than talking over one another in a conversation with two guest lists.
+**Discussion** is a conversation with your colleagues that no customer ever sees. Put it to the people you want on it - start typing a name in the To line and pick them off the list, and each one sits there as a tag you can take off again - pick which of your addresses it is in, give it a subject, say your piece, and it appears in that inbox alongside the real post - except that nothing on it is ever sent anywhere. There is no reply arrow on a discussion, only the note line at the foot of it and, behind the dots on any message, the full note box for one with a file on it - because there is nobody outside it to reply to. Whoever can read that address can read the discussion, and nobody else can. Tick more than one address and each gets its own discussion, so each team can answer in their own rather than talking over one another in a conversation with two guest lists.
 
 It is the same internal note the inbox has always had, with one thing added: somewhere to put the first one. "A word about the Henderson order" no longer has to wait for the Hendersons to write in.
 
 **Call** rings somebody. Your phone rings first, from whichever of your numbers you picked, tells you who is about to be rung, and puts you through when you press a key - so you are never listening to a phone ringing in an empty room. The number you dial from is the one they see, and the one they ring back, which is why it is a menu rather than a fixed value. The call turns up afterwards in the phone conversation with that number, filed by the part of the site that placed it.
 
+**You can type a name instead of a number.** Start writing one into the **Ring** box and the contacts who have a number on them appear underneath, with the number beside each so you can see which one you are about to dial. Click one, or pick it with the arrow keys and Return, and the number goes into the box. Nobody remembers a phone number; they remember whose it is, and it is already written down here from the last time that person got in touch. Typing an actual number still works exactly as it did - the list only appears once there is a letter in the box.
+
 **Call me at** is filled in from your own account, so you are not typing your mobile in from memory every time. Put your number on it once - **Your account** > **Profile** > **Your phone number** - and it is there whenever you place a call. It is still a box rather than a fixed setting, because the day you are sitting at a customer's desk you want the call to reach you there instead, and changing it here changes it for that call only.
 
 **Numbers are typed the way you would say them.** 020 8138 0512 is a whole number, and so is 07700 900123, and so is 2081380512 - all three reach the same place. Anything without a country code is taken as your site's, which is **+44** unless somebody has changed it in **Settings** > **General** > **Dialling code**. Type a number from anywhere else in full, with its + and country code, and it is left exactly as it is.
 
-**SMS** sends a text. A number, a message, Send. It goes out through whatever the site sends its texts with, and lands in the same phone conversation the calls do. The line under the box counts what it will cost you: 160 characters is one text, and a single curly quote or emoji - the sort of thing a word processor puts in without asking - drops the whole message to 70 characters a text for the rest of its length.
+**SMS** sends a text. A number, a message, Send. The **To** box behaves exactly like **Ring** does: type a name and the contacts who have a number on them appear underneath to be clicked, and a number typed the way you would say it - 07700 900123, or 7445164234 - is taken as your site's country unless you write one in full with its + and country code. It goes out through whatever the site sends its texts with, and lands in the same phone conversation the calls do. The line under the box counts what it will cost you: 160 characters is one text, and a single curly quote or emoji - the sort of thing a word processor puts in without asking - drops the whole message to 70 characters a text for the rest of its length.
 
 **The menu only offers what your site can actually do.** No texts without something to send them with, no calls without something to place them with, and no arrow at all when it can do neither - in which case the button is exactly what it always was. Both of those come from the Twilio module today; the inbox knows nothing about it beyond "there is something here that makes calls".
 
@@ -194,17 +196,23 @@ It is the same internal note the inbox has always had, with one thing added: som
 
 **The To line on a reply is a box you can type in.** Cactus still works out who a plain reply goes to and fills it in for you - the sender, or whoever their Reply-To names - and that is what you will send nine times out of ten. But it is now the answer in a box rather than a sentence, so the one address that wants taking off, or the colleague who wants adding, is a click rather than a change of plan.
 
-Switching between **Reply** and **Reply to all** refills the line, which is exactly what those two buttons mean. Once you have edited it yourself, your answer stands and the buttons stop rewriting it.
+Switching between **Reply** and **Reply to all** on the message's own menu refills the line, which is exactly what those two mean. Once you have edited it yourself, your answer stands and nothing rewrites it again.
+
+**Which of the four you are writing is said along the top of the box** - *Reply*, *Reply to all*, *Forward* or *Internal note* - beside the two ways out of it. It used to be a row of buttons that also switched between them, which was a second place to make a choice you had already made on the message itself, and the commonest way to send a customer something meant for a colleague. Change your mind and press the arrow, or the dots, on the message you are answering.
 
 **Cc, Bcc and Subject are links at the end of that line.** None of them takes up a line until you ask for it, because most replies want none of the three. Press **Subject** and the line opens on what the subject would have been - **Re: whatever it was** - so you can change it rather than start it. Leave it alone and nothing changes.
 
-**The arrow beside them opens the reply in a window of its own**, over the whole screen, for the reply that turns out to be a letter. It is the same box either way - nothing you have typed is lost going out or coming back - and the arrow in the corner, or the Escape key, puts it back under the conversation.
+**The arrow at the top right opens the reply in a window of its own**, over the whole screen, for the reply that turns out to be a letter. It is the same box either way - nothing you have typed is lost going out or coming back - and the arrow in the corner, or the Escape key, puts it back under the conversation.
+
+**The cross beside it closes the reply**, and asks first if there is anything in it: **Save it as a draft**, **Throw it away**, or **Keep writing**. See [Drafts](#drafts).
 
 ### Making it look like something
 
-Both writing boxes have a small strip along the top: **bold**, *italic*, a colour, a link, a bullet list and a numbered list. Select some words and press one, or press it and carry on typing. **Ctrl+B** and **Ctrl+I** work as they always have.
+Both writing boxes carry six buttons on the strip along the bottom, next to the paperclip: **bold**, *italic*, a colour, a link, a bullet list and a numbered list. Select some words and press one, or press it and carry on typing. **Ctrl+B** and **Ctrl+I** work as they always have. They used to sit in a band of their own above the words; everything you can do to a message is on the one strip now.
 
 That is the whole list, and it is short deliberately. Typefaces, sizes and alignment are the things that make an email look assembled rather than written, and half of them are rendered differently by every inbox they land in.
+
+**The colour is behind the palette.** Press it and seven colours appear beside it; press one and it is applied and they fold away again, which is what a colour menu does everywhere else.
 
 **The link button opens a line rather than a browser box**, so it can tell you when what you typed is not an address. Type `example.com/prices` and it works out the rest. Select some words first and they become the link; select nothing and the address itself is what appears.
 
@@ -212,19 +220,23 @@ That is the whole list, and it is short deliberately. Typefaces, sizes and align
 
 ### Drafts
 
-The phone goes halfway through a reply, and until now that cost you the reply. **Save as a draft** puts the whole box down as it stands, and it waits under **Drafts** in the list of addresses until you come back to it.
+The phone goes halfway through a reply, and until now that cost you the reply. Nothing you half-write is thrown away any more, and **there is no Save as a draft button to remember to press**: the box puts itself down and waits under **Drafts** in the list of addresses until you come back to it.
 
-**Drafts is a tab of its own**, because it is not one address - it is everything half-written, across every address you can read. The number beside it is how many are waiting.
+**A reply saves itself the moment you go somewhere else.** Click another conversation, another address, another tab - anything that takes the screen off the reply - and what you had written is put down as a draft on the way past, with no question asked. The only time you hear about it is when the save itself fails, in which case the screen stays where it is and says so rather than losing the words.
 
-**A draft on a shared address can be read by whoever shares it**, the same as every other message on that address. A colleague who is off sick does not take the supplier's half-answered question with them: their unfinished reply is there under Drafts, with their name on the row, and you can open it and read it.
+**Closing one asks.** The cross at the top right of the reply box - and of the popped-out window, and of the new-message box - offers three answers: **Save it as a draft**, **Throw it away**, or **Keep writing**. Nothing is thrown away without you saying the words. A box you have not typed in simply closes.
 
-**Anyone who can send as the address can finish the draft.** If you are allowed to send as accounts@, you can open a draft sitting on accounts@, change it, send it or throw it away, whoever started it. The reply leaves as the address rather than as the person who typed it, so the name at the bottom is the same either way - and a draft only its author can finish is a draft that waits for ever when that person is on leave. Reading is wider than sending: somebody who can read the address but not send as it sees the draft and cannot touch it.
+**Drafts is a tab of its own**, because it is not one address - it is everything you have half-written, across every address you write from. The number beside it is how many of yours are waiting.
 
-A draft on a live chat, an enquiry or a phone conversation has no address on it to share, so that one stays private to whoever wrote it - there is no guest list to let anybody else in.
+**Your drafts are yours.** Nobody else sees them, whatever they are allowed to read and whatever address they sit on. Sharing accounts@ shares what has been sent from it and what has arrived at it; it does not share the sentence somebody is halfway through typing. A price you have not checked yet, or an apology you have not decided to make, is not something a colleague finds in a list - which is how every mail program has worked since the nineties, and how this one works.
 
-Opening a conversation shows the draft on it that you may finish: your own first if you have one, otherwise a colleague's. Whoever started it keeps their name on it - taking one over does not sign it over to you.
+**And nobody else can finish one, either.** Being allowed to send as accounts@ does not let you open, change, send or throw away a draft somebody else started on it. The cost of that is honest and worth saying: a half-written message belonging to somebody on leave waits for them, and there is no way to take it over. If it needs to go out, write it and send it.
 
-Picking one back up depends on what it is. A saved reply lives under its conversation, so clicking it opens the conversation with your words still in the box, the customer's message above them, and Reply, Reply to all or Forward set to whichever you had chosen. A message you had not finished starting opens the writing box again exactly as you left it - recipients, subject, attachments and all. There is one draft per conversation per person, which is the box, put down; saving again writes over it rather than leaving you to choose between two halves of the same sentence. Two people can each have one on the same conversation, and the reply box shows you yours.
+Drafts under a colleague's name in the rail are gone for the same reason - there was nothing of theirs to put in one.
+
+Opening a conversation shows your own draft on it, if you left one. There is one draft per conversation per person, which is the box, put down; saving again writes over it rather than leaving you to choose between two halves of the same sentence. Two people can each have one on the same conversation, and each sees only their own.
+
+Picking one back up depends on what it is. A saved reply lives under its conversation, so clicking it opens the conversation with your words still in the box, the customer's message above them, and set to whichever of Reply, Reply to all and Forward you had chosen. A message you had not finished starting opens the writing box again exactly as you left it - recipients, subject, attachments and all.
 
 **Sending clears it away.** The draft goes at the moment the message actually leaves, so nothing is left sitting in the list to be sent again next week. **Throw the draft away** does the same thing without sending anything.
 
@@ -232,13 +244,15 @@ What is saved is what you typed, line breaks and all, along with who it is going
 
 ### Sending it later
 
-Some replies are written at half past eleven at night and would land better at nine in the morning. **The alarm clock under the writing box** opens the same short menu the clock at the top of a conversation opens - **In three hours**, **Tomorrow morning**, **Next week**, or **Day & Time** for a month to pick from - each with the day and time it actually lands on written beside it.
+Some replies are written at half past eleven at night and would land better at nine in the morning. **Send Later**, on the strip along the bottom, opens the same short menu the clock at the top of a conversation opens - **In three hours**, **Tomorrow morning**, **Next week**, or **Day & Time** for a month to pick from - each with the day and time it actually lands on written beside it. It used to be an alarm clock icon, which was a picture of a thing rather than the name of one.
 
-Picking one does not send or save anything yet. It puts the time on the line above the buttons, and two more buttons appear: **Send later**, which sets it going, and **Send later & snooze**, which sets it going and puts the conversation to sleep as well. **Not later after all** takes the time back off. Once it is set the message waits until then and goes out on its own; you do not have to be there, or even have the site open.
+Picking a time does not send or save anything yet. It puts the time on the line above the buttons, where you can also set a chase, and **Save it for then** appears to commit it. **Not later after all** takes the time back off. Once it is set the message waits until then and goes out on its own; you do not have to be there, or even have the site open.
 
-**A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can move it to another time from the same alarm clock, or press **Cancel the timer** on that menu and have an ordinary draft back.
+**Putting the conversation to sleep is a separate press, and it survives the send.** There used to be a Send later & snooze button doing both at once; the two are given separately now. Set the message for Monday morning, then use the clock at the top of the conversation to put the conversation to sleep until Friday, and Friday is when you see it again - the message going out on Monday does not wake it up. If you have also set a chase, whichever of the two is later wins.
 
-**While it is waiting, the send buttons and Save as a draft are not there.** The message has been decided about: one of those would post it this minute and the other looks like the way to keep it, which it is not. Cancel the timer and both come straight back.
+**A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can move it to another time from the same **Send Later** menu, or press **Cancel the timer** on that menu and have an ordinary draft back.
+
+**While it is waiting, the send buttons are not there.** The message has been decided about, and sending it now would contradict that. Cancel the timer and they come straight back.
 
 **It goes at that time or shortly after, never before it.** The site checks its own list on a schedule, so a message set for 09:30 leaves at 09:30 or a little after depending on how your site is set up. Anyone pressing the refresh button in the inbox sends whatever is due at that moment too, which in practice means a message due while somebody is at their desk goes almost at once.
 
@@ -246,11 +260,11 @@ Picking one does not send or save anything yet. It puts the time on the line abo
 
 **If it cannot go, it stays here and says so.** An address that has been taken off you between writing the message and its time coming, a mail server having a bad morning, a conversation that has since been deleted - whatever the reason, the writing is kept exactly as it was with the reason beside it on the row, and nothing is quietly thrown away. Fix it and send it, or set another time.
 
-A message set to go out on a shared address is visible to whoever shares it, and anyone who can send as that address can change its time or cancel it - the same rule drafts already follow.
+A message set to go out is still a draft, so it follows the same rule as one: it is yours, only you can see it, and only you can move it, cancel it or throw it away - however many people share the address it would leave as.
 
 ### Chasing it up
 
-Once you have picked a time for it to go, the line above the buttons says so - **Set to go out tomorrow at 09:00** - and beside it is **No chase**. Press that and it offers exactly what the alarm clock at the top of a conversation offers: **In three hours**, **Tomorrow morning**, **Next week**. Set one and, once the message has actually gone, the conversation goes quiet until then - and comes straight back to you if nobody has answered.
+Once you have picked a time for it to go, the line above the buttons says so - **Set to go out tomorrow at 09:00** - and beside it is **No chase**. Press that and it offers exactly what the clock at the top of a conversation offers: **In three hours**, **Tomorrow morning**, **Next week**. Set one and, once the message has actually gone, the conversation goes quiet until then - and comes straight back to you if nobody has answered.
 
 **The answers are counted from when the message goes out**, not from when you are sitting there setting them. "Tomorrow morning" on something leaving on Friday night means Saturday morning, which is what anybody would expect it to mean.
 
@@ -308,7 +322,7 @@ Both of these amount to keeping a note of what somebody did with an email you se
 
 You can attach anything from your media library. There is a ceiling of about nine megabytes for everything on one message, which is what the email services themselves allow, and **an attachment that will not fit is refused before you send** rather than quietly dropped on the way out.
 
-**Attach a file** is the paperclip at the left-hand end of the strip along the bottom, beside the alarm clock, with the ways to send it at the other end.
+**Attach a file** is the paperclip at the left-hand end of the strip along the bottom, beside **Send Later** and the formatting buttons, with the ways to send it at the other end. On a narrow window the strip wraps and the send buttons stay hard right.
 
 You can also **drag a file straight onto the message** - onto the reply box under a conversation, or anywhere on the box where you are writing a new one. Drag several at once and they all go on. The box says "Drop to attach" while the file is over it, the files appear as tags underneath as they arrive, and a cross takes one back off. Nothing is sent until you press Send, as ever.
 
@@ -317,6 +331,24 @@ Files dropped this way have to be **under four megabytes each**, which is the ho
 A few things are refused, and each says why: a folder (drop the files inside it instead), and anything that is a program or a script rather than a document, because the email services will not deliver one of those anyway and finding that out at Send is finding it out too late. If you need to send one, put it in a zip.
 
 A dropped file goes into your site's storage, not into your media library: it is a customer's paperwork, and it has no more business in the picker you build pages from than an invoice that arrived in `accounts@`. A file you drop on and then think better of - never sent, never saved as a draft - is cleared away by the site a week later. A draft holding one keeps it for as long as the draft lives.
+
+### Putting what you sell on a message
+
+Half the questions a shop gets are answered with a product. **The price tag beside the paperclip** opens your catalogue, and what you pick is printed under your message the way the lines of an order confirmation are printed: the photograph, the name, and the price, each one linking to its own page.
+
+Three things can go on, and the difference is worth knowing:
+
+- **A product**, for something that comes one way only.
+- **A listing that has variations** - the chair that comes in eight colours. It goes on quoted from its cheapest ("From £419.00") and links to the page where the customer picks, which is usually what you want when somebody has asked what a range costs.
+- **One exact variation**, when they have asked about the black one with the high back. **Choose one of eight** under the listing opens the ones that can actually be bought, and the options that make each one are printed under its name in the message.
+
+**Prices carry "+ VAT" where the tax genuinely applies and your shop quotes its prices without it.** Nothing is added where the price on your site already includes the tax, or where the product is not taxed at all - and if your shop calls its tax something other than VAT, the message calls it that too.
+
+There is no heading row and no quantity: this is you showing somebody two chairs, not sending them a receipt for something they have not bought. Delivery times are left off for the same reason - what a thing costs and what it looks like is the answer to "which one did you mean", and how long it takes to arrive depends on where it is going.
+
+**Nothing is written into your message until you send it.** What you pick appears as tags under the box, a cross takes one back off, and the catalogue stays open while you add several. Prices and names are read **at the moment you press Send**, not when you picked - so a quote you saved on Friday and sent on Monday goes out at Monday's prices, and anything withdrawn in between is simply left off rather than quoted at a price you no longer sell it for.
+
+The picker is only there if your site has a shop and you are allowed to see it. Internal notes never carry products - a note is for your colleagues, who can open the catalogue themselves - and neither do live chat or text message replies, which have nowhere to put a picture.
 
 ---
 
@@ -348,11 +380,11 @@ Three things worth knowing:
 
 Automatically, **once an hour on a paid hosting plan and once a day on the free one**. That is the hosting plan's limit rather than a choice.
 
-For when you are waiting on something, there is a **refresh button at the top left of the inbox itself** - the circular arrow just to the left of the **All** tab. Press it and the site goes and fetches your post there and then, from every mail account at once, and tells you what it found. A mailbox opened seconds ago is left alone rather than opened again, so that your mail provider does not take it personally - press anyway and the list still refreshes, and it tells you how recently your mail was looked at rather than refusing you. The same thing per account still lives on the settings page as **Check now**.
+For when you are waiting on something, there is a **refresh button in a box stuck to the foot of the rail**, down the left of the inbox. The box stays where it is however far you scroll, and beside the button it says **Updated** and the time the post last arrived, so "has anything come in" is answered before you press anything. Press it and the site goes and fetches your post there and then, from every mail account at once, and tells you what it found in a blue line above the button. The line reads for three seconds and then fades away on its own, because it is an answer to a press rather than something to be dismissed. Something that went wrong stays up until you press again. A mailbox opened seconds ago is left alone rather than opened again, so that your mail provider does not take it personally - press anyway and the list still refreshes, and it tells you how recently your mail was looked at rather than refusing you. The same thing per account still lives on the settings page as **Check now**.
 
 The refresh button only appears if you look after the inbox and there is a mail account for it to check - there is no sense offering a button whose only possible answer is no.
 
-If you would rather not keep pressing it, **Settings → Unified Inbox → Collecting → Check for new mail while the inbox is open** does the pressing for you: pick a wait - a minute, two, five, ten, or half an hour - and the inbox goes and looks that often on its own while you have it open. It only runs on a tab you are actually looking at, it stops the moment that tab goes behind something else or you close the page, and it says nothing at all - new post simply appears in the list, in bold, where post has always appeared. A banner across the top announcing mail that is already on the screen underneath it is one thing to read too many. Only people who look after the mail accounts get it, for the same reason the button is only theirs. Off to begin with, and worth picking the longest wait you can live with: every check is a bit more work for your hosting.
+If you would rather not keep pressing it, **Settings → Unified Inbox → Collecting → Check for new mail while the inbox is open** does the pressing for you: pick a wait - a minute, two, five, ten, or half an hour - and the inbox goes and looks that often on its own while you have it open. It only runs on a tab you are actually looking at, it stops the moment that tab goes behind something else or you close the page, and it says nothing at all - the time beside **Updated** moves on, new post simply appears in the list, in bold, where post has always appeared, and nothing else happens. A banner across the top announcing mail that is already on the screen underneath it is one thing to read too many. Only people who look after the mail accounts get it, for the same reason the button is only theirs. Off to begin with, and worth picking the longest wait you can live with: every check is a bit more work for your hosting.
 
 The first collection does not fetch everything at once. New post is picked up straight away, and the history is walked backwards a batch at a time over the following checks until it reaches as far back as you asked for under **Collecting → How far back to go** (twelve months to begin with). A mailbox with years in it takes a while to fill in, and the settings page shows the progress while it does.
 
@@ -372,7 +404,7 @@ The inbox is laid out the way a mail program is: one box the height of the windo
 | **Channels** | The chat, form and phone conversations, where another part of the site owns them. |
 | **Everything else** | **Contacts** (the address book), **Campaigns** if you are allowed them, and, for whoever looks after the site, **Not filed**. |
 
-The refresh button is at the foot of the rail, under a line (see [How often it checks](#how-often-it-checks)).
+The refresh button sits in a box stuck to the foot of the rail, with **Updated** and the time your post last arrived beside it (see [How often it checks](#how-often-it-checks)). The box does not scroll away with the list.
 
 **The coloured dots** are worked out from the address itself, so a site with six inboxes gets six different colours without anybody being asked to pick them, and the same address is the same colour on every screen and for every colleague. There is nothing to set and nothing to keep in step.
 
@@ -388,13 +420,14 @@ An individual address is one colleague's own and nobody else's, until somebody i
 
 So an individual address can be **shared with named colleagues**. Whoever looks after the site does it on **Settings → Unified Inbox → Inboxes**, editing the address and ticking a name under **Who else can read it**. Nothing else opens one: not being an administrator, not being on some other address's list.
 
-Once somebody is on it, that address appears in their rail under **Team inboxes**, named after the colleague rather than after the address - **Sam Blake**, not `sam@`, because that is how anybody covering Sam's post thinks of it. Beside the name is a **&rsaquo;**. Press it and three folders of theirs open out underneath:
+Once somebody is on it, that address appears in their rail under **Team inboxes**, named after the colleague rather than after the address - **Sam Blake**, not `sam@`, because that is how anybody covering Sam's post thinks of it. Beside the name is a **&rsaquo;**. Press it and two folders of theirs open out underneath:
 
 | Folder | What is in it |
 | --- | --- |
 | **Sent** | Everything that has left that address. |
-| **Drafts** | Messages started on it and never sent - so a half-written answer is not lost while its author is away. |
 | **Mentioned** | Conversations on that address that its owner has been tagged in. |
+
+There is no Drafts folder here. A draft belongs to whoever wrote it, so a list under somebody else's name could only ever hold your own writing with their name over the top of it.
 
 The name itself is their inbox, exactly as a shared address's name is. Press the **&rsaquo;** again and the folders fold away.
 
@@ -452,7 +485,9 @@ Turn it off again and everybody is back to initials immediately, including on a 
 
 ### Asking a colleague to look at something
 
-Press the **@** on the note line, pick one or more colleagues, write the sentence, and leave the note. That is the whole of it.
+**Type an @ in the note line**, pick the colleague out of the names that appear under it - keep typing to narrow them, or use the arrow keys and Return - write the rest of the sentence, and leave the note. Name as many as you like. That is the whole of it, and it is what everybody was doing anyway before anything was listening.
+
+The name has to be **picked from the list** rather than merely typed: a Sam Smith and a Sam Smyth are not something the site should be guessing between when the answer hands somebody a job. Delete a name back out of the sentence before you leave the note and that colleague is not told.
 
 What it does is worth knowing, because it is more than a nudge.
 
@@ -525,7 +560,7 @@ Everything folds into **the conversation that started it** - the oldest of the o
 
 A few things worth knowing before you press it:
 
-- **Nothing is thrown away, and you can put it back.** Open the merged conversation and there is a line under the controls saying what it was made of, with **Separate it again** beside each one. Anything that arrived *after* the merge stays where it is, because it arrived on the merged conversation rather than on the old one.
+- **Nothing is thrown away, and you can put it back.** Open the merged conversation, open **What has been done to this** at the foot of it, and the line recording the merge - *Chris merged it with another*, with the date - has **Unmerge** on the end of it. Anything that arrived *after* the merge stays where it is, because it arrived on the merged conversation rather than on the old one. It used to be a panel across the top of every merged conversation for ever, saying the same thing to everybody who opened it.
 - **A merged conversation is still unanswered if any half of it was.** Merging something you had marked done into something you had not does not quietly mark the lot done, and an unread half stays unread. Better to be shown something twice than to lose it off the list.
 - **Merging across two of your addresses lets both of them read it.** This is the point of merging marcus@ and hi@ together, and it is also the thing to think about first: everybody who can read either address can then read the whole of the merged conversation, including the half that arrived on the other one. The confirmation says so, and names the addresses, before anything happens. See [Who can see what](#who-can-see-what).
 - **It shows in both addresses' tabs afterwards**, with the second address named in the line under the subject, and it stays merged when somebody replies. Without that last part the two sides would come apart again on the very next email.
@@ -571,9 +606,11 @@ You can only give somebody an address they can actually read, so if the inbox ha
 
 ### Reading email safely
 
-A message someone else wrote is shown inside its own sealed frame, on a light background in both light and dark mode. It takes up as much room as the message actually needs - a two-line reply is two lines, a long newsletter is as long as it is, and neither has a scrollbar of its own inside the page's. The whole message is on the page and the page scrolls it, which is rather the point. A message that will not say how big it is gets a generous height rather than the letterbox it used to get. The sender chose their colours assuming a white page, and repainting the background dark while leaving their text alone is how a message ends up black on black. The rest of the screen follows your theme as usual.
+A message someone else wrote is shown inside its own sealed frame, on a light background in both light and dark mode. It takes up as much room as the message actually needs - a two-line reply is two lines, a long newsletter is as long as it is, and neither has a scrollbar of its own inside the page's. A message written wider than the column you are reading it in is shrunk until the whole of it fits, the way a phone shows a desktop-width email, rather than being given a scrollbar along the bottom that hides half of it. The whole message is on the page and the page scrolls it, which is rather the point. A message that will not say how big it is gets a generous height rather than the letterbox it used to get. The sender chose their colours assuming a white page, and repainting the background dark while leaving their text alone is how a message ends up black on black. The rest of the screen follows your theme as usual.
 
 **Pictures hosted elsewhere are not loaded until you ask.** Press **Show pictures** and they are fetched by the site rather than by your browser, so a marketing email learns nothing about you, your location or when you opened it. Links open in a new tab.
+
+**Your own post is never held back.** Anything you sent, an internal note, and anything arriving from one of your own addresses, a colleague, or your own domain opens with its pictures already there. The warning is about what a stranger learns when your browser fetches their tracking pixel, and there is no stranger in your own signature - being asked about it on every reply you ever sent only taught people to press the button without reading it.
 
 Once you have pressed it for a message, that message keeps its pictures. Go off to something else, come back to it a fortnight later, and it opens with them already there rather than asking again - the sender found out the first time, and there is nothing left to protect by making you click twice. It is remembered by the browser you pressed it in, so a different computer starts the message the careful way round. The five hundred most recent are held; older ones quietly drop off the end.
 
@@ -590,6 +627,26 @@ Install the [live chat](Live-Chat), [contact form](Contact-form) or [Twilio](Twi
 When Unified Inbox is installed, **this is where those messages are answered**. The contact form's own inbox tab and the live chat's own inbox tab stand down, because having two places to answer the same enquiry is how one of them stops being read. Each module keeps everything else it does: the chat widget, the form block, the phone numbers, its own settings. Uninstall Unified Inbox and their tabs come straight back, with nothing lost.
 
 A colleague who is allowed to see the contact form but not this hub keeps their own tab. Nobody is locked out of their own messages.
+
+### Sending a form's enquiries to one of your inboxes
+
+A contact form can name the inbox its enquiries belong in. Edit the page, open the **Contact Form** block, and pick one under **Deliver enquiries to**.
+
+From then on an enquiry from that form is ordinary post in that inbox. It sits in the list with the emails, it counts towards that inbox's unread number, and whoever is allowed to read that inbox is allowed to read it - which is worth reading twice, because it is the whole rule. Point a form at an inbox only two people can open, and only those two see what comes in on it.
+
+It also stops appearing under **Other channels**, because it is in an inbox now and one thing should be in one place. Enquiries from forms that name no inbox stay where they always were.
+
+Whichever inbox it lands in, the conversation says which form it came from - the form's own title, on the line under the buttons where attached orders and quotes sit. It is not something anybody attached, so it does not open anything and it cannot be taken off: it is what the conversation is.
+
+Moving one afterwards is allowed and it stays moved. Nothing drags it back to where the form says it should be.
+
+### Switching a channel off
+
+**Settings → Unified Inbox → Channels** lists the channels this site has, with a switch each. Turn one off and it stops appearing down the left, stops being counted and stops turning up in **All**.
+
+It is worth having once your forms are pointed at real inboxes: a **Contact form** heading listing the same enquiries a second time is a second place to look for the same thing. Nothing is thrown away - the conversations are still collected, so switching it back on brings back everything that arrived in the meantime.
+
+The one catch, and it is on the screen too: an enquiry from a form that names no inbox has nowhere else to be seen, so it will not be shown at all while its channel is off.
 
 Three things worth knowing:
 
@@ -701,9 +758,15 @@ That last part is the whole idea. This is not a newsletter service and it is not
 
 You will find it as **Campaigns** in the rail down the left of the hub, under **Everything else**, next to Contacts. It has its own permission, so somebody who can answer the post is not automatically somebody who can write to five thousand customers.
 
+### The screen
+
+It is laid out exactly like your post: every campaign down the middle column with its own progress stripe, and the one you have opened in the pane beside it. Picking another is one press and you keep your place, so glancing at what a second campaign is doing no longer costs you the one you were writing. The edges between the three columns drag, and they are the same edges you have already dragged in the inbox.
+
+On a phone there is only room for one at a time, so you get the list, and then the campaign you opened from it with **All campaigns** to get back - the same as opening a conversation.
+
 ### Writing one
 
-One page, top to bottom, in the order you would think about it, with **one Save button** at the bottom. It is in the same place whatever you are doing and it saves the whole thing, so there is never a question about which button saved which half. The name is at the top, typed where you read it.
+One page, top to bottom, in the order you would think about it, with **one Save button** at the bottom of the pane. It stays put as you scroll and it saves the whole thing, so there is never a question about which button saved which half. The name is at the top, typed where you read it.
 
 **Save is there on every campaign, finished ones included.** Two things lock once the first message has gone - who it goes to, and the wording of that first message, because some people have already had it and two versions of one mailshot with no way to tell who got which helps nobody. Everything else stays yours to change: the name, the follow-ups, the clock. (Previously a finished campaign had no Save button at all, while its boxes still let you type - so the changes went nowhere.)
 
@@ -717,7 +780,7 @@ Everything behind it is under **Change the pace, the hours or the days**: sendin
 
 **Before it can go** - the checklist, underneath the form. Anything with a cross by it stops the campaign; anything with an exclamation mark is a warning you can read and press past. **Start sending appears once there is nothing left to fix**, and if you have typed something since your last save it saves that first - one press, not two. It used to disappear the moment you touched anything, which is exactly when you had just finished writing. Leaving the sending hours empty is one of those warnings: perfectly reasonable for a reminder, less so for a mailshot that lands at three in the morning on a Sunday.
 
-**Progress** - the button at the top, once it is on its way: everybody on the campaign and where they have got to, filterable. Who has had it, who replied, who bounced, who unsubscribed, and who was left out with the reason written beside them. Anybody still waiting has a **Send now** beside them, for when you do not want to wait for the clock - it skips the hours and the gap, not the checks, and it will not go out of a campaign that has never been started.
+**Where everybody has got to** - at the foot of the same page, as soon as there is a list to look at: everybody on the campaign and where they have got to, filterable. Who has had it, who replied, who bounced, who unsubscribed, and who was left out with the reason written beside them. Anybody still waiting has a **Send now** beside them, for when you do not want to wait for the clock - it skips the hours and the gap, not the checks, and it will not go out of a campaign that has never been started. (This used to be a separate screen behind a **Progress** button, which meant reading what went out and reading what it said were two places with a toggle between them. It is one page now, so the button and its **Back to the wording** twin are both gone.)
 
 ### Follow-ups
 
@@ -733,7 +796,7 @@ Three things stop a campaign without being asked, and all three exist because no
 - **The mail service saying no.** An unverified sending address or a rejected key would fail the same way for every message behind it, so it stops rather than failing nine hundred times.
 - **The address disappearing.** Delete the inbox it sends from and it stops, with everything it has already sent kept exactly as it was.
 
-**Pause** and **Resume** are yours to press. Pausing takes effect at the next gap - whatever was going out at the time finishes. **Stop for good** ends it, follow-ups included.
+**Pause** and **Resume** are yours to press, on the bar at the foot of the campaign - they used to be on its row in the list as well, which put three buttons under the thumb of anybody scrolling past. Pausing takes effect at the next gap: whatever was going out at the time finishes. **Stop for good** ends it, follow-ups included.
 
 ### Sending the whole thing again
 
@@ -754,7 +817,7 @@ Every campaign message carries a footer with your business name and address and 
 
 You can switch the footer off per campaign. Before you do: marketing email in the UK is expected to carry a way to opt out, and without one people press the spam button instead - which does far more damage to whether your ordinary email arrives than an unsubscribe ever could. The screen says so, once, and then it is your call.
 
-The **Do-not-email list** holds everybody who is off the list, and why. You can add an address by hand - somebody who asked you at a trade show - and take one off, for the address that bounced during an outage and works again on Thursday. It stops campaigns only: replies, order confirmations and anything somebody has specifically asked you for still go out, which is right and is what the law expects.
+The **Do-not-email list** - the button above the campaign list - holds everybody who is off the list, and why. You can add an address by hand - somebody who asked you at a trade show - and take one off, for the address that bounced during an outage and works again on Thursday. It stops campaigns only: replies, order confirmations and anything somebody has specifically asked you for still go out, which is right and is what the law expects.
 
 Your business name and address for that footer go in **Settings → Unified Inbox → Campaigns**, along with how many days must pass before any campaign may write to the same person again. Seven is the default and it is a guard rather than a preference: two campaigns should not both land on the same customer on the same morning.
 
@@ -775,31 +838,37 @@ If you want it to keep proper time with nobody watching, the When section shows 
 
 ---
 
-## What the conversation is about
+## Context - what the conversation is about
 
-One line sits directly under the buttons at the top of a conversation and stays there while you scroll: **what the conversation is about** - "Purchase order PO-0023, Order DW0234".
+One line sits directly under the buttons at the top of a conversation and stays there while you scroll: the conversation's **context** - "Purchase order PO-0023, Order DW0234".
+
+It used to be called attachments, which was asking for trouble: a message carries a file, and a conversation is about an order, and one word for both meant nobody could tell from it which was meant. Files on a message are still attachments. The records a conversation is about are its context.
 
 Who you are talking to is not repeated there. Every message in the conversation carries the sender's name and their company at the head of it, and the row in the list beside it says the same again.
 
-If that line has more on it than will fit, it stops with an ellipsis rather than pushing the message down the screen. The arrow at the end of it opens the full list, where each record is a link through to the real thing and where anything is attached or taken off.
+**Every name on that line is a link, and it opens in a new tab.** Following an order out of a conversation is almost always reading the order *while* answering the message, so the conversation - and the half-written reply under it - stays where it was.
+
+If that line has more on it than will fit, it stops with an ellipsis rather than pushing the message down the screen. The arrow at the end of it opens the full list, which is also where anything is added or taken off.
+
+**Anything you put on a message out of your catalogue joins that line once the message has gone**, beside the orders and the purchase orders, and clicking it opens the product in a new tab. So a conversation that started "have you got that in oak" says what it was about a fortnight later, without anybody reading back through it. Quote the same chair twice and it appears once.
 
 ## What sits beside a conversation
 
 When a person's address matches something else on your site, it appears in the panel on the right: their orders, their quotes, their unpaid invoices, their member account. Each one is a link through to the real record.
 
-**Purchasing is deliberately not one of them.** A supplier's conversation is almost always about one purchase order, that order is already attached to it and named at the top of the header, and a second longer list of everything else open with them was the same answer again at greater length - underneath the messages, on any window not very wide indeed. Purchase orders are still spotted in messages, still attached, and still offered when you attach one by hand. Nothing is ever written to those records from here, only read, and a module you have not installed simply shows nothing.
+**Purchasing is deliberately not one of them.** A supplier's conversation is almost always about one purchase order, that order is already its context and named at the top of the header, and a second longer list of everything else open with them was the same answer again at greater length - underneath the messages, on any window not very wide indeed. Purchase orders are still spotted in messages, still added, and still offered when you add one by hand. Nothing is ever written to those records from here, only read, and a module you have not installed simply shows nothing.
 
-When somebody quotes an order number, a purchase order number or a quote reference in a message, it is attached to the conversation automatically. **Nothing is attached until the number is checked and found to exist**, anything attached that way says it was found automatically, and it comes off in one click. If your reference numbers are an unusual shape, the three boxes under **People → Spotting references** take your own pattern.
+When somebody quotes an order number, a purchase order number or a quote reference in a message, it becomes context on the conversation automatically. **Nothing is added until the number is checked and found to exist**, anything added that way says it was found automatically, and it comes off in one click. If your reference numbers are an unusual shape, the three boxes under **People → Spotting references** take your own pattern.
 
-### Attaching an order or a purchase order yourself
+### Adding an order or a purchase order yourself
 
-Most people do not quote their order number, and a supplier answering a purchase order almost never does. **Attach something**, at the foot of the list behind that arrow, opens a list of your records to pick from rather than a box demanding a number.
+Most people do not quote their order number, and a supplier answering a purchase order almost never does. **Add context**, at the foot of the list behind that arrow, opens a list of your records to pick from rather than a box demanding a number.
 
 It opens on whichever kind suits the address you are reading. If purchasing sends its emails as this address, it opens on purchase orders; if the shop sends as it, it opens on orders. Which address each of them sends as is the **Sending address** panel on that module's own settings - **Settings → Purchase Orders**, and the Notifications section of **Settings → Shop**. If you have not chosen one, the list simply starts on the first kind of record you have.
 
-The records belonging to whoever you are talking to come first, so a supplier's own open orders are usually the first thing in the list and attaching one is a single click. Typing narrows it, by number, by the name on the record or by the address it was placed with. You can still attach something by its number alone: type the number and press **Attach**, and it goes on if a record with that number exists.
+The records belonging to whoever you are talking to come first, so a supplier's own open orders are usually the first thing in the list and adding one is a single click. Typing narrows it, by number, by the name on the record or by the address it was placed with. You can still add something by its number alone: type the number and press **Add**, and it goes on if a record with that number exists.
 
-You only see records from parts of the site you are allowed into. Somebody who reads the inbox but has no business in the shop is not offered a list of your customers' orders, and if the site keeps no records of that sort at all, there is no attach button to press.
+You only see records from parts of the site you are allowed into. Somebody who reads the inbox but has no business in the shop is not offered a list of your customers' orders, and if the site keeps no records of that sort at all, there is no button to press.
 
 ### Automated email
 
