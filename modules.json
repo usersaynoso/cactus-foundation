@@ -118,7 +118,7 @@
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.40"
+      "version": "v0.1.41"
     },
     {
       "name": "contact-form-reply-catcher",
@@ -163,7 +163,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.50"
+      "version": "v0.1.51"
     }
   ]
 }
