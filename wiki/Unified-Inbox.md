@@ -102,18 +102,20 @@ Every address is one of two things, and you choose which when you add it.
 
 **Shared** is the business's: `sales@`, `accounts@`, `hello@`. Your team reads it between them, conversations get handed round, and the guest list under **Who can read it** says who is on it - empty meaning everybody who can see the hub at all. This is what every address was before the two kinds existed, and every address you already have is one.
 
-**Individual** is one colleague's own post at work: `marcus@`, `chris@`. It belongs to the person you name, and **nobody else opens it - not their colleagues, and not whoever looks after the site.** There is no guest list on one, because naming somebody as its owner is the guest list.
+**Individual** is one colleague's own post at work: `marcus@`, `chris@`. It belongs to the person you name, and **nobody else opens it - not their colleagues, and not whoever looks after the site - unless somebody is deliberately named on it** under **Who else can read it**. Leave that empty, which is how every one of them starts, and it is theirs alone.
 
 That last part is worth being plain about, because it is the only place on the whole site where being an administrator does not get you in:
 
 - Whoever looks after the site can rename an individual inbox, change which mailbox it is collected from, hand it to somebody else or delete it altogether. That is the configuration, and it stays with the administrator, where it belongs.
-- They cannot read a word of what is in it. Not by opening it, not through **All**, and not through search - a snippet from somebody's individual inbox never appears in anybody else's results.
-- A promise of privacy that the site owner can quietly read anyway is not a promise, it is a label. So this one is real.
+- They cannot read a word of what is in it unless they put themselves on its list, which is a deliberate act that shows on the form for anyone to see afterwards. Not by opening it, not through **All**, and not through search - a snippet from somebody's individual inbox never appears in the results of anybody who is not on it.
+- A promise of privacy that the site owner can quietly read anyway is not a promise, it is a label. So this one is real: the only way in is a name on a list, and there is no way to be on that list by accident.
+
+**Sharing one, for when somebody is away.** Tick a colleague under **Who else can read it** and that address joins their inbox under **Team inboxes** - see [Covering somebody's post](#covering-somebodys-post). It is meant for the ordinary reasons: covering the post while its owner is on leave, or an assistant who works somebody's diary. Tick **Can reply as this address** beside their name as well and they can answer from it; leave it off and they can read and nothing more. The owner is always on their own list and always able to answer - it is their post - so they do not appear among the tick boxes.
 
 A few consequences worth knowing:
 
 - **Nobody has one until you say so.** Every address on an existing site is shared, and updating does not change a single one of them. Turning one into somebody's own is a deliberate act, because it takes an address away from people who can read it today.
-- **A conversation in an individual inbox has nobody to hand it to.** The **With** menu offers only its owner, since anybody else you named could not open it.
+- **A conversation in an individual inbox can only be handed to somebody who can open it** - its owner, and anybody named under **Who else can read it**.
 - **It becomes the address that person opens on**, and its signature goes on their replies, exactly as ticking **Their own inbox** on a shared address does. Naming somebody who already had an address of their own moves them here.
 - **If their staff account is deleted, the post is not.** The address stops belonging to anybody and falls back to whoever looks after the site, the same answer this module gives for mail it could not place. Nothing is lost, and nobody is locked out of it for good.
 - **A suspended account cannot be given one**, since that would leave an address only a suspended person may read, which is an address nobody may read.
@@ -156,7 +158,9 @@ If one address needs to go out through a different account altogether, **How rep
 
 ### Writing a new one
 
-Not everything starts with somebody writing to you. **Write a message** sits at the right-hand end of the row with the search box, just past it, and opens a blank message in a box over the top of the list: who it is going to, a Cc if you want one, a subject, what you want to say, and anything from your media library attached to it - or dragged straight onto the box.
+Not everything starts with somebody writing to you. **Write a message** sits at the right-hand end of the row with the search box, just past it, and opens a blank message in a box over the top of the list: who it is going to, a Cc or a Bcc if you want one, a subject, what you want to say, and anything from your media library attached to it - or dragged straight onto the box.
+
+**Cc and Bcc are links at the end of the To line**, and each opens a line of its own when you press it. A Bcc goes to somebody without anybody else on the message being told - that is the whole of what it is for, and it is why it is a separate line rather than more names in the Cc box. An empty line has a **Remove** beside it to put it away again; a line with somebody on it has not, because a button that quietly dropped a recipient would be worse than one more click.
 
 **The To and Cc lines suggest people for you.** Click into either one before typing a word and the addresses that inbox has been dealing with are already listed, most recent first, with the name and company where the site knows them. Type and the list narrows. Arrow keys move through it, Return or Tab takes the highlighted one, Escape puts the list away without closing the message. Pick somebody and only the part you were typing is replaced, so a line that already has two people on it keeps them.
 
@@ -178,9 +182,33 @@ It is the same internal note the inbox has always had, with one thing added: som
 
 **Call** rings somebody. Your phone rings first, from whichever of your numbers you picked, tells you who is about to be rung, and puts you through when you press a key - so you are never listening to a phone ringing in an empty room. The number you dial from is the one they see, and the one they ring back, which is why it is a menu rather than a fixed value. The call turns up afterwards in the phone conversation with that number, filed by the part of the site that placed it.
 
+**Call me at** is filled in from your own account, so you are not typing your mobile in from memory every time. Put your number on it once - **Your account** > **Profile** > **Your phone number** - and it is there whenever you place a call. It is still a box rather than a fixed setting, because the day you are sitting at a customer's desk you want the call to reach you there instead, and changing it here changes it for that call only.
+
+**Numbers are typed the way you would say them.** 020 8138 0512 is a whole number, and so is 07700 900123, and so is 2081380512 - all three reach the same place. Anything without a country code is taken as your site's, which is **+44** unless somebody has changed it in **Settings** > **General** > **Dialling code**. Type a number from anywhere else in full, with its + and country code, and it is left exactly as it is.
+
 **SMS** sends a text. A number, a message, Send. It goes out through whatever the site sends its texts with, and lands in the same phone conversation the calls do. The line under the box counts what it will cost you: 160 characters is one text, and a single curly quote or emoji - the sort of thing a word processor puts in without asking - drops the whole message to 70 characters a text for the rest of its length.
 
 **The menu only offers what your site can actually do.** No texts without something to send them with, no calls without something to place them with, and no arrow at all when it can do neither - in which case the button is exactly what it always was. Both of those come from the Twilio module today; the inbox knows nothing about it beyond "there is something here that makes calls".
+
+### Who a reply goes to
+
+**The To line on a reply is a box you can type in.** Cactus still works out who a plain reply goes to and fills it in for you - the sender, or whoever their Reply-To names - and that is what you will send nine times out of ten. But it is now the answer in a box rather than a sentence, so the one address that wants taking off, or the colleague who wants adding, is a click rather than a change of plan.
+
+Switching between **Reply** and **Reply to all** refills the line, which is exactly what those two buttons mean. Once you have edited it yourself, your answer stands and the buttons stop rewriting it.
+
+**Cc, Bcc and Subject are links at the end of that line.** None of them takes up a line until you ask for it, because most replies want none of the three. Press **Subject** and the line opens on what the subject would have been - **Re: whatever it was** - so you can change it rather than start it. Leave it alone and nothing changes.
+
+**The arrow beside them opens the reply in a window of its own**, over the whole screen, for the reply that turns out to be a letter. It is the same box either way - nothing you have typed is lost going out or coming back - and the arrow in the corner, or the Escape key, puts it back under the conversation.
+
+### Making it look like something
+
+Both writing boxes have a small strip along the top: **bold**, *italic*, a colour, a link, a bullet list and a numbered list. Select some words and press one, or press it and carry on typing. **Ctrl+B** and **Ctrl+I** work as they always have.
+
+That is the whole list, and it is short deliberately. Typefaces, sizes and alignment are the things that make an email look assembled rather than written, and half of them are rendered differently by every inbox they land in.
+
+**The link button opens a line rather than a browser box**, so it can tell you when what you typed is not an address. Type `example.com/prices` and it works out the rest. Select some words first and they become the link; select nothing and the address itself is what appears.
+
+**Pasting brings the words, not the wallpaper.** Paste from a web page or another email and you get the text: the fonts, the layout and the tracking pixels that came with it are left behind, which is what you wanted and is a good deal safer besides.
 
 ### Drafts
 
@@ -204,11 +232,13 @@ What is saved is what you typed, line breaks and all, along with who it is going
 
 ### Sending it later
 
-Some replies are written at half past eleven at night and would land better at nine in the morning. Under the writing box, next to **Save as a draft**, is **Send it later**: pick the day and the time, press **Schedule it**, and the message waits until then and goes out on its own. You do not have to be there, or even have the site open.
+Some replies are written at half past eleven at night and would land better at nine in the morning. **The alarm clock under the writing box** opens the same short menu the clock at the top of a conversation opens - **In three hours**, **Tomorrow morning**, **Next week**, or **Day & Time** for a month to pick from - each with the day and time it actually lands on written beside it.
 
-**A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can move it to another time, or press **Cancel the timer** and have an ordinary draft back.
+Picking one does not send or save anything yet. It puts the time on the line above the buttons, and two more buttons appear: **Send later**, which sets it going, and **Send later & snooze**, which sets it going and puts the conversation to sleep as well. **Not later after all** takes the time back off. Once it is set the message waits until then and goes out on its own; you do not have to be there, or even have the site open.
 
-**While it is waiting, Send and Save as a draft are not there.** The message has been decided about: one of those would post it this minute and the other looks like the way to keep it, which it is not. Cancel the timer and both come straight back.
+**A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can move it to another time from the same alarm clock, or press **Cancel the timer** on that menu and have an ordinary draft back.
+
+**While it is waiting, the send buttons and Save as a draft are not there.** The message has been decided about: one of those would post it this minute and the other looks like the way to keep it, which it is not. Cancel the timer and both come straight back.
 
 **It goes at that time or shortly after, never before it.** The site checks its own list on a schedule, so a message set for 09:30 leaves at 09:30 or a little after depending on how your site is set up. Anyone pressing the refresh button in the inbox sends whatever is due at that moment too, which in practice means a message due while somebody is at their desk goes almost at once.
 
@@ -220,7 +250,7 @@ A message set to go out on a shared address is visible to whoever shares it, and
 
 ### Chasing it up
 
-Next to the day and the time is **Bring it back if nobody replies**, and it offers exactly what the alarm clock at the top of a conversation offers: **In three hours**, **Tomorrow morning**, **Next week**, or a day and a time of your own. Set one and, once the message has actually gone, the conversation goes quiet until then - and comes straight back to you if nobody has answered.
+Once you have picked a time for it to go, the line above the buttons says so - **Set to go out tomorrow at 09:00** - and beside it is **No chase**. Press that and it offers exactly what the alarm clock at the top of a conversation offers: **In three hours**, **Tomorrow morning**, **Next week**. Set one and, once the message has actually gone, the conversation goes quiet until then - and comes straight back to you if nobody has answered.
 
 **The answers are counted from when the message goes out**, not from when you are sitting there setting them. "Tomorrow morning" on something leaving on Friday night means Saturday morning, which is what anybody would expect it to mean.
 
@@ -229,6 +259,12 @@ Next to the day and the time is **Bring it back if nobody replies**, and it offe
 **It disappears the moment they reply.** A reply already wakes a snoozed conversation, and that is all this is: the conversation is put to sleep for as long as you said, and their answer wakes it. So you only ever see the chase if there was nothing to chase.
 
 **It rides with the time.** Cancel the timer and the follow-up goes with it, because a message that is not going anywhere has nothing to be chased about. Set another time and pick the follow-up again alongside it.
+
+### Send it and put it to bed
+
+Some replies end the matter for a fortnight: the answer is sent, and there is nothing more to do until the supplier gets back to you. **Send & snooze** sits next to **Send now** and does both in one press - it opens the same short menu the alarm clock at the top of the conversation opens, sends the message, and puts the conversation to sleep until whenever you said.
+
+It is on the new-message box as well, where it puts the conversation you have just started to sleep. Their reply wakes it either way, as a reply always does, so you only see it again at the time you picked if nobody has answered by then.
 
 ### When they write first
 
@@ -272,9 +308,11 @@ Both of these amount to keeping a note of what somebody did with an email you se
 
 You can attach anything from your media library. There is a ceiling of about nine megabytes for everything on one message, which is what the email services themselves allow, and **an attachment that will not fit is refused before you send** rather than quietly dropped on the way out.
 
+**Attach a file** is the paperclip at the left-hand end of the strip along the bottom, beside the alarm clock, with the ways to send it at the other end.
+
 You can also **drag a file straight onto the message** - onto the reply box under a conversation, or anywhere on the box where you are writing a new one. Drag several at once and they all go on. The box says "Drop to attach" while the file is over it, the files appear as tags underneath as they arrive, and a cross takes one back off. Nothing is sent until you press Send, as ever.
 
-Files dropped this way have to be **under four megabytes each**, which is the hosting platform's limit on what one upload may carry rather than ours. Something bigger has to go into your media library first, which has a route for large files this one does not, and then on with **Attach a file**.
+Files dropped this way have to be **under four megabytes each**, which is the hosting platform's limit on what one upload may carry rather than ours. Something bigger has to go into your media library first, which has a route for large files this one does not, and then on with the paperclip.
 
 A few things are refused, and each says why: a folder (drop the files inside it instead), and anything that is a program or a script rather than a document, because the email services will not deliver one of those anyway and finding that out at Send is finding it out too late. If you need to send one, put it in a zip.
 
@@ -324,12 +362,13 @@ The first collection does not fetch everything at once. New post is picked up st
 
 The inbox is laid out the way a mail program is: one box the height of the window, split into columns, each scrolling on its own. Nothing on it scrolls the page.
 
-**Down the left is the rail** - everywhere you can go, in a list rather than a row of tabs. Your own name and picture sit at the top of it, with two buttons beside them: a magnifier that searches everything, and the pen that starts a new message. Under that, four groups:
+**Down the left is the rail** - everywhere you can go, in a list rather than a row of tabs. Your own name and picture sit at the top of it, with two buttons beside them: a magnifier that searches everything, and the pen that starts a new message. Under that, five groups:
 
 | Group | What is in it |
 | --- | --- |
-| **Yours** | Your own address if you have been given one, then **All**, then **Assigned to me**, **Drafts** and **Sent**. The handful of places one person opens all day. |
-| **Team inboxes** | The shared addresses, each with a coloured dot and the number of unread conversations beside it. |
+| **Yours** | Your own address if you have been given one, then **All**, then **Assigned to me**, **Mentioned**, **Drafts** and **Sent**. The handful of places one person opens all day. |
+| **Shared inboxes** | The addresses the business owns, each with a coloured dot and the number of unread conversations beside it. |
+| **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Only there if somebody has shared one with you. |
 | **Channels** | The chat, form and phone conversations, where another part of the site owns them. |
 | **Everything else** | **Contacts** (the address book), **Campaigns** if you are allowed them, and, for whoever looks after the site, **Not filed**. |
 
@@ -339,7 +378,35 @@ The refresh button is at the foot of the rail, under a line (see [How often it c
 
 **Assigned to me** is new, and it is a place rather than a filter: it gathers everything handed to you across every address you can read. The old **Mine** button above the list has gone, because it did the same job less well.
 
+**Mentioned** sits beside it and answers the other half of the same question. Being handed a conversation and being asked about one are two different things: the first puts the whole thing on your desk, the second asks you about a bit of it. Everything a colleague has tagged you in gathers here, with its own **To do**, **Later** and **Done** across the top - see [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something).
+
 On a narrower window there is no room for a column of it, so the rail lies down into a single strip along the top and everything stays in the same order.
+
+### Covering somebody's post
+
+An individual address is one colleague's own and nobody else's, until somebody is deliberately named on it - which is the whole point of it, and no use at all when that person is on a fortnight's leave and their suppliers are still writing in.
+
+So an individual address can be **shared with named colleagues**. Whoever looks after the site does it on **Settings → Unified Inbox → Inboxes**, editing the address and ticking a name under **Who else can read it**. Nothing else opens one: not being an administrator, not being on some other address's list.
+
+Once somebody is on it, that address appears in their rail under **Team inboxes**, named after the colleague rather than after the address - **Sam Blake**, not `sam@`, because that is how anybody covering Sam's post thinks of it. Beside the name is a **&rsaquo;**. Press it and three folders of theirs open out underneath:
+
+| Folder | What is in it |
+| --- | --- |
+| **Sent** | Everything that has left that address. |
+| **Drafts** | Messages started on it and never sent - so a half-written answer is not lost while its author is away. |
+| **Mentioned** | Conversations on that address that its owner has been tagged in. |
+
+The name itself is their inbox, exactly as a shared address's name is. Press the **&rsaquo;** again and the folders fold away.
+
+**What being on the list does and does not give you:**
+
+- You read that address, and you answer from it only if **Can reply as this address** was ticked beside your name. Reading and answering are two separate grants everywhere in this hub, and this is no exception.
+- Their conversations join your **All** view and your search results, because you can genuinely open them. Nobody else's do.
+- **Their Mentioned folder is read-only to you.** You can see what colleagues have asked them about, which is exactly the point when you are covering for them; you cannot mark it done or put it off until Thursday. Somebody else's list of jobs is theirs to work through.
+- It is one address, not a person. Being let into `sam@` does not let you into anything else of Sam's, and it does not follow them if the address is later handed to somebody else.
+- **Untick the name and it is gone again**, immediately and completely - out of the rail, out of **All**, out of search.
+
+Your own address never appears here. It is under **Yours**, at the top, where it always was.
 
 **Next to it is the list**, with its own head: the search box first, then where a conversation stands - **Open**, **Snoozed**, **Done**, **All** - each with the number behind it and the total at the end of the row, then the narrower cuts behind the **filter button** beside the search box: unread only, ticked on and off, and the ones assigned to a particular colleague, on a list of their own with a box to find a name in. Whatever you switch on gets a small tag under the tabs with a cross on it, so a filter you set last Tuesday is never quietly still on. All of that stays put while the conversations scroll underneath it, which it did not before.
 
@@ -379,13 +446,37 @@ Turn it off again and everybody is back to initials immediately, including on a 
 
 **Answering is on the message, not on the conversation.** Every message has a **reply arrow** at the right-hand end of its own header, beside the name and the time, and the writing box opens under it when you press it. Beside the arrow are three dots holding the rarer three: **Reply all**, **Forward** and **Mark as unread**. This is worth the change on a long thread: a single Reply button above nine messages could never say which of them you meant, and now the one you are looking at is the one you are answering. Press the arrow again to put the box away. If you left a draft on that conversation it opens with the box already up, so nothing half-written is out of sight. (Starting one from scratch is **Write a message**, above.)
 
-**Internal notes have their own line at the bottom.** One box, always there as you scroll, in the same amber the notes themselves wear, saying on its face that nobody outside sees it. Type and press Enter. A note is not sent to anybody and deliberately does not bump the conversation or mark it unread: us talking among ourselves should not look like the customer writing again. For a longer one - something with a file on it, or mentioning a colleague so they are told about it - press a reply arrow and switch the box to **Internal note**, which still does everything it always did. Mentioning a colleague raises a notification for them, but only if they could open that conversation anyway.
+**Internal notes have their own line at the bottom.** One box, always there as you scroll, in the same amber the notes themselves wear, saying on its face that nobody outside sees it. Type and press Enter. A note is not sent to anybody and deliberately does not bump the conversation or mark it unread: us talking among ourselves should not look like the customer writing again. The **@** button on that line tags a colleague in the note - see [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something). For a longer note - something with a file on it - press a reply arrow and switch the box to **Internal note**, which still does everything it always did.
 
-**Assign** is at the top left, and opens the list of colleagues to hand it to. Once it is with somebody it says so - *With Marcus* - and pressing it again hands it on or takes it back to nobody.
+**Assign** sits on the subject's own line, between the alarm clock and the button saying where the conversation stands, and opens the list of colleagues to hand it to. Once it is with somebody it says so - *With Marcus* - and pressing it again hands it on or takes it back to nobody.
 
-**Where it stands is a button, not an instruction.** At the top right there is one button reading **Open**, **Snoozed** or **Done** - whichever it actually is - with an arrow beside it. Press it and the other answers are there to pick. It used to say "Mark as done", which told you what pressing it would do but never told you where the conversation stood without reading the tag on the line above. Every change is recorded, so "who marked this done" has an answer.
+### Asking a colleague to look at something
 
-**The alarm clock beside it** is the reminder. Three ready-made answers - in three hours, tomorrow morning, next week - each with the day and the time it actually lands on written beside it, so a promise is not something you have to make and then undo to check. The last entry, **Day & Time**, opens a month you can walk back and forth through with a date and a time under it: the morning somebody said they would ring back, the day after a delivery is due. It will not accept a time that has already been, and the times it means are your site's, not your laptop's - so nine o'clock booked from a hotel in Spain still means nine o'clock at the office.
+Press the **@** on the note line, pick one or more colleagues, write the sentence, and leave the note. That is the whole of it.
+
+What it does is worth knowing, because it is more than a nudge.
+
+**It goes on their list, not yours.** The conversation appears under **Mentioned** for everybody you named. Each of them can set it aside until a day and time that suits, mark it done, and open it again later - and that is **theirs alone**. It does not touch where the conversation itself stands, which is deliberate: the conversation has one status shared by everybody who can read it, so if marking your own bit done also marked the conversation done, three people asked about one order would close it from under each other.
+
+Something set aside comes back on its own when the time you picked arrives, exactly as a snoozed conversation does.
+
+**It also lets them in.** Whoever you tag can read that conversation whether or not the address it sits in has ever been shared with them - so you can ask the warehouse about an invoice in `accounts@` without putting the warehouse on `accounts@`. Three things keep that narrow, and they are worth saying plainly:
+
+- it is **that one conversation**, never the address it arrived at. Nothing else in that inbox opens;
+- only somebody who could **already** open the conversation can hand it over, so nobody can let themselves into something by tagging a friend;
+- it lets them **read and work through it**, not answer it. Sending as `accounts@` still needs permission to send from `accounts@`.
+
+They do need permission to use the inbox screen at all. Tagging somebody who has never been given it tells them nothing, because there is nowhere for it to land.
+
+**Asked twice is one job.** If somebody tags you again about a conversation you already have - a fortnight later, chasing - the one you already have comes back to the top with the new note against it, rather than a second copy appearing beside the first. Something you had already marked done reopens, which is rather the point of asking again.
+
+Every ask is written into the conversation's own log, naming who was asked, so "who did we hand this to" has an answer a fortnight later.
+
+**Where it stands is a button, not an instruction.** On the subject's own line, hard against the cross that shuts the conversation, there is one button reading **Open**, **Snoozed** or **Done** - whichever it actually is - with an arrow beside it. Press it and the other answers are there to pick. It used to say "Mark as done", which told you what pressing it would do but never told you where the conversation stood without reading the tag on the line above. Every change is recorded, so "who marked this done" has an answer.
+
+**Marking one done offers to take it back.** For five seconds afterwards a small **Undo** sits at the bottom of the screen, and pressing it puts the conversation back exactly where it stood - open if it was open, and still asleep until Monday if that is what it was. Leave it alone and it fades away by itself. It is there because done takes the conversation off the list you were looking at, and finding one again meant knowing that **All** exists and which of the forty rows in it was yours.
+
+**The alarm clock** - first of the three, at the far left of them - is the reminder. Three ready-made answers - in three hours, tomorrow morning, next week - each with the day and the time it actually lands on written beside it, so a promise is not something you have to make and then undo to check. The last entry, **Day & Time**, opens a month you can walk back and forth through with a date and a time under it: the morning somebody said they would ring back, the day after a delivery is due. It will not accept a time that has already been, and the times it means are your site's, not your laptop's - so nine o'clock booked from a hotel in Spain still means nine o'clock at the office.
 
 **A reply cancels it, and the same goes for done.** Setting a conversation to come back on Thursday is a bet that nothing will happen before Thursday. Marking one done is the same bet with no end date: nothing more will happen at all. Either way, somebody writing on it settles the bet, so the conversation goes straight back under **Open**, unread, where you would have seen it anyway.
 
@@ -424,9 +515,29 @@ Whatever you searched for shows as a row of chips above the list, one per cut, e
 
 Search covers subjects, senders and the text of messages, and it only ever searches the inboxes you are allowed to read.
 
+### Merging conversations into one
+
+Sometimes one conversation arrives as two. Somebody writes from their work address on Monday and their phone on Thursday. A supplier changes the subject line and their mail program forgets what it was replying to. A colleague forwards something in and now there are three of it. And an email between two of your own addresses is deliberately kept as two conversations - one for each of you, each with its own unread mark and its own snooze - which is right until the day you decide that this particular back and forth is one story with four people in it.
+
+**Pick the conversations and press Merge.** Hold cmd (ctrl on Windows) and click to pick more than one, or click the first and shift-click the last, then press **Merge** in the bar that appears at the top of the list. It is there for anybody who can manage inboxes.
+
+Everything folds into **the conversation that started it** - the oldest of the ones you picked. It keeps that one's subject and its place in the list, and every message from the others joins it in date order, so the merged conversation reads as the one story it always was.
+
+A few things worth knowing before you press it:
+
+- **Nothing is thrown away, and you can put it back.** Open the merged conversation and there is a line under the controls saying what it was made of, with **Separate it again** beside each one. Anything that arrived *after* the merge stays where it is, because it arrived on the merged conversation rather than on the old one.
+- **A merged conversation is still unanswered if any half of it was.** Merging something you had marked done into something you had not does not quietly mark the lot done, and an unread half stays unread. Better to be shown something twice than to lose it off the list.
+- **Merging across two of your addresses lets both of them read it.** This is the point of merging marcus@ and hi@ together, and it is also the thing to think about first: everybody who can read either address can then read the whole of the merged conversation, including the half that arrived on the other one. The confirmation says so, and names the addresses, before anything happens. See [Who can see what](#who-can-see-what).
+- **It shows in both addresses' tabs afterwards**, with the second address named in the line under the subject, and it stays merged when somebody replies. Without that last part the two sides would come apart again on the very next email.
+- **You cannot merge into something that has itself been merged away.** Undo that one first, or merge into the conversation it became.
+
+Merging *conversations* and merging *people* are two different jobs. If the same human has turned up twice in the address book, that is a merge on their card - see [People, and how conversations collapse](#people-and-how-conversations-collapse).
+
 ### Which way round a conversation reads
 
 By default a conversation reads the way it happened: the first message at the top, the latest at the bottom, and the writing box - once you have asked for it - under the lot.
+
+Reading that way round, opening a conversation takes you straight to the part worth reading rather than to the beginning of it: the message that came in while it was still unread, or - if you had already read the lot - whatever was said last, an internal note included. A thread with forty messages in it therefore opens on the one that has just arrived, not four thousand pixels above it. Scroll and it leaves you where you put it.
 
 Tick **Show the newest message at the top of a conversation** on **Settings → Unified Inbox → Collecting** and it turns round - the latest message is the first thing you see when you open one, and the writing box moves up with it so the reply sits beside the thing you are replying to. Handy on a long back and forth where the only part anybody needs is the end of it.
 
@@ -464,6 +575,8 @@ A message someone else wrote is shown inside its own sealed frame, on a light ba
 
 **Pictures hosted elsewhere are not loaded until you ask.** Press **Show pictures** and they are fetched by the site rather than by your browser, so a marketing email learns nothing about you, your location or when you opened it. Links open in a new tab.
 
+Once you have pressed it for a message, that message keeps its pictures. Go off to something else, come back to it a fortnight later, and it opens with them already there rather than asking again - the sender found out the first time, and there is nothing left to protect by making you click twice. It is remembered by the browser you pressed it in, so a different computer starts the message the careful way round. The five hundred most recent are held; older ones quietly drop off the end.
+
 **Attachments are fetched when somebody opens one**, not while collecting, and they are kept where only this module can reach them. They never appear in your media library or in the picker when you are building a page, which is deliberate: an invoice pulled out of `accounts@` has no business turning up in front of everybody who can edit a page.
 
 There is a setting called **Fetch everything as it arrives**. It currently behaves the same as fetching one when somebody opens it. Pulling every attachment on a busy account through the hourly check needs a budget and a storage conversation of its own, so it is honestly a setting that does not do anything yet rather than one that does it badly.
@@ -500,6 +613,7 @@ Some things worth saying plainly:
 - **Your own people never become customers.** Your inboxes, your staff's own addresses and anything at your own domains are excluded. If it guesses your domains wrongly, set them yourself under **People → Your own domains**.
 - **There is a directory now**, under the **Contacts** tab, and it was left out of earlier versions on purpose - an address book is where a conversation hub turns into a CRM by accident. What it holds is names, numbers and where to post something. There is no stage, no value, no next action and no forecast, and there is not going to be. See [Contacts](#contacts) below.
 - People can be **merged** when the same human turns up twice, and a merge can be put back afterwards. A person can be **split** apart again if two people got folded into one.
+- **Conversations** can be merged too, which is a different job from merging people: one is "these two threads are the same story", the other is "these two cards are the same human". See [Merging conversations into one](#merging-conversations-into-one).
 
 ---
 
@@ -661,15 +775,19 @@ If you want it to keep proper time with nobody watching, the When section shows 
 
 ---
 
-## Who you are talking to, and what it is about
+## What the conversation is about
 
-Two lines sit directly under the buttons at the top of a conversation, and they stay there while you scroll: **the person's name and the company they are at**, and under that **what the conversation is about** - "Purchase order PO-0023, Order DW0234". The name is a link to everything else that person has ever sent you.
+One line sits directly under the buttons at the top of a conversation and stays there while you scroll: **what the conversation is about** - "Purchase order PO-0023, Order DW0234".
 
-If the second line has more on it than will fit, it stops with an ellipsis rather than pushing the message down the screen. The arrow at the end of it opens the full list, where each record is a link through to the real thing and where anything is attached or taken off.
+Who you are talking to is not repeated there. Every message in the conversation carries the sender's name and their company at the head of it, and the row in the list beside it says the same again.
+
+If that line has more on it than will fit, it stops with an ellipsis rather than pushing the message down the screen. The arrow at the end of it opens the full list, where each record is a link through to the real thing and where anything is attached or taken off.
 
 ## What sits beside a conversation
 
-When a person's address matches something else on your site, it appears in the panel on the right: their orders, their purchase orders, their unpaid bills, their quotes, their member account. Each one is a link through to the real record. Nothing is ever written to those records from here, only read, and a module you have not installed simply shows nothing.
+When a person's address matches something else on your site, it appears in the panel on the right: their orders, their quotes, their unpaid invoices, their member account. Each one is a link through to the real record.
+
+**Purchasing is deliberately not one of them.** A supplier's conversation is almost always about one purchase order, that order is already attached to it and named at the top of the header, and a second longer list of everything else open with them was the same answer again at greater length - underneath the messages, on any window not very wide indeed. Purchase orders are still spotted in messages, still attached, and still offered when you attach one by hand. Nothing is ever written to those records from here, only read, and a module you have not installed simply shows nothing.
 
 When somebody quotes an order number, a purchase order number or a quote reference in a message, it is attached to the conversation automatically. **Nothing is attached until the number is checked and found to exist**, anything attached that way says it was found automatically, and it comes off in one click. If your reference numbers are an unusual shape, the three boxes under **People → Spotting references** take your own pattern.
 
@@ -699,7 +817,7 @@ Four permissions, handed out through [Managing users](Managing-users) as usual:
 |---|---|
 | `unifiedinbox.view` | Read conversations, and read the address book |
 | `unifiedinbox.reply` | Reply, forward, note, assign, snooze, mark done, add and correct a contact, make a category |
-| `unifiedinbox.manage` | Settings, mail accounts, inboxes, merging people, export and erase, importing an address book, removing an organisation, renaming or removing a category |
+| `unifiedinbox.manage` | Settings, mail accounts, inboxes, merging conversations, merging people, export and erase, importing an address book, removing an organisation, renaming or removing a category |
 | `unifiedinbox.campaigns` | Write, start, pause and stop campaigns, and manage the do-not-email list |
 
 **Campaigns is its own permission on purpose.** Renaming a folder and emailing five thousand customers are not the same act, and a site that has given somebody the first has not thereby given them the second. Sending a campaign from an address still needs permission to reply from that address as well - a campaign is a great many replies, and it is not a way round the guest list.
@@ -709,6 +827,10 @@ Giving somebody an inbox of their own is a convenience, not a permission: it dec
 On top of that, **each shared inbox has its own list of who may read it**. Leave the list empty and anybody with the view permission can read that inbox. Name anybody at all and it is those people and nobody else. A shop assistant does not need `accounts@`.
 
 That applies to searching and to the **All** view as well, not only to opening a conversation: a snippet from an inbox you cannot open never appears in your results at all. Administrators are the exception, on the grounds that whoever edits the guest lists could add themselves to one in two clicks anyway.
+
+**Being tagged in a note is the one way past a guest list.** A colleague who could already open a conversation can ask somebody else to look at it, and that person can then read that conversation and work through their own copy of the ask - but nothing else in the inbox opens to them, and answering still needs permission to send from the address. See [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something).
+
+**Merging two conversations across two addresses opens both halves to both address's readers.** That is what merging them means - a conversation half the people on it cannot open is not one conversation - but it does widen who can read something, and it is worth a thought before you do it rather than afterwards. The confirmation names every address involved. It can be put back: separating the conversations out again takes the reading back with them. See [Merging conversations into one](#merging-conversations-into-one).
 
 **An individual inbox is the one exception to that exception.** It has no guest list to add yourself to, and being an administrator does not open it - see "Shared and individual inboxes" above. Administrators keep the configuration and lose the reading, which is the honest half of the bargain.
 

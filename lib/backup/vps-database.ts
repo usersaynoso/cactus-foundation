@@ -32,6 +32,75 @@ export const TEST_PREFIX = 'cactus_rt_'
 
 const SAFE_NAME = /^cactus_rt_[a-z0-9_]{1,48}$/
 
+/**
+ * How old a throwaway object must be before a sweep may drop it.
+ *
+ * The sweep is for the wreckage of runs that died before their own cleanup. It
+ * used to take everything carrying the prefix, which included the databases of
+ * whatever OTHER run happened to be in progress - so two agents running live
+ * suites at once destroyed each other's databases mid-`beforeAll`. That arrives
+ * as `57P01 ... terminating connection due to administrator command` partway
+ * through applying the schema, reads exactly like a broken migration, and is
+ * nothing of the kind. Both runs then retry and kill each other again.
+ *
+ * Two hours is far longer than the slowest suite here (minutes) and far shorter
+ * than leaving a shared server littered.
+ */
+const STALE_AFTER_MS = 2 * 60 * 60 * 1000
+
+/**
+ * Written onto every database and role as it is created, and read back by the
+ * sweep.
+ *
+ * Postgres records no creation time for either, and the names carry no usable
+ * one - some suites stamp them with `Date.now()`, some with the process id, some
+ * with a truncated clock - so the age has to be put somewhere the server keeps
+ * it. A shared comment survives in `pg_shdescription`, needs no table of our own,
+ * and disappears with the object.
+ */
+function creationNote(): string {
+  return `cactus throwaway test object, created ${Date.now()}`
+}
+
+/** Pulls the epoch back out of that comment, inside SQL. */
+const CREATED_AT_SQL = "'created ([0-9]+)'"
+
+/**
+ * A tag unique to this process, put on the end of every name it creates.
+ *
+ * Without it two runs share a namespace, because the suites name their objects
+ * off `Date.now()` and two processes started together land on the same
+ * millisecond far more often than that sounds - it happened on the first attempt
+ * here, giving `test:inbox-merge` and `test:inbox-guards` the same role name.
+ * The second run's `DROP ROLE IF EXISTS` then reset the first run's password
+ * underneath it, and the first run failed with "password authentication failed",
+ * which says nothing whatsoever about the real cause.
+ *
+ * Six hex characters, so the odds of two runs sharing one are about one in
+ * sixteen million, and they would have to collide on the clock as well.
+ */
+const RUN_TAG = randomBytes(3).toString('hex')
+
+/**
+ * The name this process actually uses for a caller's name.
+ *
+ * Idempotent, which is what lets it be applied at every entry point without
+ * bookkeeping: a name that already carries this run's tag - `role.name` handed
+ * back from `createTestRole`, a template named from a previous call - comes back
+ * unchanged, and a caller's own string gets the tag put on it. Both therefore
+ * resolve to the same object, so a suite can drop by whichever it kept.
+ *
+ * The caller's name is checked before the tag goes on and the result after it,
+ * so neither the prefix guard nor the length limit is loosened by this.
+ */
+function runScoped(name: string): string {
+  assertSafeName(name)
+  if (name.endsWith(`_${RUN_TAG}`)) return name
+  const scoped = `${name}_${RUN_TAG}`
+  assertSafeName(scoped)
+  return scoped
+}
+
 export function vpsConfigFromEnv(): VpsConfig {
   const host = process.env.OVH_SERVER
   const user = process.env.OVH_USER
@@ -202,15 +271,20 @@ async function disconnectEveryone(cfg: VpsConfig, name: string): Promise<void> {
 export type TestRole = { name: string; password: string }
 
 export async function createTestRole(cfg: VpsConfig, name: string): Promise<TestRole> {
-  assertSafeName(name)
+  const scoped = runScoped(name)
   // Hex, so it needs no escaping in a connection URI.
   const password = randomBytes(24).toString('hex')
+  // The DROP is still here because a name can genuinely be left over from THIS
+  // machine's own earlier run - ledger-guards names its role off the process id,
+  // and process ids come round again. With the run tag on the name it can only
+  // ever be one of ours.
   await sql(
     cfg,
-    `DROP ROLE IF EXISTS "${name}";
-     CREATE ROLE "${name}" LOGIN PASSWORD ${quoteLiteral(password)} CREATEDB;`,
+    `DROP ROLE IF EXISTS "${scoped}";
+     CREATE ROLE "${scoped}" LOGIN PASSWORD ${quoteLiteral(password)} CREATEDB;
+     COMMENT ON ROLE "${scoped}" IS ${quoteLiteral(creationNote())};`,
   )
-  return { name, password }
+  return { name: scoped, password }
 }
 
 export async function createTestDatabase(
@@ -219,16 +293,19 @@ export async function createTestDatabase(
   owner: TestRole,
   template?: string,
 ): Promise<TestDatabase> {
-  assertSafeName(name)
-  assertSafeName(owner.name)
+  const scoped = runScoped(name)
+  const ownerName = runScoped(owner.name)
   if (template) {
-    assertSafeName(template)
     // Postgres refuses to copy a template that anyone is connected to.
-    await disconnectEveryone(cfg, template)
+    await disconnectEveryone(cfg, runScoped(template))
   }
-  const from = template ? ` TEMPLATE "${template}"` : ''
-  await sql(cfg, `CREATE DATABASE "${name}" OWNER "${owner.name}"${from};`)
-  return { name, connectionUri: connectionUri(cfg, name, owner) }
+  const from = template ? ` TEMPLATE "${runScoped(template)}"` : ''
+  await sql(
+    cfg,
+    `CREATE DATABASE "${scoped}" OWNER "${ownerName}"${from};
+     COMMENT ON DATABASE "${scoped}" IS ${quoteLiteral(creationNote())};`,
+  )
+  return { name: scoped, connectionUri: connectionUri(cfg, scoped, owner) }
 }
 
 /**
@@ -256,31 +333,79 @@ function clientEndpoint(cfg: VpsConfig): { host: string; port: string } {
 }
 
 export function connectionUri(cfg: VpsConfig, database: string, role: TestRole): string {
-  assertSafeName(database)
   const { host, port } = clientEndpoint(cfg)
-  return `postgresql://${role.name}:${role.password}@${host}:${port}/${database}?sslmode=require`
+  return `postgresql://${runScoped(role.name)}:${role.password}@${host}:${port}/${runScoped(database)}?sslmode=require`
 }
 
 export async function dropTestDatabase(cfg: VpsConfig, name: string): Promise<void> {
+  await dropDatabaseExactly(cfg, runScoped(name))
+}
+
+export async function dropTestRole(cfg: VpsConfig, name: string): Promise<void> {
+  await dropRoleExactly(cfg, runScoped(name))
+}
+
+/** The drops with no run tag put on the name, for the sweep - which is the one
+ *  caller holding names that belong to OTHER runs and must pass them through
+ *  untouched. Everything else goes through the two above. */
+async function dropDatabaseExactly(cfg: VpsConfig, name: string): Promise<void> {
   assertSafeName(name)
   await disconnectEveryone(cfg, name)
   await sql(cfg, `DROP DATABASE IF EXISTS "${name}" WITH (FORCE);`)
 }
 
-export async function dropTestRole(cfg: VpsConfig, name: string): Promise<void> {
+async function dropRoleExactly(cfg: VpsConfig, name: string): Promise<void> {
   assertSafeName(name)
   await sql(cfg, `DROP ROLE IF EXISTS "${name}";`)
 }
 
-/** Sweeps up anything a crashed run left behind, so throwaway databases can't
- *  accumulate on a server that also hosts real ones. Prefix-scoped, always. */
+/**
+ * Sweeps up what a crashed run left behind, WITHOUT touching a run in progress.
+ *
+ * Scope is two rules, both of which have to hold:
+ *
+ *   1. the name carries `cactus_rt_` - the prefix guard has never moved, because
+ *      an object without it is somebody else's, and on this server that includes
+ *      `neondb`, which is the live Deskwell site;
+ *   2. the object is at least STALE_AFTER_MS old, by the creation time stamped
+ *      into its comment when it was made.
+ *
+ * Rule 2 is what makes concurrent runs safe: a suite that started ten minutes
+ * ago is not old enough to be swept, so another agent starting a suite now sweeps
+ * only genuine wreckage and leaves the live run alone. The run tag on every name
+ * is the other half of that - it stops two runs claiming the same object in the
+ * first place.
+ *
+ * An object carrying no stamp predates this and cannot be aged, so it is dropped
+ * only while nothing at all is connected to it - which a run in progress always
+ * is, through its Prisma client.
+ *
+ * Failures to drop are swallowed on purpose: a sweep is housekeeping, and one
+ * stubborn leftover must not fail the suite that was only tidying up first.
+ */
 export async function dropStaleTestObjects(cfg: VpsConfig): Promise<void> {
   const like = quoteLiteral(`${TEST_PREFIX}%`)
+  const cutoff = Date.now() - STALE_AFTER_MS
   const out = await sql(
     cfg,
-    `SELECT 'db:' || datname FROM pg_database WHERE datname LIKE ${like}
-     UNION ALL
-     SELECT 'role:' || rolname FROM pg_roles WHERE rolname LIKE ${like};`,
+    `WITH throwaway AS (
+       SELECT 'db' AS kind,
+              d.datname AS name,
+              substring(shobj_description(d.oid, 'pg_database') from ${CREATED_AT_SQL}) AS created,
+              EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.datname = d.datname) AS busy
+         FROM pg_database d
+        WHERE d.datname LIKE ${like}
+       UNION ALL
+       SELECT 'role',
+              r.rolname,
+              substring(shobj_description(r.oid, 'pg_authid') from ${CREATED_AT_SQL}),
+              EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.usename = r.rolname)
+         FROM pg_roles r
+        WHERE r.rolname LIKE ${like}
+     )
+     SELECT kind || ':' || name
+       FROM throwaway
+      WHERE CASE WHEN created IS NULL THEN NOT busy ELSE created::bigint < ${cutoff} END;`,
   )
   const names = out
     .split('\n')
@@ -288,10 +413,10 @@ export async function dropStaleTestObjects(cfg: VpsConfig): Promise<void> {
     .filter(Boolean)
 
   for (const entry of names.filter((n) => n.startsWith('db:'))) {
-    await dropTestDatabase(cfg, entry.slice(3)).catch(() => {})
+    await dropDatabaseExactly(cfg, entry.slice(3)).catch(() => {})
   }
   // Roles last: Postgres refuses to drop one that still owns a database.
   for (const entry of names.filter((n) => n.startsWith('role:'))) {
-    await dropTestRole(cfg, entry.slice(5)).catch(() => {})
+    await dropRoleExactly(cfg, entry.slice(5)).catch(() => {})
   }
 }

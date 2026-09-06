@@ -19,6 +19,12 @@ export type EmailPayload = {
   text: string
   replyTo?: string
   cc?: string[]
+  /** Recipients nobody else on the message can see. Kept apart from `cc`
+   *  rather than folded into it at the call site, because the whole of what a
+   *  Bcc is is the fact that it does not appear in the headers the other
+   *  recipients read - a "blind" copy written into Cc is a privacy breach
+   *  wearing the right label. */
+  bcc?: string[]
   attachments?: EmailAttachment[]
   /** Extra RFC 5322 headers, passed through to whichever transport is in use.
    *  The one that matters is `Message-ID`: a sender that sets its own can match
@@ -224,6 +230,7 @@ async function sendViaBrevo(payload: EmailPayload, apiKey?: string): Promise<str
       sender: { name: sender.fromName, email: sender.fromAddress },
       to: [{ email: payload.to }],
       ...(payload.cc?.length ? { cc: payload.cc.map((e) => ({ email: e })) } : {}),
+      ...(payload.bcc?.length ? { bcc: payload.bcc.map((e) => ({ email: e })) } : {}),
       ...(replyTo ? { replyTo: { email: replyTo } } : {}),
       ...(payload.headers && Object.keys(payload.headers).length ? { headers: payload.headers } : {}),
       subject: payload.subject,
@@ -271,6 +278,7 @@ async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Pr
     from: `"${sender.fromName}" <${sender.fromAddress}>`,
     to: payload.to,
     ...(payload.cc?.length ? { cc: payload.cc.join(', ') } : {}),
+    ...(payload.bcc?.length ? { bcc: payload.bcc.join(', ') } : {}),
     ...(replyTo ? { replyTo } : {}),
     ...(payload.headers && Object.keys(payload.headers).length ? { headers: payload.headers } : {}),
     subject: payload.subject,

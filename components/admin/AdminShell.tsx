@@ -9,7 +9,7 @@ import SessionExpiryWatcher from './SessionExpiryWatcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AdminPathProvider } from './AdminPathContext'
 import { isPuckEditorRoute } from '@/lib/puck/editor-routes'
-import { isSidebarRailRoute } from '@/lib/nav/sidebar-rail-routes'
+import { isInboxRoute, isSidebarRailRoute } from '@/lib/nav/sidebar-rail-routes'
 import type { ResolvedNavSection } from '@/lib/nav/admin-menu'
 
 type Props = {
@@ -200,7 +200,7 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
       </aside>
 
       <div className="admin-main">
-        <div className={`admin-content${isPuckEditorRoute(pathname) ? ' admin-content--puck' : ''}`}>
+        <div className={`admin-content${isPuckEditorRoute(pathname) ? ' admin-content--puck' : ''}${isInboxRoute(pathname) ? ' admin-content--tight' : ''}`}>
           {children}
         </div>
       </div>

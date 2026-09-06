@@ -40,6 +40,7 @@ import { DEFAULT_CONSENT_BANNER_CONFIG } from '@/lib/consent/types'
 type SiteConfig = {
   siteName: string; tagline: string; description: string;
   timezone: string; locale: string; dateFormat: string; timeFormat: string;
+  diallingCode: string;
   adminPath: string; status: string; hideFromCrawlers: boolean;
   speedInsightsEnabled: boolean;
   pageCacheEnabled: boolean; pageCacheTtl: number; behindCloudflare: boolean;
@@ -1737,7 +1738,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               Turn it off if you would rather not send the measurements, or if your Vercel plan charges for them.
             </span>
           </div>
-          <div id="general-locale" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+          <div id="general-locale" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 11rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Timezone</label>
               <select value={config.timezone ?? 'UTC'} onChange={(e) => set('timezone', e.target.value)}>
@@ -1749,6 +1750,14 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </div>
             <div className="field" style={{ margin: 0 }}><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
             <div className="field" style={{ margin: 0 }}><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Dialling code</label>
+              <input value={config.diallingCode ?? '+44'} onChange={(e) => set('diallingCode', e.target.value)} />
+              <span className="field-hint">
+                Which country a phone number typed without one belongs to, so 020 8138 0512 reaches the
+                right place.
+              </span>
+            </div>
           </div>
           <div id="general-admin-path" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>

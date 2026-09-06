@@ -147,6 +147,17 @@ const Patch = z.object({
   locale: z.string().optional(),
   dateFormat: z.string().optional(),
   timeFormat: z.string().optional(),
+  // Which country a phone number typed without one belongs to. "+44", "44" and
+  // "0044" are all the same answer and all get typed, so they are all taken and
+  // stored as "+44" - lib/phone.ts should never be handed three shapes of one
+  // thing.
+  diallingCode: z
+    .string()
+    .trim()
+    .max(8)
+    .transform((v) => `+${v.replace(/[\s+]/g, '').replace(/^00/, '')}`)
+    .refine((v) => /^\+[1-9]\d{0,3}$/.test(v), 'A dialling code looks like +44.')
+    .optional(),
   adminPath: z.string().min(1).max(64).regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/).optional(),
   status: z.enum(['live', 'comingSoon', 'maintenance']).optional(),
   hideFromCrawlers: z.boolean().optional(),

@@ -59,7 +59,7 @@ export default async function InboxPage({ searchParams }: Props) {
     <div>
       {strip.length > 1 && (
         <TabStrip
-          style={{ marginBottom: '1.5rem' }}
+          style={{ marginBottom: '0.75rem' }}
           items={strip.map((t) => ({
             key: t.id,
             label: t.label,

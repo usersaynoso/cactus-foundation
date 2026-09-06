@@ -38,6 +38,7 @@ CREATE TABLE "User" (
     "totpVerifiedAt" TIMESTAMP(3),
     "totpLastStep" BIGINT,
     "smsOtpPhoneEncrypted" TEXT,
+    "phone" TEXT,
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
@@ -131,6 +132,7 @@ CREATE TABLE "SiteConfig" (
     "locale" TEXT NOT NULL DEFAULT 'en-GB',
     "dateFormat" TEXT NOT NULL DEFAULT 'DD/MM/YYYY',
     "timeFormat" TEXT NOT NULL DEFAULT 'HH:mm',
+    "diallingCode" TEXT NOT NULL DEFAULT '+44',
     "adminPath" TEXT NOT NULL,
     "setupCompleted" BOOLEAN NOT NULL DEFAULT false,
     "status" "SiteStatus" NOT NULL DEFAULT 'comingSoon',

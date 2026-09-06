@@ -12,6 +12,15 @@ import { isPuckEditorRoute } from '@/lib/puck/editor-routes'
  */
 const RAIL_ROUTE_RE = /\/inbox$/
 
+/** The Inbox host screen, whichever module is filling its tabs. Exported in its
+ *  own right because the screen wants two things from the shell, not one: the
+ *  sidebar down to a rail, and less air around the content than an ordinary
+ *  admin page - a mail reader is a full-height three-column thing, and a
+ *  two-centimetre margin round it is two centimetres off the message. */
+export function isInboxRoute(pathname: string): boolean {
+  return RAIL_ROUTE_RE.test(pathname)
+}
+
 export function isSidebarRailRoute(pathname: string): boolean {
-  return isPuckEditorRoute(pathname) || RAIL_ROUTE_RE.test(pathname)
+  return isPuckEditorRoute(pathname) || isInboxRoute(pathname)
 }

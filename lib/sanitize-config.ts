@@ -46,8 +46,15 @@ export const RICHTEXT_ALLOWED_ATTR = [...ALLOWED_ATTR, 'style', 'colspan', 'rows
 // no on* handler, no style element. DOMPurify drops an attribute that isn't on
 // this list, so `onerror=` and friends go regardless of how they were written,
 // and its own URI check still refuses a javascript: href.
+// `b` and `i` are here and not in the richtext list above for a reason: nothing
+// on a page emits them any more, but everything that writes an email does. A
+// contentEditable box's own bold and italic are `<b>` and `<i>` in every browser
+// there is, and so is half the world's pasted signature - so stripping them
+// silently unbolds what somebody plainly bolded, which is the worst way for a
+// sanitiser to be wrong.
 export const EMAIL_HTML_ALLOWED_TAGS = [
   ...RICHTEXT_ALLOWED_TAGS,
+  'b', 'i',
   'tfoot', 'caption', 'colgroup', 'col', 'center', 'font', 'small', 'big', 'sub', 'sup',
 ]
 

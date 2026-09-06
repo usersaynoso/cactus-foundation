@@ -103,6 +103,35 @@ describe('the sender', () => {
   })
 })
 
+describe('the blind copies', () => {
+  // A Bcc is only a Bcc because it does not appear in the headers the other
+  // recipients read. Folding one into Cc would deliver the same mail and tell
+  // everybody who was quietly copied in, which is the one thing it must not do.
+
+  it('travels as its own list on Brevo, apart from Cc', async () => {
+    await sendEmail({ ...BASE, cc: ['seen@customer.com'], bcc: ['owner@deskwell.co.uk'] })
+    expect(brevoBody().cc).toEqual([{ email: 'seen@customer.com' }])
+    expect(brevoBody().bcc).toEqual([{ email: 'owner@deskwell.co.uk' }])
+  })
+
+  it('travels as its own list over SMTP as well', async () => {
+    vi.stubEnv('BREVO_API_KEY', '')
+    vi.stubEnv('SMTP_HOST', 'smtp.example.com')
+
+    await sendEmail({ ...BASE, cc: ['seen@customer.com'], bcc: ['owner@deskwell.co.uk', 'files@deskwell.co.uk'] })
+
+    expect(sendMail.mock.calls[0]![0].cc).toBe('seen@customer.com')
+    expect(sendMail.mock.calls[0]![0].bcc).toBe('owner@deskwell.co.uk, files@deskwell.co.uk')
+  })
+
+  it('is left off altogether when there is nobody to copy quietly', async () => {
+    // Every existing caller is this case, and none of them should start
+    // carrying an empty header.
+    await sendEmail(BASE)
+    expect(brevoBody()).not.toHaveProperty('bcc')
+  })
+})
+
 describe('Reply-To', () => {
   // A Reply-To exists to say "answer somewhere other than the sender". Pointing
   // it at the sender says nothing and is not free: the spam scorers an owner

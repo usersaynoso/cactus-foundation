@@ -2231,6 +2231,13 @@ a:hover {
   padding: var(--space-8) var(--space-6);
 }
 
+/* The Inbox. A mail reader fills whatever it is given - three columns, each
+   scrolling inside itself - so the generous margin an ordinary admin page wants
+   is margin taken off the message. Half of it, top and sides. */
+.admin-content--tight {
+  padding: var(--space-4) var(--space-3);
+}
+
 .admin-content--puck {
   padding: 0;
   overflow: hidden;
@@ -3122,6 +3129,10 @@ tbody tr:hover {
 
   .admin-content {
     padding: var(--space-4);
+  }
+
+  .admin-content--tight {
+    padding: var(--space-2);
   }
 }
 

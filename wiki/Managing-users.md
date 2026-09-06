@@ -81,6 +81,12 @@ Deleting an account is permanent. Their pages and other content are not automati
 
 To change your display name, email address, or password, click **My account** at the bottom of the admin sidebar (or go to `/<your-admin-path>/account`).
 
+### Your phone number
+
+**Profile** has a box for your own phone number. It is optional, nobody outside your own account sees it, and it does one job: when you place a call from the site, the **Call me at** box arrives already filled in with it, so your mobile is not something you type in from memory several times a day. You can still change it on the call itself, which changes it for that call only.
+
+Type it however you would say it - 07700 900123 is fine, so is 020 8138 0512, so is the whole thing with +44 on the front. It is saved in the international form a phone company needs, so do not be alarmed when it comes back looking slightly more formal than you left it. A number without a country code is taken as your site's, which is set in **Settings** > **General** > **Dialling code**.
+
 ### Passkeys
 
 Passkeys are the primary way to sign in to Cactus - they use your device's fingerprint reader, Face ID, or a security key instead of a password. They're faster and more secure than a password alone.

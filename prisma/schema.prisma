@@ -41,6 +41,13 @@ model User {
   // AES-256-GCM encrypted phone number (lib/crypto/secrets.ts). When set and an
   // SMS provider module is active, password-login OTPs go by text instead of email.
   smsOtpPhoneEncrypted    String?
+  // This staff member's own phone, E.164, set by them on their account page.
+  // It is a contact detail rather than a credential - it is shown back to them
+  // in full and filled into the "call me at" box when they place a call from
+  // the site - so it is stored as typed, NOT encrypted like the column above.
+  // Encrypting it would also lose it on every restore into a fresh install,
+  // which is a poor trade for a number somebody wants to see and edit.
+  phone                   String?
 
   passkeys        Passkey[]
   sessions        Session[]
@@ -177,6 +184,11 @@ model SiteConfig {
   locale                 String     @default("en-GB")
   dateFormat             String     @default("DD/MM/YYYY")
   timeFormat             String     @default("HH:mm")
+  // Which country a phone number typed without one belongs to, E.164 style.
+  // "020 8138 0512" is a complete number to the person typing it and half a
+  // number to a telephony provider; this is the half that is missing. Settings
+  // > General changes it; see lib/phone.ts for what it is used for.
+  diallingCode           String     @default("+44")
   adminPath              String     @unique
   setupCompleted         Boolean    @default(false)
   status                 SiteStatus @default(comingSoon)

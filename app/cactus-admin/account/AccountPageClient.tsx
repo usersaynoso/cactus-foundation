@@ -28,6 +28,9 @@ type ProfileInfo = {
   email: string
   username: string
   displayName: string | null
+  phone: string | null
+  /** Which country a number typed without one is read as (Settings > General). */
+  diallingCode: string
 }
 
 const cardFull: React.CSSProperties = { height: '100%' }
@@ -57,6 +60,7 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
   // Profile
   const [profile, setProfile] = useState<ProfileInfo | null>(null)
   const [displayName, setDisplayName] = useState('')
+  const [phone, setPhone] = useState('')
   const [profileLoading, setProfileLoading] = useState(false)
 
   // Email
@@ -99,6 +103,7 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
       .then((d: ProfileInfo) => {
         setProfile(d)
         setDisplayName(d.displayName ?? '')
+        setPhone(d.phone ?? '')
       })
       .catch(() => {})
   }, [])
@@ -137,9 +142,10 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
   useEffect(() => {
     dirtyRef.current =
       (profile ? displayName !== (profile.displayName ?? '') : false) ||
+      (profile ? phone.trim() !== (profile.phone ?? '') : false) ||
       newEmail.trim() !== '' || emailPassword !== '' ||
       currentPassword !== '' || newPassword !== ''
-  }, [dirtyRef, profile, displayName, newEmail, emailPassword, currentPassword, newPassword])
+  }, [dirtyRef, profile, displayName, phone, newEmail, emailPassword, currentPassword, newPassword])
 
   function leaveNow(href: string) {
     dirtyRef.current = false
@@ -155,11 +161,15 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
       const res = await fetch('/api/account/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: displayName || undefined }),
+        body: JSON.stringify({ displayName: displayName || undefined, phone: phone || undefined }),
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error((d as { error?: string }).error ?? 'Failed to save profile')
-      setProfile((p) => p ? { ...p, displayName: displayName || null } : p)
+      // The server tidies the number into international form, so take its
+      // answer back rather than leaving the box showing what was typed.
+      const saved = (d as { phone?: string | null }).phone ?? null
+      setPhone(saved ?? '')
+      setProfile((p) => p ? { ...p, displayName: displayName || null, phone: saved } : p)
       setMessage('Profile updated.')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save profile')
@@ -386,7 +396,8 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
     }
   }
 
-  const profileDirty = profile && displayName !== (profile.displayName ?? '')
+  const profileDirty = profile
+    && (displayName !== (profile.displayName ?? '') || phone.trim() !== (profile.phone ?? ''))
 
   return (
     <div className="account-grid-container">
@@ -424,6 +435,25 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
                     placeholder="Optional — shown instead of your username"
                   />
                 </div>
+              </div>
+              {/* Your own number, so the site can ring you first when you place
+                  a call from it - and so you are not typing your mobile in from
+                  memory every time. Saved in international form whichever way it
+                  is typed; nobody outside this account sees it. */}
+              <div className="field">
+                <label htmlFor="account-phone">Your phone number</label>
+                <input
+                  id="account-phone"
+                  type="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Optional — e.g. 07700 900123"
+                />
+                <span className="field-hint">
+                  Filled in for you when you place a call from the site, and changeable there.
+                  A number without a country code is taken as {profile.diallingCode}.
+                </span>
               </div>
               <button
                 className="btn btn-primary"
