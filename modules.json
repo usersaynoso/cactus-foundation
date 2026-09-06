@@ -128,7 +128,7 @@
     {
       "name": "twilio",
       "repoUrl": "https://github.com/cactus-foundation-modules/twilio",
-      "version": "v0.1.36"
+      "version": "v0.1.35"
     },
     {
       "name": "ultimate-seo",
@@ -163,7 +163,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.48"
+      "version": "v0.1.49"
     }
   ]
 }
