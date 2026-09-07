@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { withNecessaryFirst } from '@/lib/consent/types'
 import type { ConsentBannerConfig, ConsentDecision } from '@/lib/consent/types'
 import { buildDefaultDecision, resolveCurrentDecision, saveConsentDecision } from '@/lib/consent/client'
 
@@ -35,6 +36,9 @@ export default function ConsentPreferencesPanel({ config }: Props) {
   }, [config])
 
   const adjustable = config.categories.filter((cat) => !cat.required)
+
+  // Same order as the banner: whatever the owner arranged, with "necessary" first.
+  const orderedCategories = useMemo(() => withNecessaryFirst(config.categories), [config.categories])
 
   async function apply(next: ConsentDecision, action: 'accept_all' | 'reject_all' | 'custom') {
     setDecision(next)
@@ -111,7 +115,7 @@ export default function ConsentPreferencesPanel({ config }: Props) {
         </p>
 
         <div style={{ marginBottom: '1.25rem' }}>
-          {config.categories.map((cat) => (
+          {orderedCategories.map((cat) => (
             <label
               key={cat.key}
               style={{

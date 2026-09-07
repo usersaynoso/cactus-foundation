@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { withNecessaryFirst } from '@/lib/consent/types'
 import type { ConsentBannerConfig, ConsentDecision, ConsentCookiePayload } from '@/lib/consent/types'
 import { notifyConsentChange, onConsentChange } from '@/lib/consent/gate'
 import {
@@ -75,6 +76,11 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
   }, [config])
 
   const noticeOnly = !config.categories.some((cat) => !cat.required)
+
+  // Owners choose the order the switches appear in, with "necessary" pinned to
+  // the top. Config saved before that was settable can carry any order, so it is
+  // normalised here too rather than assumed.
+  const orderedCategories = useMemo(() => withNecessaryFirst(config.categories), [config.categories])
 
   async function applyDecision(finalDecision: ConsentDecision, action: ConsentAction) {
     setVisible(false)
@@ -204,7 +210,7 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
 
       {managing && !noticeOnly && (
         <div style={{ marginBottom: 'var(--space-4)' }}>
-          {config.categories.map((cat) => (
+          {orderedCategories.map((cat) => (
             <label
               key={cat.key}
               style={{

@@ -195,6 +195,18 @@ It is the same internal note the inbox has always had, with one thing added: som
 
 **The menu only offers what your site can actually do.** No texts without something to send them with, no calls without something to place them with, and no arrow at all when it can do neither - in which case the button is exactly what it always was. Both of those come from the Twilio module today; the inbox knows nothing about it beyond "there is something here that makes calls".
 
+### Which message you are answering
+
+**The arrow you press is the message you answer.** Press Reply on the fourth message of a long conversation and that fourth message is what gets quoted underneath, folded away under **Show the earlier messages** the way every mail program does it. It used to quote whatever was at the bottom of the conversation instead, so an answer to something said on Tuesday went out with Friday's message tucked under it - confusing for the customer and no help to you either.
+
+The same goes for **Reply to all** and **Forward** on that message's own dots, and for the copy filed alongside: the reply is threaded against the message you answered, so it lands in the right place in the customer's own mail program rather than at the end.
+
+**Nothing changes for the ordinary case.** A reply started from the conversation itself, rather than from a particular message, still answers the newest one - which is what you want nine times out of ten and what the box has always done.
+
+**You can see what will be quoted before you send it.** Under the writing box there is a **Show the earlier messages** line - the same words the conversation above uses. Open it and the message you are answering is there in full, earlier messages and all, exactly as it will appear beneath your reply. On a forward it says **Show what you are forwarding** and shows the From, Date, Subject and To lines that go with it. It is there to be read rather than edited: what gets quoted is decided by the arrow you pressed, so changing your mind means pressing a different one. Nothing is fetched until you open it.
+
+**A saved reply remembers which message it was answering**, so one finished tomorrow morning, or set to go out on Monday, still quotes the message you wrote it against. If that message has been deleted in the meantime, the reply still goes: it simply quotes the newest one instead, because losing what you wrote would be the worse of the two.
+
 ### Who a reply goes to
 
 **The To line on a reply is a box you can type in.** Cactus still works out who a plain reply goes to and fills it in for you - the sender, or whoever their Reply-To names - and that is what you will send nine times out of ten. But it is now the answer in a box rather than a sentence, so the one address that wants taking off, or the colleague who wants adding, is a click rather than a change of plan.
@@ -253,7 +265,9 @@ What is saved is what you typed, line breaks and all, along with who it is going
 
 Some replies are written at half past eleven at night and would land better at nine in the morning. The **alarm clock**, sitting with the send buttons at the right-hand end of the strip along the bottom, opens the same short menu the clock at the top of a conversation opens - **In three hours**, **Tomorrow morning**, **Next week**, or **Day & Time** for a month to pick from - each with the day and time it actually lands on written beside it. It sits there rather than over with the paperclip because choosing a time changes what the buttons beside it do, and a control a foot away from the thing it changes is a control nobody connects to it.
 
-Picking a time does not send or save anything yet. It puts the time on the line above the buttons - **Set to go out tomorrow at 09:00** - and the two send buttons change to say what they would now do. **Send now** becomes **Send later**, and **Send & snooze** becomes **Send later & snooze**. Both stay where they are: choosing to send later used to take **Send & snooze** away and leave a chase in its place, so deciding to send in the morning quietly cost you the ability to put the conversation to bed. There is no third button either - there used to be a **Save it for then** beside them, which meant three ways to send on one strip with two of them a thumb apart. **Cancel send later** takes the time back off and everything reads as it did.
+Picking a time sends nothing on the spot. It puts the time on the line above the buttons - **Set to go out tomorrow at 09:00** - and the two send buttons change to say what they would now do. **Send now** becomes **Send later**, and **Send & snooze** becomes **Send later & snooze**. Both stay where they are: choosing to send later used to take **Send & snooze** away and leave a chase in its place, so deciding to send in the morning quietly cost you the ability to put the conversation to bed. There is no third button either - there used to be a **Save it for then** beside them, which meant three ways to send on one strip with two of them a thumb apart. **Cancel send later** takes the time back off and everything reads as it did.
+
+**The time you picked is not lost if you wander off.** Click onto another conversation, or close the box, and the time goes down with the writing - the message is set going and waits under **Scheduled**, rather than becoming an ordinary draft with nothing to show for the time you chose. Closing says so in as many words - **Set it going? ... it goes out tomorrow at 09:00 on its own** - so nothing is queued behind your back. It used to be thrown away without a word, which is how a message somebody believed was going out at nine turned out to be sitting in Drafts.
 
 Once it is set the message waits until then and goes out on its own; you do not have to be there, or even have the site open.
 
@@ -316,13 +330,17 @@ If the copy fails, your email has still gone. The message will say the copy did 
 
 **Sent** means the email service took the message. It does not mean it arrived, and it certainly does not mean anybody read it. Two switches on **Settings → Unified Inbox → Sent replies**, both **off until you turn them on**, fill that gap.
 
-**Tell me when a reply is delivered, opened or bounces.** Brevo tells the site what became of each message and the answer appears under the reply itself: *Delivered 09:14*, *Opened 11:32*, or *It did not arrive* with the reason behind it. Useful when you are deciding whether it is worth chasing somebody, and rather more useful than guessing.
+**Tell me when a reply is delivered, opened, clicked or bounces.** Brevo tells the site what became of each message and the answer appears under the reply itself: *Delivered 09:14*, *Opened 11:32*, *Followed a link 11:33*, or *It did not arrive* with the reason behind it. Useful when you are deciding whether it is worth chasing somebody, and rather more useful than guessing.
 
 Two honest limits. An open is worked out from a tiny invisible picture in the message, and some email programs - Apple Mail and Gmail among them - fetch that picture themselves before anybody has looked at a word. When that is what happened you are told **their email app fetched it** rather than told a fib about somebody reading it. And it only works for inboxes sending through Brevo: an inbox on its own outgoing mail server carries on saying nothing but *Sent*.
 
+**Followed a link** sits beside the open rather than instead of it, and answers a different question: not whether they looked at your email, but whether they looked at the quote in it. A message can easily have one without the other, since plenty of email programs never load the picture an open depends on. It needs one thing switched on at the other end - **link tracking in your Brevo account**, which is what puts Brevo in the middle of the links in your messages so it can see one being used. If nothing ever says *Followed a link*, that setting is the first place to look, and switching it on costs nothing here: the site is already listening, and it reminds the email service what to tell it once a night in case anything has drifted.
+
+One caveat, and it is the same sort of caveat as the invisible picture. Plenty of offices run every arriving email past a security system that opens every link in it to check where they go, and it does the lot within seconds of the message landing. Several clicks all at once, a minute after delivery, is more likely to be that than a person - which is why the site counts each address separately and shows you the time, rather than handing you a single number with no working.
+
 **Ask the person's own email program for a read receipt.** The old-fashioned kind, from the days of office memos. Most programs ignore the request and the rest ask the reader whether to answer it, so expect a reply perhaps one time in ten - mostly from people in offices. When one does come back it lands on the message it belongs to rather than turning up in the conversation as a mysterious email titled *Read: your quote*, which is what happens everywhere else.
 
-Both of these amount to keeping a note of what somebody did with an email you sent them. That is yours to decide, but **if your privacy notice does not mention it, add a line before you switch them on**. Nothing is recorded for any message sent before you did.
+All of this amounts to keeping a note of what somebody did with an email you sent them. That is yours to decide, but **if your privacy notice does not mention it, add a line before you switch them on**. Nothing is recorded for any message sent before you did.
 
 ### Attachments
 
@@ -331,6 +349,8 @@ You can attach anything from your media library. There is a ceiling of about nin
 **Attach a file** is the paperclip at the left-hand end of the strip along the bottom, beside the price tag and the formatting buttons, with the ways to send it at the other end. On a narrow window the strip wraps and the send buttons stay hard right.
 
 Pressing it opens a box of its own, and the box is mostly one big rectangle: **drag your files onto it, or press Choose files and pick them off your computer**. Take as many as you like, in as many goes as you like - the box stays open until you press Done, so attaching six things is one errand rather than six trips. Above the rectangle there is a search over your media library, for the other case: type a name and the results stand where the rectangle was, empty the box and the rectangle comes back. Anything already on the message is shown greyed out there, so nothing gets attached twice.
+
+**What you have put on is listed underneath, a file to a line**, with its size beside it and a cross on the end. Attach the wrong one and you can take it straight back off without closing the box.
 
 You can also **drag a file straight onto the message** without opening anything - onto the reply box under a conversation, or anywhere on the box where you are writing a new one. Drag several at once and they all go on. The box says "Drop to attach" while the file is over it, and either way the files appear as tags on their own line just above the buttons as they arrive, with a cross to take one back off. Nothing is sent until you press Send, as ever.
 
@@ -382,22 +402,27 @@ Text messages and calls are still the exception, notes included: the catalogue i
 
 Your site sends plenty of email nobody types: an order confirmation, a purchase order to a supplier, a note that goods are on their way. All of it has always gone out as the one address on **Settings → Emails**, which is fine until somebody replies to it - and then a delivery question and a supplier's proforma are both sitting in the site's general post, waiting for whoever reads that to work out who they belong to.
 
-So two of the modules that send the most now carry a box of their own:
+Worse, none of it is anywhere you can read it afterwards. Email your site sends for you goes straight out through your sending service; it never passes through a mail folder, so it never appears in one. The order log says a despatch note went. It does not show you what the customer was told.
 
-- **Settings → Purchase Orders → Which inbox this comes from** - the address your purchase orders, chases, cancellations and returns notes leave as.
-- **Settings → Shop → Notifications → Which inbox this comes from** - the address your order confirmations, despatch notes and the rest of your customer post leave as.
+So two of the modules that send the most carry a box of their own, under **Where this email goes**, with a question apiece:
 
-Pick one of your inboxes and that mail goes out as that address, under the name it answers on, and replies come home to it. A supplier answering a purchase order lands in the inbox the people chasing that order are already reading. Each box saves the moment you choose - there is no separate Save to press.
+- **Settings → Purchase Orders → Where this email goes** - for your purchase orders, chases, cancellations and returns notes.
+- **Settings → Shop → Notifications → Where this email goes** - for your order confirmations, despatch notes and the rest of your customer post.
 
-**The message itself is filed too.** Sending a purchase order to a supplier starts a conversation in that inbox, holding exactly what went to them - the wording, who it went to, who was copied in, and the document that travelled with it. When the supplier answers, their reply lands underneath it, so whoever picks it up is reading both halves rather than an answer to a question nobody can see. It arrives already read, because you sent it: it does not mark the inbox unread or count as something waiting for you.
+**Send these from.** Pick one of your inboxes and that mail goes out as that address, under the name it answers on, and replies come home to it. A supplier answering a purchase order lands in the inbox the people chasing that order are already reading.
 
-Leave both as **the site's usual address** and nothing whatsoever changes. That is what they are set to, and a site that never opens them sends exactly what it sent before.
+**Keep a copy of these in.** Pick one of your inboxes and every one of those emails turns up there as a conversation of its own, holding exactly what went out - the wording, who it went to, who was copied in, and any document that travelled with it. When the customer or the supplier answers, their reply lands underneath it, so whoever picks it up is reading both halves rather than an answer to a question nobody can see. It arrives already read, because you sent it: it does not mark the inbox unread or count as something waiting for you.
 
-Three things worth knowing:
+**The two are separate on purpose.** Keeping copies is the one most sites want, and it changes nothing a customer sees - so you can switch it on without touching the address your confirmations arrive from. Equally you can change that address and keep no copies. Either box works perfectly well on its own, and each saves the moment you choose - there is no separate Save to press.
+
+Leave both as they come - **the site's usual address**, and **do not keep a copy** - and nothing whatsoever changes.
+
+Four things worth knowing:
 
 - The box only appears if you may manage this module's settings. Somebody who runs the shop but has no business repointing the site's mail does not see it.
-- **Only the modules you have pointed at an inbox are filed.** Everything else carries on exactly as it did, and nothing core sends on its own account - a password reset, a sign-in code - is ever filed as a conversation. Those are not conversations, and they have no business sitting in a shared inbox.
+- **Only the modules you have asked for copies of are filed.** Everything else carries on exactly as it did, and nothing core sends on its own account - a password reset, a sign-in code - is ever filed as a conversation. Those are not conversations, and they have no business sitting in a shared inbox.
 - **The document is kept only if your site has file storage set up.** Without it the message is still filed, in full, with no paperclip - rather than a paperclip that opens onto an error.
+- **Deleting an inbox no longer takes the setting with it.** A module pointed at an address you retire falls back to the site's usual one for sending, and keeps filing wherever you told it to file - rather than quietly forgetting both.
 - Delete an inbox and any module pointed at it quietly goes back to the site's usual address. Nothing stops sending.
 
 ---
@@ -529,7 +554,11 @@ Even so, it is somebody else being told something about your customer, which is 
 
 Turn it off again and everybody is back to initials immediately, including on a page somebody left open.
 
-**Working through several at once.** Every row has a tick box, and above the list there is one that ticks the lot. Tick a few and a bar appears offering the four things you would otherwise open each of them to do: **Mark as done**, **Mark as read**, **Mark as unread** and **Open again**. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
+**Working through several at once.** Rows are picked the way a mail program has picked them for thirty years: a plain click opens a conversation, cmd-click (ctrl on Windows) adds or removes one on its own, and shift-click picks everything between the last one and this one. Space and shift-space do the same for anybody on the keyboard. Pick a few and a bar appears above the list offering the things you would otherwise open each of them to do: **Mark as done**, **Mark as read**, **Mark as unread**, **Open again** and **Mark as spam**. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
+
+Only the buttons that would actually change something are drawn. Pick six conversations you have already read and there is no **Mark as read** to press; pick six that are all open and there is no **Open again**. One out of six is enough to bring a button back, since that is exactly when you want it.
+
+**Mark as spam** puts the lot in the spam folder - yours, or a colleague's where the address is their own rather than the team's - and then asks whether you would also like to turn those senders away in future, listing them so you can see who. That second question is the same one you get when you junk a single conversation, and the answer is just as optional: say no and everything still moved. Say yes and nothing further from them reaches an inbox on this site, shared or personal - it goes straight in the spam folder instead, so you can still see what they sent. Nothing already here is touched, and you can let anybody back in from the Spam folder or the inbox settings. The question only appears for somebody allowed to answer messages, since shutting the front door changes what everybody on the site receives.
 
 **Answering is on the message, not on the conversation.** Every message has a **reply arrow** at the right-hand end of its own header, beside the name and the time, and the writing box opens under it when you press it. Beside the arrow are three dots holding the rarer three: **Reply all**, **Forward** and **Mark as unread**. This is worth the change on a long thread: a single Reply button above nine messages could never say which of them you meant, and now the one you are looking at is the one you are answering. Press the arrow again to put the box away. If you left a draft on that conversation it opens with the box already up, so nothing half-written is out of sight. (Starting one from scratch is **Write a message**, above.)
 
@@ -729,7 +758,13 @@ A message someone else wrote is shown inside its own sealed frame, on a light ba
 
 **Pictures hosted elsewhere are not loaded until you ask.** Press **Show pictures** and they are fetched by the site rather than by your browser, so a marketing email learns nothing about you, your location or when you opened it. Links open in a new tab.
 
+**Pictures that came inside the message are simply shown.** A signature logo written in Outlook, a screenshot pasted into the middle of a sentence, the artwork on a quote: none of those are kept on a website anywhere, they arrive as part of the message itself. They now appear as the sender meant them to, with no button to press - nothing is fetched from anybody's server to show one, so there is nothing to be careful about. They used to come out as empty boxes, under a note cheerfully explaining that anything carried inside the message was already there. It was not.
+
+Post that arrived before this was fixed is included as far as it can be. Older messages were filed without the name the picture is referred to by, so those are matched on the filename instead - which is what Outlook and Apple Mail use anyway, so most of them come back. A few will keep their empty space, and nothing short of collecting the message again would fill it.
+
 **Your own post is never held back.** Anything you sent, an internal note, and anything arriving from one of your own addresses, a colleague, or your own domain opens with its pictures already there. The warning is about what a stranger learns when your browser fetches their tracking pixel, and there is no stranger in your own signature - being asked about it on every reply you ever sent only taught people to press the button without reading it.
+
+**Reading your own Sent post no longer counts as the customer reading it.** Brevo adds an invisible counter to every message it sends for you, and the copy that comes back into your Sent folder still has it in. Because your own post opens with its pictures already showing, glancing at what you sent on Tuesday used to fetch that counter - and *Opened 11:32* would appear under your own message, with the open count in Brevo's reports going up to match. The customer had not touched it. You had. That one picture is now left alone, wherever it turns up and whoever asks: it is a transparent dot nobody can see, so nothing on the screen changes and the figures are finally about the person you sent it to.
 
 Once you have pressed it for a message, that message keeps its pictures. Go off to something else, come back to it a fortnight later, and it opens with them already there rather than asking again - the sender found out the first time, and there is nothing left to protect by making you click twice. It is remembered by the browser you pressed it in, so a different computer starts the message the careful way round. The five hundred most recent are held; older ones quietly drop off the end.
 
@@ -875,6 +910,8 @@ Pressing a link in somebody's email does not follow it. It opens a small panel f
 That gap is the entire mechanism of every phishing email ever sent. "View your invoice" over an address in another country looks exactly like "View your invoice", and a mail program that follows the press without showing you where you are going is helping. From the panel you can **open it in a new tab**, **copy the address** to paste somewhere that checks it, or **close** and go no further. Nothing loads until you choose.
 
 Addresses in plain-text messages are links now too - they used to be text you could not press at all. Anything that is not an ordinary web or email address is shown and refused: the panel tells you what it is, and will not open it.
+
+The panel also says when an address is not the real one. With link tracking switched on, Brevo replaces every link in what you send with one that goes to Brevo first, writes down that it was followed, and then passes you on - so opening one out of your own Sent folder is recorded as the person you wrote to having clicked it. The panel now says so before you press anything. It still opens if you want it to; you simply know what it costs.
 
 Holding cmd (or ctrl) while you press still opens a link straight away in a new tab, the way it does everywhere else.
 

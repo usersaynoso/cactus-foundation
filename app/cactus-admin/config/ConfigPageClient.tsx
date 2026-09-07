@@ -35,7 +35,7 @@ import {
   envKeysForProvider,
 } from '@/lib/media/providers'
 import type { ConsentBannerConfig, ConsentCategory } from '@/lib/consent/types'
-import { DEFAULT_CONSENT_BANNER_CONFIG } from '@/lib/consent/types'
+import { DEFAULT_CONSENT_BANNER_CONFIG, NECESSARY_CATEGORY_KEY, withNecessaryFirst } from '@/lib/consent/types'
 
 type SiteConfig = {
   siteName: string; tagline: string; description: string;
@@ -2243,7 +2243,20 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
       {tab === 'gdpr' && canManageConfig && (() => {
         const consent = config.consentBannerConfig ?? null
-        const cats: ConsentCategory[] = consent?.categories ?? DEFAULT_CONSENT_BANNER_CONFIG.categories
+        // Normalised on the way in as well as on save, so a config written before
+        // the order was settable shows the same list the visitor will see.
+        const cats: ConsentCategory[] = withNecessaryFirst(consent?.categories ?? DEFAULT_CONSENT_BANNER_CONFIG.categories)
+
+        function moveCategory(index: number, dir: -1 | 1) {
+          const target = index + dir
+          // Index 0 is "necessary": nothing may move above it and it may not move
+          // itself, so one lower bound of 1 covers both directions.
+          if (target < 1 || target >= cats.length) return
+          if (cats[index]?.key === NECESSARY_CATEGORY_KEY) return
+          const next = [...cats]
+          ;[next[index], next[target]] = [next[target]!, next[index]!]
+          setConsent({ categories: next })
+        }
 
         function updateCategory(index: number, updates: Partial<ConsentCategory>) {
           const next = cats.map((c, i) => i === index ? { ...c, ...updates } : c)
@@ -2370,14 +2383,15 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                     Cookie categories
                   </label>
                   <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
-                    &ldquo;Necessary&rdquo; is pinned and cannot be removed. Adding or removing categories, or changing their defaults, will re-prompt existing visitors.
+                    &ldquo;Necessary&rdquo; is pinned to the top and cannot be removed or moved. The rest appear on the site in the order you arrange them here. Adding or removing categories, or changing their defaults, will re-prompt existing visitors; reordering them will not.
                   </p>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '0.67fr 0.67fr 2.67fr auto auto', border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 0.67fr 0.67fr 2.67fr auto auto', border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '0.75rem' }}>
                     {(() => {
                       const headerCellStyle = { padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-text-muted)', background: 'var(--color-bg-subtle)', borderBottom: '1px solid var(--color-border)' }
                       return (
                         <>
+                          <div style={headerCellStyle}><span className="sr-only">Order</span></div>
                           <div style={headerCellStyle}>Key</div>
                           <div style={headerCellStyle}>Label</div>
                           <div style={headerCellStyle}>Description</div>
@@ -2390,6 +2404,28 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                       const cellStyle = { padding: '0.75rem', background: 'var(--color-surface)' }
                       return (
                         <Fragment key={cat.key}>
+                          <div style={{ ...cellStyle, display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              aria-label={`Move ${cat.label} up`}
+                              title={i <= 1 ? '“Necessary” stays at the top' : `Move ${cat.label} up`}
+                              disabled={i <= 1}
+                              onClick={() => moveCategory(i, -1)}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              aria-label={`Move ${cat.label} down`}
+                              title={i === 0 ? '“Necessary” stays at the top' : `Move ${cat.label} down`}
+                              disabled={i === 0 || i === cats.length - 1}
+                              onClick={() => moveCategory(i, 1)}
+                            >
+                              ↓
+                            </button>
+                          </div>
                           <div className="field" style={{ margin: 0, ...cellStyle }}>
                             <input
                               type="text"

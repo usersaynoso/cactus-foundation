@@ -243,14 +243,16 @@ Running the wizard again always creates a new draft - it never overwrites the ex
 | Reject all label | Button label for rejecting non-essential categories | `Reject all` |
 | Manage label | Link/button label that opens the per-category toggle panel | `Manage preferences` |
 | Dismiss button label | Button label used when the banner is notice-only (no optional categories configured) | `Got it` |
-| Cookie categories | The list of cookie categories visitors can accept or reject. The **Necessary** category is always present, always on, and cannot be removed. | Necessary, Preferences, Analytics, Marketing |
+| Cookie categories | The list of cookie categories visitors can accept or reject, in the order visitors see them. The **Necessary** category is always present, always on, pinned to the top, and cannot be removed. | Necessary, Preferences, Analytics, Marketing |
 | Re-prompt after (days) | Visitors whose consent is older than this are shown the banner again | `365` |
 | Keep consent records for (days) | How long consent records are kept. Leave blank to keep them indefinitely (recommended - proof of consent should outlive the processing it authorises). | Indefinite |
 | Show a preferences panel on the privacy policy page | Puts the same category switches at the top of whichever page is set as your privacy policy, so a visitor can change their mind without waiting to be re-prompted. | On |
 
 **Category keys:** Each category has a machine-readable **Key** as well as a visitor-facing **Label**. Keys must start with a lowercase letter and contain only lowercase letters, numbers, hyphens and underscores - `live-chat`, not `Live chat`. The editor folds what you type into that shape as you type it, and the one-click suggestions offered by active modules arrive already in it (the module's own wording becomes the label, and where the module supplies one, its description is filled in for you as well - hover a suggestion to read it before you accept it). The key is what module code checks, so renaming the label is safe; changing the key is not.
 
-**Category changes:** Adding or removing a category, or changing whether a category is required or on by default, automatically triggers re-consent for returning visitors. Purely cosmetic changes (renaming a label, editing copy) do not.
+**Category order:** The arrows beside each row move a category up or down, and that order is exactly what visitors get - in the banner's **Manage preferences** panel and in the panel on the privacy policy page alike. **Necessary** stays at the top: its own arrows are greyed out, and nothing can be moved above it. Reordering is presentation only, so it never re-prompts anyone who has already decided.
+
+**Category changes:** Adding or removing a category, or changing whether a category is required or on by default, automatically triggers re-consent for returning visitors. Purely cosmetic changes (renaming a label, editing copy, reordering the list) do not.
 
 **Privacy page panel:** With **Show a preferences panel on the privacy policy page** on (the default), the page you have chosen as your privacy policy renders the category switches above its own content, with **Save preferences**, **Accept all** and **Reject all** buttons. It reads the visitor's current choice from their consent cookie, writes the new one straight away, and logs it exactly as the banner does. It appears only when the consent banner is enabled, only on the linked privacy policy page, and only when at least one optional category exists - a site whose categories are all required has nothing to offer, so nothing is drawn.
 

@@ -24,6 +24,7 @@ import {
   getStickyStyle,
   SiteLogoRsc,
   withoutVerticalSpaceComponents,
+  mobileBarItemsFor,
 } from '@/lib/puck/config.core'
 // config.core, NOT config: the wrapper in config.tsx imports the module block
 // CLIENT map, and importing it from here would put all 118 of those components
@@ -43,6 +44,9 @@ import { coreLayoutRoots } from '@/lib/puck/core-layout-roots'
 import { LayoutEmbedRsc } from '@/lib/puck/components/LayoutEmbedRsc'
 import { IconLinkRsc } from '@/lib/puck/components/IconLinkRsc'
 import { ThemeToggleRsc } from '@/lib/puck/components/ThemeToggleRsc'
+import MobileBarClient from '@/lib/puck/components/MobileBarClient'
+import { getModuleMobileBarItems } from '@/lib/puck/mobile-bar-items'
+import { MOBILE_BAR_DEFAULTS, type ModuleMobileBarItemProps } from '@/lib/puck/mobileBar'
 import {
   MembersLoginRsc,
   MembersRegisterRsc,
@@ -128,6 +132,62 @@ const moduleRscByLayoutTypeWrapped = Object.fromEntries(
   Object.entries(moduleRscComponentsByLayoutType).map(([type, comps]) => [type, wrapModuleRsc(comps as Record<string, any>)]),
 ) as Record<string, Record<string, any>>
 
+// Mobile Bar, published half. Same client island the editor draws, with the one
+// thing only a server can supply filled in: the cells a MODULE contributes.
+//
+// A cell whose module is not installed here gets no slot, and the island drops
+// it rather than leaving a hole in the grid - which is what lets one header
+// design carry a basket cell and still look right on a site with no shop.
+//
+// The menus behind Menu cells arrive by a different road: resolveTemplateData
+// attaches them to props before this ever runs, the same way it feeds the Menu
+// block, because they need the visitor's own audience gating.
+async function MobileBarWithModuleCells(props: any) {
+  const moduleItems: Record<string, React.ComponentType<ModuleMobileBarItemProps>> =
+    await getModuleMobileBarItems().catch(() => ({}))
+  const items = mobileBarItemsFor(props, false).map((item) => ({
+    ...item,
+    hasSlot: item.kind !== 'module' || Boolean(moduleItems[props.items?.[Number(item.key)]?.moduleItemId ?? '']),
+  }))
+  const showLabels = props.showLabels ?? MOBILE_BAR_DEFAULTS.showLabels
+  const iconSize = props.iconSize ?? MOBILE_BAR_DEFAULTS.iconSize
+  const slots: Record<string, React.ReactNode> = {}
+  for (const item of items) {
+    if (item.kind !== 'module' || !item.hasSlot) continue
+    const id = props.items?.[Number(item.key)]?.moduleItemId ?? ''
+    const Component = moduleItems[id]
+    if (!Component) continue
+    slots[item.key] = <Component label={item.label} iconSize={iconSize} showLabels={showLabels} />
+  }
+  return (
+    <MobileBarClient
+      barId={props.id}
+      ariaLabel={props.ariaLabel}
+      items={items}
+      slots={slots}
+      barOn={props.barOn}
+      bgColour={props.bgColour}
+      borderColour={props.borderColour}
+      itemColour={props.itemColour}
+      activeColour={props.activeColour}
+      badgeBg={props.badgeBg}
+      badgeText={props.badgeText}
+      iconSize={props.iconSize}
+      labelSize={props.labelSize}
+      height={props.height}
+      showLabels={showLabels}
+    />
+  )
+}
+
+// Rendered as an element rather than called, same as SiteLogoModuleLayoutRsc
+// below: wrapResponsiveRender invokes a render function directly, so it has to
+// get a plain React element back and let the awaiting happen inside the async
+// component where React expects it.
+function MobileBarRsc(props: any) {
+  return <MobileBarWithModuleCells {...props} />
+}
+
 const rscComponents = withSafeRichText({
   ...puckConfig.components,
   SiteLogo: { ...puckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
@@ -154,6 +214,7 @@ export const footerPuckRscConfig = {
     ...footerPuckConfig.components,
     SiteLogo: { ...footerPuckConfig.components.SiteLogo, render: wrapResponsiveRender(SiteLogoRsc) },
     IconLink: { ...footerPuckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
+    MobileBar: { ...footerPuckConfig.components.MobileBar, render: wrapResponsiveRender(MobileBarRsc) },
     // RSC render halves for any module blocks that opted into the footer
     // (layoutTypes: ["footer"]) — same mechanism the header has below.
     ...(moduleRscByLayoutTypeWrapped['footer'] ?? {}),
@@ -187,6 +248,7 @@ export const headerPuckRscConfig = {
     MembersSignIn: { ...headerPuckConfig.components.MembersSignIn, render: wrapResponsiveRender(MembersSignInRsc) },
     IconLink: { ...headerPuckConfig.components.IconLink, render: wrapResponsiveRender(IconLinkRsc) },
     ThemeToggle: { ...headerPuckConfig.components.ThemeToggle, render: wrapResponsiveRender(ThemeToggleRsc) },
+    MobileBar: { ...headerPuckConfig.components.MobileBar, render: wrapResponsiveRender(MobileBarRsc) },
     // RSC render halves for any module blocks that opted into the header
     // (layoutTypes: ["header"]) — override the editor-safe client placeholders.
     ...(moduleRscByLayoutTypeWrapped['header'] ?? {}),

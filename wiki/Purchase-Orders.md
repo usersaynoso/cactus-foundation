@@ -4,7 +4,7 @@
 
 It stands on its own. You do not need the Shop module and you do not need UK Bookkeeping. A builder, a workshop or a consultancy with no online shop and no books on the site still buys things, and the module is a complete purchasing system on such a site rather than a stub. Where those modules *are* installed, it makes use of them - see [What it does with your other modules](#what-it-does-with-your-other-modules).
 
-> **One sidebar link.** Everything lives under **Purchasing → Purchase Orders**, with tabs across the top of the page: Orders, Receiving, Bills, Returns, Suppliers, Reorder and Reports.
+> **One sidebar link.** Everything lives under the one **Purchase Orders** link, with tabs across the top of the page: Orders, Receiving, Bills, Returns, Suppliers, Reorder and Reports.
 
 ---
 
@@ -39,7 +39,7 @@ The module is finished: everything below is in it, and the buying side of a busi
 
 Purchasing is a set of permissions on your core roles, set from **Users → Roles**:
 
-- `purchase-orders.access` - see the Purchasing section at all.
+- `purchase-orders.access` - see Purchase Orders at all.
 - `purchase-orders.create` - raise and edit orders, and manage the supplier list.
 - `purchase-orders.approve` - approve an order that is over your threshold, or send it back.
 - `purchase-orders.receive` - book deliveries in, and send goods back. Also recording a despatch a supplier has emailed you about, which `purchase-orders.create` can do as well.
@@ -55,7 +55,7 @@ Administrators hold all seven without being given them, as they do everywhere el
 
 ## Suppliers
 
-**Purchasing → Suppliers** is your own list, and it is yours whether or not you sell anything online.
+**Purchase Orders → Suppliers** is your own list, and it is yours whether or not you sell anything online.
 
 For each one you can record the contact details, the account number you buy under, their VAT number, an address, and the terms you actually buy on:
 
@@ -82,7 +82,7 @@ The link stores both the id and a copy of the name. If you later rename or delet
 
 ## Raising a purchase order
 
-**Purchasing → Orders → New purchase order.**
+**Purchase Orders → Orders → New purchase order.**
 
 Pick the supplier, add your lines, and say where the goods should go.
 
@@ -171,6 +171,7 @@ Files are stored and checked for being what they claim to be. **They are not sca
 | Acknowledged | They have confirmed it. |
 | Part received | Some of it has turned up. |
 | Received | All of it has. |
+| Pending close | Everything has turned up and the supplier says they have invoiced the lot - and those invoices are still waiting for somebody here to read. |
 | Closed | Finished with. |
 | Cancelled | Called off. The record and the number stay. |
 | On hold | Paused, deliberately. |
@@ -185,7 +186,7 @@ Only a draft can be deleted. Anything that has been out into the world gets canc
 
 ## Checking goods in
 
-**Purchasing → Receiving.** Two lists: what is still to come, and what has already turned up.
+**Purchase Orders → Receiving.** Two lists: what is still to come, and what has already turned up.
 
 "Still to come" is worked out from the lines rather than from the status, which is the only way it stays honest. An order nobody got round to closing is not on the list if everything on it arrived, and one marked received that later had a delivery removed is back on it.
 
@@ -226,7 +227,7 @@ Deliveries need the `purchase-orders.receive` permission. Everybody with `purcha
 
 ## Sending things back
 
-**Purchasing → Returns.** The tab opens with the only figure that really matters: how much money suppliers still owe you on goods that have already gone back. Raising a return is easy and everybody does it; noticing six months later that four of them were never credited is the thing this screen exists to stop.
+**Purchase Orders → Returns.** The tab opens with the only figure that really matters: how much money suppliers still owe you on goods that have already gone back. Raising a return is easy and everybody does it; noticing six months later that four of them were never credited is the thing this screen exists to stop.
 
 ### Raising one
 
@@ -270,7 +271,7 @@ One setting covers both directions. A site where a delivery adds to a count but 
 
 ## Supplier bills
 
-**Purchasing → Bills.** What your suppliers say you owe, checked against what you asked for and what actually turned up before anybody agrees to pay it.
+**Purchase Orders → Bills.** What your suppliers say you owe, checked against what you asked for and what actually turned up before anybody agrees to pay it.
 
 The tab opens with the figure that matters: how much is sitting on invoices nobody has agreed to yet, and how many of those have been queried with the supplier. Entering invoices is easy and everybody does it. Noticing that four of them have been queried since March is the thing this screen exists to stop.
 
@@ -278,14 +279,19 @@ The tab opens with the figure that matters: how much is sitting on invoices nobo
 
 Two ways in, because businesses buy things both ways:
 
-- **Against an order.** Open the purchase order and press **Enter a bill**. Every line comes across already filled in with what has been delivered and not yet invoiced, at the price on the order.
+- **Against an order.** Open the purchase order and press **Enter a bill**. Every line of the order comes across as a tick list, with the ones that have been delivered and not yet invoiced already ticked, at the price on the order.
 - **On its own.** Press **Enter a bill** on the Bills tab and pick the supplier. The electricity does not arrive on a purchase order, and a module that refuses to record it is a module you keep a spreadsheet alongside.
+
+**Start by picking their invoice.** Drop their PDF in the box at the top of the screen and the invoice number, the invoice date and the total are read off it and put in the boxes for you. It is a guess and it is treated as one: everything it fills in stays editable, a number you have already typed is never overtyped, and a photographed invoice with no text in it simply answers nothing and leaves the boxes as empty as they were. The file itself is filed against the bill the moment you save it.
+
+**Then tick what the invoice covers.** Every line of the order is listed whether it is on this invoice or not, with **Tick everything on the order** and **Untick them all** above the table and a count beside them. A supplier who bills an order in two goes is perfectly ordinary, and ticking three lines of eleven now leaves the other eight sitting there to tick when the second invoice arrives - which is a good deal better than deleting them and typing them back next month. A charge that is not on the order at all is added by hand and removed the same way.
 
 What you type is what is on their paperwork. That is the whole point of the exercise: their figures are allowed to differ from yours, and the module's job is to notice, not to stop you writing down what they actually sent.
 
 - **Their invoice number** is what everybody will quote. One supplier cannot bill you twice under the same number, however they capitalise it - the second attempt is refused, by name.
 - **The invoice date** is the date on their paperwork, not today. The due date is worked out from it and the supplier's terms, so an invoice dated the second and opened on the twentieth is due thirty days after the second. Paying it thirty days after the twentieth is how an account goes on stop.
 - **VAT** is worked out for you and can be overtyped. Suppliers who round line by line where we round once at the line land a penny or two out on a long invoice, and the figure that matters is the one on the document they would show anybody who asked.
+- **Total, as their invoice states it** is the figure printed on their document, read off the file where it could be read. It is never used as a figure - it is checked against what these lines at these prices actually come to, and if the two disagree by more than a couple of pence the screen says so while you are still typing, and the bill carries the disagreement afterwards. A supplier whose lines all check out and whose total does not has charged you for something nobody has itemised.
 - **A charge that is not on the order** - a pallet fee, a fuel surcharge, a sundry - is added as its own line. It will be flagged, which is the point.
 - **Category and VAT treatment** can be set per line. Where you run the UK Bookkeeping module the categories are your own; where you do not, the boxes are simply not offered, and nothing is lost until the release that takes bills through to the books.
 
@@ -297,6 +303,7 @@ Three things get compared, which is why it is called a three-way match: what you
 - **Being billed for more than turned up**, counting anything already invoiced on other bills against the same order.
 - **Being billed for something nothing has been delivered against at all.**
 - **A charge that is on no order line.**
+- **A total that does not match the lines** - what their document says it comes to, against what these lines at these prices come to.
 
 The tolerances are yours, in **Settings → Purchase Orders**. A price tolerance of 2% is the sensible default - suppliers round, and being told about every three pence would train everybody to stop reading.
 
@@ -327,9 +334,18 @@ A bill goes **draft → approved**, with **queried** as the stop on the way and 
 
 ### Orders that close themselves
 
-Once an order is fully delivered, every line has been invoiced in full, and no supplier still owes you a credit, approving the last bill closes the order. It saves going round afterwards ticking off orders that finished weeks ago.
+Once an order is fully delivered, every line has been invoiced in full, and no supplier still owes you a credit, the order finishes itself off. It saves going round afterwards ticking off orders that finished weeks ago.
 
-It will not close one with a return still waiting on its money. Closing the order would file away the one screen showing that a supplier owes you.
+Where it lands depends on whether anybody still has reading to do:
+
+- **Closed**, where every invoice on the order has been approved, is in the books, or has been voided. There is nothing left for anybody to look at.
+- **Pending close**, where an invoice on it is still in draft or still queried - which is what a supplier filing their own invoice through their link leaves behind. Everything has happened; somebody here has still to agree that what they say you owe is what you owe.
+
+It is checked at each of the three moments an order can actually finish: approving or voiding the last invoice, a supplier sending theirs in, and the last delivery being booked in on an order the invoices got to first.
+
+It will not settle one with a return still waiting on its money. Closing the order would file away the one screen showing that a supplier owes you.
+
+**A Pending close order will not close until every invoice on it has been approved or voided.** The Close button says so and stays off until they have been. That is the entire reason the status exists: an order that closed itself on a supplier's say-so would file away an invoice nobody had read. If it turns out they have not invoiced it all after all, **Reopened** puts it back to Received.
 
 ### Straight into the books
 
@@ -353,7 +369,7 @@ Some things worth knowing about it:
 
 ## Reordering
 
-**Purchasing → Reorder** is the tab that buys things before you run out of them, and it needs the Shop module: it works out what to buy from what you have left, so something has to be keeping count.
+**Purchase Orders → Reorder** is the tab that buys things before you run out of them, and it needs the Shop module: it works out what to buy from what you have left, so something has to be keeping count.
 
 ### Setting a level
 
@@ -506,7 +522,7 @@ first place.
 
 ## Suppliers' price lists
 
-**Purchasing → Catalogues** is where a supplier's own catalogue lives, so an order can be drafted at what they are charging today rather than at whatever was typed into a product when it was created.
+**Purchase Orders → Catalogues** is where a supplier's own catalogue lives, so an order can be drafted at what they are charging today rather than at whatever was typed into a product when it was created.
 
 It needs nothing else installed. A supplier publishes a price list whether or not you sell anything online, and the shop only comes into it for two conveniences, both of which say so on the screen when it is not there.
 
@@ -579,7 +595,7 @@ Codes on their lists that you do not sell are counted, not listed. A supplier's 
 
 ## Reports
 
-**Purchasing → Reports** answers the five questions a purchasing person actually asks, and it needs nothing else installed to answer them. Everything on it is worked out the moment you open it, so a delivery booked in ten minutes ago has already changed the answer - there is no overnight figure sitting there going stale.
+**Purchase Orders → Reports** answers the five questions a purchasing person actually asks, and it needs nothing else installed to answer them. Everything on it is worked out the moment you open it, so a delivery booked in ten minutes ago has already changed the answer - there is no overnight figure sitting there going stale.
 
 > **One currency.** Every figure on the page is in the currency you keep your books in. An order placed in euros is converted at the rate it was raised at, and a supplier's invoice at the rate on the invoice. So the committed figure is an expectation and the spend figure is what you were actually billed, which is the honest way round.
 
@@ -733,7 +749,8 @@ In the panel they can:
 - **accept it** - "yes, we can supply this" - and **attach their own order acknowledgement** while they are there, which files their PDF against the order and confirms it in one press. Attaching one is optional; they can simply confirm;
 - **give you a date line by line**, if what you asked for is not going to happen. A supplier sending an order in three drops has three answers, and one box for the lot was never the truth;
 - **say something is short**, line by line, with how many they cannot send at all;
-- **tell you what they have actually sent**, with a tracking number and their own tracking link, and take away a packing slip for that delivery (see [What they have sent, and the packing slip](#what-they-have-sent-and-the-packing-slip));
+- **tell you what they have actually sent**, with a tracking number and their own tracking link, and take away a packing slip for that delivery (see [What they have sent, and the packing slip](#what-they-have-sent-and-the-packing-slip)). **The packing slip opens by itself the moment they have told you** - telling you what has gone and printing the paper that goes in the box are one job in a warehouse, and a screen that says "it is ready under Packing slips" is asking somebody holding a roll of tape to go and find a button;
+- **send you their VAT invoice**, ticking off what it covers, where you have switched that on (see [Letting suppliers invoice you through the link](#letting-suppliers-invoice-you-through-the-link));
 - **leave a message** about anything else - about the whole order, or about the particular lines they pick.
 
 **Every line form works the same way: tick the line first, then answer for it.** A ten-line order used to open with ten empty boxes, which reads as ten questions and gets two of them filled in wrong. Now the lines are a tick list, and the box appears on the one they have ticked - a date on **Report a delay**, a quantity on **Report out of stock**, a quantity on **Record a despatch**. The despatch box arrives **already holding everything still owed on that line**, because a whole pallet is the usual answer; they can overtype it for a part load, and **We are sending all of it** still ticks the lot in one press. The out-of-stock box starts empty on purpose - "all of it" is not something anybody should be able to report by accident.
@@ -750,7 +767,25 @@ In the panel they can:
 
 **None of it changes your order.** Accepting it marks the order as acknowledged; a despatch is filed as a despatch and books nothing in. A date or a shortage is written down against the order for you to act on - your prices, your quantities and your terms are exactly where you left them. A purchase order somebody else can edit is not a purchase order.
 
-Two of those can be switched off in settings if you would rather they came by email: **letting suppliers send you files**, and **letting them say what they have sent**. Files arriving through the link are the one place on your site where somebody with no account can put something on it, so they are checked for what they really are rather than what they are called, capped in size, and never run - and if that is still one door too many, the page tells them to email it instead.
+Three of those are switches in settings: **letting suppliers send you files**, **letting them say what they have sent**, and **letting them invoice you**. The first two are on to begin with; the third is not - see below. Files arriving through the link are the one place on your site where somebody with no account can put something on it, so they are checked for what they really are rather than what they are called, capped in size, and never run - and if that is still one door too many, the page tells them to email it instead.
+
+### Letting suppliers invoice you through the link
+
+**Off until you turn it on**, in **Settings → Purchase Orders**, and it is the one switch on that page worth thinking hardest about. Everything else a supplier can do through their link is a message or a document. This one writes down what you owe them.
+
+With it on, **Send your invoice** appears on their panel. They attach their VAT invoice and tick which lines it covers - **This invoice covers all of it** does the lot in one press - and that is very nearly all they have to do. The invoice number, the invoice date and the total are read off the file they sent, the same reading described in [Filing their paperwork yourself](#filing-their-paperwork-yourself); the three boxes are there for the day it cannot be read, and every one of them is optional.
+
+What arrives at your end is **a draft bill with their invoice attached**, waiting on the Bills tab exactly as one you typed yourself would be. What it is not:
+
+- **It is not approved**, and nothing about it can approve itself. Approving is still a person here with the bills permission.
+- **It never reaches your books.** An entry in your accounts on a supplier's unattended say-so is precisely the thing this will not do. The books hear about it when you approve it, and not before.
+- **The prices are not theirs.** Every line is priced at what your order said, at the rate your order said. There is no box on their form for a unit price, because a form that let a supplier retype your prices would be a form for repricing an order after the fact. The one figure of theirs that is recorded is the total printed on their own document, which is checked against what those lines come to and flagged where the two disagree.
+- **They cannot invoice for more than the order says.** Type four against a line with two left to invoice and the box turns red and the send button goes dead, the same as every other quantity on that page. A supplier who really has over-invoiced you emails it, and you enter it at this end, where it is flagged in the ordinary way.
+- **They cannot send the same invoice number twice.** The second attempt is refused, by name.
+
+Once they have invoiced everything on a delivered order it goes to **Pending close**, which is your cue to read the invoices and close it. It will not close until you have approved or voided every one of them.
+
+You are emailed when one arrives, the same as anything else they say.
 
 ### Handling what they say
 
@@ -854,8 +889,8 @@ The wording is yours: **Settings → Purchase Orders → Wording on a packing sl
 - **Reordering** - whether draft orders are raised overnight from your reorder levels. Off by default, and greyed out on a site with no catalogue. See [Reordering](#reordering).
 - **Buying for customer orders** - whether a paid customer order drafts its purchase orders by itself. Off by default, and greyed out on a site with no shop. It drafts and stops; nothing is ever sent to a supplier without somebody sending it. See [Having it drafted the moment they pay](#having-it-drafted-the-moment-they-pay).
 - **Suppliers' price lists** - whether an order line is priced off a supplier's own list where one names the code. Off by default. You can keep lists on file either way; this is the switch that lets them price anything. See [Suppliers' price lists](#suppliers-price-lists).
-- **Which inbox this comes from** - only on a site running [Unified Inbox](Unified-Inbox), and only for somebody who may manage it. Which of your inboxes your purchase order emails leave as, so a supplier's reply lands with the people chasing the order rather than in the site's general post. Pick one and each order you send also starts a conversation in that inbox, holding what you sent and the document that went with it, for the supplier's reply to land under. Left alone, they go out as the site's usual address exactly as they always have. Saves itself the moment you pick.
-- **Chasing and the supplier link** - whether a supplier hears from you when an order is late, how late it has to be, and how often to ask again; whether every order you send carries a link of its own, and how long those links last; whether suppliers may **send you files** through that link (their proforma and their acknowledgement); and whether they may **say what they have sent** and take away a packing slip for each delivery. The last two are on, and greyed out entirely with the link itself off. See [Chasing a late supplier](#chasing-a-late-supplier), [The supplier's own link](#the-suppliers-own-link) and [What they have sent, and the packing slip](#what-they-have-sent-and-the-packing-slip).
+- **Where this email goes** - only on a site running [Unified Inbox](Unified-Inbox), and only for somebody who may manage it. Two questions, either useful on its own. **Send these from** picks which of your inboxes your purchase order emails leave as, so a supplier's reply lands with the people chasing the order rather than in the site's general post. **Keep a copy of these in** files each order you send as a conversation in an inbox, holding what you sent and the document that went with it, for the supplier's reply to land under - worth switching on whichever address they go out as, since email your site sends never appears in a mail folder otherwise. Left alone, they go out as the site's usual address exactly as they always have and nothing is filed. Each saves itself the moment you pick.
+- **Chasing and the supplier link** - whether a supplier hears from you when an order is late, how late it has to be, and how often to ask again; whether every order you send carries a link of its own, and how long those links last; whether suppliers may **send you files** through that link (their proforma and their acknowledgement); whether they may **say what they have sent** and take away a packing slip for each delivery; and whether they may **send you their VAT invoice**, ticking off what it covers. The first two of those three are on and the invoice one is not, and all three are greyed out entirely with the link itself off. See [Chasing a late supplier](#chasing-a-late-supplier), [The supplier's own link](#the-suppliers-own-link), [What they have sent, and the packing slip](#what-they-have-sent-and-the-packing-slip) and [Letting suppliers invoice you through the link](#letting-suppliers-invoice-you-through-the-link).
 
 ---
 
@@ -889,7 +924,7 @@ The order, the amended order and the returns note carry the PDF as an attachment
 
 The order, the amended order, the chase and the proforma-paid note all offer a `{{portalLink}}` tag, which becomes the supplier's own link and disappears entirely when the link is switched off. It is in the wording as it ships. **If you have already reworded one of those emails yourself, your version is the one that sends** - drop `{{portalLink}}` in where you want it and the link starts travelling with them.
 
-On a site running [Unified Inbox](Unified-Inbox), all seven can go out as one of your own inboxes rather than the site's usual address - see **Which inbox this comes from** under [Settings](#settings). The supplier then answers to that address and the reply lands where the buying is done - underneath a copy of the email you sent them, which is filed in that inbox as it goes out, attachment and all. No more reading one half of a conversation.
+On a site running [Unified Inbox](Unified-Inbox), all seven can go out as one of your own inboxes rather than the site's usual address, and a copy of each can be filed in one - see **Where this email goes** under [Settings](#settings). The supplier then answers to that address and the reply lands where the buying is done, underneath the copy of the email you sent them, attachment and all. No more reading one half of a conversation. The two switches are separate, so you can file copies without changing the address anything leaves as.
 
 The proforma-paid note is the one email that can go somewhere else: set an **Accounts department** address on the supplier and tick the box beside it, and that note goes to their finance desk instead of the ordering one. See [Suppliers](#suppliers).
 

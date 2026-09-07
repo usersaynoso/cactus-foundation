@@ -41,6 +41,14 @@ import { Link } from '@tiptap/extension-link'
 import { BulletList, OrderedList, ListItem } from '@tiptap/extension-list'
 import TextAlign from '@tiptap/extension-text-align'
 import MenuBlockClient, { MenuVerticalLink } from '@/lib/puck/components/MenuBlockClient'
+import MobileBarClient, { type MobileBarRenderItem } from '@/lib/puck/components/MobileBarClient'
+import { MOBILE_BAR_ICON_OPTIONS, MODULE_SLOT_ICON } from '@/lib/puck/components/MobileBarIcons'
+import { MOBILE_BAR_DEFAULTS, type MobileBarItemProps, type MobileBarMenuItem } from '@/lib/puck/mobileBar'
+import { MOBILE_BAR_POINT } from '@/lib/puck/mobile-bar-point'
+// Metadata only - point/id/label, no component imports - so the editor can offer
+// "which module's cell?" as a list without dragging every module's public
+// components into a public page's bundle. See the generator's own note.
+import { publicEntriesForPoint } from '@/lib/modules/extension-points.meta'
 import SiteLogoClient from '@/lib/puck/components/SiteLogoClient'
 import { emailSafeHref, sanitizeHref, linkifyEmails, maskEmailText, obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
 import { isHttpUrl } from '@/lib/utils'
@@ -2990,6 +2998,81 @@ function MembersAccountLinkBlock(props: any) {
   )
 }
 
+// Mobile Bar - the phone-style strip of icons pinned to the bottom of the
+// screen. Every cell is an icon with its own caption underneath; a cell is a
+// link, the site menu, the member's account, or something a module contributes
+// (the basket, live chat).
+//
+// This is the half both the editor and the published page draw. What the
+// published page adds on top (lib/puck/config.rsc.tsx) is the two things only a
+// server can know: the menu behind a Menu cell, and the module component behind
+// a Module cell. In the editor those are a sample menu and a dashed placeholder,
+// so the bar can be laid out and coloured without a live site under it.
+export function mobileBarItemsFor(props: any, isEditing: boolean): MobileBarRenderItem[] {
+  const raw: MobileBarItemProps[] = Array.isArray(props.items) ? props.items : []
+  const resolvedMenus: MobileBarMenuItem[][] = Array.isArray(props.resolvedMenus) ? props.resolvedMenus : []
+  return raw.map((item, i) => {
+    const kind = item.kind ?? 'link'
+    return {
+      // Index, not a generated id: the same array is walked in the same order by
+      // resolveTemplateData when it attaches the menus, so the two agree without
+      // Puck having to hand array rows a stable identity (it does not).
+      key: String(i),
+      kind,
+      label: (item.label ?? '').trim(),
+      icon: item.icon,
+      href: kind === 'account' ? (props.accountHref || '/account') : item.href,
+      newTab: kind === 'link' && item.newTab === 'yes',
+      menuItems: resolvedMenus[i] ?? [],
+      sheetHeading: item.sheetHeading,
+      // In the editor every module cell draws its placeholder; on a published
+      // page a cell whose module is not installed has no slot and drops out.
+      hasSlot: isEditing ? true : undefined,
+    }
+  })
+}
+
+function MobileBarBlock(props: any) {
+  const isEditing = Boolean(props.puck?.isEditing)
+  const items = mobileBarItemsFor(props, isEditing)
+  const showLabels = props.showLabels ?? MOBILE_BAR_DEFAULTS.showLabels
+  // Editor stand-ins for the cells a module owns. Same classes as a real one, so
+  // the row is laid out and spaced exactly as it will be, with a dashed icon
+  // making it obvious which cells the module fills in for itself.
+  const slots: Record<string, React.ReactNode> = {}
+  if (isEditing) {
+    for (const item of items) {
+      if (item.kind !== 'module') continue
+      slots[item.key] = (
+        <span className="cmb-item" aria-hidden="true">
+          <span className="cmb-icon">{MODULE_SLOT_ICON}</span>
+          {showLabels === 'yes' && item.label ? <span className="cmb-label">{item.label}</span> : null}
+        </span>
+      )
+    }
+  }
+  return (
+    <MobileBarClient
+      barId={props.id}
+      ariaLabel={props.ariaLabel}
+      items={items}
+      slots={slots}
+      forceVisible={isEditing}
+      barOn={props.barOn}
+      bgColour={props.bgColour}
+      borderColour={props.borderColour}
+      itemColour={props.itemColour}
+      activeColour={props.activeColour}
+      badgeBg={props.badgeBg}
+      badgeText={props.badgeText}
+      iconSize={props.iconSize}
+      labelSize={props.labelSize}
+      height={props.height}
+      showLabels={showLabels}
+    />
+  )
+}
+
 function MemberGateBlock(props: any) {
   const { content } = props
   return (
@@ -4368,6 +4451,87 @@ export const puckConfig = {
       defaultProps: {},
       render: MembersProfileBlock,
     },
+    MobileBar: {
+      label: 'Mobile Bar',
+      fields: {
+        items: {
+          type: 'array' as const,
+          label: 'Bar items (left to right)',
+          getItemSummary: (item: MobileBarItemProps, i?: number) =>
+            (item?.label || '').trim() || `Item ${(i ?? 0) + 1}`,
+          arrayFields: {
+            kind: { type: 'select' as const, label: 'What this one is', options: [
+              { value: 'link', label: 'A link to a page' },
+              { value: 'menu', label: 'A menu that slides up' },
+              { value: 'account', label: "The visitor's account" },
+              { value: 'module', label: 'Something an add-on provides' },
+            ] },
+            label: { type: 'text' as const, label: 'Caption (printed under the icon)' },
+            icon: { type: 'select' as const, label: 'Icon', options: MOBILE_BAR_ICON_OPTIONS },
+            // Puck's array rows all share one set of fields, so the three below
+            // are labelled with the cell type they belong to rather than hidden
+            // for the others. Each is simply ignored by a cell of another kind.
+            href: { type: 'text' as const, label: 'Link cells: web address' },
+            newTab: { type: 'select' as const, label: 'Link cells: open in a new tab', options: [
+              { value: 'no', label: 'No' },
+              { value: 'yes', label: 'Yes' },
+            ] },
+            menuId: { type: 'text' as const, label: 'Menu cells: menu ID (blank = the main menu)' },
+            sheetHeading: { type: 'text' as const, label: 'Menu cells: heading on the panel' },
+            moduleItemId: { type: 'select' as const, label: 'Add-on cells: which one', options: [
+              { value: '', label: 'Pick one' },
+              // Build-time list: every module in the build that offers a bar
+              // cell. A site without that module installed simply draws nothing
+              // for the cell, so an over-generous picker costs nothing.
+              ...publicEntriesForPoint(MOBILE_BAR_POINT).map((e) => ({
+                value: e.id,
+                label: e.label || `${e.moduleName}: ${e.id}`,
+              })),
+            ] },
+          },
+          defaultItemProps: { kind: 'link', label: '', icon: 'home', href: '/', newTab: 'no', menuId: '', sheetHeading: '', moduleItemId: '' },
+        },
+        barOn: { type: 'select' as const, label: 'Show the bar on', options: [
+          { value: 'mobile', label: 'Phones only' },
+          { value: 'mobileTablet', label: 'Phones and tablets' },
+          { value: 'all', label: 'Every screen size' },
+        ] },
+        showLabels: { type: 'select' as const, label: 'Show the captions', options: [
+          { value: 'yes', label: 'Yes' },
+          { value: 'no', label: 'Icons only' },
+        ] },
+        height: { type: 'number' as const, label: 'Bar height (px)' },
+        iconSize: { type: 'number' as const, label: 'Icon size (px)' },
+        labelSize: { type: 'number' as const, label: 'Caption size (px)' },
+        bgColour: signInColourField('Bar background'),
+        borderColour: signInColourField('Top border colour'),
+        itemColour: signInColourField('Icon and caption colour'),
+        activeColour: signInColourField('Colour of the page you are on'),
+        badgeBg: signInColourField('Badge colour'),
+        badgeText: signInColourField('Badge text colour'),
+        ariaLabel: { type: 'text' as const, label: 'Name for screen readers' },
+      },
+      defaultProps: {
+        items: [
+          { kind: 'link', label: 'Home', icon: 'home', href: '/', newTab: 'no', menuId: '', sheetHeading: '', moduleItemId: '' },
+          { kind: 'account', label: 'Account', icon: 'account', href: '', newTab: 'no', menuId: '', sheetHeading: '', moduleItemId: '' },
+          { kind: 'menu', label: 'Menu', icon: 'menu', href: '', newTab: 'no', menuId: '', sheetHeading: 'Menu', moduleItemId: '' },
+        ],
+        barOn: MOBILE_BAR_DEFAULTS.barOn,
+        showLabels: MOBILE_BAR_DEFAULTS.showLabels,
+        height: MOBILE_BAR_DEFAULTS.height,
+        iconSize: MOBILE_BAR_DEFAULTS.iconSize,
+        labelSize: MOBILE_BAR_DEFAULTS.labelSize,
+        bgColour: '',
+        borderColour: '',
+        itemColour: '',
+        activeColour: '',
+        badgeBg: MOBILE_BAR_DEFAULTS.badgeBg,
+        badgeText: MOBILE_BAR_DEFAULTS.badgeText,
+        ariaLabel: '',
+      },
+      render: MobileBarBlock,
+    },
     ThemeToggle: {
       label: 'Theme Toggle',
       fields: {
@@ -4520,7 +4684,7 @@ const footerModuleBlocks: Record<string, any> = {}
 
 export const footerPuckConfig = {
   categories: {
-    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'SocialLinks', 'ButtonLink', 'Phone', 'IconLink', 'CookieSettingsLink'], defaultExpanded: true },
+    site:       { title: 'Site',       components: ['SiteLogo', 'Copyright', 'MenuBlock', 'MobileBar', 'SocialLinks', 'ButtonLink', 'Phone', 'IconLink', 'CookieSettingsLink'], defaultExpanded: true },
     layout:     { title: 'Layout',     components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: false },
     typography: { title: 'Typography', components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
     media:      { title: 'Media',      components: ['ImageBlock'], defaultExpanded: false },
@@ -4551,6 +4715,7 @@ export const footerPuckConfig = {
     SiteLogo:            puckConfig.components.SiteLogo,
     Copyright:           puckConfig.components.Copyright,
     MenuBlock:           puckConfig.components.MenuBlock,
+    MobileBar:           puckConfig.components.MobileBar,
     // The footer root already applies a 1.5rem gutter, so blocks default to no
     // extra padding here (otherwise they'd double up against the site default).
     SocialLinks:         noGutterDefault(puckConfig.components.SocialLinks),
@@ -4663,7 +4828,7 @@ export const layoutPuckConfig = {
 const headerRootRender = ({
   children, bg = { mode: 'color', color: '' }, height = '64px', sticky = 'yes',
   border = { show: 'show', color: '' }, maxWidth = '1200px', paddingX = '',
-  shrinkOnScroll = 'no', shrinkHeight = '48px',
+  shrinkOnScroll = 'no', shrinkHeight = '48px', scrollAway = '',
 }: any) => {
   const bgMode = bg.mode ?? 'color'
   const bgColor = bg.color ?? ''
@@ -4704,6 +4869,31 @@ const headerRootRender = ({
   // shrink-on-scroll override is header[data-shrink-root][data-shrunk] (0,2,1),
   // so a shrunk header still wins on scroll even though both carry !important.
   const headerHeightCss = responsiveMediaCssFor('header[data-header-root]', heightDecl)
+  // 'partial' keeps the header sticky but lets its top rows travel off the
+  // screen before it pins - the classic two-row header whose logo row goes and
+  // whose search row stays. It is one declaration, not a scroll listener:
+  // a sticky box with a NEGATIVE top scrolls up by that much and then sticks, so
+  // "how much scrolls away" is exactly the number the owner types.
+  //
+  // Blank means nothing scrolls away, which renders identically to plain Sticky.
+  const scrollAwayRv = normalizeResponsiveValue<string>(scrollAway)
+  const scrollAwayAt = (d: Device) => (pickResponsive(scrollAwayRv, d) ?? '').trim() || '0px'
+  const partial = sticky === 'partial'
+  // What is left pinned once the top has gone - the number every sticky block on
+  // the page clears itself by. 'auto' cannot be measured at render time, so it
+  // falls back to the same 48px floor the header itself uses.
+  const stickyOffsetAt = (d: Device) => {
+    const h = heightAt(d) === 'auto' ? '48px' : heightAt(d)
+    if (!partial) return h
+    const away = scrollAwayAt(d)
+    return /^0[a-z%]*$/i.test(away) ? h : `calc(${h} - ${away})`
+  }
+  // The negative top that makes a 'partial' header let its top rows go is per
+  // breakpoint too - a phone header's logo row is rarely the height of a
+  // desktop one's. Desktop is the inline style; these two are the overrides.
+  const headerTopCss = partial
+    ? responsiveMediaCssFor('header[data-header-root]', (d) => `top:calc(-1 * ${scrollAwayAt(d)});`)
+    : ''
   // A sticky header floats over everything below it, so anything else that pins
   // itself to the top of the viewport (a sticky Grid column, say) lands *under*
   // the header and loses its own top edge. Publish the header's height as a
@@ -4711,14 +4901,13 @@ const headerRootRender = ({
   // to measure the header by hand. 0px when the header doesn't stick - nothing
   // to clear. 'auto' height can't be known at render time, so it falls back to
   // the 48px floor the header itself uses.
-  const stickyOffsetAt = (d: Device) => (heightAt(d) === 'auto' ? '48px' : heightAt(d))
   // Which edges the border paints. 'show' is the pre-edge-picker value and still
   // means the bottom border alone, so headers saved before this look identical.
   const borderShow = border?.show ?? 'show'
   const borderLine = `${borderWidthOf(border)} solid ${border?.color || 'var(--color-border, #e5e7eb)'}`
   const borderTop = borderShow === 'top' || borderShow === 'both' ? borderLine : 'none'
   const borderBottom = borderShow === 'show' || borderShow === 'both' ? borderLine : 'none'
-  const headerOffsetCss = sticky === 'yes'
+  const headerOffsetCss = sticky !== 'no'
     ? [
         `:root{--cactus-header-offset:${stickyOffsetAt('desktop')};}`,
         responsiveMediaCssFor(':root', (d) => `--cactus-header-offset:${stickyOffsetAt(d)};`),
@@ -4766,14 +4955,15 @@ const headerRootRender = ({
         // An explicit height plus a border must not grow the header past that
         // height, or a top border shifts everything under a sticky header down.
         boxSizing: 'border-box',
-        position: sticky === 'yes' ? 'sticky' : 'relative',
-        top: sticky === 'yes' ? 0 : undefined,
-        zIndex: sticky === 'yes' ? 100 : undefined,
+        position: sticky !== 'no' ? 'sticky' : 'relative',
+        top: sticky === 'no' ? undefined : (partial ? `calc(-1 * ${scrollAwayAt('desktop')})` : 0),
+        zIndex: sticky !== 'no' ? 100 : undefined,
         width: '100%',
       }}
     >
       {headerPxCss && <style>{headerPxCss}</style>}
       {headerHeightCss && <style>{headerHeightCss}</style>}
+      {headerTopCss && <style>{headerTopCss}</style>}
       {headerOffsetCss && <style>{headerOffsetCss}</style>}
       {/* Paints what the visitor actually sees, hiding the Safari tint colour
           sitting on the header itself. inset:0 is the padding box, so the
@@ -4825,7 +5015,7 @@ const headerModuleBlocks: Record<string, any> = {}
 
 export const headerPuckConfig = {
   categories: {
-    site:       { title: 'Site',       components: ['SiteLogo', 'MenuBlock', 'LoginButton', 'ThemeToggle', 'MembersSignIn', 'MembersAccountLink'], defaultExpanded: true },
+    site:       { title: 'Site',       components: ['SiteLogo', 'MenuBlock', 'MobileBar', 'LoginButton', 'ThemeToggle', 'MembersSignIn', 'MembersAccountLink'], defaultExpanded: true },
     layout:     { title: 'Structure',  components: ['Grid2', 'Grid3', 'Grid4', 'Group', 'Spacer', 'Divider'], defaultExpanded: true },
     typography: { title: 'Text',       components: ['Heading', 'TextBlock', 'RichTextBlock'], defaultExpanded: false },
     actions:    { title: 'Actions',    components: ['ButtonLink', 'Phone', 'IconLink'], defaultExpanded: false },
@@ -4843,7 +5033,11 @@ export const headerPuckConfig = {
       // (splitUnitValue shows a keyword as-is rather than blanking it), which is
       // what keeps every header saved against the old select intact.
       height:       { type: 'custom' as const, label: 'Height (blank = 64px, or type auto)', units: ['px', 'rem', 'vh'], render: ResponsiveUnitValueField },
-      sticky:       { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'no', label: 'Static' }] },
+      sticky:       { type: 'select' as const, label: 'Sticky', options: [{ value: 'yes', label: 'Sticky (fixed to top)' }, { value: 'partial', label: 'Sticky (top part scrolls away)' }, { value: 'no', label: 'Static' }] },
+      // Only shown for the 'partial' choice - see resolveFields below. It is the
+      // height of the rows the visitor is allowed to scroll past: type the height
+      // of the logo row and the row under it stays pinned on its own.
+      scrollAway:   { type: 'custom' as const, label: 'Height that scrolls away', units: ['px', 'rem', 'vh'], render: ResponsiveUnitValueField },
       // `sides` turns the Show/Hide picker into the four-way edge choice
       // (bottom / top / both / none). See lib/puck/BorderField.tsx.
       border:       { type: 'custom' as const, label: 'Border', sides: true, render: BorderField },
@@ -4852,17 +5046,19 @@ export const headerPuckConfig = {
       shrinkOnScroll: { type: 'select' as const, label: 'Shrink on scroll', options: [{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }] },
       shrinkHeight: { type: 'custom' as const, label: 'Shrunk height', units: ['px', 'rem'], render: UnitValueField },
     },
-    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', border: { show: 'show', color: '', width: '' }, maxWidth: '1200px', paddingX: '', shrinkOnScroll: 'no', shrinkHeight: '48px' },
+    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', scrollAway: '', border: { show: 'show', color: '', width: '' }, maxWidth: '1200px', paddingX: '', shrinkOnScroll: 'no', shrinkHeight: '48px' },
     resolveFields: (data: any, { fields }: any) => {
-      if (data.props?.shrinkOnScroll === 'yes') return fields
-      const { shrinkHeight: _h, ...rest } = fields
-      return rest
+      const out: Record<string, any> = { ...fields }
+      if (data.props?.shrinkOnScroll !== 'yes') delete out.shrinkHeight
+      if (data.props?.sticky !== 'partial') delete out.scrollAway
+      return out
     },
     render: headerRootRender,
   },
   components: {
     SiteLogo:     puckConfig.components.SiteLogo,
     MenuBlock:    puckConfig.components.MenuBlock,
+    MobileBar:    puckConfig.components.MobileBar,
     LoginButton:  puckConfig.components.LoginButton,
     ThemeToggle:  puckConfig.components.ThemeToggle,
     MembersSignIn: puckConfig.components.MembersSignIn,

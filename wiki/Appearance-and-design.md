@@ -152,6 +152,23 @@ The header editor also offers the **Heading**, **Text**, **Rich text** and **But
 
 **Side padding.** With nothing selected in the header editor, the settings panel has a **Side padding** box: the gap held clear down each side of the header, between the screen edge and whatever sits furthest left and right. Leave it blank for the usual comfortable gap. Set it per screen size like everything else, so you can claw back a few millimetres beside the logo on phones - where every pixel counts - while the desktop header stays exactly as it was.
 
+**Sticky, but only the bottom of it.** The header's **Sticky** setting has a third choice: **Sticky (top part scrolls away)**. Pick it and a **Height that scrolls away** box appears. Type the height of the rows you are happy to lose - your logo row, most often - and those rows travel off the top of the screen as the visitor scrolls while everything below them stays pinned. It is the arrangement you see on most shops these days: the logo bows out, the search box stays put. Set the height per screen size like everything else, and leave the box blank if you change your mind - a blank behaves exactly like plain Sticky. Anything that clears your header automatically - a sticky column, a filter rail - measures the part that stays, not the part that goes.
+
+**A bottom bar for phones.** The **Mobile Bar** block, in the Site group of the header and footer editors, is the strip of icons along the bottom of the screen that phone apps have and websites usually do not: an icon with a caption under it, spread evenly across the width, always there however far down the page somebody has scrolled.
+
+Add it once - to your header or your footer, it makes no difference which, both appear on every page - and fill in the **Bar items** list. Each item is one cell, and each cell is one of four things:
+
+- **A link to a page.** Home, contact, wherever. It lights up when the visitor is on it.
+- **A menu that slides up.** Pick which menu, or leave it blank for your main one. Pressing it slides a full-width panel up from the bottom, and anything with a sub-menu opens out in place.
+- **The visitor's account.** Sends them to their account if they are signed in and to the sign-in page if they are not, which saves them a bounce.
+- **Something an add-on provides.** Anything installed that offers one shows up in the list. Shop offers a basket, complete with a live count on the icon, opening the basket up from the bottom of the screen at full width. Live Chat offers a message button that opens the chat.
+
+Drag the rows into whatever order you like - Home, Account, Basket, Menu, Message is a perfectly good five - and set the icon and the caption on each. **Show the bar on** decides which screens get it, and phones only is the sensible default; there is a **Show the captions** switch if you would rather have icons alone, and the usual boxes for height, icon size, caption size and colours.
+
+Two housekeeping things it does for you. The page gains just enough space at the bottom that the bar never covers the last line of anything, and only on the screens the bar actually appears on. And the chat bubble, if you have one, sits itself above the bar rather than behind it.
+
+A cell for an add-on you have not installed simply is not drawn, and the other cells spread out to fill the gap - so one header design can carry a basket cell and still look right on a site with no shop.
+
 ### Display conditions
 
 Each layout can be set to apply to specific contexts - so you can have a different header on your homepage, a simplified layout for a particular section, or a unique 404 page. Set this on the **Conditions** tab in the layout editor.

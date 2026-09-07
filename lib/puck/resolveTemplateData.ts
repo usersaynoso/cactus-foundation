@@ -1,5 +1,6 @@
 import type { Data } from '@puckeditor/core'
 import { resolveMenu, resolveMainMenu, type MenuViewer } from '@/lib/menu/resolve'
+import { getMemberAreaPath } from '@/lib/members/paths'
 
 type Context = {
   siteName: string
@@ -21,6 +22,26 @@ async function resolveBlock(block: any, ctx: Context): Promise<void> {
         ? await resolveMenu(block.props.menuId, ctx.viewer)
         : await resolveMainMenu(ctx.viewer)
     } catch { block.props.resolvedItems = [] }
+  }
+
+  // The Mobile Bar carries several menus at once - one per Menu cell - so it
+  // gets an array parallel to its own items rather than the single resolvedItems
+  // the Menu block takes. Index is the join: the bar walks the same array in the
+  // same order when it renders.
+  //
+  // The account cell's destination is settled here too, for the same reason the
+  // menus are: only the server knows whether this visitor is signed in, and
+  // sending a signed-in member to the sign-in page is a small betrayal.
+  if (block.type === 'MobileBar') {
+    const items: { kind?: string; menuId?: string }[] = Array.isArray(block.props.items) ? block.props.items : []
+    const memberBase = `/${getMemberAreaPath()}`
+    block.props.accountHref = ctx.viewer?.isAuthenticated ? memberBase : `${memberBase}/login`
+    block.props.resolvedMenus = await Promise.all(items.map(async (item) => {
+      if (item?.kind !== 'menu') return []
+      try {
+        return item.menuId ? await resolveMenu(item.menuId, ctx.viewer) : await resolveMainMenu(ctx.viewer)
+      } catch { return [] }
+    }))
   }
 
   if (block.type === 'SiteLogo') {

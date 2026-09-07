@@ -10,6 +10,7 @@ import { PAGE_CACHE_TTL_OPTIONS } from '@/lib/cache/page-cache'
 import { purgeCdnEverything } from '@/lib/cache/cdn-purge'
 import { errorResponse } from '@/lib/utils'
 import type { SiteStatus } from '@prisma/client'
+import { NECESSARY_CATEGORY_KEY, withNecessaryFirst } from '@/lib/consent/types'
 import type { ConsentBannerConfig, ConsentCategory } from '@/lib/consent/types'
 
 export async function GET() {
@@ -230,10 +231,15 @@ export async function PATCH(request: NextRequest) {
       data.consentBannerConfig = null
     } else {
       // Ensure "necessary" category exists and is required
-      const hasNecessary = incomingConsent.categories.some((c) => c.key === 'necessary')
+      const hasNecessary = incomingConsent.categories.some((c) => c.key === NECESSARY_CATEGORY_KEY)
       if (!hasNecessary) {
         return errorResponse('The "necessary" cookie category cannot be removed')
       }
+
+      // The stored array is the display order the banner and the on-page panel
+      // both read, so it is normalised here rather than trusted: a payload that
+      // buries "necessary" halfway down the list is corrected, not rejected.
+      const categories = withNecessaryFirst(incomingConsent.categories)
 
       const stored = await prisma.siteConfig.findUnique({
         where: { id: 'singleton' },
@@ -244,6 +250,7 @@ export async function PATCH(request: NextRequest) {
 
       data.consentBannerConfig = {
         ...incomingConsent,
+        categories,
         categoriesVersion,
         copyVersion,
       }

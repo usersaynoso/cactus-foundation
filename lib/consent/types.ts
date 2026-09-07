@@ -72,6 +72,22 @@ export const DEFAULT_CONSENT_BANNER_CONFIG: ConsentBannerConfig = {
   copyVersion: 0,
 }
 
+// The one category a visitor cannot switch off is the one that has to be read
+// first, so it is pinned to the top of every list rather than left wherever the
+// owner's last drag, an older config or a hand-written payload happened to put
+// it. Ordering is presentation only - it never changes which categories exist,
+// so it must not re-prompt anyone who has already decided.
+export const NECESSARY_CATEGORY_KEY = 'necessary'
+
+export function withNecessaryFirst(categories: ConsentCategory[]): ConsentCategory[] {
+  const at = categories.findIndex((c) => c.key === NECESSARY_CATEGORY_KEY)
+  if (at <= 0) return categories
+  const next = [...categories]
+  const [necessary] = next.splice(at, 1)
+  next.unshift(necessary!)
+  return next
+}
+
 export type ConsentDecision = Record<string, boolean>
 
 export type ConsentCookiePayload = {
