@@ -30,6 +30,12 @@ Click any role in the list to edit its name or permissions. Click **Delete** to 
 
 Deleting a role does not delete users who had that role - those users simply end up with no role assigned.
 
+### What a role can reach
+
+The tick boxes are the whole story: a role that has not been given a screen's permission cannot open that screen, whether it finds it in the menu, in a bookmark, or by typing the address. Pages, Media, Menus, Layouts, Modules and Appearance each answer "you do not have permission to view this" to anybody without the matching tick.
+
+**Settings** is the one screen with a door rather than a lock, because installed modules put their own settings tabs on it. Someone whose role only carries a module's permission gets in - and sees that module's tab, and nothing else. The site's own settings (General, Speed, Email delivery, Media, GDPR, Integrations, Backup, Restore, Navigation, Schedules) need **Edit site configuration**. Two tabs have a second key of their own, so you can hand out one job without the rest: **Edit email templates and wrapper designs** opens the email Templates tab, and **Access the members GDPR dashboard** opens the members half of GDPR & Legal.
+
 ---
 
 ## Viewing users
@@ -128,7 +134,7 @@ For each item you can:
 - **Rename** it - type a new label, or leave it blank to keep the original.
 - **Decide who sees it:**
   - **Default** - anyone whose role already lets them use that screen.
-  - **Everyone** - all admin users, even without the usual permission.
+  - **Everyone** - shows the link to all admin users. It shows the link and nothing more: anyone whose role lacks the permission still gets turned away at the screen itself, so use this to surface something, not to grant it.
   - **Administrators only** - hidden from every other role.
   - **Only chosen roles** - tick the roles that may see it.
   - **Hidden** - taken off the menu for everyone.

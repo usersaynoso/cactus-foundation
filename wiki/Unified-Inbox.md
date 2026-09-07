@@ -117,6 +117,7 @@ A few consequences worth knowing:
 - **Nobody has one until you say so.** Every address on an existing site is shared, and updating does not change a single one of them. Turning one into somebody's own is a deliberate act, because it takes an address away from people who can read it today.
 - **A conversation in an individual inbox can only be handed to somebody who can open it** - its owner, and anybody named under **Who else can read it**.
 - **It becomes the address that person opens on**, and its signature goes on their replies, exactly as ticking **Their own inbox** on a shared address does. Naming somebody who already had an address of their own moves them here.
+- **Post arriving in it is handed to them.** Anything that lands at somebody's own address is put on that person's desk as it arrives, so it stops sitting in the "nobody has picked this up" pile - which nobody else could have picked up anyway. It never takes a conversation off somebody who already has it, it never touches shared addresses like `sales@`, and it is a tick you can turn off: **Settings → Unified Inbox → Collecting → Who gets it**.
 - **If their staff account is deleted, the post is not.** The address stops belonging to anybody and falls back to whoever looks after the site, the same answer this module gives for mail it could not place. Nothing is lost, and nobody is locked out of it for good.
 - **A suspended account cannot be given one**, since that would leave an address only a suspended person may read, which is an address nobody may read.
 
@@ -176,7 +177,9 @@ If you are looking at **All**, at **Not filed**, or at one of the other channels
 
 There is a small arrow beside the write button. It opens three other things you might have meant.
 
-**Discussion** is a conversation with your colleagues that no customer ever sees. Put it to the people you want on it - start typing a name in the To line and pick them off the list, and each one sits there as a tag you can take off again - give it a subject, say your piece, and it appears alongside the real post - except that nothing on it is ever sent anywhere. You are not asked where to put it: it starts in your own inbox, or, if nobody has given you one of your own, in whichever address you happen to be looking at. There is no reply arrow on a discussion, only the note line at the foot of it and, behind the dots on any message, the full note box for one with a file on it - because there is nobody outside it to reply to. Whoever can read that address can read the discussion, and nobody else can.
+**Discussion** is a conversation with your colleagues that no customer ever sees. The box opens with the cursor already in the To line, because who it is to is the first thing about it: start typing a name, pick them off the list, and each one sits there as a tag you can take off again. Give it a subject, say your piece, and it appears alongside the real post - except that nothing on it is ever sent anywhere.
+
+It lands in your inbox **and** in the inbox of everybody you put it to. One conversation, not a copy each, so a reply on it is a reply the others see rather than three half-conversations that never meet. Anybody you put it to who has not been given an address of their own still gets it on their **Asked me** list, which is how they were reached before. In the list it reads as your name, then theirs, the way every other conversation reads as who it is with. You are not asked which address to start it in: it starts in your own, or, if nobody has given you one, in whichever address you happen to be looking at. There is no reply arrow on a discussion, only the note line at the foot of it and, behind the dots on any message, the full note box for one with a file on it - because there is nobody outside it to reply to.
 
 It is the same internal note the inbox has always had, with one thing added: somewhere to put the first one. "A word about the Henderson order" no longer has to wait for the Hendersons to write in.
 
@@ -228,11 +231,13 @@ The phone goes halfway through a reply, and until now that cost you the reply. N
 
 **Drafts is a tab of its own**, because it is not one address - it is everything you have half-written, across every address you write from. The number beside it is how many of yours are waiting.
 
+**It is only there while there is something in it.** Nothing half-written, no Drafts row: an empty folder is a place you can only ever go and be disappointed by, and being able to write from an address is not a reason to be shown one. It appears the moment a box puts itself down and goes again once the last one has been sent or thrown away - except while you are standing in it, so emptying the folder does not pull the list out from under you.
+
 **Your drafts are yours.** Nobody else sees them, whatever they are allowed to read and whatever address they sit on. Sharing accounts@ shares what has been sent from it and what has arrived at it; it does not share the sentence somebody is halfway through typing. A price you have not checked yet, or an apology you have not decided to make, is not something a colleague finds in a list - which is how every mail program has worked since the nineties, and how this one works.
 
 **And nobody else can finish one, either.** Being allowed to send as accounts@ does not let you open, change, send or throw away a draft somebody else started on it. The cost of that is honest and worth saying: a half-written message belonging to somebody on leave waits for them, and there is no way to take it over. If it needs to go out, write it and send it.
 
-Drafts under a colleague's name in the rail are gone for the same reason - there was nothing of theirs to put in one.
+Drafts under a colleague's name are **yours**, and the rail calls them **Your drafts** so that there is no reading of it where they are theirs. They show only where you have left something on that address, and the list is headed with the address it was left on - **Drafts · sam@example.com** - rather than with the colleague's name, because whose writing it is and which address it sits on are two different facts.
 
 Opening a conversation shows your own draft on it, if you left one. There is one draft per conversation per person, which is the box, put down; saving again writes over it rather than leaving you to choose between two halves of the same sentence. Two people can each have one on the same conversation, and each sees only their own.
 
@@ -248,11 +253,11 @@ What is saved is what you typed, line breaks and all, along with who it is going
 
 Some replies are written at half past eleven at night and would land better at nine in the morning. The **alarm clock**, sitting with the send buttons at the right-hand end of the strip along the bottom, opens the same short menu the clock at the top of a conversation opens - **In three hours**, **Tomorrow morning**, **Next week**, or **Day & Time** for a month to pick from - each with the day and time it actually lands on written beside it. It sits there rather than over with the paperclip because choosing a time changes what the buttons beside it do, and a control a foot away from the thing it changes is a control nobody connects to it.
 
-Picking a time does not send or save anything yet. It puts the time on the line above the buttons, where you can also set a chase - and the two send buttons change to say what they would now do. **Send now** becomes **Send later**, and **Send & snooze** becomes **Send later & snooze**. There is no third button: there used to be a **Save it for then** beside them, which meant three ways to send on one strip with two of them a thumb apart. **Cancel send later** takes the time back off and everything reads as it did.
+Picking a time does not send or save anything yet. It puts the time on the line above the buttons - **Set to go out tomorrow at 09:00** - and the two send buttons change to say what they would now do. **Send now** becomes **Send later**, and **Send & snooze** becomes **Send later & snooze**. Both stay where they are: choosing to send later used to take **Send & snooze** away and leave a chase in its place, so deciding to send in the morning quietly cost you the ability to put the conversation to bed. There is no third button either - there used to be a **Save it for then** beside them, which meant three ways to send on one strip with two of them a thumb apart. **Cancel send later** takes the time back off and everything reads as it did.
 
 Once it is set the message waits until then and goes out on its own; you do not have to be there, or even have the site open.
 
-**Putting the conversation to sleep can be part of the same press.** **Send later & snooze** sets the departure and puts the conversation to sleep behind it, so you see it again when you said and not when the message happens to leave. Or do the two separately: set the message for Monday morning, then use the clock at the top of the conversation to put it to sleep until Friday, and Friday is when it comes back - the message going out on Monday does not wake it up. If you have also set a chase, whichever of the two is later wins.
+**Putting the conversation to sleep can be part of the same press.** **Send later & snooze** sets the departure and puts the conversation to sleep behind it, so you see it again when you said and not when the message happens to leave. Or do the two separately: set the message for Monday morning, then use the clock at the top of the conversation to put it to sleep until Friday, and Friday is when it comes back - the message going out on Monday does not wake it up. Where both have been said, whichever of the two is later wins.
 
 **A scheduled message is a draft with a time on it**, so it sits under **Drafts** like anything else you have not sent, with **Goes out tomorrow at 09:00** on the row. Open it and you can move it to another time from the same alarm clock, or press **Cancel the timer** on that menu and have an ordinary draft back.
 
@@ -266,23 +271,13 @@ Once it is set the message waits until then and goes out on its own; you do not 
 
 A message set to go out is still a draft, so it follows the same rule as one: it is yours, only you can see it, and only you can move it, cancel it or throw it away - however many people share the address it would leave as.
 
-### Chasing it up
-
-Once you have picked a time for it to go, the line above the buttons says so - **Set to go out tomorrow at 09:00** - and beside it is **Chase it if nobody replies**. Press that and it offers exactly what the clock at the top of a conversation offers: **In three hours**, **Tomorrow morning**, **Next week**. Set one and, once the message has actually gone, the conversation goes quiet until then - and comes straight back to you if nobody has answered. It used to sit there as a tag reading "No chase", which is a thing announcing what it is not doing; now it says what it is offering, and only starts calling itself a chase once there is one.
-
-**The answers are counted from when the message goes out**, not from when you are sitting there setting them. "Tomorrow morning" on something leaving on Friday night means Saturday morning, which is what anybody would expect it to mean.
-
-**It comes back to whoever wrote the message.** On a shared address a colleague can finish and send something you started, and the person waiting on an answer is the one who asked the question - so the conversation is handed to whoever wrote it when it comes back, not to whoever pressed Send. Sending it by hand before its time does the same: the follow-up was written into the message, not into the timer.
-
-**It disappears the moment they reply.** A reply already wakes a snoozed conversation, and that is all this is: the conversation is put to sleep for as long as you said, and their answer wakes it. So you only ever see the chase if there was nothing to chase.
-
-**It rides with the time.** Cancel the timer and the follow-up goes with it, because a message that is not going anywhere has nothing to be chased about. Set another time and pick the follow-up again alongside it.
-
 ### Send it and put it to bed
 
 Some replies end the matter for a fortnight: the answer is sent, and there is nothing more to do until the supplier gets back to you. **Send & snooze** sits next to **Send now** and does both in one press - it opens the same short menu the clock at the top of the conversation opens, sends the message, and puts the conversation to sleep until whenever you said. Pick a departure time first and it becomes **Send later & snooze**, which sets the message going and puts the conversation to sleep without sending anything now.
 
-It is on the new-message box as well, where it puts the conversation you have just started to sleep. Their reply wakes it either way, as a reply always does, so you only see it again at the time you picked if nobody has answered by then.
+It is on the new-message box as well, where it puts the conversation you have just started to sleep. Set a departure time there too and the sleep is kept with the message: the conversation is made when the message actually goes out, days later with nobody watching, and it arrives asleep rather than sitting at the top of the list wanting attention. The notice on the message says so while it waits - **This conversation stays asleep until Friday morning, unless they write back first**.
+
+Their reply wakes it either way, as a reply always does, so you only see it again at the time you picked if nobody has answered by then.
 
 ### When they write first
 
@@ -338,7 +333,7 @@ A dropped file goes into your site's storage, not into your media library: it is
 
 ### Putting what you sell on a message
 
-Half the questions a shop gets are answered with a product. **The price tag beside the paperclip** opens your catalogue, and what you pick is printed under your message the way the lines of an order confirmation are printed: the photograph, the name, and the price, each one linking to its own page.
+Half the questions a shop gets are answered with a product. **The price tag beside the paperclip** opens your catalogue, and what you pick is printed in your message the way the lines of an order confirmation are printed: the photograph, the name, and the price, each one linking to its own page.
 
 **The catalogue opens over the screen rather than inside the message.** It used to unfold underneath what you were writing, which pushed the message itself off the bottom of the pane the moment you went looking for a chair - and a catalogue is a thing you rummage in, so it is the wrong thing to put in the middle of a sentence. Close it and the message is exactly where you left it.
 
@@ -354,11 +349,17 @@ Three things can go on, and the difference is worth knowing:
 
 There is no heading row and no quantity: this is you showing somebody two chairs, not sending them a receipt for something they have not bought. Delivery times are left off for the same reason - what a thing costs and what it looks like is the answer to "which one did you mean", and how long it takes to arrive depends on where it is going.
 
-**You see it as they will see it.** What you pick is drawn directly under what you are writing, laid out the way it will arrive - photograph, name, options, price - rather than listed as a row of little tags on the button strip, which told you what was attached and nothing whatever about what the message would look like. A cross on each one takes it back off, and the catalogue stays open while you add several.
+**It goes where your cursor is.** Picking a chair drops it into the message at the point you had reached, and you carry on typing underneath it - so "this one is the cheapest", the chair, "and this one is what you actually asked for", the second chair, reads in that order when it arrives. Move the cursor, pick another, and that one lands there instead. They used to all pile up under the writing in the order you picked them, whatever the message said, which is the wrong way round for the commonest thing anybody writes.
 
-Prices and names are read **at the moment you press Send**, not when you picked - so a quote you saved on Friday and sent on Monday goes out at Monday's prices, and anything withdrawn in between is simply left off rather than quoted at a price you no longer sell it for. That is also why the block under your writing stays on a white background whatever theme you are using: it is a picture of what leaves the building, not part of the screen you are looking at.
+**You see it as they will see it.** Each one is drawn in the message laid out the way it will arrive - photograph, name, options, price. A cross on the corner of it takes it back off, Backspace does the same, and the catalogue stays open while you add several.
 
-The picker is only there if your site has a shop and you are allowed to see it. Internal notes never carry products - a note is for your colleagues, who can open the catalogue themselves - and neither do live chat or text message replies, which have nowhere to put a picture.
+**You can always write above and below one.** There is a line either side of every product - above the first one even when it is the very first thing in an empty reply, and between two of them that you added one after the other - so nothing you have put in ever leaves you with nowhere to type.
+
+Prices and names are read **at the moment you press Send**, not when you picked - so a quote you saved on Friday and sent on Monday goes out at Monday's prices, and anything withdrawn in between is simply left off rather than quoted at a price you no longer sell it for. That is also why the block in your writing stays on a white background whatever theme you are using: it is a picture of what leaves the building, not part of the screen you are looking at.
+
+The picker is only there if your site has a shop and you are allowed to see it. Internal notes never carry products - a note is for your colleagues, who can open the catalogue themselves.
+
+**Answering an enquiry, a chat or a WhatsApp message?** The catalogue is there too. Those channels go back out through the module that owns them and carry words rather than a laid-out table, so what arrives is the same lines the plain-text half of every email carries: the name, the options it comes in, the price, and the address to look at it - each one where you put it. Text messages are the exception, and not because of the pictures: a text is billed by the character, and three chairs quietly trebling the cost of one is not a decision to make on your behalf from a button with a price tag on it.
 
 ---
 
@@ -400,6 +401,25 @@ The first collection does not fetch everything at once. New post is picked up st
 
 ---
 
+## Being told when post arrives
+
+The first time you open the inbox, a small card appears above the **bell** at the foot of the rail and asks whether you would like a nudge when something new lands. Say yes and your browser asks you to allow it, in its own words, once. From then on, post arriving in your address pops up in the corner of the screen the way a message from any other program does, and clicking it opens that conversation.
+
+Say **No thanks** and you are not asked again. The bell is still there if you change your mind later, and pressing it turns nudges on and off whenever you like.
+
+A few things worth knowing, because they are the questions everybody asks:
+
+- **It watches your own address**, the one pinned to the top of your rail. If you have not been given one, it watches everything you can read instead, which for you amounts to the same thing.
+- **Nothing pops up while you are looking at the inbox.** The list in front of you already shows what has arrived, in bold, where post has always appeared. Nudges are for when you are in a spreadsheet, or in another window, or on a different tab.
+- **The inbox has to be open somewhere.** This is the browser's own notification, not an app on your phone, so it needs a tab of the site left open in the background. Close every tab and the nudges stop until you open one again.
+- **It is per browser, per person.** Saying yes on the office machine does not say yes on your laptop, and the answer is kept against your own account, so two people sharing a computer get their own.
+- **A busy morning is one nudge, not forty.** Several arriving together come through as a count with the names underneath, and each new nudge replaces the last rather than stacking up.
+- **Been away a while?** Coming back to a tab you left open a few hours ago will not empty the whole morning onto your screen at once. It only ever looks back over the last twenty minutes.
+
+If nothing happens after you have said yes, it is almost always the browser rather than the site: notifications can be switched off for the whole browser, or for this site, in its own settings, and a page cannot undo that from the inside. Windows also has a Focus assist setting, and macOS a Do Not Disturb, either of which will hold everything back quietly. When your browser has blocked us outright the bell is greyed out and says so if you hover over it.
+
+---
+
 ## The screen
 
 The inbox is laid out the way a mail program is: one box the height of the window, split into columns, each scrolling on its own. Nothing on it scrolls the page.
@@ -408,19 +428,23 @@ The inbox is laid out the way a mail program is: one box the height of the windo
 
 | Group | What is in it |
 | --- | --- |
-| **Yours** | Your own address if you have been given one, then **All**, then **Assigned to me**, **Mentioned**, **Drafts** and **Sent**. The handful of places one person opens all day. |
+| **Yours** | Your own address if you have been given one, then **All**, **Mentioned**, **Drafts**, **Sent** and **Spam**. The handful of places one person opens all day, in whatever order you drag them into. |
 | **Shared inboxes** | The addresses the business owns, each with a coloured dot and the number of unread conversations beside it. |
-| **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Only there if somebody has shared one with you. |
+| **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Put the pointer on one and its coloured dot becomes a **&rsaquo;** you can press to open their folders - their **Sent**, **Mentioned** and **Spam**. Only there if somebody has shared one with you. |
 | **Channels** | The chat, form and phone conversations, where another part of the site owns them. |
 | **Everything else** | **Contacts** (the address book), **Campaigns** if you are allowed them, and, for whoever looks after the site, **Not filed**. |
 
-The refresh button sits in a box stuck to the foot of the rail, with **Updated** and the time your post last arrived beside it (see [How often it checks](#how-often-it-checks)). The box does not scroll away with the list.
+The refresh button sits in a box stuck to the foot of the rail, with **Updated** and the time your post last arrived beside it (see [How often it checks](#how-often-it-checks)), and beside them the **bell** that turns browser nudges on and off (see [Being told when post arrives](#being-told-when-post-arrives)). The box does not scroll away with the list.
 
-**The coloured dots** are worked out from the address itself, so a site with six inboxes gets six different colours without anybody being asked to pick them, and the same address is the same colour on every screen and for every colleague. There is nothing to set and nothing to keep in step.
+**The coloured dots** are worked out from the address itself, so a site with six inboxes gets six different colours without anybody being asked to pick them, and the same address is the same colour on every screen and for every colleague. There is nothing to set and nothing to keep in step. Your own address is the exception: it wears a small figure rather than a colour, because there is only ever one of it and saying "this one is you" is more use than saying which of five colours it happens to have landed on.
 
-**Assigned to me** is new, and it is a place rather than a filter: it gathers everything handed to you across every address you can read. The old **Mine** button above the list has gone, because it did the same job less well.
+**Opening the hub takes you to your own inbox.** Not to All, not to wherever you were last: `/hq/inbox` with nothing after it is your own address, every time.
 
-**Mentioned** sits beside it and answers the other half of the same question. Being handed a conversation and being asked about one are two different things: the first puts the whole thing on your desk, the second asks you about a bit of it. Everything a colleague has tagged you in gathers here, with its own **To do**, **Later** and **Done** across the top - see [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something).
+**What has been handed to you is in that inbox too.** A conversation in `accounts@` that somebody puts on your desk shows in your own inbox beside the post that arrived there, and its number goes up to match. There is no separate "assigned to me" list any more, and there was one - it went because a list you have to remember to check is a list that goes unchecked. Nothing is moved or taken away from anybody: the conversation is still in `accounts@`, still in the list and the count there, for everybody who reads it.
+
+**The order of the Yours group is yours.** Drag any of those entries up or down - or hold Alt and press the arrow keys - and they stay where you put them. Unlike the shared addresses and the channels below, this needs no permission and changes nothing on anybody else's screen, because it is a fact about how you work rather than about the site.
+
+**Mentioned** answers the other half of the same question. Being handed a conversation and being asked about one are two different things: the first puts the whole thing on your desk, the second asks you about a bit of it. Everything a colleague has tagged you in gathers here, with its own **To do**, **Later** and **Done** across the top - see [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something).
 
 On a narrower window there is no room for a column of it, so the rail lies down into a single strip along the top and everything stays in the same order.
 
@@ -430,16 +454,17 @@ An individual address is one colleague's own and nobody else's, until somebody i
 
 So an individual address can be **shared with named colleagues**. Whoever looks after the site does it on **Settings → Unified Inbox → Inboxes**, editing the address and ticking a name under **Who else can read it**. Nothing else opens one: not being an administrator, not being on some other address's list.
 
-Once somebody is on it, that address appears in their rail under **Team inboxes**, named after the colleague rather than after the address - **Sam Blake**, not `sam@`, because that is how anybody covering Sam's post thinks of it. Beside the name is a **&rsaquo;**. Press it and two folders of theirs open out underneath:
+Once somebody is on it, that address appears in their rail under **Team inboxes**, named after the colleague rather than after the address - **Sam Blake**, not `sam@`, because that is how anybody covering Sam's post thinks of it. It sits flush with every other name on the rail; there is no arrow in front of it and no indent. Put the pointer on the row and the coloured dot turns into a **&rsaquo;** - press that and their folders open out underneath:
 
 | Folder | What is in it |
 | --- | --- |
 | **Sent** | Everything that has left that address. |
 | **Mentioned** | Conversations on that address that its owner has been tagged in. |
+| **Your drafts** | What **you** have started on that address and not sent. Only there while there is something in it. |
 
-There is no Drafts folder here. A draft belongs to whoever wrote it, so a list under somebody else's name could only ever hold your own writing with their name over the top of it.
+**Your drafts is yours, and it says so in the name.** A draft belongs to whoever wrote it, so a list under somebody else's name could only ever hold your own writing - calling it plain "Drafts" under **Sam Blake** would read as Sam's half-written messages, and those are nobody's to see but Sam's. It appears the moment you leave something on their address and goes again once the last one has been sent or thrown away, so an address you only ever read carries no such row.
 
-The name itself is their inbox, exactly as a shared address's name is. Press the **&rsaquo;** again and the folders fold away.
+The name itself is their inbox, exactly as a shared address's name is. Press the **&rsaquo;** again and the folders fold away. On a phone or a tablet, where there is no pointer to hover with, the arrow is simply always there.
 
 **What being on the list does and does not give you:**
 
@@ -451,7 +476,7 @@ The name itself is their inbox, exactly as a shared address's name is. Press the
 
 Your own address never appears here. It is under **Yours**, at the top, where it always was.
 
-**Next to it is the list**, with its own head: the search box first, then where a conversation stands - **Open**, **Snoozed**, **Done**, **All** - each with the number behind it and the total at the end of the row, then the narrower cuts behind the **filter button** beside the search box: unread only, ticked on and off, and the ones assigned to a particular colleague, on a list of their own with a box to find a name in. Whatever you switch on gets a small tag under the tabs with a cross on it, so a filter you set last Tuesday is never quietly still on. All of that stays put while the conversations scroll underneath it, which it did not before.
+**Next to it is the list**, with its own head: the search box first, then where a conversation stands - **Open**, **Snoozed**, **Done**, **All** - each with the number behind it and the total at the end of the row, then the narrower cuts behind the **filter button** beside the search box: unread only, ticked on and off, and the ones assigned to a particular colleague, on a list of their own with a box to find a name in. **In your own inbox that button is not a menu at all** - it is a switch: press it for the things you have not read, press it again for the lot. There is no assignee list there because the answer would be the same all the way down. Whatever you switch on gets a small tag under the tabs with a cross on it, so a filter you set last Tuesday is never quietly still on. All of that stays put while the conversations scroll underneath it, which it did not before.
 
 **Newest or oldest first.** The button beside the search box turns the list round. Newest first is the ordinary way to read an inbox; oldest first is how you clear a backlog, because working from the bottom means the top does not keep moving while you do it. It is remembered in the address like everything else here, so it can be sent to a colleague, and it goes back to normal on its own the next time you open the inbox fresh.
 
@@ -468,6 +493,8 @@ On a phone you see one at a time: the list, or the thing you opened from it, wit
 Your widths are remembered in your own browser, so they are yours rather than the site's and nobody else's screen changes. The reading pane always keeps enough room to read in, so the other two stop rather than squeezing it out. On a narrower window, where the rail has already lain down into a strip along the top, there are only two columns and no lines to drag.
 
 **Closing one again.** There is a **×** at the top right of anything open, level with its title, which shuts it and gives the width back. On a phone the same link reads **Back to the list**, because there the list is not on the screen at all. The same goes for a person's page.
+
+Junk is part of covering somebody too: what you throw away out of their inbox goes into their spam folder rather than yours, and their **Spam** folder sits under their name beside **Sent** and **Mentioned**. See [Junk, and turning a sender away](#junk-and-turning-a-sender-away).
 
 ### People's own pictures
 
@@ -489,7 +516,7 @@ Turn it off again and everybody is back to initials immediately, including on a 
 
 **Answering is on the message, not on the conversation.** Every message has a **reply arrow** at the right-hand end of its own header, beside the name and the time, and the writing box opens under it when you press it. Beside the arrow are three dots holding the rarer three: **Reply all**, **Forward** and **Mark as unread**. This is worth the change on a long thread: a single Reply button above nine messages could never say which of them you meant, and now the one you are looking at is the one you are answering. Press the arrow again to put the box away. If you left a draft on that conversation it opens with the box already up, so nothing half-written is out of sight. (Starting one from scratch is **Write a message**, above.)
 
-**Internal notes have their own line at the bottom.** One box, always there as you scroll, in the same amber the notes themselves wear, saying on its face that nobody outside sees it. Type and press Enter. A note is not sent to anybody and deliberately does not bump the conversation or mark it unread: us talking among ourselves should not look like the customer writing again. The **@** button on that line tags a colleague in the note - see [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something). For a longer note - something with a file on it - press a reply arrow and switch the box to **Internal note**, which still does everything it always did.
+**Internal notes have their own line at the bottom.** One box, always there as you scroll, in the same amber the notes themselves wear, saying on its face that nobody outside sees it. Type and press Enter. A note is not sent to anybody and deliberately does not bump the conversation or mark it unread: us talking among ourselves should not look like the customer writing again. **Type @ to ask a colleague.** The names open in a short menu above the line, one under another; the arrow keys move through it and Return or Tab takes one. You can also simply write the name out - **@Emma can you look at this** - and pressing Enter asks Emma, whether or not you went near the menu. The only thing it will not do is guess: a half-written name, or a name two of you share, is left for the menu to settle. See [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something). For a longer note - something with a file on it - press a reply arrow and switch the box to **Internal note**, which still does everything it always did.
 
 **Assign** sits on the subject's own line, between the alarm clock and the button saying where the conversation stands, and opens the list of colleagues to hand it to. Once it is with somebody it says so - *With Marcus* - and pressing it again hands it on or takes it back to nobody.
 
@@ -556,7 +583,11 @@ Under the box are the narrower cuts, which are the ones a mail program has alway
 
 You can also search **Contacts** from the same box, which looks through the address book instead. That one takes the words and nothing else - who a message came from, and when, are questions about post.
 
-Whatever you searched for shows as a row of chips above the list, one per cut, each with a cross that takes only that one off. The address in your browser holds the lot, so a search can be sent to a colleague and the back button behaves.
+**Press Search and it lands on a screen of its own.** The same box sits across the top of the results and whatever you open from them, with all of the cuts above laid out under it, so what you asked for is in front of you rather than behind a magnifier you have to open again to remember it by. Change any of them there: the menus and the tickboxes take effect as you pick them, and words wait for Enter. The button beside the box turns the results round, newest first or oldest first, and the cross at the end leaves the search and puts you back on the list with nothing narrowing it.
+
+While a search is up, the list underneath is the results and nothing else - the ordinary search box and the Open, Snoozed, Done and All tabs come off, because everything they do is in the head above. Anything the search was handed to a particular colleague by is let go of as well: **Assigned to me** is a place in the rail rather than a cut a search can make, and one quietly still on would be narrowing your results with nothing saying so.
+
+The address in your browser holds the lot, so a search can be sent to a colleague and the back button behaves - including back out of the search itself.
 
 Search covers subjects, senders and the text of messages, and it only ever searches the inboxes you are allowed to read.
 
@@ -578,6 +609,33 @@ A few things worth knowing before you press it:
 
 Merging *conversations* and merging *people* are two different jobs. If the same human has turned up twice in the address book, that is a merge on their card - see [People, and how conversations collapse](#people-and-how-conversations-collapse).
 
+### Junk, and turning a sender away
+
+Every conversation has a **waste basket** at the top of it, on the left of the little alarm clock. Press it and the conversation goes into a **Spam** folder - whose, depending on where it came from.
+
+**On a shared address, it goes in yours.** Nobody else's screen changes at all. What one person files as junk is the supplier newsletter a colleague reads every Tuesday, and on an address like `sales@` there are several people with several opinions - so the button records yours and leaves everybody else's list exactly as it was.
+
+**On a colleague's own address, it goes in theirs.** If you have been let in to somebody's own inbox to cover their post while they are away, junk you clear out of it lands in **their** spam folder rather than yours. That is the honest answer twice over: it is their post, and your own spam folder has no business filling up with a fortnight of somebody else's rubbish. The button says so before you press it and again afterwards - "it is in Sam's spam folder now".
+
+It also leaves *your* view of their inbox, which is rather the point of covering somebody: you are trying to see what they would see, and post they have already binned is post you should not be working through.
+
+You can look in their bin, and take something back out of it, under their name on the rail - **Spam** sits there beside their **Sent** and **Mentioned**. So a mis-click while covering is a mis-click you can fix.
+
+**Nothing is deleted.** The conversation keeps every message in it. Open the spam folder, press the same button again, and it goes straight back where it was.
+
+Once it has moved, you are asked a second question: **would you like to block the sender as well?**
+
+- **No, just move it** is the ordinary answer, and it is what pressing Escape does. The conversation stays in your spam folder and nothing else changes.
+- **Block them** shuts the site's front door on that address. Nothing further from them is collected into *any* inbox on this site - the shared ones, every colleague's own, and the ones nobody has opened in months. It is one list for the whole site, because a block that only covered the address you happened to be standing in is no block at all: they would simply write to `hello@` instead and turn up in somebody else's list an hour later.
+
+The two are deliberately separate presses. Throwing one message away is a small decision about your own screen; refusing somebody in future is a decision about the whole business, and it should not happen by accident on the way past.
+
+**Blocking never deletes anything either.** Their old conversations stay exactly where they are - often that history is the whole reason you want them stopped. And anything they send while they are blocked is not destroyed: it is simply not collected, so it stays on the mail server, in whatever your mail app calls its own junk folder, where you can still go and look at it.
+
+**Letting somebody back in** is on **Settings → Unified Inbox → Collecting**, under **Blocked senders**. It lists every address the site refuses, who blocked it and when. Press **Let them through** and their post is collected again from the next round onwards - it does not go back for what was missed while the door was shut.
+
+You need permission to reply in order to block somebody, since it changes what everybody receives. Marking something as junk only needs permission to read, because it only changes your own screen.
+
 ### Which way round a conversation reads
 
 By default a conversation reads the way it happened: the first message at the top, the latest at the bottom, and the writing box - once you have asked for it - under the lot.
@@ -592,13 +650,13 @@ It is a site setting rather than a personal one, so everybody reads the same way
 
 Most sites end up with one inbox they live in and two or three they glance at, and alphabetical order has no opinion about which is which. **Drag a row up or down and it stays there.** It saves as you drop it - there is nothing to press afterwards.
 
-Three of the groups can be rearranged: **Shared inboxes**, **Team inboxes** and **Channels**. Each keeps to itself, because an order only means anything against the other things in the same list - a live chat sitting in the middle of your email addresses would be nobody's idea of tidy. **Yours** is the exception and does not move: what sits there is decided by whose post it is, not by where anybody dragged it.
+All four groups can be rearranged: **Yours**, **Shared inboxes**, **Team inboxes** and **Channels**. Each keeps to itself, because an order only means anything against the other things in the same list - a live chat sitting in the middle of your email addresses would be nobody's idea of tidy.
 
 Nothing announces any of this while you are simply running your eye down the rail. It is a list of places to go and it behaves like one; take hold of a row and the pointer closes into a hand, which is the moment it starts mattering.
 
 If you would rather not use a mouse for it, put the keyboard focus on a row, hold **Alt** and press the up or down arrow keys.
 
-The order belongs to the site rather than to you, so everybody who opens the inbox sees the same one - which means only people who can manage inboxes can change it. If you can read the inbox but not manage it, everything simply sits where whoever looks after the site has put it, and nothing drags.
+**Yours is yours, and the other three are the site's.** The order of **Yours** - your own address, **All**, **Mentioned**, **Drafts**, **Sent**, **Spam** - is saved against you and seen by nobody else, so it needs no permission at all: somebody who lives in **Sent** can put it second, and everybody else's rail carries on exactly as it was. The other three are one arrangement that everybody who opens the inbox sees, which is why only people who can manage inboxes can change them. If you can read the inbox but not manage it, those three sit where whoever looks after the site has put them and do not drag; **Yours** still does.
 
 One quiet detail about the channels: you can only rearrange the ones you can see, and what somebody may see is decided by the module each channel belongs to. Move the two you have and the ones you do not stay exactly where they were for the colleagues who do.
 
@@ -612,6 +670,7 @@ This is about a **shared** address you want somebody to open on. An individual i
 
 - the address sits at the top of the rail under **Yours**, ahead of **All**, and comes out of **Team inboxes**;
 - it is what they land on when they open the inbox, instead of **All**;
+- everything handed to them shows in it, wherever it was filed - see "The screen" above;
 - its signature goes at the foot of their replies, whichever address they are answering from.
 
 **All** does not go anywhere - it moves down one, to second - and the rest of the addresses follow in the usual order. Everybody else's rail is exactly as it was: this is one person's arrangement, not the site's, so it does not shuffle the rail for anybody else and it does not affect the order you have dragged the addresses into.
@@ -622,7 +681,7 @@ You can only give somebody an address they can actually read, so if the inbox ha
 
 ### Reading email safely
 
-A message someone else wrote is shown inside its own sealed frame, on a light background in both light and dark mode. It takes up as much room as the message actually needs - a two-line reply is two lines, a long newsletter is as long as it is, and neither has a scrollbar of its own inside the page's. Messages that kept one anyway were losing a fraction of a pixel in the measuring: a message a hair over five hundred pixels tall was given exactly five hundred, and the hair left over was a scrollbar over the whole thing. The frame is now measured to the fraction, rounded up rather than down, and given a couple of pixels of room to spare. A message written wider than the column you are reading it in is shrunk until the whole of it fits, the way a phone shows a desktop-width email, rather than being given a scrollbar along the bottom that hides half of it. The whole message is on the page and the page scrolls it, which is rather the point. A message that will not say how big it is gets a generous height rather than the letterbox it used to get. The sender chose their colours assuming a white page, and repainting the background dark while leaving their text alone is how a message ends up black on black. The rest of the screen follows your theme as usual. Sites sat behind a content network need one extra thing from it: Cloudflare will happily rewrite the frame on its way out, swapping every address in a message for the words "[email protected]" and shuffling the frame's own script into something no browser will run, which left messages stuck at their opening size with the layout cut about. The frame now tells Cloudflare to leave it alone, and it clips nothing at all until it has actually scaled a message to fit - so if anything ever does stop that script, the message spills over and can still be read rather than quietly losing its right-hand side.
+A message someone else wrote is shown inside its own sealed frame, on a light background in both light and dark mode. It takes up as much room as the message actually needs - a two-line reply is two lines, a long newsletter is as long as it is, and neither has a scrollbar of its own inside the page's. Messages that kept one anyway were losing a fraction of a pixel in the measuring: a message a hair over five hundred pixels tall was given exactly five hundred, and the hair left over was a scrollbar over the whole thing. The frame is now measured to the fraction, rounded up rather than down, and given a couple of pixels of room to spare. A message written wider than the column you are reading it in is shrunk until the whole of it fits, the way a phone shows a desktop-width email, rather than being given a scrollbar along the bottom that hides half of it. The whole message is on the page and the page scrolls it, which is rather the point. A message that will not say how big it is gets a generous height rather than the letterbox it used to get. The sender chose their colours assuming a white page, and repainting the background dark while leaving their text alone is how a message ends up black on black. The rest of the screen follows your theme as usual. Marketing email is nearly always built out of tables, and a table gives each column the width its contents insist on. The frame used to tell every message that a word could break anywhere it liked, which quietly told those columns that nothing insisted on anything - so in Safari a button could come out at a quarter of its proper width with its own label running off the side in white on a white page, reading "View" where it should have said "View in WhatsApp Manager". Nothing looked broken, it just said the wrong thing. That is sorted, and a long unbroken web address still wraps rather than sticking out. Sites sat behind a content network need one extra thing from it: Cloudflare will happily rewrite the frame on its way out, swapping every address in a message for the words "[email protected]" and shuffling the frame's own script into something no browser will run, which left messages stuck at their opening size with the layout cut about. The frame now tells Cloudflare to leave it alone, and it clips nothing at all until it has actually scaled a message to fit - so if anything ever does stop that script, the message spills over and can still be read rather than quietly losing its right-hand side.
 
 **Pictures hosted elsewhere are not loaded until you ask.** Press **Show pictures** and they are fetched by the site rather than by your browser, so a marketing email learns nothing about you, your location or when you opened it. Links open in a new tab.
 
@@ -875,7 +934,17 @@ If that line has more on it than will fit, it stops with an ellipsis rather than
 
 **A conversation with nothing on it yet has no line at all.** It used to get one anyway, reading "No context yet" - a whole row of a pinned header spent saying there was nothing to say. The arrow moves up instead, onto the end of the line that already reads *Email - General Enquiries - 1 message - last message 20:32*, where it costs nothing and is still exactly where you would go to attach the first one.
 
-**Anything you put on a message out of your catalogue joins that line once the message has gone**, beside the orders and the purchase orders, and clicking it opens the product in a new tab. So a conversation that started "have you got that in oak" says what it was about a fortnight later, without anybody reading back through it. Quote the same chair twice and it appears once.
+**Anything you put on a message out of your catalogue joins that line once the message has gone**, beside the orders and the purchase orders, and clicking it opens the product in a new tab. So a conversation that started "have you got that in oak" says what it was about a fortnight later, without anybody reading back through it. Quote the same chair twice and it appears once. This happens whichever channel the reply went out on - an enquiry answered with two chairs says so on the line as plainly as an email does.
+
+### "Existing customer"
+
+If whoever is writing has bought from the shop before, **Existing customer** sits on that same context line. It is not a record and nobody put it there - it is simply the one fact about a message from an unfamiliar name that changes how it gets answered, and otherwise you have to go and look for it.
+
+Click it and the orders list opens in a new tab, already narrowed to that person. Which order they mean is usually the reason for the trip, so it opens the list rather than picking one for you.
+
+**Attach the actual order and it goes away.** At that point the line says which order, which is the better answer to the same question, and having both on it was the vague version elbowing the precise one. Take the order off again and it comes back.
+
+You only see it if you are allowed into the shop in the first place. On a site with no shop it never appears.
 
 ## What the rest of the site knows about them
 
@@ -909,9 +978,9 @@ Four permissions, handed out through [Managing users](Managing-users) as usual:
 
 | Permission | What it allows |
 |---|---|
-| `unifiedinbox.view` | Read conversations, and read the address book |
-| `unifiedinbox.reply` | Reply, forward, note, assign, snooze, mark done, add and correct a contact, make a category |
-| `unifiedinbox.manage` | Settings, mail accounts, inboxes, merging conversations, merging people, export and erase, importing an address book, removing an organisation, renaming or removing a category |
+| `unifiedinbox.view` | Read conversations, mark them as junk in your own spam folder, and read the address book |
+| `unifiedinbox.reply` | Reply, forward, note, assign, snooze, mark done, block a sender, add and correct a contact, make a category |
+| `unifiedinbox.manage` | Settings, mail accounts, inboxes, the list of blocked senders and letting one back in, merging conversations, merging people, export and erase, importing an address book, removing an organisation, renaming or removing a category |
 | `unifiedinbox.campaigns` | Write, start, pause and stop campaigns, and manage the do-not-email list |
 
 **Campaigns is its own permission on purpose.** Renaming a folder and emailing five thousand customers are not the same act, and a site that has given somebody the first has not thereby given them the second. Sending a campaign from an address still needs permission to reply from that address as well - a campaign is a great many replies, and it is not a way round the guest list.

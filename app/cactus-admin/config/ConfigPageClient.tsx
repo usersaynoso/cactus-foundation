@@ -611,6 +611,11 @@ type ConfigPageInnerProps = {
   // labels. See lib/modules/hosted-settings.ts.
   hostedSettingsSlots?: HostedSettingsSlots
   hostedSettingsPanels?: HostedSettingsPanels
+  // config.manage. Settings is reachable by anyone holding a module settings
+  // tab's permission (or one of the two keys below), so the core tabs - site
+  // identity, speed, media, integrations, backup, restore, reset - are gated on
+  // this rather than shown to whoever managed to land on the page.
+  canManageConfig: boolean
   canManageEmailTemplates: boolean
   canViewMembersGdpr: boolean
   canManageNav: boolean
@@ -625,7 +630,7 @@ type ConfigPageInnerProps = {
   backupExtensions?: ReactNode
 }
 
-function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageEmailTemplates, canViewMembersGdpr, canManageNav, canManageSchedules, navEditorData, membersGdprExtensions, backupExtensions }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageConfig, canManageEmailTemplates, canViewMembersGdpr, canManageNav, canManageSchedules, navEditorData, membersGdprExtensions, backupExtensions }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -636,12 +641,31 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   const tabParam = searchParams.get('tab')
   const showNavTab = canManageNav && !!navEditorData
   const showSchedulesTab = canManageSchedules
-  const initialTab = TABS.includes(tabParam as Tab) || moduleTabs.some((t) => t.id === tabParam) || (showNavTab && tabParam === 'navigation') || (showSchedulesTab && tabParam === 'schedules') ? (tabParam as string) : 'general'
+  // Which of the six core tabs this role may open. Email and GDPR each have a
+  // second key (emails.templates, members.gdpr) that opens their own half of the
+  // tab and nothing else; the other four are config.manage territory outright.
+  const visibleCoreTabs = TABS.filter(
+    (t) => canManageConfig || (t === 'email' && canManageEmailTemplates) || (t === 'gdpr' && canViewMembersGdpr)
+  )
+  const isVisibleTab = (t: string | null): boolean =>
+    !!t && (
+      visibleCoreTabs.includes(t as Tab) ||
+      moduleTabs.some((mt) => mt.id === t) ||
+      (showNavTab && t === 'navigation') ||
+      (showSchedulesTab && t === 'schedules')
+    )
+  // General is only the default for a role that may see General. Anyone else
+  // lands on the first tab they can actually open.
+  const fallbackTab =
+    visibleCoreTabs[0] ??
+    (showNavTab ? 'navigation' : showSchedulesTab ? 'schedules' : moduleTabs[0]?.id) ??
+    'general'
+  const initialTab = isVisibleTab(tabParam) ? (tabParam as string) : fallbackTab
   const [tab, setTab] = useState<string>(initialTab)
   // Email tab sub-tabs. "Delivery" is the from-address and provider settings
   // that have always lived here; "Templates" is every email the site sends,
   // core and module alike.
-  const [emailSubTab, setEmailSubTab] = useState<'delivery' | 'templates'>('delivery')
+  const [emailSubTab, setEmailSubTab] = useState<'delivery' | 'templates'>(canManageConfig ? 'delivery' : 'templates')
 
   // Follow the ?tab= / ?sub= query params so command-palette deep links (and the
   // browser back button) land on the right tab, not just the one chosen at mount.
@@ -649,11 +673,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   useEffect(() => {
     const t = searchParams.get('tab')
     if (t) {
-      const valid =
-        TABS.includes(t as Tab) ||
-        moduleTabs.some((mt) => mt.id === t) ||
-        (showNavTab && t === 'navigation') ||
-        (showSchedulesTab && t === 'schedules')
+      const valid = isVisibleTab(t)
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab state to the URL param for deep links
       if (valid) setTab(t)
     }
@@ -701,7 +721,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
-  const [loading, setLoading] = useState(true)
+  // Nothing to wait for when the four config.manage endpoints below are never
+  // called - a role here for a module's settings tab would otherwise sit on
+  // "Loading…" for ever.
+  const [loading, setLoading] = useState(canManageConfig)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
@@ -800,8 +823,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- delegating to async helper; all setState calls are after awaits
-    if (tab === 'integrations' && !loading) loadGhStatus()
-  }, [tab, loading, loadGhStatus])
+    if (tab === 'integrations' && canManageConfig && !loading) loadGhStatus()
+  }, [tab, loading, canManageConfig, loadGhStatus])
 
   const ghAutoInstallTriggered = useRef(false)
 
@@ -876,8 +899,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- delegating to async helper; all setState calls are after awaits
-    if (tab === 'gdpr' && !loading) loadGdprSuggestions()
-  }, [tab, loading, loadGdprSuggestions])
+    if (tab === 'gdpr' && canManageConfig && !loading) loadGdprSuggestions()
+  }, [tab, loading, canManageConfig, loadGdprSuggestions])
 
   // Media provider state
   const [breakdown, setBreakdown] = useState<Record<string, number>>({})
@@ -987,10 +1010,13 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- delegating to async helper; all setState calls are after awaits
-    if (tab === 'media' && !loading) loadMediaState()
-  }, [tab, loading, loadMediaState])
+    if (tab === 'media' && canManageConfig && !loading) loadMediaState()
+  }, [tab, loading, canManageConfig, loadMediaState])
 
   useEffect(() => {
+    // Every one of these is a config.manage endpoint. A role that is here for a
+    // module's settings tab would collect four 403s and an error banner.
+    if (!canManageConfig) return
     Promise.all([
       fetch('/api/admin/config').then((r) => r.json()),
       fetch('/api/admin/pages?perPage=100').then((r) => r.json()),
@@ -1015,7 +1041,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       }
       setLoading(false)
     }).catch(() => { setError('Failed to load config'); setLoading(false) })
-  }, [])
+    // canManageConfig is a permission resolved on the server for this session - it
+    // never changes under the component, so the one-shot load stays one-shot.
+  }, [canManageConfig])
 
   // Flag unsaved changes whenever the form diverges from the last saved baseline.
   useEffect(() => {
@@ -1621,7 +1649,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         <h1 className="page-title">Settings</h1>
         {/* The templates sub-tab saves each email on its own, so the page-level
             Save button would be a second button that does something else. */}
-        {TABS.includes(tab as Tab) && !(tab === 'email' && emailSubTab === 'templates') && (
+        {canManageConfig && TABS.includes(tab as Tab) && !(tab === 'email' && emailSubTab === 'templates') && (
           <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
             {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save changes'}
           </button>
@@ -1643,7 +1671,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       <TabStrip
         style={{ marginBottom: '2rem' }}
         items={[
-          ...TABS.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => selectTab(t) })),
+          ...visibleCoreTabs.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => selectTab(t) })),
           ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => selectTab('navigation') }] : []),
           ...(showSchedulesTab ? [{ key: 'schedules', label: 'Schedules', active: tab === 'schedules', onClick: () => selectTab('schedules') }] : []),
           ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => selectTab(t.id) })),
@@ -1658,7 +1686,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           Save button (the header only shows one for the tabs listed in TABS). */}
       {tab === 'schedules' && showSchedulesTab && <ScheduledJobsClient />}
 
-      {tab === 'general' && (
+      {tab === 'general' && canManageConfig && (
         <div>
           <div id="general-updates" className="admin-anchor"><UpdatesPanel /></div>
           <div id="general-identity" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
@@ -2015,7 +2043,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         </div>
       )}
 
-      {tab === 'speed' && (
+      {tab === 'speed' && canManageConfig && (
         <div>
           <div id="speed-page-cache" className="field admin-anchor">
             <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
@@ -2147,7 +2175,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           )}
         </div>
       )}
-      {tab === 'email' && canManageEmailTemplates && (
+      {tab === 'email' && canManageConfig && canManageEmailTemplates && (
         <TabStrip
           items={[
             { key: 'delivery', label: 'Delivery', active: emailSubTab === 'delivery', onClick: () => selectEmailSubTab('delivery') },
@@ -2158,7 +2186,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
       {tab === 'email' && emailSubTab === 'templates' && canManageEmailTemplates && <EmailTemplatesClient />}
 
-      {tab === 'email' && emailSubTab === 'delivery' && (
+      {tab === 'email' && emailSubTab === 'delivery' && canManageConfig && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}><label>From name</label><input value={config.emailFromName ?? ''} onChange={(e) => set('emailFromName', e.target.value)} /></div>
@@ -2213,7 +2241,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         </div>
       )}
 
-      {tab === 'gdpr' && (() => {
+      {tab === 'gdpr' && canManageConfig && (() => {
         const consent = config.consentBannerConfig ?? null
         const cats: ConsentCategory[] = consent?.categories ?? DEFAULT_CONSENT_BANNER_CONFIG.categories
 
@@ -2452,17 +2480,20 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </>
             )}
 
-            {canViewMembersGdpr && (
-              <>
-                <MembersGdprClient />
-                {membersGdprExtensions}
-              </>
-            )}
           </div>
         )
       })()}
 
-      {tab === 'media' && (() => {
+      {/* The members GDPR dashboard carries its own key: a data-protection officer
+          can be given it without the run of the site's settings. */}
+      {tab === 'gdpr' && canViewMembersGdpr && (
+        <>
+          <MembersGdprClient />
+          {membersGdprExtensions}
+        </>
+      )}
+
+      {tab === 'media' && canManageConfig && (() => {
         const selected = config.mediaProvider ?? null
         const isProxiedSel = selected ? PROVIDER_KIND[selected] === 'PROXIED' : false
         const selectedVars = selected ? PROVIDER_ENV_VARS[selected] : []
@@ -2803,7 +2834,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         )
       })()}
 
-      {tab === 'integrations' && (
+      {tab === 'integrations' && canManageConfig && (
         <div>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
             All credentials are stored directly in your Vercel project environment variables. Changes take effect on next deployment.

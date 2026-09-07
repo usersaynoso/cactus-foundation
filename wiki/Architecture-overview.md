@@ -139,6 +139,18 @@ When `DATABASE_URL` is absent at setup time and `NEON_API_KEY` is configured, th
 - **Recovery**: offline single-use recovery code (generated at setup), or email link (30-minute expiry). Both land on the login page's recovery UI.
 - **`GET /api/auth/config`** is the one pre-auth payload the login screen reads, and it is deliberately thin: `emailConfigured`, `turnstileConfigured`, `turnstileSiteKey`. It used to include `neonProjectId` as well, purely to deep-link the lost-passkey help at the right Neon project; that is infrastructure metadata handed to anyone who can reach the login page, so it was removed on 2026-07-23 and the help links to the plain console instead. Treat this route as public output when adding to it.
 
+## Admin screen permissions
+
+`proxy.ts` validates the session on every admin request and the admin layout validates it again; **neither checks a permission**. Authorisation is per screen, and there are three layers, each of which does a different job:
+
+- **The sidebar** (`lib/nav/admin-menu.ts`) decides what to *show*. `CORE_NAV_ITEMS[].defaultPermissions` is an any-of list per item, and a site owner's saved customisation can override visibility per item (`default`, `everyone`, `admin`, `roles`, `hidden`). This is presentation only - the `everyone` mode shows a link, it grants nothing.
+- **The screen** decides who may *open* it. Either the page checks a permission itself, or the section carries a `layout.tsx` calling `denyUnlessAny` (`lib/permissions/section-gate.tsx`), which covers its nested routes too - `pages/`, `media/`, `menus/`, `layouts/`, `modules/`, `appearance/` and `config/privacy-generator/` work this way. This layer is the one that was missing until 2026-09-07: the links were hidden but the screens themselves rendered for any signed-in staff account that typed the address, and Pages and Media are server components, so they queried and rendered the data before any API was involved.
+- **The API** decides who may *act*. Every `/api/admin/**` route re-checks, and always did - which is why the hole leaked screens and reads rather than write access.
+
+**Settings is the exception, deliberately.** `/config` is not a `config.manage`-only screen: a module contributes a settings tab under its own permission (`manifest.settingsTabs[].permission`), so the page's gate is "may you see any tab at all" and each tab is gated again on its own key - in `page.tsx` for what it resolves server-side, and in `ConfigPageClient` via `canManageConfig`, which controls the six core tabs, the page-level Save button, the backup/restore/reset cards and the four `config.manage` fetches the page would otherwise fire (and be refused). Email and GDPR each have a second key - `emails.templates` opens the email Templates sub-tab alone, `members.gdpr` the members half of GDPR & Legal alone.
+
+`lib/permissions/admin-section-gates.test.ts` walks every `page.tsx` under `app/cactus-admin` and fails on one that neither checks a permission nor sits under a `denyUnlessAny` layout. Genuinely open screens (the dashboard, login, your own account, the Inbox host, the Settings door, the module router) are listed in `OPEN_PAGES` with the reason. It deliberately does **not** accept the admin root layout as cover - that layout resolves permissions to build the sidebar, and counting it would pass the whole tree.
+
 ## Members system
 
 The Members system is a parallel, independent account system for site visitors - entirely separate from the admin `User` model above. A `Member` never has admin permissions and a `User` never appears in the member directory; the two tables, sessions, and cookies never mix. See [Members](Members) for the site-owner-facing explanation.

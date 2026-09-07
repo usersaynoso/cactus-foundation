@@ -92,12 +92,23 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
     hostedSettingsSlots[host] = <>{panels.map((p) => p.node)}</>
   }
 
+  const canManageConfig = granted['config.manage'] === true
   const canManageEmailTemplates = granted['emails.templates'] === true
   const canViewMembersGdpr = granted['members.gdpr'] === true
-  const canManageNav = granted['config.manage'] === true
+  const canManageNav = canManageConfig
   // Same key as the navigation editor: Schedules is site-wide plumbing, not a per-section
   // setting, and the permission batch above already resolved it.
-  const canManageSchedules = granted['config.manage'] === true
+  const canManageSchedules = canManageConfig
+
+  // The door. Settings is not a config.manage-only screen - a module's settings tab
+  // lives here under the module's own permission, as do the email templates and the
+  // members GDPR dashboard under theirs - so the gate is "may you see anything at
+  // all", and each tab is gated again on its own key below and in the client. Without
+  // this, any signed-in staff account could open the site's settings by typing the
+  // address, whatever its role held.
+  if (!canManageConfig && !canManageEmailTemplates && !canViewMembersGdpr && moduleTabs.length === 0) {
+    return <div className="alert alert-danger">You do not have permission to view site settings.</div>
+  }
 
   // Modules can add their own backup cards under Settings > Backup (e.g. a
   // module running an external service with its own database) via the
@@ -179,6 +190,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
     <Suspense fallback={<div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>}>
       <ConfigPageClient
         moduleTabs={moduleTabs}
+        canManageConfig={canManageConfig}
         hostedSettingsSlots={hostedSettingsSlots}
         hostedSettingsPanels={hostedSlotPanels}
         canManageEmailTemplates={canManageEmailTemplates}

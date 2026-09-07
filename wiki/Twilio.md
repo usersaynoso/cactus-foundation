@@ -290,7 +290,9 @@ WhatsApp is not like texting: you cannot simply pick one of your numbers and sta
 
 While you are waiting, **Twilio's test number** is offered in the same menu. It works immediately, with one catch: everybody you want to message has to send Twilio a join code from their own phone first. Fine for trying it out with your own mobile, no use for customers.
 
-**Handled in** is the country your messages go through, and it wants to match wherever that number's calls and texts already go. Pick one of your own numbers from the menu above and it fills itself in.
+**Handled in** is the country WhatsApp itself puts your messages through - and it is very often **not** the country that same number's calls and texts go through. WhatsApp approves a sender against your Twilio account rather than against the phone line, so a number whose calls are handled in Ireland can perfectly well have its WhatsApp handled in the United States. Twilio does not warn you about the mismatch; it simply hands back nothing.
+
+You do not have to get this right for messages to appear. The site looks for WhatsApp conversations in every country your account reaches, so a message lands in your inbox wherever WhatsApp filed it, and a reply goes back the same way it came. The setting only decides where the very first message to somebody brand new is sent from - so if a template to a new customer is refused, this is the box to change.
 
 ### The 24-hour rule
 
