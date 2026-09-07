@@ -18,7 +18,7 @@ That is the whole job. Merchant Center takes a day or so to process a new feed t
 ## What goes in the feed
 
 - **Every variation of every product**, as its own listing, grouped with its siblings so Google shows them as one product with choices. Products without variations go along as single listings.
-- Each variation's listing links to the variation's own address - the same link the basket uses - which opens the product page with that combination already chosen.
+- Each variation's listing links to that combination's **published address** - the product page carrying the chosen options, exactly as it appears in your sitemap - which opens the product page with that combination already chosen. From 0.1.11 this is the same address search engines are told about, rather than the variation's own private one.
 - Its own photos when it has them, the product's photos when it doesn't.
 - Its real availability: in stock, out of stock, back-order or pre-order, by the same rules the shop itself applies. Sale prices travel as sale prices.
 - Prices are always sent **VAT-inclusive**, whatever the storefront is set to display - that is what Google requires in the UK.
@@ -146,10 +146,18 @@ From then on, a customer who has paid sees Google's own small dialog on the conf
 
 Two things ship in the Shop module itself to keep Google happy about all those variation links:
 
-- Every product page now declares a **canonical address**. A variation's own link shows the parent's page (with the variation pre-selected), so it declares the parent's address as the real one - Google never mistakes thousands of variation links for thousands of duplicate pages.
+- Every product page now declares a **canonical address**. A variation's own private link shows the parent's page (with the variation pre-selected), so it declares the parent's address as the real one - Google never mistakes thousands of variation links for thousands of duplicate pages.
 - A product with variations describes itself to search engines with a **price range** starting at its cheapest choice, rather than claiming one exact price no variation may actually cost - so the feed and the page can never contradict each other.
 
 Neither needs any setting up; they are simply how the Shop behaves from 0.1.243.
+
+### Why the feed's links changed in 0.1.11
+
+The two above did their job a little too well. The feed used to send Google to each variation's own private address, the page quite correctly answered "the real page is the parent listing", and Google filed the lot under **"Alternative page with proper canonical tag"** in Search Console - technically the right answer to the wrong question, and a few thousand of them on a large catalogue.
+
+From 0.1.11 the feed links to the combination's published address instead: the same one in your sitemap, the same one the page stands behind. Feed, sitemap and page now all name one address per variation, and Search Console stops reporting them.
+
+Nothing else about your listings changes - Merchant Center identifies them the same way it always has, so no listing is retired and re-created. Google re-reads the feed on its usual schedule and the reported count falls away over the following weeks rather than overnight. Where a combination has no published address of its own - one where an option was left unanswered, or a product with two options named so alike they cannot be told apart in an address - the feed keeps the old link, because a link that works beats a tidy one that doesn't.
 
 ## If Merchant Center turns products down over their pictures
 

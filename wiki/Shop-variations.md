@@ -265,6 +265,7 @@ A few things worth knowing before you go looking at the numbers:
 - **It gets big.** A catalogue of a few hundred products with a colour chart each becomes tens of thousands of addresses. That is the intended effect, but it does mean search engines now have a great deal more of your shop to work through, and they may take their time deciding which of it deserves a place in results. Sitemaps have a hard ceiling of 50,000 addresses, so the module stops at 45,000 and says so in the deployment log rather than quietly producing a file nothing will read.
 - **The page now agrees with the sitemap.** A product page used to tell search engines that the plain listing was the real page and every configured address was just a copy of it. It still says that for a half-chosen address - but for a whole combination it now stands behind the address you are actually on. Typing the options in a different order, or using one of the alternative value names, still folds onto the one official address.
 - **The basket's own variation links are unchanged.** Those keep pointing at the plain listing as the real page, exactly as before.
+- **From 0.1.172, Google Shopping uses the same address.** If you run the Google Shopping module (0.1.11 or later), each variation's listing in the feed links to the very address published here, so the feed, the sitemap and the page all name one address per combination instead of three opinions about it.
 
 ## On your category pages
 
