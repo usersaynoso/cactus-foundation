@@ -77,8 +77,12 @@ const REGISTRIES = [
  * NOT on the list, so the count can only go down. It went 27 -> 2 on
  * 2026-09-07.
  *
- * Removing an entry that no longer cycles is also a failure - a stale allowance
- * is how a list like this quietly stops meaning anything.
+ * A stale allowance is how a list like this quietly stops meaning anything, so
+ * an entry that no longer cycles is still reported - but as a WARNING at
+ * prebuild, and as a failure only in the platform tree's own suite. Whether an
+ * entry cycles at all depends on which modules an install has: the edge that
+ * closes the loop here may be in a module that site never installed. An install
+ * must never have its build refused over somebody else's tidying.
  */
 const KNOWN = [
   'modules/shop/lib/payments/registry.ts',
@@ -203,13 +207,22 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(1)
   }
 
+  // WARNING, NEVER A FAILURE. Which cycles exist depends on which modules this
+  // install has, so an entry that closes a loop in the platform tree may close
+  // nothing on a site with a different set - or belong to a module that site
+  // does not install at all. Failing on that turns one person's untidied list
+  // into a refused build on somebody else's site, which is exactly what core
+  // v0.5.1552 did to the filters-for-shop gate: shop's payment registry does
+  // not cycle in that composition, and the build was aborted over it. Pruning
+  // is a platform-tree job, and lib/modules/import-cycles.test.ts still fails
+  // there, where the whole module set is the one the list was written against.
   if (stale.length > 0) {
-    console.error(
-      `[check-import-cycles] ${stale.length} entr(y/ies) on the KNOWN list no longer cycle. ` +
-        'Delete them from scripts/check-import-cycles.mjs - an allowance nobody prunes stops meaning anything:\n',
+    console.warn(
+      `[check-import-cycles] ${stale.length} entr(y/ies) on the KNOWN list do not cycle in this ` +
+        'module set. Nothing to do here - they are pruned in the platform tree, if they no longer ' +
+        'cycle there either:\n',
     )
-    for (const entry of stale) console.error(`  ${entry}`)
-    process.exit(1)
+    for (const entry of stale) console.warn(`  ${entry}`)
   }
 
   if (unexpected.length === 0) {

@@ -34,6 +34,11 @@ describe('generated registry import graph', () => {
     expect(checked.length, 'no generated registry was found to check - run the generators first').toBeGreaterThan(0)
   })
 
+  // Deliberately stricter than prebuild, which only warns about this. Which
+  // cycles exist depends on the module set, so a stale entry is a fact about
+  // THIS tree and nobody else's - an install with a different set must not have
+  // its build refused over a list it did not write. Here it is worth failing on:
+  // this is the tree the list was written against, and the tree it is pruned in.
   it('records no cycle that has since been fixed', () => {
     const { stale } = findRegistryImportCycles(path.join(process.cwd()))
     expect(
