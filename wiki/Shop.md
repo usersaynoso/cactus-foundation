@@ -342,6 +342,26 @@ Recorded a dispatch that never happened? Press **Undo** beside it in the Parcels
 
 Two sensible limits: you can't dispatch more of something than was bought, and you can't dispatch something you've already refunded. If a refund and a dispatch are attempted at the same moment, one of them waits its turn rather than both squeezing past the check.
 
+### Delivery dates, time windows and your own couriers
+
+Some couriers work in two goes. They collect the parcel and tell you which **day** it is going out on; then, usually the evening before, they ring back with the **four-hour window**. The order has already been dispatched by then, so there is nothing left to send - and the bit the customer actually plans their morning around arrives last.
+
+**Your couriers, as a list.** Under **Settings → Shop → General → Couriers**, add the couriers you actually use. Each one carries a name, a set of delivery questions, and one tick box: **Show customers this courier's own tracking page**. Leave the list empty and dispatch keeps the plain **Carrier** box it has always had, and nothing changes for you.
+
+Once there is a list, **Dispatch items** offers it as a dropdown, with **Other** for the one-off van. Rename a courier later and every parcel already sent with them renames itself, because the parcel remembers which courier it was rather than a copy of the name.
+
+**The delivery date.** In **Dispatch items** there is now a **Delivery date**, and next to it a **window starts** and **window ends** if the courier has already told you. The customer's order page reads **Arranged for Tuesday 8th of September**, with the times added underneath once there are any. It is the day as anybody would say it out loud, and it stays the day you typed no matter where in the world the person reading it happens to be.
+
+**Filling in the window later.** In the **Parcels** list on the order, each parcel now has a **Details** button. That is where the window goes when the courier finally confirms it - and where a tracking link goes if it turns up after the parcel did. What is *in* the parcel cannot be changed there on purpose: to move items about, undo the dispatch and record it again, so all the sums are checked properly.
+
+Saving a date and both times sends the customer the new **Delivery time confirmed** message: the day, the window, what is arriving, and a link to their order. It goes **once per parcel**, so going back in to correct a typo does not email them all over again - the panel says so plainly when they have already been told. Editable, like every other message, under **Settings → Email → Templates**.
+
+**The van.** Once a delivery is booked, the customer's order page grows a fifth step between **Dispatched** and **Complete**, with a small van on it. During the booked window the van creeps across, so somebody who has been in since ten can see how much of the window is left. When the window has been and gone the van has arrived - but **Complete** stays untidied until you say so, because a delivery can fail and a tick that came off a clock would be telling somebody standing in an empty hall that their furniture is there.
+
+**When the tracking page is not for customers.** Some couriers' "tracking" page is really your trade account: your account number, your buying terms, sometimes the word PRO-FORMA and their own telephone number. Untick **Show customers this courier's own tracking page** for those. The link is still recorded on the parcel and still there for you on the order screen; the customer gets the date, the window and the van instead, on your own site, and is never sent anywhere that quotes your cost price back at them.
+
+**Delivery questions.** Each courier can carry its own questions and answers - will they take it upstairs, what happens if nobody is in, do they ring first. They appear as a **Questions about your delivery** button on the customer's order page, and as a link in the delivery message, which opens the same questions when they arrive. A courier with no questions shows no button and no link, so an empty list is simply invisible rather than an empty box. Answers are plain words, typed exactly as you write them.
+
 ### Mixed baskets with a pre-order in them
 
 **Settings → Shop → Checkout** has a setting for what happens when a basket mixes something in stock with something on pre-order. It has never stopped anyone buying such a basket, and it still doesn't - it decides how the order gets sent.
