@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1543",
+  "version": "0.5.1544",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -21,6 +21,7 @@
     "test:inbox-addressed": "RUN_INBOX_ADDRESSED=1 vitest run modules/unified-inbox/lib/addressed-channels.live.test.ts --testTimeout 120000 --no-file-parallelism",
     "test:inbox-own-desk": "RUN_INBOX_OWN_DESK=1 vitest run modules/unified-inbox/lib/own-desk.live.test.ts --testTimeout 120000 --no-file-parallelism",
   "test:inbox-search-sql": "RUN_INBOX_SEARCH_SQL=1 vitest run modules/unified-inbox/lib/search-sql.live.test.ts --testTimeout 120000 --no-file-parallelism",
+    "test:inbox-arrival": "RUN_INBOX_ARRIVAL=1 vitest run modules/unified-inbox/lib/arrival-order.live.test.ts --testTimeout 120000 --no-file-parallelism",
     "test:inbox-contacts": "RUN_INBOX_CONTACTS=1 vitest run modules/unified-inbox/lib/contacts.live.test.ts --testTimeout 120000 --no-file-parallelism",
     "test:inbox-campaign-sql": "RUN_INBOX_CAMPAIGN_SQL=1 vitest run modules/unified-inbox/lib/campaign-sql.live.test.ts --testTimeout 120000 --no-file-parallelism",
     "test:filters-sql": "RUN_FILTERS_SQL=1 vitest run modules/filters-for-shop/lib/matching-sql.live.test.ts --testTimeout 300000 --no-file-parallelism",
