@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.399"
+      "version": "v0.1.400"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,7 +13,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.172"
+      "version": "v0.1.173"
     },
     {
       "name": "product-addons-for-shop",
@@ -118,7 +118,7 @@
     {
       "name": "contact-form",
       "repoUrl": "https://github.com/cactus-foundation-modules/contact-form",
-      "version": "v0.1.42"
+      "version": "v0.1.43"
     },
     {
       "name": "contact-form-reply-catcher",
@@ -138,7 +138,7 @@
     {
       "name": "search",
       "repoUrl": "https://github.com/cactus-foundation-modules/search",
-      "version": "v0.1.40"
+      "version": "v0.1.41"
     },
     {
       "name": "live-chat",
@@ -158,12 +158,12 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.31"
+      "version": "v0.1.32"
     },
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.57"
+      "version": "v0.1.58"
     }
   ]
 }
