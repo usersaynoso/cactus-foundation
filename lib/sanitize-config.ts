@@ -54,7 +54,11 @@ export const RICHTEXT_ALLOWED_ATTR = [...ALLOWED_ATTR, 'style', 'colspan', 'rows
 // sanitiser to be wrong.
 export const EMAIL_HTML_ALLOWED_TAGS = [
   ...RICHTEXT_ALLOWED_TAGS,
-  'b', 'i',
+  // `strike` for the same reason as `b` and `i` above, and it is the same
+  // browsers doing it: a contentEditable box asked for strikethrough writes
+  // `<strike>` rather than the `<s>` the list already carried, so a struck-out
+  // line was quietly un-struck the first time the draft was saved.
+  'b', 'i', 'strike',
   'tfoot', 'caption', 'colgroup', 'col', 'center', 'font', 'small', 'big', 'sub', 'sup',
 ]
 

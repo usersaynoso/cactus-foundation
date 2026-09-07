@@ -98,6 +98,34 @@ export type ConversationIdentity = {
   phones: string[]
 }
 
+/**
+ * The inline styles a channel can carry, and what it wraps each one in.
+ *
+ * A channel that takes plain words - a text message, a call log - declares
+ * nothing and gets nothing. A chat channel that has its own way of saying
+ * "bold" declares the marker it says it with, and the consumer wraps the words
+ * in that: WhatsApp writes bold as `*like this*`, Slack the same, Telegram as
+ * `**like this**`.
+ *
+ * DECLARED BY THE CHANNEL rather than looked up by whoever is sending, and
+ * that is the entire point of it being here. A consumer that knew WhatsApp's
+ * asterisks would be a consumer that had learned one particular module's wire
+ * format, and the next channel along would need it teaching a second. What a
+ * channel is offered in the writing box, and what a message is wrapped in on
+ * the way out, both come from this and nothing else.
+ *
+ * A marker is a plain string wrapped round the words on BOTH sides. Nothing
+ * here can express a style whose opening and closing markers differ, which is
+ * deliberate: no chat channel writes one, and a shape that could would need a
+ * parser rather than a wrapper.
+ */
+export type ConversationTextStyles = {
+  bold?: string
+  italic?: string
+  strikethrough?: string
+  monospace?: string
+}
+
 export type ConversationProvider = {
   /** Human label for the channel this provider serves, e.g. "Live chat". */
   label: string
@@ -112,6 +140,12 @@ export type ConversationProvider = {
     /** Whether the other party can be refused outright - a caller blocked, a
      *  sender turned away - by the channel that owns them. */
     block?: boolean
+    /** Which inline styles survive the journey, and what this channel writes
+     *  each of them as. Absent means the channel takes words and nothing else,
+     *  which is the honest default: a consumer offering a Bold button over a
+     *  channel that cannot carry one is offering a button that quietly does
+     *  nothing. */
+    textStyles?: ConversationTextStyles
   }
   list(opts: ConversationListOptions): Promise<ConversationListPage>
   thread(id: string): Promise<ConversationThread | null>
