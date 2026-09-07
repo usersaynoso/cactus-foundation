@@ -1,5 +1,3 @@
-import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
-
 // Contract for the "core.media-usage-providers" extension point.
 //
 // Core decides whether a media item is "unused" - and so offers it up for bulk
@@ -25,9 +23,27 @@ import { modulePublicExtensionPointComponents as moduleExtensionPointComponents 
 // haystack, so any one of the three is enough to mark the item in use.
 export type MediaUsageProvider = () => Promise<string[]>
 
-/** Every module-registered media usage provider, in no guaranteed order. */
-export function getMediaUsageProviders(): MediaUsageProvider[] {
-  const map = moduleExtensionPointComponents['core.media-usage-providers'] as
+/**
+ * Every module-registered media usage provider, in no guaranteed order.
+ *
+ * THE REGISTRY IS REACHED THROUGH A DYNAMIC IMPORT, AND THAT IS LOAD-BEARING.
+ * `extension-points.public.ts` statically imports every component every module
+ * contributes - 114 files - and a fair few of those reach back to a file like
+ * this one that consumes the registry. A static import here closes an import
+ * cycle. Turbopack merges the modules in a cycle into one scope, and a `const`
+ * read while that scope is still being evaluated throws "Cannot access 'x'
+ * before initialization" - which is a production build failure, on whichever
+ * module set happens to order the graph badly, that `tsc`, `eslint` and the
+ * whole test suite are perfectly happy with. It cost a red build gate on
+ * 2026-09-07; see scripts/check-import-cycles.mjs for the guard.
+ *
+ * A dynamic import is still an edge the bundler follows, so this hides nothing
+ * from check-client-graph. It only defers evaluation past the cycle, which is
+ * exactly the bit that matters.
+ */
+export async function getMediaUsageProviders(): Promise<MediaUsageProvider[]> {
+  const { modulePublicExtensionPointComponents } = await import('@/lib/modules/extension-points.public')
+  const map = modulePublicExtensionPointComponents['core.media-usage-providers'] as
     | Record<string, MediaUsageProvider>
     | undefined
   return map ? Object.values(map) : []

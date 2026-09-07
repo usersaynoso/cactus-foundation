@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { hasPermission } from '@/lib/permissions/check'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import type { SessionUser } from '@/lib/auth/session'
 import type { Dialler, DiallerNumber, ResolvedDialler } from '@/lib/dialler/types'
 
@@ -35,6 +34,13 @@ function isDialler(value: unknown): value is Dialler {
  *  whether a seam exists should not pay for it. */
 export async function resolveDiallers(user: SessionUser | null): Promise<ResolvedDialler[]> {
   if (!user) return []
+  // Dynamic on purpose: this file is reached FROM the generated registry
+  // (it contributes a component of its own), so a static import back to it
+  // closes a cycle. Turbopack merges a cycle into one scope and can fail a
+  // production build with "Cannot access 'x' before initialization", on some
+  // module sets and not others. See scripts/check-import-cycles.mjs.
+  const { moduleExtensionPointComponents } =
+    await import('@/lib/modules/extension-points')
   const components = moduleExtensionPointComponents[DIALLER_POINT] ?? {}
   if (Object.keys(components).length === 0) return []
 

@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { Render } from '@puckeditor/core/rsc'
 import type { Data } from '@puckeditor/core'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
-import { moduleRscComponentsByLayoutType } from '@/lib/puck/module-rsc-components'
 import { injectDocumentContext } from '@/lib/documents/context'
 import { DOCUMENT_FOOTER_LAYOUT_TYPE } from '@/lib/documents/page-settings'
 
@@ -61,10 +60,20 @@ export async function renderDocumentRunningFooter(
     // (`layoutTypes` on a puckBlock), so the set is exactly the blocks that can
     // appear here - core blocks (a line of text, the site logo) are left alone,
     // as they have no document to read.
+    // Both of these are loaded here rather than imported at the top, for two
+    // separate reasons that happen to have the same cure.
+    //
+    // config.rsc reaches next/headers through other modules' RSC blocks, and a
+    // static import would drag that into every caller.
+    //
+    // module-rsc-components is a generated barrel of every module's RSC blocks,
+    // and several of those reach back here through their own module's document
+    // code - shop's checkout blocks, by way of the extension-point registry and
+    // purchase-orders' PDF. A static edge closed that loop, and Turbopack fails
+    // a production build on a cycle with "Cannot access 'x' before
+    // initialization". See scripts/check-import-cycles.mjs.
+    const { moduleRscComponentsByLayoutType } = await import('@/lib/puck/module-rsc-components')
     const partTypes = Object.keys(moduleRscComponentsByLayoutType[layoutType] ?? {})
-    // Loaded here rather than imported at the top: config.rsc reaches
-    // next/headers through other modules' RSC blocks, and a static import would
-    // drag that into every caller.
     const { getModuleLayoutPuckRscConfig } = await import('@/lib/puck/config.rsc')
     const data = injectDocumentContext(source, ctx, partTypes)
     return <Render config={getModuleLayoutPuckRscConfig(layoutType)} data={data as Data} />

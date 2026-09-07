@@ -12,8 +12,12 @@
 // Publish is a much worse outcome than an editor who sees their change a few
 // minutes late.
 //
-// Vercel's own CDN needs nothing here - revalidatePath() already invalidates it,
-// and every call site below sits next to one.
+// Nothing here touches Next's own route cache, and it has to be cleared too: a
+// top-level page renders with `revalidate = false`, so Next holds its HTML until
+// revalidatePath() says otherwise, and a CDN purge on its own just refills the
+// CDN from the same stale origin. Every call site below therefore sits next to a
+// revalidatePath(), and calls it FIRST - purge before revalidate leaves a window
+// in which the CDN can refill from HTML that is still stale.
 
 const CF_API = 'https://api.cloudflare.com/client/v4'
 

@@ -2163,7 +2163,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             <div id="speed-purge-now" className="field admin-anchor" style={{ maxWidth: '46rem' }}>
               <label>Purge everything now</label>
               <span className="field-hint" style={{ display: 'block', marginBottom: '0.5rem' }}>
-                Drops every stored copy on Cloudflare straight away, rather than waiting for each one to age out on its
+                Drops every stored copy of your pages straight away, rather than waiting for each one to age out on its
                 own. Useful right after a change that does not go through a page save - a new theme, a bulk price
                 update - anything the automatic clearing above would not have caught.
               </span>

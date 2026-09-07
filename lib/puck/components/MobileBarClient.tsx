@@ -72,12 +72,12 @@ function SheetMenuItem({ item, depth, onNavigate }: { item: MobileBarMenuItem; d
   return (
     <li>
       <div style={{ display: 'flex', alignItems: 'stretch' }}>
-        {item.url
+        {item.href
           ? (
             <a
-              href={item.url}
-              target={item.newTab ? '_blank' : undefined}
-              rel={item.newTab ? 'noopener noreferrer' : undefined}
+              href={item.href}
+              target={item.openInNewTab ? '_blank' : undefined}
+              rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
               style={{ ...rowStyle, flex: 1 }}
               onClick={onNavigate}
             >

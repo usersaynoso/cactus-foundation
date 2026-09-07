@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
@@ -268,6 +269,11 @@ export async function PATCH(request: NextRequest) {
   if (rest.pageCacheEnabled !== undefined || rest.pageCacheTtl !== undefined) {
     invalidateSiteConfigCache()
     if (rest.pageCacheEnabled === false || rest.pageCacheTtl !== undefined) {
+      // Next's route cache first, then the CDN - see the note in
+      // app/api/admin/cache/purge/route.ts. A top-level page is held by Next
+      // indefinitely under `revalidate = false`, so purging Cloudflare on its own
+      // just refills it from the same stale origin.
+      revalidatePath('/', 'layout')
       await purgeCdnEverything()
     }
   }

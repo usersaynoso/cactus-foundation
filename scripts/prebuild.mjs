@@ -118,4 +118,17 @@ if (clientGraph.status !== 0) {
   process.exit(clientGraph.status ?? 1)
 }
 
+// 4. Same moment, same reason, the mirror-image question: no generated registry
+// may sit in an import cycle with the module code it imports. Turbopack merges
+// a cycle into one scope and dies collecting page data with "Cannot access 'x'
+// before initialization" - and whether it does depends on which modules are
+// installed, so it is precisely the sort of thing only this step can see. See
+// scripts/check-import-cycles.mjs.
+const importCycles = await run('import cycles', 'node', ['scripts/check-import-cycles.mjs'])
+flush(importCycles)
+if (importCycles.status !== 0) {
+  console.error('[prebuild] import cycle check failed — aborting build')
+  process.exit(importCycles.status ?? 1)
+}
+
 console.log(`\n[prebuild] Done in ${((Date.now() - prebuildStarted) / 1000).toFixed(1)}s.`)

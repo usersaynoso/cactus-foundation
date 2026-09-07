@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { hasPermission } from '@/lib/permissions/check'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import type { SessionUser } from '@/lib/auth/session'
 import type { ConversationProvider, ResolvedConversationProvider } from '@/lib/conversations/types'
 
@@ -38,6 +37,14 @@ export async function resolveConversationProviders(
   user: SessionUser | null,
 ): Promise<ResolvedConversationProvider[]> {
   if (!user) return []
+  // Dynamic on purpose: the registry imports the modules that contribute a
+  // conversation provider, and their admin panels reach back here, so a
+  // static import closes a cycle. Turbopack merges a cycle into one scope
+  // and can fail a production build with "Cannot access 'x' before
+  // initialization", on some module sets and not others. See
+  // scripts/check-import-cycles.mjs.
+  const { moduleExtensionPointComponents } =
+    await import('@/lib/modules/extension-points')
   const components = moduleExtensionPointComponents[CONVERSATION_PROVIDER_POINT] ?? {}
   if (Object.keys(components).length === 0) return []
 

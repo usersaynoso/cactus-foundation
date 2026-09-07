@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { isCdnPurgeConfigured, purgeCdnEverythingOrThrow } from '@/lib/cache/cdn-purge'
@@ -17,6 +18,15 @@ export async function POST() {
   }
 
   try {
+    // Next's own route cache first, THEN the CDN. A top-level page renders with
+    // `revalidate = false` (app/(public)/[slug]/page.tsx), so its HTML is held by
+    // Next indefinitely and only revalidatePath drops it. Purging Cloudflare
+    // without this achieves nothing you can see: Cloudflare drops its copy, asks
+    // the origin, is handed the same stale HTML back, and caches it again for
+    // another full window. The order matters for the same reason - purge first
+    // and Cloudflare can refill from the still-stale origin in the gap between
+    // the two calls.
+    revalidatePath('/', 'layout')
     await purgeCdnEverythingOrThrow()
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {

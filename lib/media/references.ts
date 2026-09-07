@@ -166,7 +166,7 @@ async function buildMediaUsageIndex(): Promise<MediaUsageIndex> {
   // trusting the "unused" verdict.
   let degraded = false
   const contributed = await Promise.all(
-    getMediaUsageProviders().map(async (provider) => {
+    (await getMediaUsageProviders()).map(async (provider) => {
       try {
         return await provider()
       } catch (err) {

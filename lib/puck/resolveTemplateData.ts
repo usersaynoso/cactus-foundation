@@ -1,6 +1,7 @@
 import type { Data } from '@puckeditor/core'
 import { resolveMenu, resolveMainMenu, type MenuViewer } from '@/lib/menu/resolve'
 import { getMemberAreaPath } from '@/lib/members/paths'
+import type { MobileBarMenuItem } from '@/lib/puck/mobileBar'
 
 type Context = {
   siteName: string
@@ -36,12 +37,16 @@ async function resolveBlock(block: any, ctx: Context): Promise<void> {
     const items: { kind?: string; menuId?: string }[] = Array.isArray(block.props.items) ? block.props.items : []
     const memberBase = `/${getMemberAreaPath()}`
     block.props.accountHref = ctx.viewer?.isAuthenticated ? memberBase : `${memberBase}/login`
-    block.props.resolvedMenus = await Promise.all(items.map(async (item) => {
+    // Declared, not inferred: this is the one place the resolver's shape meets
+    // the panel's, so it is the one place that can be made to fail loudly if
+    // they ever drift apart again. See MobileBarMenuItem.
+    const menus: MobileBarMenuItem[][] = await Promise.all(items.map(async (item) => {
       if (item?.kind !== 'menu') return []
       try {
         return item.menuId ? await resolveMenu(item.menuId, ctx.viewer) : await resolveMainMenu(ctx.viewer)
       } catch { return [] }
     }))
+    block.props.resolvedMenus = menus
   }
 
   if (block.type === 'SiteLogo') {

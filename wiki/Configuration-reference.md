@@ -102,7 +102,7 @@ The switch works with whatever sits in front of your site. If you would rather n
 
 **Optional, but worth it.** Fill in `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_PURGE_API_TOKEN` in the **Clearing copies the moment you edit** card at the bottom of Settings → Speed, and editing a page clears Cloudflare's copy the instant you save, instead of waiting out the window. Like every credential entered through the admin, they take effect on the next deployment. Everything works without them; you just wait a bit longer to see your own changes.
 
-Once both are set (and live - after that next deployment) a **Purge everything now** button appears underneath, for anything that does not go through a page save: a new theme, a bulk price change. It calls Cloudflare directly and tells you straight away whether it worked, rather than waiting quietly for pages to age out.
+Once both are set (and live - after that next deployment) a **Purge everything now** button appears underneath, for anything that does not go through a page save: a new theme, a bulk price change. It throws away every stored copy of your pages - the site's own and Cloudflare's - and tells you straight away whether it worked, rather than waiting quietly for pages to age out.
 
 ---
 

@@ -64,13 +64,24 @@ export const MOBILE_BAR_DEFAULTS: Required<Omit<MobileBarStyleProps, never>> = {
   showLabels: 'yes',
 }
 
-/** A menu item flattened for the panel. Same shape resolveMenu already returns,
- *  narrowed to what the panel draws. */
+/** A menu item as the panel draws it.
+ *
+ * The field names are NOT a choice - they are PublicMenuItem's, from
+ * lib/menu/resolve.ts, and they have to match it exactly. This type cannot
+ * simply import that one: the resolver reaches prisma and this file is read by
+ * the client island. So the two are kept in step by assignment instead -
+ * resolveTemplateData declares its result as MobileBarMenuItem[][] and hands it
+ * resolveMenu's output, which the compiler checks.
+ *
+ * That guard exists because the first version of this type invented `url` and
+ * `newTab` while the resolver returns `href` and `openInNewTab`. Nothing failed:
+ * every row simply fell through the panel's has-a-link test and rendered as
+ * plain grey text, so the menu opened, looked right, and could not be used. */
 export type MobileBarMenuItem = {
   id: string
   label: string
-  url?: string | null
-  newTab?: boolean | null
+  href: string
+  openInNewTab: boolean
   children?: MobileBarMenuItem[]
 }
 
