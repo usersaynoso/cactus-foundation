@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.398"
+      "version": "v0.1.399"
     },
     {
       "name": "address-lookup-for-shop",
@@ -48,7 +48,7 @@
     {
       "name": "filters-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/filters-for-shop",
-      "version": "v0.1.50"
+      "version": "v0.1.51"
     },
     {
       "name": "product-attributes-for-shop",
@@ -58,7 +58,7 @@
     {
       "name": "product-discovery-tool",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-discovery-tool",
-      "version": "v0.1.8"
+      "version": "v0.1.9"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
@@ -143,7 +143,7 @@
     {
       "name": "live-chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat-powered-by-chatwoot",
-      "version": "v0.1.22"
+      "version": "v0.1.23"
     },
     {
       "name": "uk-bookkeeping",
@@ -163,7 +163,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.56"
+      "version": "v0.1.57"
     }
   ]
 }

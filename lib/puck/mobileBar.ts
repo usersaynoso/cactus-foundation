@@ -98,12 +98,33 @@ function visibilityWrap(barOn: MobileBarVisibility, css: string): string {
 }
 
 /**
+ * Drawn at every width, unconditionally, BEFORE anything the query wraps.
+ *
+ * The markup is always in the page - a breakpoint decides how the bar is
+ * painted, not whether it was rendered - so a stylesheet that lives entirely
+ * inside a media query leaves a desktop page with a bare <ul> of bar items and
+ * an open menu panel sitting in the middle of the header. That is exactly what
+ * shipped: a phones-only bar dumped a bulleted list of Home/Account/Basket into
+ * the top of the desktop site, because `position:fixed` and everything else was
+ * behind a query desktop never matched.
+ *
+ * So the base state is "not shown", and the wrapped rules turn it back on at
+ * the widths the owner asked for. Equal specificity, later in the sheet, so the
+ * query wins wherever it applies. This is three declarations on a desktop page,
+ * which is the price of the markup existing at all.
+ */
+function hiddenBase(sel: string): string {
+  return `${sel}{display:none;}\n${sel} .cmb-sheet,${sel} .cmb-scrim{display:none;}`
+}
+
+/**
  * The bar's whole stylesheet, scoped to one block id.
  *
- * Everything is emitted inside the visibility query rather than painted as a
- * base style and hidden again, so a bar set to phones only adds not one
- * declaration to a desktop page - including the body padding that stops the bar
- * covering the last of the content. A page whose owner has no bar is untouched.
+ * Two parts: a tiny unconditional "not shown" base (see hiddenBase - the bar's
+ * markup renders at every width whether or not it is wanted there), and then
+ * everything else inside the breakpoint query the owner chose. So a phones-only
+ * bar costs a desktop page three declarations and nothing else - no fixed
+ * furniture, no page padding, no custom properties.
  */
 export function mobileBarCss(barId: string, props: MobileBarStyleProps): string {
   const p = { ...MOBILE_BAR_DEFAULTS, ...props }
@@ -181,6 +202,7 @@ body{padding-bottom:calc(${height}px + env(safe-area-inset-bottom,0px));}
   // open something of their own (the basket, the chat widget) draw their own.
   const sheet = `
 ${sel} .cmb-scrim{
+  display:block;
   position:fixed;inset:0;z-index:${BAR_Z - 2};
   background:rgba(0,0,0,0.4);
   border:0;padding:0;margin:0;width:100%;
@@ -192,6 +214,7 @@ ${sel} .cmb-scrim[data-cmb-open="true"]{
   transition:opacity 200ms ease-out,visibility 0s;
 }
 ${sel} .cmb-sheet{
+  display:block;
   position:fixed;left:0;right:0;
   bottom:calc(var(--cmb-h) + env(safe-area-inset-bottom,0px));
   z-index:${BAR_Z - 1};
@@ -224,5 +247,5 @@ ${sel} .cmb-sheet-body{padding:0 0.5rem 1rem;}
 }
 `.trim()
 
-  return visibilityWrap(p.barOn ?? 'mobile', `${bar}\n${sheet}`)
+  return `${hiddenBase(sel)}\n${visibilityWrap(p.barOn ?? 'mobile', `${bar}\n${sheet}`)}`
 }

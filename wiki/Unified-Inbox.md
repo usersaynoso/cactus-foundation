@@ -558,7 +558,7 @@ Turn it off again and everybody is back to initials immediately, including on a 
 
 Only the buttons that would actually change something are drawn. Pick six conversations you have already read and there is no **Mark as read** to press; pick six that are all open and there is no **Open again**. One out of six is enough to bring a button back, since that is exactly when you want it.
 
-**Mark as spam** puts the lot in the spam folder - yours, or a colleague's where the address is their own rather than the team's - and then asks whether you would also like to turn those senders away in future, listing them so you can see who. That second question is the same one you get when you junk a single conversation, and the answer is just as optional: say no and everything still moved. Say yes and nothing further from them reaches an inbox on this site, shared or personal - it goes straight in the spam folder instead, so you can still see what they sent. Nothing already here is touched, and you can let anybody back in from the Spam folder or the inbox settings. The question only appears for somebody allowed to answer messages, since shutting the front door changes what everybody on the site receives.
+**Mark as spam** asks before it does anything. It tells you the lot are about to go into a spam folder - yours, or a colleague's where the address is their own rather than the team's - and asks whether you would also like to turn those senders away in future, listing them so you can see who. **No, just move them** does the move and leaves the front door alone. **Block them all** does both. **Cancel**, the cross in the corner and Escape all leave every one of them exactly where it is, which is what you want the moment a finger lands on the wrong button in a toolbar. Blocking means nothing further from them reaches an inbox on this site, shared or personal - it goes straight in the spam folder instead, so you can still see what they sent. Nothing already here is touched, and you can let anybody back in from the Spam folder or the inbox settings. The question only appears for somebody allowed to answer messages, since shutting the front door changes what everybody on the site receives; without that permission the press simply moves them.
 
 **Answering is on the message, not on the conversation.** Every message has a **reply arrow** at the right-hand end of its own header, beside the name and the time, and the writing box opens under it when you press it. Beside the arrow are three dots holding the rarer three: **Reply all**, **Forward** and **Mark as unread**. This is worth the change on a long thread: a single Reply button above nine messages could never say which of them you meant, and now the one you are looking at is the one you are answering. Press the arrow again to put the box away. If you left a draft on that conversation it opens with the box already up, so nothing half-written is out of sight. (Starting one from scratch is **Write a message**, above.)
 
@@ -663,7 +663,7 @@ Every conversation has a **waste basket** at the top of it, on the left of the l
 
 **On a shared address, it goes in yours.** Nobody else's screen changes at all. What one person files as junk is the supplier newsletter a colleague reads every Tuesday, and on an address like `sales@` there are several people with several opinions - so the button records yours and leaves everybody else's list exactly as it was.
 
-**On a colleague's own address, it goes in theirs.** If you have been let in to somebody's own inbox to cover their post while they are away, junk you clear out of it lands in **their** spam folder rather than yours. That is the honest answer twice over: it is their post, and your own spam folder has no business filling up with a fortnight of somebody else's rubbish. The button says so before you press it and again afterwards - "it is in Sam's spam folder now".
+**On a colleague's own address, it goes in theirs.** If you have been let in to somebody's own inbox to cover their post while they are away, junk you clear out of it lands in **their** spam folder rather than yours. That is the honest answer twice over: it is their post, and your own spam folder has no business filling up with a fortnight of somebody else's rubbish. The button says so before you press it, and the question that follows says it again - "it will go into Sam's spam folder".
 
 It also leaves *your* view of their inbox, which is rather the point of covering somebody: you are trying to see what they would see, and post they have already binned is post you should not be working through.
 
@@ -671,12 +671,15 @@ You can look in their bin, and take something back out of it, under their name o
 
 **Nothing is deleted.** The conversation keeps every message in it. Open the spam folder, press the same button again, and it goes straight back where it was.
 
-Once it has moved, you are asked a second question: **would you like to block the sender as well?**
+**The press asks before it moves anything.** Where there is a sender who could be turned away, pressing the basket puts up a second question - **would you like to block them as well?** - and nothing has happened yet when it appears. There are three answers:
 
-- **No, just move it** is the ordinary answer, and it is what pressing Escape does. The conversation stays in your spam folder and nothing else changes.
-- **Block them** shuts the site's front door on that address. Nothing further from them reaches *any* inbox on this site - the shared ones, every colleague's own, and the ones nobody has opened in months. It is one list for the whole site, because a block that only covered the address you happened to be standing in is no block at all: they would simply write to `hello@` instead and turn up in somebody else's list an hour later.
+- **No, just move it** is the ordinary one. The conversation goes into the spam folder and the front door stays open.
+- **Block them** does the move *and* shuts the site's front door on that address. Nothing further from them reaches *any* inbox on this site - the shared ones, every colleague's own, and the ones nobody has opened in months. It is one list for the whole site, because a block that only covered the address you happened to be standing in is no block at all: they would simply write to `hello@` instead and turn up in somebody else's list an hour later.
+- **Cancel**, the cross in the top corner, Escape and a click on the background all mean the same thing: you did not mean to press it. Nothing moves and nobody is blocked.
 
-The two are deliberately separate presses. Throwing one message away is a small decision about your own screen; refusing somebody in future is a decision about the whole business, and it should not happen by accident on the way past.
+The two decisions are deliberately kept apart. Throwing one message away is a small decision about your own screen; refusing somebody in future is a decision about the whole business, and it should not happen by accident on the way past. The cross is there for the same reason in the other direction - the junk button sits next to the buttons you press all day, and a mis-press should cost you one click rather than a hunt through the bin.
+
+Where there is nobody to block - a conversation between colleagues, a caller who withheld their number, a sender already turned away - there is no question to ask, so the press just moves it.
 
 #### Where blocked post goes
 
