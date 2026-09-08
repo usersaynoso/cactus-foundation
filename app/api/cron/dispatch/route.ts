@@ -20,15 +20,60 @@ export const maxDuration = 60
 
 // Wall-clock left over for writing the summary and returning cleanly.
 const RESERVE_MS = 6_000
-// Nothing gets the entire budget to itself; a job that hangs must not silently become
-// the only job the site ever runs.
-const MAX_PER_JOB_MS = 25_000
+// A job is not started unless there is enough of the tick left to give it a fair go.
+// Below this it is deferred instead, which costs it nothing: it stays due and sorts to
+// the front of the next tick.
+//
+// There is deliberately no cap tighter than the tick itself. There used to be one, at
+// 25 seconds, and it quietly made a whole class of job impossible: module routes are
+// allowed 60 seconds by the core catch-all, several are written to use most of it, and
+// every one of those was cut off and recorded as a failure it had no way to avoid. A
+// job that really does hang can now take a whole tick - but it is stamped before it is
+// called, so it cannot retry until it is next due, and everything it delayed is older
+// than it is and goes first next time.
+const MIN_PER_JOB_MS = 5_000
+// How much of a failing job's own answer to keep. `HTTP 500` on its own tells the
+// owner only that something broke; the route's error message is the whole difference
+// between a job somebody can fix and one nobody can.
+const MAX_DETAIL_CHARS = 300
 
 type JobOutcome = {
   path: string
   module: string | null
   status: 'ran' | 'failed' | 'seeded' | 'deferred'
   detail?: string
+}
+
+// What a failing job actually said, as a suffix for the recorded status. Cron routes
+// answer with `{ error }` or `{ message }` by convention; anything else is kept as
+// trimmed text, because an HTML error page's first line still beats nothing.
+//
+// This is only ever as good as the route's own error handling: an uncaught throw is
+// masked by the framework into a bare "Internal Server Error" before it ever reaches
+// us, which is why a cron route should catch its own failures and say what went wrong.
+// Never throws itself - a job that failed has already been recorded as failed, and
+// losing that to a malformed body would be the worse bug.
+async function describeFailure(res: Response): Promise<string> {
+  try {
+    const text = (await res.text()).trim()
+    if (!text) return ''
+    let message = text
+    try {
+      const parsed: unknown = JSON.parse(text)
+      if (parsed && typeof parsed === 'object') {
+        const record = parsed as Record<string, unknown>
+        const field = record.error ?? record.message
+        if (typeof field === 'string' && field.trim()) message = field.trim()
+      }
+    } catch {
+      // Not JSON. The raw text is still the best answer available.
+    }
+    message = message.replace(/\s+/g, ' ')
+    if (message.length > MAX_DETAIL_CHARS) message = `${message.slice(0, MAX_DETAIL_CHARS)}...`
+    return ` - ${message}`
+  } catch {
+    return ''
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -84,7 +129,7 @@ export async function GET(request: NextRequest) {
   let failed = 0
   for (const { job } of due) {
     const remaining = deadlineAt - Date.now()
-    if (remaining <= 1_000) {
+    if (remaining < MIN_PER_JOB_MS) {
       // Out of budget. Left untouched on purpose: lastRunAt is unchanged, so it is still
       // due on the next tick and moves to the front of the queue.
       outcomes.push({ path: job.path, module: job.module, status: 'deferred' })
@@ -101,12 +146,16 @@ export async function GET(request: NextRequest) {
     try {
       const res = await fetch(`${siteUrl}${job.path}`, {
         headers: { Authorization: `Bearer ${secret}` },
-        signal: AbortSignal.timeout(Math.min(remaining, MAX_PER_JOB_MS)),
+        signal: AbortSignal.timeout(remaining),
         cache: 'no-store',
       })
       if (!res.ok) {
         status = 'failed'
-        detail = `HTTP ${res.status}`
+        detail = `HTTP ${res.status}${await describeFailure(res)}`
+      } else {
+        // Nothing here reads a successful job's body, and an unread one holds its
+        // connection open until the runtime gets round to collecting it.
+        await res.body?.cancel().catch(() => {})
       }
     } catch (err) {
       status = 'failed'

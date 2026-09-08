@@ -224,7 +224,7 @@ const SECURITY_HEADERS: [string, string][] = [
 // next/dist/server/send-payload.js), and proxy headers are applied to the
 // response before the render runs - so this one wins.
 async function withPageCache(request: NextRequest, res: NextResponse): Promise<NextResponse> {
-  const { enabled, ttl } = await getPageCacheCached()
+  const { enabled, ttl, behindCloudflare } = await getPageCacheCached()
   if (!enabled) return res
   const value = pageCacheControl({
     enabled,
@@ -248,7 +248,18 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
     // only for Cloudflare to refill it from Vercel's stale one. See
     // vercelCdnCacheControl in lib/cache/page-cache.ts. Harmless off Vercel:
     // no other cache reads a header with a vendor's name on it.
-    if (isCdnPurgeConfigured()) {
+    // Gated on the owner's own "my traffic goes through Cloudflare" switch, NOT
+    // on the purge credentials. This runs in the proxy, and the purge token is
+    // a secret: a runtime that cannot read it reports "no CDN configured" and
+    // quietly lets Vercel keep the copy nothing can purge - which is exactly
+    // the bug this header exists to prevent, restored in full. The admin route
+    // that fires the purge CAN read the token, so a site in that state purges
+    // Cloudflare successfully, refills it from Vercel's stale copy, and reports
+    // a purge that changed nothing. A database flag is visible to every runtime.
+    //
+    // isCdnPurgeConfigured() is still honoured, for a site that set the
+    // credentials without ticking the box.
+    if (behindCloudflare || isCdnPurgeConfigured()) {
       res.headers.set('Vercel-CDN-Cache-Control', vercelCdnCacheControl())
     }
   }

@@ -95,6 +95,10 @@
 
   /* Layout constants */
   --sidebar-width:      200px;
+  /* The bar core's sidebar folds into on a phone. A token so a screen that
+     fills what is left under it - the inbox - can measure it rather than
+     guess. */
+  --admin-mobile-topbar-height: 52px;
   --content-max-width:  860px;
   --settings-max-width: 680px;
   --panel-padding:      var(--space-6);
@@ -411,6 +415,18 @@ html {
    the top or bottom of a page shows the page colour rather than the tint. */
 html {
   background-color: var(--color-page-bg, var(--color-bg));
+}
+
+/* A page must never pan sideways. Nothing on the front of the site scrolls the
+   page horizontally on purpose - a wide table, a card rail or a ticker carries
+   its own scroller - so anything sticking out past the right edge is a defect,
+   and on a phone it reads as a band of empty page beside the site with the
+   whole thing draggable. `clip` rather than `hidden` on purpose: hidden would
+   turn the root into a scroll container and take the sticky header down with
+   it, while clip only trims the overhang. The admin is left out - its wide
+   tables are allowed to run off and be dragged back. */
+html:not(:has(.admin-shell)) {
+  overflow-x: clip;
 }
 
 body {
@@ -2066,6 +2082,20 @@ a:hover {
   transition: opacity var(--dur-base), transform var(--dur-base);
 }
 
+/* Header tooltips are a pointer idea, and a touch device has no pointer to hover
+   with - so on a phone they can never be read, only measured. Each one is
+   centred on its icon with `left: 50%` and refuses to wrap, so an icon sitting
+   near the right edge hangs its tooltip out past the viewport; visibility:hidden
+   still takes up room, so the page grew a strip of nothing beside it that a
+   thumb could drag into. Off the layout entirely where they can't be used. */
+@media (hover: none) {
+  .theme-toggle-tip,
+  .member-signin-tip,
+  .icon-link-tip {
+    display: none;
+  }
+}
+
 .admin-sidebar nav a.admin-nav-account {
   height: auto;
   margin: 0;
@@ -3016,7 +3046,7 @@ tbody tr:hover {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    height: 52px;
+    height: var(--admin-mobile-topbar-height);
     padding: 0 var(--space-4);
     background: var(--admin-sidebar-bg);
     border-bottom: 1px solid var(--color-border);

@@ -4,7 +4,13 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
 import { stalePlanRetryExtension, type ExtendedPrismaClient } from '@/lib/db/prisma'
 import { buildBackupSql, quoteIdent } from './dump'
+// Two splitters on purpose. splitSqlStatements is the backup format's own and is
+// used below on the CORE init migration, which is written in the same constrained
+// SQL the format emits (no dollar-quoting) - so applying it there exercises the
+// real restore path. splitMigrationStatements is for MODULE migrations, which are
+// not so constrained. See lib/backup/migration-sql.ts.
 import { restoreDatabaseFromSql, splitSqlStatements } from './restore'
+import { splitMigrationStatements } from './migration-sql'
 import { encryptSecret } from '@/lib/crypto/secrets'
 import {
   vpsConfigFromEnv,
@@ -98,50 +104,74 @@ async function applySchema(db: ExtendedPrismaClient): Promise<void> {
 // than named here. Naming one would be a module leak into core, and a list would
 // go stale the day somebody adds a module.
 //
-// Two things keep a module OUT of the set, and both are honesty rather than
-// convenience:
+// Migrations are read with splitMigrationStatements, NOT with the backup format's
+// own splitSqlStatements. The two inputs have different authors and different
+// syntax: our migrations carry `$$`-quoted DO blocks (shop alone has six) and the
+// restore splitter, correctly, knows nothing about dollar-quoting because the
+// format it parses never uses it. Feeding migrations to it chopped those blocks in
+// half, so every module using one had to be skipped - which is how this gate came
+// to silently exclude shop and shop-variations, the two modules holding most of a
+// site's tables, while reporting a clean pass. See lib/backup/migration-sql.ts for
+// why that is a second splitter rather than a widened one.
 //
-//  - a migration that uses dollar-quoting, because `splitSqlStatements` is not
-//    dollar-quote aware. It is the backup format's own splitter and the format
-//    does not use `$$`, so teaching it would be scope creep on the one file
-//    nobody should be casual with. A half-applied module schema proves less than
-//    no module schema at all.
-//  - a module that declares `requiresModules`, because its migrations expect
-//    tables belonging to a module that may itself have been left out above.
+// One thing still keeps a module out, and it is honesty rather than convenience: a
+// module that declares `requiresModules`, because its migrations expect tables
+// belonging to a module that may not be checked out on this machine at all.
 //
-// Whatever is left is applied per module in its own transaction, so a module
-// that will not build simply is not covered rather than taking the run with it,
-// and every exclusion is printed. A silently narrowed gate is how a gate ends up
-// proving nothing.
+// Whatever is left is applied per module in its own transaction, so a module that
+// will not build simply is not covered rather than taking the run with it.
+//
+// EVERY exclusion is printed, whether it was decided here while reading or later
+// while applying. That is not tidiness: a gate that narrows itself in silence
+// reports a pass it has not earned, and this one did exactly that for as long as
+// the dollar-quote rule existed. If you change what gets skipped, make sure it
+// still says so out loud.
 
 type ModuleSchema = { name: string; statements: string[] }
+type ModuleExclusion = { name: string; why: string }
 
-function readModuleSchemas(): ModuleSchema[] {
+function readModuleSchemas(): { schemas: ModuleSchema[]; excluded: ModuleExclusion[] } {
   const root = path.join(process.cwd(), 'modules')
-  if (!existsSync(root)) return []
-  const out: ModuleSchema[] = []
+  if (!existsSync(root)) return { schemas: [], excluded: [] }
+  const schemas: ModuleSchema[] = []
+  const excluded: ModuleExclusion[] = []
 
   for (const name of readdirSync(root).sort()) {
     const manifestPath = path.join(root, name, 'cactus.module.json')
     const migrationsDir = path.join(root, name, 'migrations')
+    // Not a module checkout at all (an empty folder left by a removed module, say).
+    // Nothing to report: there is no schema here that anyone expected to be covered.
     if (!existsSync(manifestPath) || !existsSync(migrationsDir)) continue
 
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { requiresModules?: string[] }
-    if ((manifest.requiresModules ?? []).length > 0) continue
+    // `requiresModules` entries are objects ({ name, minVersion }), not strings.
+    // Joining them raw prints "requires [object Object]", which names the rule
+    // and hides the thing it is about - the exact failure mode this reporting
+    // exists to stop. Older manifests wrote plain strings, so both are read.
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      requiresModules?: Array<string | { name?: string }>
+    }
+    const requires = (manifest.requiresModules ?? [])
+      .map((r) => (typeof r === 'string' ? r : r?.name))
+      .filter((r): r is string => !!r)
+    if (requires.length > 0) {
+      excluded.push({ name, why: `requires ${requires.join(', ')}` })
+      continue
+    }
 
     const files = readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort()
-    if (files.length === 0) continue
+    if (files.length === 0) {
+      excluded.push({ name, why: 'no migration files' })
+      continue
+    }
 
     const sql = files.map((f) => readFileSync(path.join(migrationsDir, f), 'utf8'))
-    if (sql.some((s) => s.includes('$$'))) continue
-
-    out.push({ name, statements: sql.flatMap((s) => splitSqlStatements(s)) })
+    schemas.push({ name, statements: sql.flatMap((s) => splitMigrationStatements(s)) })
   }
 
-  return out
+  return { schemas, excluded }
 }
 
-const MODULE_SCHEMAS = readModuleSchemas()
+const { schemas: MODULE_SCHEMAS, excluded: MODULE_EXCLUSIONS } = readModuleSchemas()
 
 async function applyModuleSchemas(db: ExtendedPrismaClient): Promise<string[]> {
   const applied: string[] = []
@@ -157,12 +187,30 @@ async function applyModuleSchemas(db: ExtendedPrismaClient): Promise<string[]> {
       )
       applied.push(mod.name)
     } catch (error) {
-      refused.push(`${mod.name} (${(error as Error).message.split('\n')[0]})`)
+      // What Postgres actually said, not what Prisma wrapped it in.
+      //
+      // Two rounds of this were wrong before it was right, and both printed
+      // something technically true and practically useless. `message.split('\n')[0]`
+      // gave "uk-bookkeeping ()", because a Prisma error's first line is blank.
+      // The first NON-empty line then gave "Invalid `prisma.$executeRawUnsafe()`
+      // invocation:", which names the caller and not the fault. The cause sits
+      // further down, on the "Raw query failed ... Message: ..." line.
+      //
+      // So: the most specific line available, falling back outwards rather than
+      // to nothing. A module named as uncovered with no usable reason is only
+      // marginally better than not naming it at all.
+      const lines = ((error as Error).message ?? '').split('\n').map((l) => l.trim()).filter((l) => l !== '')
+      const detail = lines.find((l) => /Message:|Raw query failed|ERROR:/i.test(l))
+      refused.push(`${mod.name} (${detail ?? lines[0] ?? 'unknown error'})`)
     }
   }
 
+  // Read-time exclusions first, then the ones that failed to apply. Both are
+  // "this module's tables were NOT in front of the gate", and printing only the
+  // second is what let the first kind go unnoticed for so long.
+  const left = [...MODULE_EXCLUSIONS.map((e) => `${e.name} (${e.why})`), ...refused]
   console.log(`[roundtrip] module schemas built: ${applied.join(', ') || 'none'}`)
-  if (refused.length > 0) console.log(`[roundtrip] module schemas left out: ${refused.join('; ')}`)
+  if (left.length > 0) console.log(`[roundtrip] module schemas left out: ${left.join('; ')}`)
   return applied
 }
 

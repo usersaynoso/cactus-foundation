@@ -368,6 +368,16 @@ When every parcel on an order reaches an arrived stage, and nothing is still owe
 
 The checking is deliberately unhurried: twenty-five parcels an hour, longest-unchecked first, a few at a time. A courier whose site is down simply teaches us nothing that hour - silence is never read as "not delivered" - and a shop with nothing out costs one quick look at its own database and no more. You can change how often it runs, or turn it off, under **Settings → Schedules**.
 
+**Watching the van on the day.** On those same couriers, once a parcel is out with a crew, the customer's own order page shows a map with the van on it, the courier's own sentence about how far off it is ("The crew have 1 more drop to make before reaching you"), and - the important bit - how long ago the van last reported its position.
+
+That last line is never dropped. A van drawn confidently on a map is worth nothing without it: five minutes old is a van two streets away, an hour old is a guess. Past five minutes the line changes colour to say so, which is the same point the courier's own page stops trusting it.
+
+The map only asks the courier anything while somebody is actually looking at it. Watching the page checks every five minutes; once the crew's own sentence says you are next it checks every minute; a tab in the background asks nothing at all, and after an hour it stops and asks you to refresh. Everyone watching the same round shares one check, so a delivery to an office where four people have the page open is still one question to the courier, not four. The hourly checking above carries on regardless and is what finishes orders off.
+
+Positions come from the courier as their crew drives, so they lag, pause and occasionally jump - the page says as much underneath, in those words. The map is drawn with open map data rather than the courier's own maps.
+
+**Proof of delivery.** When the courier hands over a signature, the shop takes its own copy of it. Who signed, when they signed and the signature itself appear on the customer's order page under that parcel, and on your own order screen. The copy is the point: the picture sits on the courier's server under a filename of their choosing, and a proof of delivery that disappears when somebody tidies up is not proof of anything. It is fetched once, and a delivery is still recorded as delivered even if the picture cannot be had.
+
 **Delivery questions.** Each courier can carry its own questions and answers - will they take it upstairs, what happens if nobody is in, do they ring first. They appear as a **Questions about your delivery** button on the customer's order page, and as a link in the delivery message, which opens the same questions when they arrive. A courier with no questions shows no button and no link, so an empty list is simply invisible rather than an empty box. Answers are plain words, typed exactly as you write them.
 
 ### Mixed baskets with a pre-order in them
@@ -720,7 +730,39 @@ Whatever you pick is remembered on that computer, so the next export opens with 
 
 **Shop → Tax & shipping** is where both live, because they share the same building block: a **zone**.
 
-A zone is a group of postcodes that get the same treatment - "United Kingdom", say, or one zone per region if your tax or delivery costs vary within a country. You give a zone a name and a list of postcode prefixes (`SW` catches every London postcode starting SW; a US seller might use `9` to catch every California ZIP code starting with 9). A customer's postcode is matched against the longest prefix that fits, so they only ever land in one zone.
+A zone is a group of postcodes that get the same treatment - "United Kingdom", say, or one zone per region if your tax or delivery costs vary within a country. You give a zone a name and a list of postcodes it covers. A customer's postcode is matched against the most specific rule that fits, so they only ever land in one zone.
+
+Each line of that list is one of two things:
+
+- A **prefix**, which catches anything starting with it. `SW` catches every London postcode starting SW; a US seller might use `9` to catch every California ZIP code starting with 9.
+- A **range** of districts, written `AB30-AB32`, which means AB30, AB31 and AB32 and nothing else. You can leave the second half off: `AB30-32` is the same thing.
+
+Ranges are there because a great many real delivery lists cannot be written as prefixes without catching the wrong places. The Isle of Wight is PO30 to PO41, and every prefix short enough to reach PO30 also swallows Portsmouth's PO3. The Perthshire highlands are PH10 upwards, and PH1 is Perth itself, delivered to like anywhere else. A range compares the number, so it gets both right.
+
+### Postcodes you don't deliver to
+
+Alongside the covered list, each zone has a list of **postcodes excluded** from it, and that list wins - over the zone's own covered list, and over a zone left empty to catch everything.
+
+That is how you say "everywhere except the Highlands". Leave the covered box empty so the zone catches the whole country, then paste the exclusions into the second box:
+
+```
+AB30-AB32, AB33-AB38, AB41-AB43, AB44-AB45, AB51-AB56, AB63, BT1-BT94,
+FK17-FK21, GY1-GY10, HS1-HS9, IM1-IM9, IV1-IV56, JE1-JE5, KA27-KA28,
+KW1-KW17, PA20-PA78, PH10-PH26, PH30-PH50, PO30-PO41, TR21-TR25, ZE1-ZE3
+```
+
+(one per line, and that particular list is the usual Highlands, islands, Northern Ireland and Crown dependencies set).
+
+What happens next depends on whether any other zone picks that shopper up:
+
+- **Another zone covers them** - say a "Highlands and islands" zone listing those same ranges, with its own dearer delivery rates - and they simply land in it. Nobody is turned away; you've just charged the right money for a long drive.
+- **No zone covers them** and the checkout stops, telling them you don't deliver there. It does this on the delivery step, before anyone reaches for a card, and again when the order is actually placed so a stale browser tab can't slip one through. Without that, an excluded order would go through with no delivery option and nothing charged to carry the goods, which is worse than refusing it.
+
+You can word that message under **Settings → Shop → Checkout**. Left blank it says "Sorry, we cannot deliver to that postcode. Do get in touch if you would like us to try."
+
+A shop with no zones set up at all is not affected by any of this: it carries on exactly as before, since "no zones yet" is not a decision about where you deliver.
+
+The editor points out any line in either box it can't read - a range with two different areas in it, say - because a rule that quietly matches nobody is only noticed when an order turns up from somewhere you don't go.
 
 For each zone you set:
 
@@ -869,6 +911,20 @@ Customers can ask to call an order off or send something back from the order pag
 The rules are the sensible ones and you don't have to police them: **cancelling** is only offered while nothing has been dispatched (once part of it is in a van, it's a return), and **returning** is only offered after something has actually gone out, within a window you set. That window is counted from the day the last parcel left, not the day they ordered - an order that sat on your shelf for three weeks shouldn't eat the customer's return window. One open request per order, and they can withdraw it if they change their mind.
 
 Both are on by default and can be switched off in **Settings → Shop**, along with the length of the return window (30 days out of the box). Off means the pages say to get in touch instead, rather than pretending the option was never there.
+
+#### Things you can't take back
+
+Some things simply cannot come back: a desk cut to somebody's own measurements, a chair upholstered in a fabric they chose off a card, anything made to order. The **Returns** section on a product's **Stock** tab is where you say so - tick **Do not accept returns on this**, and optionally write a line explaining why. Leave the line empty and the customer is told "This item cannot be sent back once ordered."
+
+Nothing happens to the rest of your catalogue. Every product starts out returnable, and stays that way until you tick the box on it.
+
+A product with options is marked once, on the product, and every combination of it follows. Where one combination genuinely differs - a single made-to-order finish on an otherwise stock range, or the one stock finish on a bespoke one - the **Returns** column on the **Variations** grid overrules it for that row alone. Left on **As product**, which is where every row starts, it just follows the product.
+
+Both are in the spreadsheet too, so a whole range can be marked in one go: **Can be returned** and **Why it cannot be returned** on the Products sheet, and **Returns** on the Variations one. An empty cell means "nothing said", so a sheet that never touches those columns changes nothing.
+
+What the customer sees: no **Return something** button on anything marked this way, and your reason in its place. An order made up entirely of such things says so plainly rather than offering a button that goes nowhere. A mixed order still offers the button, lists what can go back, and says underneath which lines cannot and why. Cancelling before anything has been dispatched is untouched - that is a different thing from a return, and nothing has been made or moved yet.
+
+One thing worth knowing: what counts is how the product was marked **when the order was placed**. Marking something non-returnable today does not reach back and take the right away from somebody who bought it last week under the old terms.
 
 Requests land in **Shop → Cancellations & returns** in your admin, waiting ones first and the oldest at the top. Each shows who asked, for what, why, in their own words, and what the order was worth. You approve or decline, and either way you can add a line that goes in the email to them. Approving offers a tickbox to send the money back at the same time - it's a second, deliberate step, because a refund is money leaving the business and shouldn't be one stray click away. Leave it unticked to approve now and refund when the goods are actually back in your hands.
 
@@ -1192,7 +1248,7 @@ It works two ways. Leave your checkout exactly as it is and add a "Save basket a
 
 ## Settings
 
-**Settings → Shop** is split into General, Checkout, Payments and Notifications tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, what happens to products that have [sold out](#hiding-things-that-have-sold-out), the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, whether guests can see their own orders by giving the delivery postcode (and the short web address that form lives at), and how mixed pre-order/in-stock baskets are sent out (see [Mixed baskets with a pre-order in them](#mixed-baskets-with-a-pre-order-in-them) above). Payments lists every method the shop can take money with - switch each on or off, drag them into the order shoppers meet them at checkout, and give each one a button of its own holding its keys, its bank details or its wording. Notifications covers alert addresses for new orders and low stock, and - on a site running [Unified Inbox](Unified-Inbox) - two things under **Where this email goes**: which of your inboxes your customer emails go out as, so a reply to an order confirmation lands with the people who deal with orders rather than in the site's general post, and which inbox a copy of each one is filed in, so you can read what a customer was actually told. Either works on its own; order emails leave through your sending service and never appear in a mail folder unless you ask for that copy. What those emails actually say - order confirmed, shipped, back in stock, and the rest - is edited on **Settings → Email → Templates** alongside every other email your site sends, wrapped in whichever design you have set there. Any wording you had already changed came across with the update.
+**Settings → Shop** is split into General, Checkout, Payments and Notifications tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, what happens to products that have [sold out](#hiding-things-that-have-sold-out), the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, what to say to a shopper whose postcode you don't deliver to, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, whether guests can see their own orders by giving the delivery postcode (and the short web address that form lives at), and how mixed pre-order/in-stock baskets are sent out (see [Mixed baskets with a pre-order in them](#mixed-baskets-with-a-pre-order-in-them) above). Payments lists every method the shop can take money with - switch each on or off, drag them into the order shoppers meet them at checkout, and give each one a button of its own holding its keys, its bank details or its wording. Notifications covers alert addresses for new orders and low stock, and - on a site running [Unified Inbox](Unified-Inbox) - two things under **Where this email goes**: which of your inboxes your customer emails go out as, so a reply to an order confirmation lands with the people who deal with orders rather than in the site's general post, and which inbox a copy of each one is filed in, so you can read what a customer was actually told. Either works on its own; order emails leave through your sending service and never appear in a mail folder unless you ask for that copy. What those emails actually say - order confirmed, shipped, back in stock, and the rest - is edited on **Settings → Email → Templates** alongside every other email your site sends, wrapped in whichever design you have set there. Any wording you had already changed came across with the update.
 
 ### Recording who supplied something
 
@@ -1229,6 +1285,38 @@ They show up on the Suppliers list beside the supplier, as clickable links where
 Two catalogues under the same supplier can't share a name, for the obvious reason. Different suppliers can, of course, since half of them call theirs "Main catalogue". Deleting a supplier takes their catalogues with them, which is the one place the address book does forget something.
 
 If you have the Google Sheet module, your suppliers and their catalogues also get a tab of their own in the spreadsheet - see [Google Sheet Products](Google-Sheet-Products).
+
+### Taking money off once an order is big enough
+
+Some suppliers charge you a bit extra per item on a small order and stop charging it once you order enough at once. If you've built that bit into your shelf prices - and most shops have, whether they think of it that way or not - then a customer buying enough at once is paying for something you're no longer being charged for. **Order-size deduction** hands it back.
+
+It's off to begin with, and it stays entirely inert until you've set both halves of it, so switching it on changes nothing on its own.
+
+**Switch it on** under **Shop → Settings → General → Order-size deduction**. Underneath sits **Say so in the basket**, which is on by default and is what puts a line in the basket telling the customer where they stand. Turn that off and the prices simply come down with no explanation, which is rarely what you want.
+
+**Set the amount on each product**, on the Prices tab, in the **Amount inside the price** box. It's per item, not per order - five chairs at £6 each is £30 off. Leave it blank on anything that carries nothing.
+
+**Set the threshold on the supplier**, on the Suppliers screen, under **Order-size deduction**. That's how much of *their* goods a basket has to hold. Beside it is a box for your own wording explaining why any of this happens, which shoppers see behind a small "why?" link on the product page. Leave it empty and no link appears.
+
+Some things worth knowing before you set it up:
+
+- **It only ever comes off things that are on offer.** A sale that has ended leaves the amount sitting on the product, and it would be quite wrong to take money off a price nobody built it into. Full-price items from the same supplier still *count towards* the threshold - they just don't lose anything themselves.
+- **Each supplier is counted separately.** £200 from one and £200 from another is not £400 towards either threshold.
+- **Delivery doesn't count.** If you charge for delivery inside the item price, that part is left out of the sum. A basket only reaches the threshold on the goods themselves.
+- **Once you're over it, you're over it.** Reaching the threshold and then dropping under it because money has come off doesn't take the money back.
+- **It isn't delivery, and it isn't a discount.** It's part of the price that stops being charged, so the VAT lands exactly where the money did and nothing about your delivery charges or your discount codes is touched.
+
+**On the product page** there's a **Product: Order-size deduction** block to drop in under the price. New sites get it placed for you; an existing site needs it dragging in once, on **Appearance → Editing pages → Product**, as updates never rearrange a design you've already made. On a product with options it follows whichever combination the shopper picks, so the line says what *that* one costs rather than a figure from somewhere else in the range.
+
+**Two lists worth checking** live on **Shop → Reports → Order-size deduction**, and the tab only appears once you've switched the feature on. The first finds anything stamped with more than it actually sells for, which is almost always a typo and would otherwise sell for nothing. The second finds things that are on offer, from a supplier who has a threshold, with no amount on them - either you meant that, or it's money a customer will never get back. Neither is an error exactly, which is why they're a list to look at rather than something that stops you saving.
+
+The amount travels with your product spreadsheet too, in an **order_size_deduction** column, so a few hundred of them is a paste rather than an afternoon.
+
+### Giving the supplier's name a badge of its own
+
+With shoppers able to see supplier names, there's a second way to show one. The **Product: Badges** block has a **Show the supplier as a badge** setting, off to begin with, which prints the bare name up in the badge row beside "Sale" and "In stock" - where it reads as a brand mark rather than as a disclosure. If supplier pages are switched on and that supplier's page is published, the badge links straight to it.
+
+It's in addition to the line on the Specification tab, not instead of it, and it shows the listing's own supplier rather than following the options a shopper picks - a brand name flickering as somebody changes colour would look like a fault.
 
 ### Giving a supplier a page of their own
 

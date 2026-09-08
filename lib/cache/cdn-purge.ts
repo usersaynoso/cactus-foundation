@@ -19,6 +19,8 @@
 // revalidatePath(), and calls it FIRST - purge before revalidate leaves a window
 // in which the CDN can refill from HTML that is still stale.
 
+import { z } from 'zod'
+
 const CF_API = 'https://api.cloudflare.com/client/v4'
 
 // A purge needs Zone.Cache Purge, which is NOT the permission the media
@@ -79,11 +81,57 @@ export async function purgeCdnPaths(paths: string[]): Promise<void> {
       body: JSON.stringify({ files: files.slice(0, 30) }),
       signal: AbortSignal.timeout(5_000),
     })
-    if (!res.ok) {
-      console.warn(`[cdn-purge] Cloudflare returned ${res.status} for ${files.length} path(s) - they will expire on their own`)
+    const outcome = await readPurgeOutcome(res)
+    if (!outcome.ok) {
+      console.warn(`[cdn-purge] Cloudflare did not purge ${files.length} path(s) - ${outcome.detail} - they will expire on their own`)
     }
   } catch (err) {
     console.warn('[cdn-purge] purge failed - paths will expire on their own', err)
+  }
+}
+
+// Cloudflare answers a purge it will not perform with HTTP 200 and a body that
+// says so: {"success": false, "errors": [...]}. A token missing Zone.Cache Purge
+// and a zone id the token cannot see both come back exactly that way. Reading
+// only res.ok therefore counts a purge that never happened as a success, which
+// is the worst of the three outcomes - the owner presses the button, is told it
+// worked, and then goes hunting for their change everywhere except the cache
+// still serving the old one. The body is what decides, not the status line.
+const CloudflareReplySchema = z.object({
+  success: z.boolean(),
+  errors: z.array(z.object({ code: z.number().optional(), message: z.string() })).optional(),
+})
+
+type PurgeOutcome = { ok: true } | { ok: false; detail: string }
+
+// Cloudflare's errors carry the useful part (a permission it wants, a zone it
+// cannot find), so they are quoted rather than summarised. Trimmed because this
+// ends up in a warning line and, for the manual button, in front of an owner.
+function shorten(body: string): string {
+  const flat = body.replace(/\s+/g, ' ').trim()
+  return flat.length > 300 ? `${flat.slice(0, 300)}...` : flat
+}
+
+async function readPurgeOutcome(res: Response): Promise<PurgeOutcome> {
+  const body = await res.text().catch(() => '')
+  if (!res.ok) return { ok: false, detail: `HTTP ${res.status}: ${shorten(body)}` }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return { ok: false, detail: `a reply that is not JSON: ${shorten(body)}` }
+  }
+
+  const reply = CloudflareReplySchema.safeParse(parsed)
+  if (!reply.success) return { ok: false, detail: `an unrecognised reply: ${shorten(body)}` }
+  if (reply.data.success) return { ok: true }
+
+  const errors = reply.data.errors ?? []
+  if (errors.length === 0) return { ok: false, detail: 'Cloudflare rejected it without saying why' }
+  return {
+    ok: false,
+    detail: errors.map((e) => (e.code === undefined ? e.message : `${e.code} ${e.message}`)).join('; '),
   }
 }
 
@@ -99,10 +147,8 @@ async function requestPurgeEverything(token: string, zone: string): Promise<void
     body: JSON.stringify({ purge_everything: true }),
     signal: AbortSignal.timeout(5_000),
   })
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Cloudflare returned ${res.status}: ${body}`)
-  }
+  const outcome = await readPurgeOutcome(res)
+  if (!outcome.ok) throw new Error(`Cloudflare did not purge the cache - ${outcome.detail}`)
 }
 
 /**

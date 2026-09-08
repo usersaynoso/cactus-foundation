@@ -1216,6 +1216,21 @@ if (request.headers.get('authorization') !== `Bearer ${secret}`) return errorRes
 
 Note that module route files **cannot** export their own `maxDuration` - the generated router imports every route file as a plain object of HTTP-method handlers, and a `maxDuration` export breaks that structural type. The shared dispatcher at `app/api/m/[module]/[...path]/route.ts` sets one `maxDuration` (currently 60s) for every module route instead.
 
+**Catch your own errors and say what went wrong.** An uncaught throw in a route handler is masked by the framework into a bare "Internal Server Error", so all the cron dispatcher can record is `HTTP 500` and all the owner sees on **Settings → Schedules** is that the job did not finish. Wrap the work and answer with the message instead - it is the difference between a job somebody can fix and one nobody can:
+
+```ts
+try {
+  const result = await doTheWork()
+  return NextResponse.json({ ok: true, ...result })
+} catch (err) {
+  return errorResponse(err instanceof Error ? err.message : 'the run failed', 500)
+}
+```
+
+**Budget your run against the tick, not against the ceiling.** The dispatcher hands a job whatever is left of its own 60-second tick and still has to write the outcome down afterwards, so a job that helps itself to the full 60s will be cut off. Bound long work to something comfortably short of that and report partial progress, as the SEO audit does.
+
+**Raw SQL is executed by nothing until it runs on a live site.** `tsc` and `eslint` treat a query as a string, and the build gate never sends one to Postgres, so a statement that Postgres refuses is green everywhere until the night the cron fires. One trap worth knowing: Prisma binds a JavaScript integer as `bigint`, so `make_interval(days => ${n})` fails with `42883: function make_interval(days => bigint) does not exist` - write `${n}::int4`. Core's `lib/db/raw-interval-casts.test.ts` fails the whole test run on an uncast one, in any module it can see.
+
 ## Public routes
 
 Most modules only need admin pages and API routes. A module that also needs a public-facing area of the site (a blog, a forum, a directory) can declare a single top-level URL segment it owns:

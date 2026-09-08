@@ -7,42 +7,13 @@ import {
   dropTestDatabase, dropTestRole, dropStaleTestObjects, TEST_PREFIX,
 } from './vps-database'
 import { rememberAddressForMember } from '@/modules/shop/lib/db/addresses'
+import { getDeductionRules, listOrderSizeDeductionChecks } from '@/modules/shop/lib/db/suppliers'
 import type { ShpAddress } from '@/modules/shop/lib/types'
+import { splitMigrationStatements } from './migration-sql'
 
-// Shop's migrations carry $$-quoted DO blocks, which is exactly why the
-// round-trip's own splitter refuses the module. Semicolons inside a dollar-quoted
-// body are not statement ends, so this walks the text and skips those regions.
-function splitPgStatements(sql: string): string[] {
-  const out: string[] = []
-  let start = 0
-  let i = 0
-  while (i < sql.length) {
-    const two = sql.slice(i, i + 2)
-    if (two === '--') { const nl = sql.indexOf('\n', i); i = nl === -1 ? sql.length : nl + 1; continue }
-    if (two === '/*') { const end = sql.indexOf('*/', i + 2); i = end === -1 ? sql.length : end + 2; continue }
-    if (sql[i] === "'") {
-      i++
-      while (i < sql.length && sql[i] !== "'") i++
-      i++
-      continue
-    }
-    const tag = /^\$[A-Za-z_]*\$/.exec(sql.slice(i))
-    if (tag) {
-      const close = sql.indexOf(tag[0], i + tag[0].length)
-      i = close === -1 ? sql.length : close + tag[0].length
-      continue
-    }
-    if (sql[i] === ';') {
-      const stmt = sql.slice(start, i).trim()
-      if (stmt) out.push(stmt)
-      start = i + 1
-    }
-    i++
-  }
-  const tail = sql.slice(start).trim()
-  if (tail) out.push(tail)
-  return out
-}
+// Migrations are read with the shared dollar-quote-aware splitter, not the backup
+// format's own - shop's migrations carry $$-quoted DO blocks and a semicolon
+// inside one is not a statement end. See lib/backup/migration-sql.ts.
 
 // Shop's own SQL, executed. `npm run test:shop-sql`.
 //
@@ -79,14 +50,14 @@ describe.skipIf(!cfg)('supplier page SQL against a real database', () => {
 
     // Core first: shop's migrations reference core tables (Layout, Media).
     const initSql = path.join(process.cwd(), 'prisma/migrations/20260626000000_init/migration.sql')
-    for (const s of splitPgStatements(readFileSync(initSql, 'utf8'))) {
+    for (const s of splitMigrationStatements(readFileSync(initSql, 'utf8'))) {
       await db.$executeRawUnsafe(s)
     }
 
     const dir = path.join(process.cwd(), 'modules/shop/migrations')
     expect(existsSync(dir)).toBe(true)
     for (const f of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
-      for (const s of splitPgStatements(readFileSync(path.join(dir, f), 'utf8'))) {
+      for (const s of splitMigrationStatements(readFileSync(path.join(dir, f), 'utf8'))) {
         await db.$executeRawUnsafe(s)
       }
     }
@@ -206,12 +177,12 @@ describe.skipIf(!cfg)('address book SQL against a real database', () => {
     db = new PrismaClient({ datasources: { db: { url: connectionUri(cfg!, dbName, role) } } })
 
     const initSql = path.join(process.cwd(), 'prisma/migrations/20260626000000_init/migration.sql')
-    for (const s of splitPgStatements(readFileSync(initSql, 'utf8'))) {
+    for (const s of splitMigrationStatements(readFileSync(initSql, 'utf8'))) {
       await db.$executeRawUnsafe(s)
     }
     const dir = path.join(process.cwd(), 'modules/shop/migrations')
     for (const f of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
-      for (const s of splitPgStatements(readFileSync(path.join(dir, f), 'utf8'))) {
+      for (const s of splitMigrationStatements(readFileSync(path.join(dir, f), 'utf8'))) {
         await db.$executeRawUnsafe(s)
       }
     }
@@ -280,4 +251,98 @@ describe.skipIf(!cfg)('address book SQL against a real database', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]!.label).toBeNull()
   }, 60_000)
+})
+
+// The order-size deduction's own SQL, executed.
+//
+// Three statements nothing else in the build can check: a LOWER(name) IN (...)
+// against a Prisma.join, and the two catalogue reports, one of which joins
+// products to suppliers on LOWER(name) and compares two NUMERIC columns. All
+// three are strings to typecheck, to eslint and to the module build gate, and a
+// query Postgres refuses parses exactly as well as one it accepts.
+//
+// The REAL functions are run rather than a copy of their SQL, so the two cannot
+// drift apart - the same reasoning the address book probe above is built on.
+describe.skipIf(!cfg)('order-size deduction SQL against a real database', () => {
+  let db: PrismaClient
+  let dbName: string
+  let roleName: string
+
+  beforeAll(async () => {
+    const suffix = `${Date.now()}`.slice(-9)
+    dbName = `${TEST_PREFIX}osd_${suffix}`
+    roleName = `${TEST_PREFIX}role_osd_${suffix}`
+    const role = await createTestRole(cfg!, roleName)
+    await createTestDatabase(cfg!, dbName, role)
+    db = new PrismaClient({ datasources: { db: { url: connectionUri(cfg!, dbName, role) } } })
+
+    const initSql = path.join(process.cwd(), 'prisma/migrations/20260626000000_init/migration.sql')
+    for (const s of splitMigrationStatements(readFileSync(initSql, 'utf8'))) {
+      await db.$executeRawUnsafe(s)
+    }
+    const dir = path.join(process.cwd(), 'modules/shop/migrations')
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
+      for (const s of splitMigrationStatements(readFileSync(path.join(dir, f), 'utf8'))) {
+        await db.$executeRawUnsafe(s)
+      }
+    }
+
+    // Two suppliers, one with a threshold and one without, and four products
+    // between them covering every branch both reports have.
+    await db.$executeRawUnsafe(`
+      INSERT INTO "shp_suppliers" ("name", "order_size_deduction_threshold", "order_size_deduction_note")
+      VALUES ('Dynamic Office Solutions', 350.00, 'They stop charging us once we order enough at once.'),
+             ('Furdeco', NULL, NULL)`)
+    await db.$executeRawUnsafe(`
+      INSERT INTO "shp_products" ("name", "slug", "type", "status", "sku", "supplier", "price", "sale_price", "order_size_deduction")
+      VALUES
+        -- On offer, stamped, supplier has a rule: the ordinary case, on neither list.
+        ('Metropolis', 'metropolis', 'PHYSICAL', 'ACTIVE', 'EX000230', 'Dynamic Office Solutions', 130.00, 116.00, 6.00),
+        -- On offer, supplier has a rule, NOT stamped: the missing list.
+        ('Vantage', 'vantage', 'PHYSICAL', 'ACTIVE', 'EX000231', 'Dynamic Office Solutions', 200.00, 180.00, NULL),
+        -- Stamped with more than it is charged: the impossible list.
+        ('Footstool', 'footstool', 'PHYSICAL', 'ACTIVE', 'EX000232', 'Dynamic Office Solutions', 12.00, 8.00, 9.00),
+        -- On offer and unstamped, but its supplier has no rule: neither list.
+        ('Lansdowne', 'lansdowne', 'PHYSICAL', 'ACTIVE', 'EX000233', 'Furdeco', 400.00, 380.00, NULL)`)
+  }, 300_000)
+
+  afterAll(async () => {
+    await db?.$disconnect()
+    if (dbName) await dropTestDatabase(cfg!, dbName)
+    if (roleName) await dropTestRole(cfg!, roleName)
+  }, 120_000)
+
+  it('reads a supplier\'s rule by name, case-insensitively, and skips one with no threshold', async () => {
+    const rules = await getDeductionRules(['dynamic office solutions', 'Furdeco', 'Nobody At All'], { client: db })
+    expect(rules).toHaveLength(1)
+    expect(rules[0]!.supplier).toBe('Dynamic Office Solutions')
+    // NUMERIC(10,2) comes back as a Decimal; the query layer has to hand back a
+    // number or the rule module compares a threshold against an object.
+    expect(rules[0]!.threshold).toBe(350)
+    expect(typeof rules[0]!.threshold).toBe('number')
+    expect(rules[0]!.note).toContain('order enough at once')
+  })
+
+  it('asks nothing at all for an empty or blank list of names', async () => {
+    expect(await getDeductionRules([], { client: db })).toEqual([])
+    expect(await getDeductionRules(['', '   '], { client: db })).toEqual([])
+  })
+
+  it('finds the row stamped with more than it is charged, and only that one', async () => {
+    const { impossible } = await listOrderSizeDeductionChecks(200, { client: db })
+    expect(impossible.map((r) => r.sku)).toEqual(['EX000232'])
+    // A decimal-pound string, exactly as every other NUMERIC on a product comes
+    // back - Prisma's Decimal prints "9", not "9.00", so the report must not be
+    // read as pre-formatted money. formatMoney does the formatting on screen.
+    expect(Number(impossible[0]!.orderSizeDeduction)).toBe(9)
+    expect(Number(impossible[0]!.salePrice)).toBe(8)
+  })
+
+  it('finds the on-offer row its supplier has a rule for but nothing stamped on', async () => {
+    const { missing } = await listOrderSizeDeductionChecks(200, { client: db })
+    // Vantage only: Metropolis is stamped, Footstool is stamped, and Lansdowne's
+    // supplier has no threshold for it to be missing an amount against.
+    expect(missing.map((r) => r.sku)).toEqual(['EX000231'])
+    expect(missing[0]!.supplier).toBe('Dynamic Office Solutions')
+  })
 })

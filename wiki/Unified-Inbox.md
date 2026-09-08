@@ -486,7 +486,13 @@ The refresh button sits in a box stuck to the foot of the rail, with **Updated**
 
 **Mentioned** answers the other half of the same question. Being handed a conversation and being asked about one are two different things: the first puts the whole thing on your desk, the second asks you about a bit of it. Everything a colleague has tagged you in gathers here, with its own **To do**, **Later** and **Done** across the top - see [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something).
 
-On a narrower window there is no room for a column of it, so the rail lies down into a single strip along the top and everything stays in the same order.
+### On a phone or a tablet
+
+The same mail program, one pane at a time. Below about 1200px there is no room for a column of places down the left, so **the rail becomes a bar along the top** saying where you are - the inbox's coloured dot, its name and what is unread in it - with the magnifier and the pen beside it. **Press the name and the whole rail slides in from the left** as a drawer: the same five groups, the same headings, the same order, your name and picture at the top of it and the refresh button and bell at the foot. Pick a place and it slides away again; the cross at the top, the dimmed page behind it or the Escape key put it away without choosing. It used to be one strip that scrolled sideways, with half the addresses off the edge of the screen and nothing to say so.
+
+**On a tablet** (roughly 900px and up) the list stays beside what you have opened, exactly as on a desktop. **On a phone** you see the list, or the thing you opened from it, never both: a **&lsaquo;** at the start of the subject line takes you back to the list, and the box fills the screen edge to edge under the admin's own bar rather than sitting in a frame. Every pane scrolls its own contents, so the conversation's subject and its buttons stay at the top while you read, and the note bar stays at the bottom. The buttons on the subject line run sideways under your thumb rather than piling up in rows.
+
+**Dialogs and menus come up from the bottom edge** on a phone - the new-message box, the search, the file and catalogue pickers take the whole screen, and every short menu (assign, snooze, the dots on a message, the pen's arrow) is a sheet along the bottom rather than a small panel pinned to the button that opened it. Anything pressed with a finger, anywhere the screen is a touchscreen, is given a target a finger can hit.
 
 ### Covering somebody's post
 

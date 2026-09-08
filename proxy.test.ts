@@ -14,7 +14,7 @@ vi.mock('@/lib/config/site', () => ({
   refreshFirstRunComplete: () => refreshFirstRunComplete(),
   getAdminPathCached: async () => null,
   getSiteStatusCached: async () => 'live',
-  getPageCacheCached: async () => ({ enabled: false, ttl: 60 }),
+  getPageCacheCached: async () => ({ enabled: false, ttl: 60, behindCloudflare: false }),
 }))
 
 vi.mock('@/lib/config/edge-config', () => ({

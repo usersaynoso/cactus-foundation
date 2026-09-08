@@ -14,7 +14,7 @@ let cachedPendingRedeployId: string | null = null
 let cachedPendingRedeployIdAt: number = 0
 let cachedSpeedInsights: boolean = true
 let cachedSpeedInsightsAt: number = 0
-let cachedPageCache: { enabled: boolean; ttl: number } = { enabled: false, ttl: DEFAULT_PAGE_CACHE_TTL }
+let cachedPageCache: { enabled: boolean; ttl: number; behindCloudflare: boolean } = { enabled: false, ttl: DEFAULT_PAGE_CACHE_TTL, behindCloudflare: false }
 let cachedPageCacheAt: number = 0
 let cachedBehindCloudflare: boolean = false
 let cachedBehindCloudflareAt: number = 0
@@ -111,7 +111,11 @@ export async function isSpeedInsightsEnabled(): Promise<boolean> {
 // more here than elsewhere: the cost of wrongly deciding "not cacheable" is one
 // uncached page, and the cost of wrongly deciding "cacheable" is a page held by
 // a CDN for the whole window.
-export async function getPageCacheCached(): Promise<{ enabled: boolean; ttl: number }> {
+//
+// behindCloudflare rides along because proxy.ts needs it in the same breath and
+// on the same request: it is what decides whether Vercel may keep a copy of its
+// own. It cannot use the purge credentials for that - see the note in proxy.ts.
+export async function getPageCacheCached(): Promise<{ enabled: boolean; ttl: number; behindCloudflare: boolean }> {
   const now = Date.now()
   if (cachedPageCacheAt > 0 && now - cachedPageCacheAt < CACHE_TTL_MS) {
     return cachedPageCache
@@ -119,13 +123,14 @@ export async function getPageCacheCached(): Promise<{ enabled: boolean; ttl: num
   const config = await prisma.siteConfig
     .findUnique({
       where: { id: 'singleton' },
-      select: { pageCacheEnabled: true, pageCacheTtl: true },
+      select: { pageCacheEnabled: true, pageCacheTtl: true, behindCloudflare: true },
     })
     .catch(() => undefined)
   if (config === undefined) return cachedPageCache
   cachedPageCache = {
     enabled: config?.pageCacheEnabled ?? false,
     ttl: normalisePageCacheTtl(config?.pageCacheTtl),
+    behindCloudflare: config?.behindCloudflare ?? false,
   }
   cachedPageCacheAt = now
   return cachedPageCache
@@ -202,7 +207,7 @@ export function invalidateSiteConfigCache() {
   cachedPendingRedeployIdAt = 0
   cachedSpeedInsights = true
   cachedSpeedInsightsAt = 0
-  cachedPageCache = { enabled: false, ttl: DEFAULT_PAGE_CACHE_TTL }
+  cachedPageCache = { enabled: false, ttl: DEFAULT_PAGE_CACHE_TTL, behindCloudflare: false }
   cachedPageCacheAt = 0
   cachedBehindCloudflare = false
   cachedBehindCloudflareAt = 0
