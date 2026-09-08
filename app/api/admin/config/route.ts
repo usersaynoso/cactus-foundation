@@ -7,7 +7,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { isBlocklisted } from '@/lib/config/site'
 import { syncToEdgeConfig, waitForAdminPathPropagation } from '@/lib/config/edge-config'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
-import { PAGE_CACHE_TTL_OPTIONS } from '@/lib/cache/page-cache'
+import { PAGE_CACHE_LONG_TTL_OPTIONS, PAGE_CACHE_TTL_OPTIONS, VERCEL_EDGE_TTL_OPTIONS } from '@/lib/cache/page-cache'
 import { purgeCdnEverything } from '@/lib/cache/cdn-purge'
 import { errorResponse } from '@/lib/utils'
 import type { SiteStatus } from '@prisma/client'
@@ -173,6 +173,19 @@ const Patch = z.object({
     .int()
     .refine((n) => (PAGE_CACHE_TTL_OPTIONS as readonly number[]).includes(n), 'Not one of the offered caching windows')
     .optional(),
+  // The second, longer window for parameterised and machine-read addresses, and
+  // 0 for "there isn't one". Same reasoning as pageCacheTtl above: only the
+  // offered values, because the number goes straight into a header a CDN obeys.
+  pageCacheLongTtl: z
+    .number()
+    .int()
+    .refine((n) => (PAGE_CACHE_LONG_TTL_OPTIONS as readonly number[]).includes(n), 'Not one of the offered caching windows')
+    .optional(),
+  vercelEdgeTtl: z
+    .number()
+    .int()
+    .refine((n) => (VERCEL_EDGE_TTL_OPTIONS as readonly number[]).includes(n), 'Not one of the offered caching windows')
+    .optional(),
   behindCloudflare: z.boolean().optional(),
   trustDeviceDays: z.number().int().min(1).max(365).optional(),
   emailFromName: z.string().max(100).optional().nullable(),
@@ -266,9 +279,9 @@ export async function PATCH(request: NextRequest) {
   // it now. A copy already sitting in a CDN is a separate problem: nothing
   // downstream knows the switch moved, so it would go on being handed out for the
   // rest of the window. Throw the lot away instead - best effort, never fatal.
-  if (rest.pageCacheEnabled !== undefined || rest.pageCacheTtl !== undefined) {
+  if (rest.pageCacheEnabled !== undefined || rest.pageCacheTtl !== undefined || rest.pageCacheLongTtl !== undefined || rest.vercelEdgeTtl !== undefined) {
     invalidateSiteConfigCache()
-    if (rest.pageCacheEnabled === false || rest.pageCacheTtl !== undefined) {
+    if (rest.pageCacheEnabled === false || rest.pageCacheTtl !== undefined || rest.pageCacheLongTtl !== undefined || rest.vercelEdgeTtl !== undefined) {
       // Next's route cache first, then the CDN - see the note in
       // app/api/admin/cache/purge/route.ts. A top-level page is held by Next
       // indefinitely under `revalidate = false`, so purging Cloudflare on its own

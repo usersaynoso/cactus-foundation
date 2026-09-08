@@ -147,6 +147,8 @@ CREATE TABLE "SiteConfig" (
     "lazyLoadImages" BOOLEAN NOT NULL DEFAULT true,
     "pageCacheEnabled" BOOLEAN NOT NULL DEFAULT false,
     "pageCacheTtl" INTEGER NOT NULL DEFAULT 300,
+    "pageCacheLongTtl" INTEGER NOT NULL DEFAULT 0,
+    "vercelEdgeTtl" INTEGER NOT NULL DEFAULT 60,
     "behindCloudflare" BOOLEAN NOT NULL DEFAULT false,
     "privacyPolicyPageId" TEXT,
     "termsPageId" TEXT,

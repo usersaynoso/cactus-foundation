@@ -26,7 +26,16 @@ Switching between them is a radio button, and both keys are kept, so you can try
 1. Sign up with whichever service you have chosen and create a key. Ideal Postcodes keys come from ideal-postcodes.co.uk. Google keys come from the Google Cloud console, with the Places API switched on.
 2. In your admin, go to **Shop → Settings → Address lookup**, choose the service, and paste the key into that service's box.
 
-That's it. Keys stay on your server - shoppers' browsers never see them, and the settings screen only ever shows you the last four characters of each. If your site's environment already carries a key as `IDEAL_POSTCODES_KEY` or `GOOGLE_PLACES_API_KEY`, that works as a fallback and you needn't paste anything.
+3. Press **Test the lookup**. It looks one address up there and then, and tells you in plain words whether the service accepted your key. Worth doing: a rejected key looks exactly like a working one from the settings screen, and the difference only shows up at somebody's checkout.
+
+Keys stay on your server - shoppers' browsers never see them, and the settings screen only ever shows you the last four characters of each. If your site's environment already carries a key as `IDEAL_POSTCODES_KEY` or `GOOGLE_PLACES_API_KEY`, that works as a fallback and you needn't paste anything.
+
+### If you are using Google, two things catch people out
+
+Your site asks Google from the server, not from the shopper's browser, and Google treats those two quite differently:
+
+- **The key must be allowed to use Places API (New).** If the key has a list of permitted APIs on it, Places API (New) has to be on that list, and the API itself has to be switched on for the project. A key that is otherwise perfectly good but not allowed this one comes back refused, and the test above will say so.
+- **A key locked to your website address will never work here.** Google calls that a website restriction, and it only applies to requests made by a browser. Since your site asks from the server, use a key with no application restriction, or one restricted by server address instead. The simplest thing is a second key kept for this and nothing else, rather than reusing the one your site already uses for maps or tags.
 
 ## Settings
 
@@ -36,6 +45,12 @@ Under **Shop → Settings → Address lookup**:
 - **Who does the looking up** - Ideal Postcodes or Google.
 - **Ideal Postcodes API key** and **Google API key** - paste a new key to save it, or remove a saved one to fall back to the environment's key (if there is one). The one not currently in use is marked as such, so you can set it up before you switch.
 - **Countries to suggest addresses in** - two-letter country codes for Google, separated by commas, fifteen at most. Leave it at `gb` for a UK-only shop. Ideal Postcodes is UK-only anyway and takes no notice of this.
+
+### Places with names, not just numbers
+
+Google knows a great many places by name rather than by street: a marina, an office block, a business park, a pub. Pick one of those and the name goes on the first line with the street underneath, which is how the Royal Mail writes the same address and how a driver reads it - **Blackwall Basin Moorings** on line one, **1 Myers Walk** on line two.
+
+One thing Google cannot help with: if you live at number 22 of a named place, Google generally knows the place but not your number within it. The name and street arrive filled in and the number is yours to add. Ideal Postcodes, reading the Royal Mail file, does know those numbers, which is the main reason to prefer it for a UK-only shop.
 
 ## Keeping the bill sensible
 
@@ -50,3 +65,5 @@ Whichever service you use, the module is careful with lookups:
 ## When things go wrong
 
 If the key is missing, the service is having a bad day, or the shopper's connection drops, the suggestions simply stop appearing and the field carries on as a perfectly ordinary text box. Checkout never breaks because lookup couldn't help.
+
+That is deliberate, but it does mean a broken key is quiet. If suggestions have stopped appearing, go to **Shop → Settings → Address lookup** and press **Test the lookup** - it repeats the service's own explanation back to you rather than leaving you guessing.

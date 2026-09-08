@@ -225,6 +225,22 @@ model SiteConfig {
   // lib/cache/page-cache.ts on the way in; stale-while-revalidate is derived
   // from it rather than stored, so there is one number to reason about.
   pageCacheTtl           Int        @default(300)
+  // The second, longer window - see PAGE_CACHE_LONG_TTL_OPTIONS in
+  // lib/cache/page-cache.ts. Applies to addresses carrying a query string and to
+  // the machine-read files (sitemap, robots.txt, feeds), which between them are
+  // most of a large catalogue's crawl surface and change least. 0 - the default,
+  // and what every install did before this existed - means there is no second
+  // window and everything uses pageCacheTtl.
+  pageCacheLongTtl       Int        @default(0)
+  // Seconds Vercel's own edge may hold a copy on a site that has a purgeable
+  // cache downstream of it (behindCloudflare, or purge credentials configured).
+  // Only consulted in that case: with nothing downstream, Vercel already keeps
+  // the copy for the whole window. See vercelCdnCacheControl in
+  // lib/cache/page-cache.ts - handing the entire window downstream and keeping
+  // nothing meant every miss at Cloudflare re-rendered the page in a function.
+  // The cost of a non-zero value is that a publish's purge takes this long to be
+  // visible everywhere; 0 restores the instant-purge behaviour.
+  vercelEdgeTtl          Int        @default(60)
   // Settings > General > Speed. True when the site's traffic is proxied through
   // Cloudflare, which is the only condition under which the CF-Connecting-IP
   // header may be believed. See clientIpFromHeaders in lib/auth/rate-limit.ts:

@@ -274,6 +274,8 @@ const admin = banner([
   `// route would then reach every admin screen's client components again.`,
 ])
 
+admin.push(`import { applyModuleApiCache } from '@/lib/cache/module-api-cache'`)
+admin.push(``)
 admin.push(...SHARED_TYPES)
 admin.push(``)
 
@@ -315,7 +317,11 @@ admin.push(`    if (extracted !== null) {`)
 admin.push(`      const handler = await route.load()`)
 admin.push(`      const fn = handler[method] as ApiHandler | undefined`)
 admin.push(`      if (!fn) return new Response('Method not allowed', { status: 405 })`)
-admin.push(`      return fn(req, { params: Promise.resolve(extracted) })`)
+admin.push(`      const res = await fn(req, { params: Promise.resolve(extracted) })`)
+admin.push(`      // A public module route may declare its own shared-cache window by`)
+admin.push(`      // exporting publicCacheTtl - applied here so the rules that decide`)
+admin.push(`      // whether it is safe live in one place. See lib/cache/module-api-cache.ts.`)
+admin.push(`      return applyModuleApiCache(req, res, handler)`)
 admin.push(`    }`)
 admin.push(`  }`)
 admin.push(`  return new Response('Not found', { status: 404 })`)

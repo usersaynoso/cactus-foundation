@@ -24,7 +24,7 @@ import {
   isFirstRunComplete,
   refreshFirstRunComplete,
 } from '@/lib/config/site'
-import { cdnCacheControl, pageCacheControl, vercelCdnCacheControl } from '@/lib/cache/page-cache'
+import { cdnCacheControlForWindow, pageCacheControl, resolveCacheWindow, vercelCdnCacheControl } from '@/lib/cache/page-cache'
 import { isCdnPurgeConfigured } from '@/lib/cache/cdn-purge'
 import { validateSession } from '@/lib/auth/session-core'
 import { isEdgeConfigWritable } from '@/lib/config/env'
@@ -224,16 +224,25 @@ const SECURITY_HEADERS: [string, string][] = [
 // next/dist/server/send-payload.js), and proxy headers are applied to the
 // response before the render runs - so this one wins.
 async function withPageCache(request: NextRequest, res: NextResponse): Promise<NextResponse> {
-  const { enabled, ttl, behindCloudflare } = await getPageCacheCached()
+  const { enabled, ttl, longTtl, vercelEdgeTtl, behindCloudflare } = await getPageCacheCached()
   if (!enabled) return res
-  const value = pageCacheControl({
+  const decision = {
     enabled,
     ttl,
+    longTtl,
+    // The two facts that decide whether this address gets the ordinary window or
+    // the long one - see usesLongCacheWindow in lib/cache/page-cache.ts. Taken
+    // off nextUrl rather than the raw url so a rewrite earlier in this file
+    // cannot change the answer under us.
+    path: request.nextUrl.pathname,
+    hasQuery: request.nextUrl.search.length > 0,
     method: request.method,
-    header: (name) => request.headers.get(name),
-    hasCookie: (name) => request.cookies.has(name),
-  })
+    header: (name: string) => request.headers.get(name),
+    hasCookie: (name: string) => request.cookies.has(name),
+  }
+  const value = pageCacheControl(decision)
   if (value) {
+    const window = resolveCacheWindow(decision)
     res.headers.set('Cache-Control', value)
     // The header that actually reaches the wire on Vercel, and the one Cloudflare
     // reads in preference to Cache-Control. Next.js rewrites Cache-Control for a
@@ -241,7 +250,7 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
     // first version of this feature did nothing at all on a live site while the
     // switch sat there saying it was on. CDN-Cache-Control is not a header
     // Next.js touches. See lib/cache/page-cache.ts for the full note.
-    res.headers.set('CDN-Cache-Control', cdnCacheControl(ttl))
+    res.headers.set('CDN-Cache-Control', cdnCacheControlForWindow(window))
     // Vercel's edge reads that same header and keeps its own copy for the same
     // window - one nothing can purge. On a site that CAN purge downstream, the
     // copy has to sit downstream instead, or a publish drops Cloudflare's copy
@@ -260,7 +269,7 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
     // isCdnPurgeConfigured() is still honoured, for a site that set the
     // credentials without ticking the box.
     if (behindCloudflare || isCdnPurgeConfigured()) {
-      res.headers.set('Vercel-CDN-Cache-Control', vercelCdnCacheControl())
+      res.headers.set('Vercel-CDN-Cache-Control', vercelCdnCacheControl(vercelEdgeTtl, window))
     }
   }
   return res

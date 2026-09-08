@@ -58,7 +58,9 @@ A tab of its own, because these three belong together: they are the ones that de
 | Field | Description | Default |
 |-------|-------------|---------|
 | Keep ready-made copies of your pages | Normally every visitor waits while their page is built from scratch, even if a hundred people asked for the same one a minute earlier. Turn this on and a copy is kept for a short while and handed straight out instead - quicker for them, cheaper for you. Anyone signed in always gets a freshly built page. See **Speeding up your site** below. | Off |
-| How long to keep a copy | Only shown when the above is ticked. How long an old copy may be handed out before a fresh one is built: 1 minute, 5 minutes, 15 minutes or 1 hour. | `5 minutes` |
+| How long to keep a copy | Only shown when the above is ticked. How long an old copy may be handed out before a fresh one is built: 1 minute, 5 minutes, 15 minutes, 1 hour, 6 hours or 24 hours. | `5 minutes` |
+| How long to keep the odds and ends | Only shown when the above is ticked. A second, longer window for the addresses nobody really browses - a product page with a colour and size already chosen in the address bar, a filtered list, and the files search engines read rather than people. A shop with a few hundred products can have twenty thousand of those, and they change far less often than the pages they came from. **Same as above** switches it off. | `Same as above` |
+| Second copy, closer to home | Only shown when the above is ticked, and only does anything when something else - Cloudflare, usually - is storing copies in front of your site. Lets your host keep a short-lived copy of its own underneath, so the times nobody else has one ready do not all land back on your site at once. The catch: editing a page throws the other stored copies away immediately, but this one waits out its own window first. | `1 minute` |
 | My site's traffic goes through Cloudflare | Tick only if visitors genuinely reach your site through Cloudflare - in Cloudflare's DNS settings your site's record shows an **orange** cloud, not a grey one. It tells Cactus where to find a visitor's real location, which is what stops one person getting their password wrong from locking out everyone else nearby. Ticking it when it isn't true is worse than leaving it alone. | Off |
 
 ---
@@ -90,6 +92,22 @@ So nobody is ever handed a page meant for somebody else.
 **How long?** Editing a page clears its copy right away. The window you choose only governs how long something you changed *elsewhere* - a price, a menu, a product - might take to appear. Five minutes suits most sites. Pick an hour if your pages barely change and you want every last scrap of speed.
 
 **Turning it off** clears every stored copy immediately, so the site goes back to how it was straight away.
+
+### The odds and ends, and why they are worth a longer window
+
+Not every address on your site is a page somebody browses. A shop with options publishes an address for every buyable combination - a desk in grey oak, 160cm wide, with cable ports - and search engines are told about all of them, because each is a different picture and a different price and worth finding on its own. So are the files search engines read rather than people: your sitemap, `robots.txt`, your feeds.
+
+There can be an enormous number of these. A catalogue of seven hundred products can easily publish twenty thousand addresses, and every one of them is stored and rebuilt separately. They also change far less often than the pages they came from, because the thing behind them is the same product.
+
+**How long to keep the odds and ends** gives that lot a window of their own - up to a week - without touching how fresh your ordinary pages are. It is the single cheapest thing on this tab if you run a shop with options, and it makes no difference at all to a site that has none. It never shortens anything: if it is set below your ordinary window, the ordinary one still applies.
+
+### Second copy, closer to home
+
+This one only matters if something else is storing copies in front of your site, which in practice means Cloudflare.
+
+When Cloudflare is holding the copies, your host deliberately holds none - that is what lets editing a page clear the lot straight away, because there is only one place to clear. The cost is that every time Cloudflare hasn't got a copy ready - a crawler arriving somewhere new, a window that has just closed - the work lands back on your site.
+
+**Second copy, closer to home** lets your host keep a short-lived copy underneath to absorb exactly that. The trade is that a change you save takes up to that long to be visible everywhere, rather than being instant. A minute is a fair swap and is the default. Choose **don't keep one** if you would rather every change be live absolutely everywhere the second you press save.
 
 ### Getting it for free with Cloudflare
 

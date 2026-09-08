@@ -6,12 +6,21 @@ vi.mock('@/lib/modules/cache-cookies', () => ({
 
 import {
   cdnCacheControl,
+  cdnCacheControlForWindow,
   vercelCdnCacheControl,
   pageCacheControl,
   normalisePageCacheTtl,
+  normalisePageCacheLongTtl,
+  normaliseVercelEdgeTtl,
+  resolveCacheWindow,
+  usesLongCacheWindow,
   cacheBypassCookieNames,
   DEFAULT_PAGE_CACHE_TTL,
+  DEFAULT_PAGE_CACHE_LONG_TTL,
+  DEFAULT_VERCEL_EDGE_TTL,
   PAGE_CACHE_TTL_OPTIONS,
+  PAGE_CACHE_LONG_TTL_OPTIONS,
+  VERCEL_EDGE_TTL_OPTIONS,
 } from './page-cache'
 
 type Overrides = Partial<Parameters<typeof pageCacheControl>[0]>
@@ -189,5 +198,124 @@ describe('pageCacheControl', () => {
       const result = decide(c)
       expect(result).toBeNull()
     }
+  })
+})
+
+describe('normalisePageCacheLongTtl', () => {
+  it('accepts every offered window, 0 included', () => {
+    for (const ttl of PAGE_CACHE_LONG_TTL_OPTIONS) {
+      expect(normalisePageCacheLongTtl(ttl)).toBe(ttl)
+    }
+  })
+
+  it('falls back to "no second window" for anything else', () => {
+    for (const bad of [-1, 7, 300, 3000000, NaN, null, undefined, 'ages', {}]) {
+      expect(normalisePageCacheLongTtl(bad)).toBe(DEFAULT_PAGE_CACHE_LONG_TTL)
+    }
+  })
+})
+
+describe('normaliseVercelEdgeTtl', () => {
+  it('accepts every offered window', () => {
+    for (const ttl of VERCEL_EDGE_TTL_OPTIONS) {
+      expect(normaliseVercelEdgeTtl(ttl)).toBe(ttl)
+    }
+  })
+
+  it('falls back to the default for anything else', () => {
+    for (const bad of [-1, 7, 3600, NaN, null, undefined, 'a bit', {}]) {
+      expect(normaliseVercelEdgeTtl(bad)).toBe(DEFAULT_VERCEL_EDGE_TTL)
+    }
+  })
+})
+
+describe('usesLongCacheWindow', () => {
+  it('takes any address carrying a query string', () => {
+    expect(usesLongCacheWindow('/a-desk', true)).toBe(true)
+    expect(usesLongCacheWindow('/', true)).toBe(true)
+  })
+
+  it('takes the machine-read files', () => {
+    for (const path of ['/robots.txt', '/sitemap.xml', '/sitemap-0.xml', '/blog/feed.xml']) {
+      expect(usesLongCacheWindow(path, false), path).toBe(true)
+    }
+  })
+
+  it('leaves ordinary pages on the ordinary window', () => {
+    for (const path of ['/', '/a-desk', '/shop/products/a-desk', '/sitemap', '/robots']) {
+      expect(usesLongCacheWindow(path, false), path).toBe(false)
+    }
+  })
+})
+
+describe('resolveCacheWindow', () => {
+  it('uses the ordinary window when there is no second one', () => {
+    expect(resolveCacheWindow({ ttl: 300, longTtl: 0, path: '/a-desk', hasQuery: true })).toBe(300)
+  })
+
+  it('uses the second window for the addresses that qualify', () => {
+    expect(resolveCacheWindow({ ttl: 300, longTtl: 86400, path: '/a-desk', hasQuery: true })).toBe(86400)
+    expect(resolveCacheWindow({ ttl: 300, longTtl: 86400, path: '/sitemap.xml', hasQuery: false })).toBe(86400)
+  })
+
+  it('leaves ordinary pages on the ordinary window', () => {
+    expect(resolveCacheWindow({ ttl: 300, longTtl: 86400, path: '/a-desk', hasQuery: false })).toBe(300)
+  })
+
+  it('never shortens a window: the longer of the two wins', () => {
+    expect(resolveCacheWindow({ ttl: 86400, longTtl: 3600, path: '/a-desk', hasQuery: true })).toBe(86400)
+  })
+
+  it('behaves as before for a caller that says nothing about the address', () => {
+    expect(resolveCacheWindow({ ttl: 900 })).toBe(900)
+  })
+})
+
+describe('pageCacheControl with a second window', () => {
+  it('writes the longer window into the header for an address that qualifies', () => {
+    expect(decide({ ttl: 300, longTtl: 86400, path: '/a-desk', hasQuery: true })).toBe(
+      'public, max-age=0, s-maxage=86400, stale-while-revalidate=86400',
+    )
+  })
+
+  it('leaves an ordinary page on the ordinary window', () => {
+    expect(decide({ ttl: 300, longTtl: 86400, path: '/a-desk', hasQuery: false })).toBe(
+      'public, max-age=0, s-maxage=300, stale-while-revalidate=300',
+    )
+  })
+
+  it('still refuses a request that must not be shared, however long the window', () => {
+    expect(decide({ ttl: 300, longTtl: 86400, path: '/a-desk', hasQuery: true, hasCookie: () => true })).toBeNull()
+    expect(
+      decide({ ttl: 300, longTtl: 86400, path: '/a-desk', hasQuery: true, header: headersFrom({ rsc: '1' }) }),
+    ).toBeNull()
+  })
+})
+
+describe('cdnCacheControlForWindow', () => {
+  it('carries a long window through untouched, where cdnCacheControl would reset it', () => {
+    expect(cdnCacheControlForWindow(86400)).toBe('public, s-maxage=86400')
+    expect(cdnCacheControl(86400)).toBe('public, s-maxage=86400')
+    // 604800 is a valid SECOND window but not an ordinary one, so only the
+    // window-aware spelling may be handed it.
+    expect(cdnCacheControlForWindow(604800)).toBe('public, s-maxage=604800')
+    expect(cdnCacheControl(604800)).toBe(`public, s-maxage=${DEFAULT_PAGE_CACHE_TTL}`)
+  })
+})
+
+describe('vercelCdnCacheControl', () => {
+  it('keeps nothing upstream when the owner asked for instant purges', () => {
+    expect(vercelCdnCacheControl(0)).toBe('public, s-maxage=0, must-revalidate')
+    expect(vercelCdnCacheControl()).toBe('public, s-maxage=0, must-revalidate')
+  })
+
+  it('keeps a short copy upstream otherwise', () => {
+    expect(vercelCdnCacheControl(60)).toBe('public, s-maxage=60')
+    expect(vercelCdnCacheControl(300)).toBe('public, s-maxage=300')
+  })
+
+  it('never outlives the copy downstream', () => {
+    expect(vercelCdnCacheControl(900, 60)).toBe('public, s-maxage=60')
+    expect(vercelCdnCacheControl(60, 86400)).toBe('public, s-maxage=60')
   })
 })

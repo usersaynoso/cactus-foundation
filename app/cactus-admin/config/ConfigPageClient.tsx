@@ -43,7 +43,7 @@ type SiteConfig = {
   diallingCode: string;
   adminPath: string; status: string; hideFromCrawlers: boolean;
   speedInsightsEnabled: boolean;
-  pageCacheEnabled: boolean; pageCacheTtl: number; behindCloudflare: boolean;
+  pageCacheEnabled: boolean; pageCacheTtl: number; pageCacheLongTtl: number; vercelEdgeTtl: number; behindCloudflare: boolean;
   trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
   mediaProvider: MediaProviderType | null; lazyLoadImages: boolean;
@@ -2077,12 +2077,60 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 <option value="300">5 minutes (recommended)</option>
                 <option value="900">15 minutes</option>
                 <option value="3600">1 hour</option>
+                <option value="21600">6 hours</option>
+                <option value="86400">24 hours</option>
               </select>
               <span className="field-hint">
                 How long an old copy may be handed out before a fresh one is built. Editing a page clears its copy
                 straight away, so this is really about how long anything you change somewhere else - a price, a menu, a
                 product - might take to show up. Five minutes suits most sites. Pick a longer window if your pages
                 rarely change and you want every last scrap of speed.
+              </span>
+            </div>
+          )}
+          {(config.pageCacheEnabled ?? false) && (
+            <div id="speed-page-cache-long-window" className="field admin-anchor">
+              <label>How long to keep the odds and ends</label>
+              {/* Mirrors PAGE_CACHE_LONG_TTL_OPTIONS in lib/cache/page-cache.ts. Listed
+                  here rather than imported for the same reason as the window above. */}
+              <select
+                value={String(config.pageCacheLongTtl ?? 0)}
+                onChange={(e) => set('pageCacheLongTtl', Number(e.target.value))}
+              >
+                <option value="0">Same as above</option>
+                <option value="3600">1 hour</option>
+                <option value="21600">6 hours</option>
+                <option value="86400">24 hours (recommended)</option>
+                <option value="604800">A week</option>
+              </select>
+              <span className="field-hint">
+                Some addresses are not really pages anybody browses: a product page with a particular colour and size
+                already chosen in the address bar, a filtered list, and the files search engines read rather than
+                people. A shop with a few hundred products can easily have twenty thousand of those, every one of them
+                stored and rebuilt separately, and they change far less often than the pages they came from. This keeps
+                copies of that lot for longer. It does not affect your ordinary pages at all.
+              </span>
+            </div>
+          )}
+          {(config.pageCacheEnabled ?? false) && (
+            <div id="speed-edge-window" className="field admin-anchor">
+              <label>Second copy, closer to home</label>
+              <select
+                value={String(config.vercelEdgeTtl ?? 60)}
+                onChange={(e) => set('vercelEdgeTtl', Number(e.target.value))}
+              >
+                <option value="0">Don&apos;t keep one</option>
+                <option value="60">1 minute (recommended)</option>
+                <option value="300">5 minutes</option>
+                <option value="900">15 minutes</option>
+              </select>
+              <span className="field-hint">
+                Only does anything when something else - Cloudflare, usually - is storing copies in front of your site.
+                Your host can keep a short-lived copy of its own underneath, so the times nobody else has one ready do
+                not all land back on your site at once. The catch: when you edit a page, the stored copies are thrown
+                away immediately, but this one waits out its own window first. A minute is a fair trade. Choose
+                &ldquo;don&apos;t keep one&rdquo; if you want every change live absolutely everywhere the second you
+                save it.
               </span>
             </div>
           )}

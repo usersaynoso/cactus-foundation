@@ -1227,6 +1227,34 @@ if (request.headers.get('authorization') !== `Bearer ${secret}`) return errorRes
 
 **Do not declare `CRON_SECRET` in `requiredEnvVars`.** Core owns that variable and mints it itself (`lib/vercel/cron-secret.ts`): it is generated during setup, and installing any module whose manifest declares `cronJobs` provisions one on a site that has none, writing it to the Vercel project before the install's redeploy. Declaring it required only risks dead-ending an install on a value the platform was going to create anyway. It arrives in `process.env` with the deploy the install triggers, never during the install request itself - which is why the 503 guard above still belongs in the route.
 
+### Letting a public API route be cached
+
+A storefront page whose HTML is answered by a CDN still fires its client-side islands at your site: the reviews strip, the related products, the variation selector. Once the pages themselves are cached, those calls are most of what wakes a function at all, and each one is a full database round trip for an answer that was the same for the last hundred people who asked.
+
+A route that depends only on its own URL and the site's settings - and on nothing whatsoever about who is asking - can say so:
+
+```ts
+export async function GET(request: NextRequest) { /* … */ }
+
+// Seconds a shared cache may hold this answer.
+export const publicCacheTtl = 300
+```
+
+Core does the rest. The dispatcher passes the response through `lib/cache/module-api-cache.ts`, which adds the header only when **all** of the following hold, so the rules live in one place rather than being re-implemented in every module:
+
+- the request is a `GET` or `HEAD` and the answer is a `200`;
+- the route did not set a `Cache-Control` of its own (yours wins if it did);
+- the request carries none of the cookies that mean "this visitor's answer is their own" - core's admin and member sessions, plus anything any installed module declared in `cacheBypassCookies`;
+- the site owner has **Keep ready-made copies of your pages** switched on.
+
+Declarations are capped at an hour. A number that is not a positive one is ignored.
+
+**Say nothing unless you are certain.** The test is not "does this route read a cookie" but "could two people asking the same question at the same moment be owed different answers". Anything personalised, anything that varies by signed-in state, and anything carrying a one-time token belongs uncached. Get it wrong and a CDN hands one visitor's answer to everybody for the whole window - which is exactly the kind of bug that shows up in somebody else's basket rather than in your tests.
+
+**Live prices and stock deserve a short window rather than none.** Sixty seconds still absorbs a burst, and a shopper who picks something that sold out in the meantime is stopped at the checkout, which re-checks everything for real.
+
+**An older core ignores the export.** It is a plain constant, so a module carrying one installs and builds against a core that has never heard of it - it simply does not get cached there. No `requiresCoreVersion` bump is needed for this on its own.
+
 Note that module route files **cannot** export their own `maxDuration` - the generated router imports every route file as a plain object of HTTP-method handlers, and a `maxDuration` export breaks that structural type. The shared dispatcher at `app/api/m/[module]/[...path]/route.ts` sets one `maxDuration` (currently 60s) for every module route instead.
 
 **Catch your own errors and say what went wrong.** An uncaught throw in a route handler is masked by the framework into a bare "Internal Server Error", so all the cron dispatcher can record is `HTTP 500` and all the owner sees on **Settings → Schedules** is that the job did not finish. Wrap the work and answer with the message instead - it is the difference between a job somebody can fix and one nobody can:
