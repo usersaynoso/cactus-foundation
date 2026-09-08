@@ -96,6 +96,8 @@ Each line carries a quantity, a unit ("each", "box", "metre" - it is your word, 
 
 **Deliver to** is one of three things: your own address (which you set once, in the settings), straight to the customer, or somewhere else entirely. Sites that drop-ship should set the default to the customer and stop thinking about it.
 
+There is a box for delivery instructions beside it - the gate code, the side entrance, where to go if nobody answers - and on an order raised from a shop order it fills itself in. Where the Shop is asking customers where to leave things (**Shop → Settings → Delivery instructions**), whatever the customer wrote comes across word for word as the order is drafted. On a drop-ship the driver works for the supplier, not for you, so an instruction that never reaches the purchase order never reaches the lorry. Type over it if you need to and what you typed stays put; nothing writes over the box after the order has been drafted.
+
 **Notes** come in two kinds, and the labels say which is which: notes for the supplier print on the order, notes for us never leave the building.
 
 The **totals** update as you type. They are worked out again on the server when you save, so what is stored is never whatever the browser happened to think.

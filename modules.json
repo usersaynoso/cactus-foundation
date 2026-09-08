@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.401"
+      "version": "v0.1.402"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,7 +13,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.175"
+      "version": "v0.1.176"
     },
     {
       "name": "product-addons-for-shop",
@@ -98,7 +98,7 @@
     {
       "name": "reviews-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/reviews-for-shop",
-      "version": "v0.1.14"
+      "version": "v0.1.15"
     },
     {
       "name": "directory",
@@ -158,7 +158,7 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.33"
+      "version": "v0.1.34"
     },
     {
       "name": "unified-inbox",

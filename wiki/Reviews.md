@@ -118,6 +118,20 @@ If your shop uses product options (the Shop Variations module), a customer who b
 
 ---
 
+## Reviewing from the order itself
+
+A customer who opens one of their own completed orders finds a **Review what you bought** box on it, under the receipt, with a row of stars for every product on that order. No hunting for the product page, no waiting for an email.
+
+It asks for as little as it can get away with. **Five stars, and nothing else, until one is picked** - the headline and the comment box only appear once somebody has actually rated the thing, so an order with five items on it opens as five rows of stars rather than a page of homework. Their name and email are not asked for at all: the shop already knows whose order it is, which is rather the point of it being on their order page.
+
+It only shows on an order marked **Complete**. Somebody whose desk is still on a lorry would only be reviewing the wait.
+
+Everything else works as it does anywhere else. The review goes to your queue or straight up depending on **Publish reviews automatically**, your one-review-per-product rule still applies, and anything already reviewed drops off the list. Every review written here is a **verified purchase** by definition - it came from the order that bought it.
+
+Guests get the box too. Somebody who has proved the delivery postcode on their own order has proved rather more about having bought the thing than a signed-in account holder has. The exception is a shop that has set **Who can review** to *Account holders only*, where a guest sees no box at all rather than one that turns them away.
+
+---
+
 ## Asking past customers
 
 Switched off until you switch it on, because installing a module should never start writing to your customer list on its own.

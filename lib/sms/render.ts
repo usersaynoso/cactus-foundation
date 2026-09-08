@@ -98,6 +98,11 @@ export async function previewSmsTemplate(
 
 /** Stand-in merge values for a preview. Recognisable as fake on sight. */
 function sampleValueFor(tag: string): string {
+  // A {{#if hasSomething}} block only appears when its flag is the string
+  // 'true' (see applyConditionals), so a flag sampled as anything else would
+  // hide the very line the owner is trying to look at - and `hasOrderUrl` would
+  // be read as a URL by the rule below and hide it that way too.
+  if (/^has[A-Z]/.test(tag)) return 'true'
   if (/url$/i.test(tag)) return 'https://example.com/x'
   if (/number$/i.test(tag)) return 'AB000123'
   if (/name$/i.test(tag)) return 'Sam'

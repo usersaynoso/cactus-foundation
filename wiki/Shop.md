@@ -378,6 +378,10 @@ Positions come from the courier as their crew drives, so they lag, pause and occ
 
 **Proof of delivery.** When the courier hands over a signature, the shop takes its own copy of it. Who signed, when they signed and the signature itself appear on the customer's order page under that parcel, and on your own order screen. The copy is the point: the picture sits on the courier's server under a filename of their choosing, and a proof of delivery that disappears when somebody tidies up is not proof of anything. It is fetched once, and a delivery is still recorded as delivered even if the picture cannot be had.
 
+**Once it has arrived.** The parcel's line on the customer's order page stops saying when it was arranged for and says when it actually came - "Delivered on 8th of September 2026" - as soon as the courier gives a time for it. Where the courier gives no time, the arrangement stays as it was rather than the shop guessing from the clock.
+
+If you mark an order complete yourself before the courier has published the signature - which is the natural thing to do when the van has just been - the shop keeps asking for a fortnight afterwards and files the proof when it appears. Nothing is asked once it has it.
+
 **Delivery questions.** Each courier can carry its own questions and answers - will they take it upstairs, what happens if nobody is in, do they ring first. They appear as a **Questions about your delivery** button on the customer's order page, and as a link in the delivery message, which opens the same questions when they arrive. A courier with no questions shows no button and no link, so an empty list is simply invisible rather than an empty box. Answers are plain words, typed exactly as you write them.
 
 ### Mixed baskets with a pre-order in them
@@ -886,6 +890,8 @@ The same address ordered to twice stays one entry. Two entries only appear when 
 
 With the [Address Lookup](Address-Lookup) module installed, the address book's own Add and Edit forms suggest addresses as they're typed, exactly as the checkout does - an address added in the account is worth no less than one typed at the till.
 
+**Other modules can add a box of their own to that order page**, under the receipt and above the parcels. Nothing does unless you have installed something that wants to: with the [Reviews](Reviews) module on, a completed order grows a **Review what you bought** box with a row of stars per item, so a customer can rate the lot from the page they are already looking at. A shop without such a module installed sees the page exactly as it was.
+
 Guests aren't offered any of this and aren't asked to sign up for it. They see the form exactly as they always did.
 
 ### The basket follows them about
@@ -906,33 +912,57 @@ There's nothing to switch on, for either kind of shopper. The account-to-account
 
 ### Cancellations and returns
 
-Customers can ask to call an order off or send something back from the order page itself, rather than hunting for your email address. They pick a reason from a short list and can add a note.
+Customers can ask to call an order off, send something back, or tell you something arrived broken, all from the order page itself rather than hunting for your email address. They pick a reason from a short list and can add a note.
 
 The rules are the sensible ones and you don't have to police them: **cancelling** is only offered while nothing has been dispatched (once part of it is in a van, it's a return), and **returning** is only offered after something has actually gone out, within a window you set. That window is counted from the day the last parcel left, not the day they ordered - an order that sat on your shelf for three weeks shouldn't eat the customer's return window. One open request per order, and they can withdraw it if they change their mind.
 
-Both are on by default and can be switched off in **Settings → Shop**, along with the length of the return window (30 days out of the box). Off means the pages say to get in touch instead, rather than pretending the option was never there.
+All three are on by default and can be switched off in **Settings → Shop**, along with the length of the return window (30 days out of the box). Off means the pages say to get in touch instead, rather than pretending the option was never there.
 
-#### Things you can't take back
+#### What you'll take back, and what you won't
 
-Some things simply cannot come back: a desk cut to somebody's own measurements, a chair upholstered in a fabric they chose off a card, anything made to order. The **Returns** section on a product's **Stock** tab is where you say so - tick **Do not accept returns on this**, and optionally write a line explaining why. Leave the line empty and the customer is told "This item cannot be sent back once ordered."
+The **Returns** section on a product's **Stock** tab offers three answers, and the middle one is the one most shops actually give:
 
-Nothing happens to the rest of your catalogue. Every product starts out returnable, and stays that way until you tick the box on it.
+- **Take it back as usual** - the ordinary rules. Where every product starts, and where it stays unless you say otherwise.
+- **Only if we agree to it** - they can ask, and you can say no. For the things you will usually take back but would rather not promise: the chair that has been sat on, the desk that has been built and taken apart again, anything where the van costs more than the restocking.
+- **Do not take it back** - a desk cut to somebody's own measurements, a chair in a fabric they chose off a card, anything made to order.
+
+On either of the last two you can write a line of your own explaining what to expect. Leave it empty and the customer is told "This item cannot be sent back once ordered" or, on a discretionary one, that you may be able to take it back and there may be a charge for collecting it.
+
+Nothing happens to the rest of your catalogue. Every product starts on the ordinary policy and stays there until you change it.
 
 A product with options is marked once, on the product, and every combination of it follows. Where one combination genuinely differs - a single made-to-order finish on an otherwise stock range, or the one stock finish on a bespoke one - the **Returns** column on the **Variations** grid overrules it for that row alone. Left on **As product**, which is where every row starts, it just follows the product.
 
-Both are in the spreadsheet too, so a whole range can be marked in one go: **Can be returned** and **Why it cannot be returned** on the Products sheet, and **Returns** on the Variations one. An empty cell means "nothing said", so a sheet that never touches those columns changes nothing.
+All of it is in the spreadsheet too, so a whole range can be marked in one go: **Can be returned**, **Returns are our decision** and **Why it cannot be returned** on the Products sheet, and **Returns** on the Variations one, which takes **Yes**, **Discretion** or **No**. An empty cell means "nothing said", so a sheet that never touches those columns changes nothing.
 
-What the customer sees: no **Return something** button on anything marked this way, and your reason in its place. An order made up entirely of such things says so plainly rather than offering a button that goes nowhere. A mixed order still offers the button, lists what can go back, and says underneath which lines cannot and why. Cancelling before anything has been dispatched is untouched - that is a different thing from a return, and nothing has been made or moved yet.
+What the customer sees: no **Return something** button on anything you will not take back, and your reason in its place. An order made up entirely of such things says so plainly rather than offering a button that goes nowhere. A mixed order still offers the button, lists what can go back, and says underneath which lines cannot and why. A discretionary line is offered like any other, with your sentence beside it before they ask - being told "we may say no" while you are still deciding whether to bother is far better than being told it afterwards.
 
-One thing worth knowing: what counts is how the product was marked **when the order was placed**. Marking something non-returnable today does not reach back and take the right away from somebody who bought it last week under the old terms.
+**One thing that follows from "do not take it back".** An order holding something you will not take back cannot be cancelled through the website either, even before it has been dispatched. Goods like that are cut, upholstered or ordered in specially the moment the order lands, and the van not having been yet does not put them back in the box. The customer is told which line it is and asked to get in touch, rather than being handed a button that would leave you to unpick it.
 
-Requests land in **Shop → Cancellations & returns** in your admin, waiting ones first and the oldest at the top. Each shows who asked, for what, why, in their own words, and what the order was worth. You approve or decline, and either way you can add a line that goes in the email to them. Approving offers a tickbox to send the money back at the same time - it's a second, deliberate step, because a refund is money leaving the business and shouldn't be one stray click away. Leave it unticked to approve now and refund when the goods are actually back in your hands.
+**And on the page itself, for you alone.** Signed in with Shop access, a product page carries the answer in the same small dashed **staff only** box that already gives you the stock figure and the codes - **Returns: accepted**, **Returns: at our discretion** or **Returns: not accepted**, the last two followed by the very sentence the customer would be shown. It's said either way round rather than only when the answer is no, because a box that comes and goes just looks like something that failed to load, and "yes" is the answer you actually want when somebody rings up asking. On a product with options it sits under the basket button with the others and follows the combination you've picked; where that one combination differs from the product it says **this option only**, so you can see the exception rather than wonder whether the page changed its mind. Customers see none of it, and it isn't sent to their browser either.
+
+One thing worth knowing: what counts is how the product was marked **when the order was placed**. Marking something non-returnable today does not reach back and take the right away from somebody who bought it last week under the old terms. The same goes for your wording - the reason is recorded with the order, so a customer is shown what they bought under rather than whatever the product says months later.
+
+#### When something arrives broken
+
+Damage is not on the returns list, and that is deliberate. A return is somebody deciding they don't want a thing, and it ends in a collection and a refund; damage is your problem, and it ends in a replacement. Sat side by side in one dropdown, "it arrived damaged" is the line people pick, and every breakage then has to be unpicked by email.
+
+So it has its own button: **Report damage**. The customer says which item and what happened, and adds photographs - up to six, shrunk in their browser on the way so a phone camera on a bad signal still manages it. Please-add-at-least-one is as far as the nagging goes: "parts are missing" is a report of something that isn't there to photograph.
+
+Three things are true of it that are not true of a return. There is no window, because a fault does not read a calendar. It works on the things you would never take back, because the customer who cannot send a desk back is exactly the one who most needs to tell you it turned up smashed. And it runs alongside a cancellation or a return rather than instead of one, so a second parcel arriving broken doesn't have to wait its turn.
+
+The report lands in the same queue with its photographs on it, and the buttons read **Putting it right** and **Turn it down** rather than approve and decline, because nobody approves a broken table. Refunding is still offered if that is how you'd rather settle it.
+
+#### The queue
+
+Requests land in **Shop → Cancellations, returns & damage** in your admin, waiting ones first and the oldest at the top. Each shows who asked, for what, why, in their own words, and what the order was worth. Anything covering a discretionary line is flagged **Your call**, so you can see the decision is genuinely open without opening the order and reading the lines. You approve or decline, and either way you can add a line that goes in the email to them. Approving offers a tickbox to send the money back at the same time - it's a second, deliberate step, because a refund is money leaving the business and shouldn't be one stray click away. Leave it unticked to approve now and refund when the goods are actually back in your hands.
+
+**Return charges.** Approving a return offers a box for what it costs you to collect the thing. Fill it in and the amount is kept back: the refund goes out for the goods less the charge, spread across the lines so each still looks like itself on the credit note, and the customer's email says the figure plainly rather than leaving them to work out why the refund is short. The charge is recorded whether or not you refund on the spot, so you can approve today, collect on Thursday and refund the balance then. A charge as big as the refund itself is refused rather than quietly sending back nothing - that is a decision to take without the refund machinery in the way.
 
 Nothing is ever decided automatically. There is no auto-approve, by design: money going out on a timer is not a setting anyone should inherit without noticing.
 
 Approving a cancellation also closes the order, so it can't be picked and packed by mistake while you're sorting out the refund. If the refund itself fails - a card processor having a bad minute - you're told plainly, the request still counts as approved, and you can retry the refund from the order page where the refund tools already live.
 
-Customers get an email when their request arrives, and another when you've decided. You get one too, at whichever address takes your new-order alerts. All four are editable like every other email the site sends, in **Settings → Email → Templates**.
+Customers get an email when their request arrives, and another when you've decided. You get one too, at whichever address takes your new-order alerts. Damage has its own set rather than borrowing the return wording, so softening a decline doesn't accidentally reword an apology. All eight are editable like every other email the site sends, in **Settings → Email → Templates**.
 
 ---
 
@@ -1159,6 +1189,18 @@ Once it's on, that number follows the order about:
 One thing worth knowing: an invoice you've already issued keeps the reference it was issued with. Change it on the order afterwards and the invoice doesn't quietly rewrite itself, because a document already sitting in somebody's filing is a record rather than a view. If a number went out wrong, that's a credit note and a fresh invoice, same as anything else on an invoice.
 
 An invoice that went out with the box **empty** is the exception, and the useful one: there's nothing there to contradict, so a number added later prints on it the next time it's opened or downloaded. That's the whole point of letting customers add their own - the invoice they were sent before their purchase order existed comes back with the purchase order number on it. Same for a credit note. And it's why a customer can't change a number that's already on an issued invoice: they're told it's gone out with that number on it and asked to get in touch, which is a conversation rather than a text box.
+
+### Asking where to leave it
+
+A gate code. The side entrance, because the front one has a step. The neighbour at number 14 who takes everything in. The lift that has been out since March and the three floors of stairs behind it. None of that fits in an address, and a driver who does not know it either rings you or takes the pallet away again.
+
+**Settings → Shop → Delivery instructions** puts a box on the delivery step for it. It arrives switched off, because a shop whose goods go through a letterbox has no use for it and an empty box is one more thing between a shopper and the button. Switch it on and you can rename it - **Access notes**, **Anything the driver should know**, whatever your customers will recognise - and write your own line of guidance underneath it. Nobody is made to fill it in: most orders go to an ordinary front door and have nothing to say.
+
+What they write is theirs. It is kept with that order and nothing else, and it is deliberately not filed with the address, because an instruction is about this delivery rather than about the door. Somebody who is waiting in on Tuesday is not still waiting in next month, and a saved address that quietly carried "leave it with Sandra" into every future order would be wrong far more often than it was right.
+
+It shows on the order in your admin, under the delivery address, in a box of its own so it is not read as part of the address by whoever is printing the label. It travels, too: where you have Purchase Orders and the goods are going out from your supplier rather than your own shelf, the instruction goes onto the purchase order's delivery details, which is the paperwork the supplier's driver actually reads. That is rather the point of collecting it. You can still type into that box on the purchase order yourself, and what you type wins from then on - the instruction is only ever filled in as the order is drafted, not written over afterwards.
+
+Switch it off and the box goes. Orders already placed keep what they were told, which is the only sensible thing to do with somebody's front door.
 
 ### A separate billing address
 
