@@ -114,12 +114,23 @@ async function applySchema(db: ExtendedPrismaClient): Promise<void> {
 // site's tables, while reporting a clean pass. See lib/backup/migration-sql.ts for
 // why that is a second splitter rather than a widened one.
 //
-// One thing still keeps a module out, and it is honesty rather than convenience: a
-// module that declares `requiresModules`, because its migrations expect tables
-// belonging to a module that may not be checked out on this machine at all.
+// A module that declares `requiresModules` used to be kept out on the grounds that
+// its migrations expect tables from a module which may not be checked out on this
+// machine at all. On a full checkout that reasoning is nearly always false - shop
+// is built by this very gate - so the whole shop family sat out a run in which its
+// one dependency had been applied moments earlier. On 2026-09-08
+// address-lookup-for-shop gained three columns, the gate printed
+// `address-lookup-for-shop (requires shop)` and reported four tests passed.
+//
+// So a declared dependency keeps a module out only when the dependency is really
+// not there: not checked out, not covered itself, or tangled in a cycle. What
+// survives is sorted dependency-first, so shop's tables exist before anything
+// built on top of them goes near the database.
 //
 // Whatever is left is applied per module in its own transaction, so a module that
-// will not build simply is not covered rather than taking the run with it.
+// will not build simply is not covered rather than taking the run with it - and a
+// module whose dependency threw is skipped in turn rather than being handed a
+// half-built schema to fail against.
 //
 // EVERY exclusion is printed, whether it was decided here while reading or later
 // while applying. That is not tidiness: a gate that narrows itself in silence
@@ -127,47 +138,127 @@ async function applySchema(db: ExtendedPrismaClient): Promise<void> {
 // the dollar-quote rule existed. If you change what gets skipped, make sure it
 // still says so out loud.
 
-type ModuleSchema = { name: string; statements: string[] }
+type ModuleSchema = { name: string; requires: string[]; statements: string[] }
 type ModuleExclusion = { name: string; why: string }
+type ModuleCandidate = { name: string; requires: string[]; migrationsDir: string; files: string[] }
+
+// `requiresModules` entries are objects ({ name, minVersion }), not strings.
+// Joining them raw prints "requires [object Object]", which names the rule and
+// hides the thing it is about - the exact failure mode this reporting exists to
+// stop. Older manifests wrote plain strings, so both are read.
+function readRequiredModules(manifestPath: string): string[] {
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+    requiresModules?: Array<string | { name?: string }>
+  }
+  return (manifest.requiresModules ?? [])
+    .map((r) => (typeof r === 'string' ? r : r?.name))
+    .filter((r): r is string => !!r)
+}
+
+// Dependency-first order, plus the cycle that stopped it where there is one.
+//
+// Depth-first rather than Kahn's because a cycle has to be NAMED, not merely
+// counted: "in a dependency cycle" with no members in it is the sort of reason
+// that sends somebody off reading manifests by hand, which is barely better than
+// not being told at all.
+function topologicalOrder(candidates: Map<string, ModuleCandidate>): {
+  order: string[]
+  cycles: Map<string, string>
+} {
+  const order: string[] = []
+  const cycles = new Map<string, string>()
+  const state = new Map<string, 'visiting' | 'done'>()
+  const stack: string[] = []
+
+  const visit = (name: string): void => {
+    const seen = state.get(name)
+    if (seen === 'done') return
+    if (seen === 'visiting') {
+      const cycle = [...stack.slice(stack.indexOf(name)), name]
+      const printed = cycle.join(' -> ')
+      for (const member of cycle) cycles.set(member, printed)
+      return
+    }
+    state.set(name, 'visiting')
+    stack.push(name)
+    // A dependency that is not a candidate is not a node: it is reported as a
+    // missing dependency below, and recursing into nothing would only lose the
+    // module that named it.
+    for (const dep of candidates.get(name)?.requires ?? []) {
+      if (candidates.has(dep)) visit(dep)
+    }
+    stack.pop()
+    state.set(name, 'done')
+    order.push(name)
+  }
+
+  for (const name of [...candidates.keys()].sort()) visit(name)
+  return { order, cycles }
+}
 
 function readModuleSchemas(): { schemas: ModuleSchema[]; excluded: ModuleExclusion[] } {
   const root = path.join(process.cwd(), 'modules')
   if (!existsSync(root)) return { schemas: [], excluded: [] }
-  const schemas: ModuleSchema[] = []
-  const excluded: ModuleExclusion[] = []
 
+  const candidates = new Map<string, ModuleCandidate>()
   for (const name of readdirSync(root).sort()) {
     const manifestPath = path.join(root, name, 'cactus.module.json')
     const migrationsDir = path.join(root, name, 'migrations')
     // Not a module checkout at all (an empty folder left by a removed module, say).
     // Nothing to report: there is no schema here that anyone expected to be covered.
     if (!existsSync(manifestPath) || !existsSync(migrationsDir)) continue
-
-    // `requiresModules` entries are objects ({ name, minVersion }), not strings.
-    // Joining them raw prints "requires [object Object]", which names the rule
-    // and hides the thing it is about - the exact failure mode this reporting
-    // exists to stop. Older manifests wrote plain strings, so both are read.
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
-      requiresModules?: Array<string | { name?: string }>
-    }
-    const requires = (manifest.requiresModules ?? [])
-      .map((r) => (typeof r === 'string' ? r : r?.name))
-      .filter((r): r is string => !!r)
-    if (requires.length > 0) {
-      excluded.push({ name, why: `requires ${requires.join(', ')}` })
-      continue
-    }
-
-    const files = readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort()
-    if (files.length === 0) {
-      excluded.push({ name, why: 'no migration files' })
-      continue
-    }
-
-    const sql = files.map((f) => readFileSync(path.join(migrationsDir, f), 'utf8'))
-    schemas.push({ name, statements: sql.flatMap((s) => splitMigrationStatements(s)) })
+    candidates.set(name, {
+      name,
+      requires: readRequiredModules(manifestPath),
+      migrationsDir,
+      files: readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort(),
+    })
   }
 
+  // Every reason a module is not built, keyed by module. Filled in three passes -
+  // nothing to build, then cycles, then dependencies - and read back as the
+  // printed exclusion list at the end.
+  const dropped = new Map<string, string>()
+  for (const candidate of candidates.values()) {
+    if (candidate.files.length === 0) dropped.set(candidate.name, 'no migration files')
+  }
+
+  const { order, cycles } = topologicalOrder(candidates)
+  for (const [name, printed] of cycles) {
+    if (!dropped.has(name)) dropped.set(name, `in a dependency cycle: ${printed}`)
+  }
+
+  // Dependency-first, so by the time a module is judged its dependencies have
+  // already been judged. That is what makes a single pass enough to carry an
+  // exclusion the whole way down a chain: the module three steps above a missing
+  // dependency is dropped by the same rule as the one directly above it.
+  const schemas: ModuleSchema[] = []
+  for (const name of order) {
+    const candidate = candidates.get(name)
+    if (!candidate || dropped.has(name)) continue
+
+    const absent = candidate.requires.find((dep) => !candidates.has(dep))
+    if (absent !== undefined) {
+      dropped.set(name, `requires ${absent}, which is not checked out here`)
+      continue
+    }
+    const uncovered = candidate.requires.find((dep) => dropped.has(dep))
+    if (uncovered !== undefined) {
+      dropped.set(name, `requires ${uncovered}, which is itself not covered`)
+      continue
+    }
+
+    const sql = candidate.files.map((f) => readFileSync(path.join(candidate.migrationsDir, f), 'utf8'))
+    schemas.push({
+      name,
+      requires: candidate.requires,
+      statements: sql.flatMap((s) => splitMigrationStatements(s)),
+    })
+  }
+
+  const excluded = [...dropped]
+    .map(([name, why]) => ({ name, why }))
+    .sort((a, b) => a.name.localeCompare(b.name))
   return { schemas, excluded }
 }
 
@@ -175,9 +266,21 @@ const { schemas: MODULE_SCHEMAS, excluded: MODULE_EXCLUSIONS } = readModuleSchem
 
 async function applyModuleSchemas(db: ExtendedPrismaClient): Promise<string[]> {
   const applied: string[] = []
+  const appliedNames = new Set<string>()
   const refused: string[] = []
 
+  // MODULE_SCHEMAS arrives dependency-first, so a module's tables are already
+  // there by the time anything that builds on them runs.
   for (const mod of MODULE_SCHEMAS) {
+    // A dependency that threw leaves this module nothing to attach to. Saying so
+    // is worth more than letting it run: it would fail on a missing table and
+    // report the same fault a second time, wearing the wrong module's name.
+    const missing = mod.requires.filter((dep) => !appliedNames.has(dep))
+    if (missing.length > 0) {
+      refused.push(`${mod.name} (requires ${missing.join(', ')}, which did not apply)`)
+      continue
+    }
+
     try {
       await db.$transaction(
         async (tx) => {
@@ -186,6 +289,7 @@ async function applyModuleSchemas(db: ExtendedPrismaClient): Promise<string[]> {
         { maxWait: 15_000, timeout: 55_000 },
       )
       applied.push(mod.name)
+      appliedNames.add(mod.name)
     } catch (error) {
       // What Postgres actually said, not what Prisma wrapped it in.
       //

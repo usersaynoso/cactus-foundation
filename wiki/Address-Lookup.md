@@ -6,31 +6,47 @@ The same suggestions appear anywhere else the Shop asks for an address: a signed
 
 Requires the [Shop](Shop) module (0.1.163 or later).
 
+## Choosing who does the looking up
+
+You pick one of two services, and you bring your own account either way.
+
+|  | Ideal Postcodes | Google |
+| --- | --- | --- |
+| Where it works | United Kingdom only | Everywhere, narrowed to the countries you name |
+| How good it is on flats | Reads Royal Mail's own address file, so flat and unit numbers are as good as they come | Good on houses, less reliable on flats and sub-buildings |
+| What it costs | Typing costs nothing at all. You are charged a small amount only when a shopper actually picks an address | Free up to a monthly allowance a shop of ordinary size will not get near, then a small amount per thousand |
+| Anything else | Nothing | Google asks for a small "Powered by Google" credit under the suggestions, which the field puts there by itself |
+
+If your shop only delivers within the UK and you would rather have the best possible flat numbers, choose Ideal Postcodes. If you ship abroad, or you would rather not have a per-lookup bill at all, choose Google.
+
+Switching between them is a radio button, and both keys are kept, so you can try the other one and switch back without pasting anything again.
+
 ## What it needs
 
-The looking-up is done by [Ideal Postcodes](https://ideal-postcodes.co.uk), who charge a small amount per lookup, so you bring your own API key:
+1. Sign up with whichever service you have chosen and create a key. Ideal Postcodes keys come from ideal-postcodes.co.uk. Google keys come from the Google Cloud console, with the Places API switched on.
+2. In your admin, go to **Shop → Settings → Address lookup**, choose the service, and paste the key into that service's box.
 
-1. Sign up at ideal-postcodes.co.uk and create an API key.
-2. In your admin, go to **Shop → Settings → Address lookup** and paste it in.
-
-That's it. The key stays on your server - shoppers' browsers never see it, and the settings screen only ever shows you its last four characters. If your site's environment already carries the key as `IDEAL_POSTCODES_KEY`, that works as a fallback and you needn't paste anything.
+That's it. Keys stay on your server - shoppers' browsers never see them, and the settings screen only ever shows you the last four characters of each. If your site's environment already carries a key as `IDEAL_POSTCODES_KEY` or `GOOGLE_PLACES_API_KEY`, that works as a fallback and you needn't paste anything.
 
 ## Settings
 
 Under **Shop → Settings → Address lookup**:
 
-- **Suggest addresses as shoppers type** - the master switch. Turned off, checkout shows the ordinary address fields, nothing is looked up, and nothing is billed.
-- **Ideal Postcodes API key** - paste a new key to save it, or remove the saved one to fall back to the environment's key (if there is one).
+- **Suggest addresses as shoppers type** - the master switch. Turned off, checkout shows the ordinary address fields, nothing is looked up, and nothing is billed. If the service you have chosen has no key, the switch says so rather than pretending.
+- **Who does the looking up** - Ideal Postcodes or Google.
+- **Ideal Postcodes API key** and **Google API key** - paste a new key to save it, or remove a saved one to fall back to the environment's key (if there is one). The one not currently in use is marked as such, so you can set it up before you switch.
+- **Countries to suggest addresses in** - two-letter country codes for Google, separated by commas, fifteen at most. Leave it at `gb` for a UK-only shop. Ideal Postcodes is UK-only anyway and takes no notice of this.
 
 ## Keeping the bill sensible
 
-Ideal Postcodes bills per lookup, so the module is careful with them:
+Whichever service you use, the module is careful with lookups:
 
 - Nothing is looked up until the shopper has typed at least three characters, and a pause in typing is waited for before asking.
 - Only actual typing counts. If the shopper lets their browser fill the address in for them - Safari's AutoFill, a password manager, a saved address - the whole form arrives at once, already correct, so no suggestions appear and nothing is billed. Any suggestions already showing are cleared away.
 - Lookups are rate-limited per visitor, so a stuck key or a script can't run up a bill.
 - If no key is set or lookups are switched off, the checkout makes no requests at all.
+- On Google, a run of typing and the address the shopper finally picks are counted together rather than one at a time, which is how Google prefers to be asked and is the cheaper way round.
 
 ## When things go wrong
 
-If the key is missing, Ideal Postcodes is having a bad day, or the shopper's connection drops, the suggestions simply stop appearing and the field carries on as a perfectly ordinary text box. Checkout never breaks because lookup couldn't help.
+If the key is missing, the service is having a bad day, or the shopper's connection drops, the suggestions simply stop appearing and the field carries on as a perfectly ordinary text box. Checkout never breaks because lookup couldn't help.
