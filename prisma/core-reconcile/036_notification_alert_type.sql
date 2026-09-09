@@ -1,0 +1,25 @@
+-- ---------------------------------------------------------------------------
+-- 036 - The 'alert' notification type.
+--
+-- The four types that came before all mean "something is ready for you": a
+-- deployment to press, an update to take, a message to read. There was no way
+-- for the platform to say "something is wrong, come and look" - so the module
+-- migration runner, which since this release notices when a released migration
+-- has been edited underneath an install, had nowhere to put the finding except
+-- a line in a build log nobody reads.
+--
+-- Deliberately one generic value rather than one per concern. The dedupeKey on
+-- the notification already says which alert it is, and every new enum value is
+-- a schema change that has to reach every install before the first site can
+-- raise one - which is a poor thing to discover halfway through an incident.
+--
+-- ADD VALUE IF NOT EXISTS is idempotent, and since Postgres 12 it is allowed
+-- inside a transaction block provided the new value is not USED in that same
+-- transaction. Nothing here uses it: the first write happens later in the build,
+-- in a separate connection, after this file has committed.
+--
+-- The enum also carries the value in prisma/migrations/.../migration.sql in
+-- place, so a fresh install lands in the same place as an updated one.
+-- ---------------------------------------------------------------------------
+
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'alert';

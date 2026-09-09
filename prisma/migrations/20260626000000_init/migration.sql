@@ -13,7 +13,7 @@ CREATE TYPE "SiteStatus" AS ENUM ('live', 'comingSoon', 'maintenance');
 CREATE TYPE "PageStatus" AS ENUM ('draft', 'published');
 CREATE TYPE "BodyFormat" AS ENUM ('markdown', 'builder');
 CREATE TYPE "ModuleStatus" AS ENUM ('pending_install', 'deploying', 'pending_deploy', 'active', 'inactive', 'failed', 'update_available');
-CREATE TYPE "NotificationType" AS ENUM ('deployment', 'core_update', 'module_update', 'message');
+CREATE TYPE "NotificationType" AS ENUM ('deployment', 'core_update', 'module_update', 'message', 'alert');
 CREATE TYPE "MenuItemType" AS ENUM ('PAGE', 'EXTERNAL', 'MODULE_ENTITY');
 CREATE TYPE "MenuItemVisibility" AS ENUM ('PUBLIC', 'AUTHENTICATED', 'GUEST', 'ADMIN');
 CREATE TYPE "MediaProviderType" AS ENUM ('B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE', 'CLOUDINARY', 'IMAGEKIT');

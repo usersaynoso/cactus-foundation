@@ -286,6 +286,14 @@ There's no Save button on that tab, and that isn't an oversight: every add, remo
 
 Refunds go back through whichever payment method the customer used automatically for Stripe and PayPal; bank transfer and cash refunds are a manual job outside Cactus, since there's no card or account to refund back to automatically.
 
+### If a payment was taken and no order appeared
+
+Card pages and bank apps take the money away from your site and hand the customer back afterwards, so those orders are only written down once the payment is real. Almost always that happens in the same second. Very occasionally something goes wrong in between, and the result is the worst kind of problem: the customer has paid, there's no order to show for it, and nothing looks unusual - to you it's an abandoned basket, and to them it's an error page.
+
+Cactus now notices. When an order can't be written after its payment has gone through, a warning sits at the top of **Shop → Trading** naming the order number, the amount, the payment method and the customer, and it stays there until the order exists. If the payment provider tries again and succeeds - which it usually does - the warning clears itself and you need do nothing.
+
+If one does appear: **check the payment with your provider before anything else, and don't refund on the assumption the order is lost.** In most cases the order can be recovered with the payment attached, which is a far better outcome for everybody than a refund and an apology. The warning carries the technical detail underneath for whoever ends up looking into it.
+
 ### Finding the orders you need
 
 Search by order number, company, name or email, then narrow it down: by status, by whether the money has arrived, by how much of the order has gone out, by date (last week, last month, or a range you pick), pre-orders only, or hiding cancelled ones. Sort by newest, oldest, biggest, smallest, customer or status, and show 25, 50 or 100 at a time. Where a company name was given, that's what the list calls the customer - both in the rows and in the A-Z sort - with the person who actually placed it on the line underneath. Businesses tend to be remembered by the business, not by whoever in the office was nearest the keyboard.

@@ -58,12 +58,14 @@ const ICON_BY_TYPE: Record<string, string> = {
   core_update: '⬆️',
   module_update: '📦',
   message: '✉️',
+  alert: '⚠️',
 }
 
 const VIEW_LABEL_BY_TYPE: Record<string, string> = {
   core_update: 'View Update',
   module_update: 'View Update',
   message: 'View Messages',
+  alert: 'Take a look',
 }
 
 // Everything except an "open" deployment notification, which Delete all leaves

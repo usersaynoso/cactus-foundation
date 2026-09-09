@@ -27,12 +27,16 @@ const ICON_BY_TYPE: Record<NotificationType, string> = {
   core_update: '⬆️',
   module_update: '📦',
   message: '✉️',
+  // The only type that means "something is wrong" rather than "something is
+  // ready for you". See prisma/core-reconcile/036.
+  alert: '⚠️',
 }
 
 const VIEW_LABEL_BY_TYPE: Partial<Record<NotificationType, string>> = {
   core_update: 'View Update',
   module_update: 'View Update',
   message: 'View Messages',
+  alert: 'Take a look',
 }
 
 function relativeTime(iso: string): string {

@@ -673,6 +673,12 @@ enum NotificationType {
   core_update
   module_update
   message
+  // Something is wrong and a person has to look at it - as opposed to the four
+  // above, which are all "something is ready for you". Kept deliberately generic
+  // rather than one enum value per concern: the dedupeKey already says which
+  // alert it is, and a new enum value is a schema change every install has to
+  // take before the first site can raise one.
+  alert
 }
 
 // Applied module SQL migrations, tracked separately from Prisma's own history.

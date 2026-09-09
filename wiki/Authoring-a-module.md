@@ -272,7 +272,12 @@ Disabling a module is a database flag flip - no redeploy, no data loss. The modu
 
 For the update flow to apply only new migrations correctly, follow this convention:
 
-- Each version that changes the schema adds a new `.sql` file. Never modify an existing migration file after it has been deployed - the `ModuleMigration` table records a checksum and the runner will detect tampering.
+- Each version that changes the schema adds a new `.sql` file. **Never modify a migration file after it has been in a release.** The runner records applied files by NAME, so a file that has already run never runs again however much it changes - which means an edit reaches installs provisioned afterwards and nobody else, silently, for ever. A live shop lost an order to exactly this on 8 September 2026: a released migration was edited to add a column, the site never re-ran it, and the next customer was charged for an order the checkout could not write.
+- Two things now enforce that, because the rule on its own was not enough:
+  - **Before release.** `npm test` in core runs `scripts/check-frozen-migrations.test.ts`, which compares every module migration on disk against the same file in that module's newest release tag. Any difference fails, on the commit that makes it. `node scripts/check-frozen-migrations.mjs` runs the same check on its own and prints the `git checkout` line that puts the file back.
+  - **After release.** The migration runner compares each applied file's recorded checksum against the file in the build. A mismatch is warned about loudly in the deploy log and raises an alert in the admin notification bell, so an install that has already been bitten says so instead of waiting to be found out.
+- `001_initial.sql` is the one exception, and is edited in place on purpose: it only ever runs on a fresh install, so a change there can surprise nobody. When a later migration adds a column, add it to `001_initial.sql` too, so a fresh install and an updated one land in the same place.
+- The fix for something missing from a released migration is always a **new numbered file**, never an edit. Make it idempotent (`ADD COLUMN IF NOT EXISTS`) so the overlap with a fresh install is harmless.
 - Use a naming scheme that sorts in the order migrations should run: `001_`, `002_`, `003_`, etc.
 - A migration file should be idempotent where practical (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE IF NOT EXISTS`, etc.) to survive edge cases.
 

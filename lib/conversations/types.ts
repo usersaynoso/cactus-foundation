@@ -40,6 +40,18 @@ export type ConversationSummary = {
   preview: string | null
   participant: ConversationParticipant
   lastMessageAt: Date
+  /**
+   * When anything in this conversation last CHANGED, which is not always when
+   * it last got a message: a voicemail typed up ten minutes after it was left
+   * has said nothing new, but a reader holding a copy of it now holds a stale
+   * one. A consumer collecting on a schedule asks `since` against this and
+   * orders the list by `lastMessageAt`, so a revision is fetched again without
+   * the conversation jumping to the top as though somebody had rung.
+   *
+   * Optional, and never earlier than `lastMessageAt`. A channel whose messages
+   * never change after the fact - most of them - leaves it out.
+   */
+  contentAt?: Date
   unread: boolean
   status: 'open' | 'closed'
   /** Deep link into the owning module's own UI. Admin-root relative (no leading
