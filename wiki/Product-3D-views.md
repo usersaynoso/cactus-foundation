@@ -172,9 +172,9 @@ A part on a fixed colour needs none of this, so it shows no size or rotation set
 
 The configurator only starts colouring for shoppers once you have set up **at least one material part** and saved. Leave it untouched and your product behaves exactly as any other 3D product does.
 
-**Leather looks like leather, on its own.** Swapping between a cloth and a leather is more than a colour change: leather catches the light in a way a wool never does, and painting a leather swatch onto a surface built as cloth used to leave it looking as flat as the cloth beside it. The only way round it was a second copy of the whole model with a shinier seat on it, kept in step with the first by hand forever.
+**Leather and vinyl look the part, on their own.** Swapping between a cloth and a leather is more than a colour change: leather catches the light in a way a wool never does, and painting a leather swatch onto a surface built as cloth used to leave it looking as flat as the cloth beside it. The only way round it was a second copy of the whole model with a shinier seat on it, kept in step with the first by hand forever.
 
-So Cactus reads the swatch's own name. Any finish with the word **leather** in it - "Soft Leather", "Bonded Leather", "Leatherette", "Faux Leather", however your supplier writes it - is given a soft sheen automatically, and every other finish is painted exactly as it was before. Nothing to set up and nothing to tick: name your leathers as leathers, which you almost certainly already do, and the shopper switching from the wool to the leather sees the surface change as well as the colour. Switch back and the sheen goes with it.
+So Cactus reads the swatch's own name. Any finish with the word **leather** or **vinyl** in it - "Soft Leather", "Bonded Leather", "Leatherette", "Faux Leather", "Anti-microbial Vinyl", however your supplier writes it - is given a soft sheen automatically, and every other finish is painted exactly as it was before. Vinyl gets the same sheen as leather, being the same sort of wipe-clean coated surface under a different name. Nothing to set up and nothing to tick: name your leathers as leathers and your vinyls as vinyls, which you almost certainly already do, and the shopper switching from the wool to the leather sees the surface change as well as the colour. Switch back and the sheen goes with it.
 
 It reads the picture's filename too, so a colour listed as plain "Black" that points at a `black-leather` swatch is caught just the same. Only the swatch's own name counts, not the folder it sits in, so a wool filed under a "leather-chairs" product is left well alone. And it works whichever way your finishes are set up - a picture swatch attribute, a chooser on the Variations tab, even a leather offered as a plain colour dot with no photo behind it. The configurator's own preview shows the sheen too, so what you see while setting the product up is what the shopper gets.
 
@@ -190,7 +190,7 @@ Two things worth knowing. The tagged file must carry a size of its own, in **Siz
 
 ### Not yet, but on the list
 
-- **Other shiny finishes.** Only leather is spotted by name at the moment. A high-gloss lacquer or a polished chrome offered as a swatch is still painted with the finish the model file was built in.
+- **Other shiny finishes.** Only leather and vinyl are spotted by name at the moment. A high-gloss lacquer or a polished chrome offered as a swatch is still painted with the finish the model file was built in.
 - **Rectangular swatches.** A 10×20 cm swatch is read as 10 for now; square swatches are exact.
 
 ---
