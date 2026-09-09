@@ -94,7 +94,7 @@ This is the most important section. Get it wrong and migrations become painful.
    - Wrong: `threads`, `forum_thread`
 2. **Migrations are plain SQL files**, not Prisma migrations.
 3. **The module migration runner applies them during Vercel's build step**, in lexicographic filename order. They are never applied at runtime.
-4. **Already-applied migrations are tracked in `ModuleMigration`** (a core table): `(moduleName, migrationName, checksum)`. The runner skips any migration already recorded there.
+4. **Already-applied migrations are tracked in `ModuleMigration`** (a core table): `(moduleName, migrationName, checksum, sqlChecksum)`. The runner skips any migration already recorded there, and uses the two checksums to notice when a file it is skipping is no longer the file that ran - see [Structuring per-version migrations](#structuring-per-version-migrations).
 5. **Modules query their own tables directly** - raw SQL or a lightweight query layer - not through the core Prisma client.
 
 ### Migration file structure
@@ -278,6 +278,18 @@ For the update flow to apply only new migrations correctly, follow this conventi
   - **After release.** The migration runner compares each applied file's recorded checksum against the file in the build. A mismatch is warned about loudly in the deploy log and raises an alert in the admin notification bell, so an install that has already been bitten says so instead of waiting to be found out.
 - `001_initial.sql` is the one exception, and is edited in place on purpose: it only ever runs on a fresh install, so a change there can surprise nobody. When a later migration adds a column, add it to `001_initial.sql` too, so a fresh install and an updated one land in the same place.
 - The fix for something missing from a released migration is always a **new numbered file**, never an edit. Make it idempotent (`ADD COLUMN IF NOT EXISTS`) so the overlap with a fresh install is harmless.
+- **Then say so in the manifest, or the alert never goes away.** A drifted file's checksum can never match again, so writing the catch-up fixes the database but leaves the warning standing on every deploy for ever - and an alarm that always fires is one nobody reads on the day it is right. `migrationCatchups` maps the edited file to the file that made it good:
+
+  ```json
+  "migrationCatchups": {
+    "043_returnable": "047_order_item_return_note_catchup",
+    "004_supplier_catalogues": ["005_supplier_discount", "006_catalogue_column_map"],
+    "041_spam": "none"
+  }
+  ```
+
+  A list where it took more than one file, and the sentinel `"none"` where the edit changed no SQL at all. It is judged **per install**: the warning only clears once the named catch-up is itself recorded as applied on that site, and until then the alert names what the site is waiting for rather than printing two hashes at somebody. This is a statement about history - nothing else reads it, and it never changes what the module does.
+- **A comment-only edit is not drift, and is now recognised as such without being declared.** Alongside the raw checksum the ledger records a second hash of the same file with its commentary stripped - line comments, block comments and whitespace collapsed, string and dollar-quoted literals left exactly as they are, since a `--` inside one is data. Two files that normalise the same do the identical thing to a database, so a note reworded a year later is re-recorded silently instead of raising anything. Rows written before that hash existed carry none, and are back-filled on the next deploy where the file still matches byte for byte; a file that had already drifted by then is the one case that needs `"none"` spelling out. The stripping itself is `scripts/normalise-sql.mjs`, kept apart from the runner so it can be tested without a database - `scripts/normalise-sql.test.ts`.
 - Use a naming scheme that sorts in the order migrations should run: `001_`, `002_`, `003_`, etc.
 - A migration file should be idempotent where practical (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE IF NOT EXISTS`, etc.) to survive edge cases.
 

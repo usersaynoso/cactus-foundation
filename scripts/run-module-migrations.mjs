@@ -18,6 +18,7 @@ import { readdir, readFile } from 'fs/promises'
 import { createHash } from 'crypto'
 import { join, resolve } from 'path'
 import pg from 'pg'
+import { normaliseSql } from './normalise-sql.mjs'
 
 const { Client } = pg
 
@@ -41,6 +42,34 @@ function getClient() {
 
 function sha256(content) {
   return createHash('sha256').update(content).digest('hex')
+}
+
+// A module says, in its own manifest, which later migration made good an edit to
+// an already-released one:
+//
+//   "migrationCatchups": { "043_returnable": "047_order_item_return_note_catchup" }
+//
+// A value may be a list where it took more than one file, and the sentinel
+// "none" means the edit added no SQL at all - which is the only way to say so
+// for a row recorded before `sqlChecksum` existed to prove it.
+//
+// Judged PER INSTALL: the drift only stops being drift once the named catch-up
+// is itself recorded as applied here, so a site that never took it still hears
+// about it. A manifest that cannot be read leaves every drift standing, which is
+// the safe way round.
+const NO_SQL_CHANGE = 'none'
+
+async function readCatchups(modulePath) {
+  try {
+    const raw = await readFile(join(modulePath, 'cactus.module.json'), 'utf8')
+    const map = JSON.parse(raw)?.migrationCatchups
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return new Map()
+    return new Map(
+      Object.entries(map).map(([k, v]) => [k, (Array.isArray(v) ? v : [v]).filter((n) => typeof n === 'string')]),
+    )
+  } catch {
+    return new Map()
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +115,12 @@ async function reportDrift(client, drift) {
       label: `${d.module}: ${d.migration}`,
       detail:
         `Ran here on ${new Date(d.appliedAt).toISOString().slice(0, 10)} and has changed since. ` +
-        `Recorded ${d.recorded.slice(0, 12)}, this build has ${d.onDisk.slice(0, 12)}.`,
+        (d.awaiting?.length
+          ? // The module has said which later file makes this good, and that file
+            // is not on this install yet. Naming it turns "something is wrong"
+            // into something an owner can actually act on: take the update.
+            `The rest of it arrives with ${d.awaiting.join(' and ')}, which this site has not taken yet.`
+          : `Recorded ${d.recorded.slice(0, 12)}, this build has ${d.onDisk.slice(0, 12)}.`),
       at: new Date().toISOString(),
     }))
 
@@ -139,14 +173,17 @@ async function run() {
     // nothing to do — which is the outcome on all but the deploy that introduces a
     // migration. The skip decision below is unchanged, only where it reads from.
     const { rows: appliedRows } = await client.query(
-      `SELECT "moduleName", "migrationName", "checksum", "appliedAt" FROM "ModuleMigration"`
+      `SELECT "moduleName", "migrationName", "checksum", "sqlChecksum", "appliedAt" FROM "ModuleMigration"`
     )
     const appliedKey = (moduleName, migrationName) => `${moduleName}::${migrationName}`
     const applied = new Set(appliedRows.map((r) => appliedKey(r.moduleName, r.migrationName)))
     // The recorded hash of each applied file, so the skip below can notice that
     // the file it is skipping is no longer the file that ran. See reportDrift.
     const appliedChecksums = new Map(
-      appliedRows.map((r) => [appliedKey(r.moduleName, r.migrationName), { checksum: r.checksum, appliedAt: r.appliedAt }])
+      appliedRows.map((r) => [
+        appliedKey(r.moduleName, r.migrationName),
+        { checksum: r.checksum, sqlChecksum: r.sqlChecksum, appliedAt: r.appliedAt },
+      ])
     )
     const drift = []
 
@@ -177,6 +214,7 @@ async function run() {
 
     for (const mod of modules) {
       const modulePath = resolve(process.cwd(), 'modules', mod.name)
+      const catchups = await readCatchups(modulePath)
 
       let migrationFiles
       try {
@@ -257,19 +295,52 @@ async function run() {
             const current = await readFile(sqlPath, 'utf8').catch(() => null)
             const onDisk = current === null ? null : sha256(current)
             if (onDisk && onDisk !== recorded.checksum) {
+              // The text moved. Whether the SQL did is a different question, and
+              // it is the only one that matters to a database.
+              const onDiskSql = sha256(normaliseSql(current))
+              if (recorded.sqlChecksum && recorded.sqlChecksum === onDiskSql) {
+                // Provably the same statements, differently written up. Re-record
+                // the raw hash so the file stops being re-examined for ever: it
+                // is now the file that ran, in every sense a database can tell.
+                await client
+                  .query(
+                    `UPDATE "ModuleMigration" SET "checksum" = $1 WHERE "moduleName" = $2 AND "migrationName" = $3`,
+                    [onDisk, mod.name, migrationName],
+                  )
+                  .catch(() => {})
+                console.log(
+                  `[module-migrations] ${mod.name}/${migrationName}: text changed but the SQL is identical - ` +
+                    `re-recorded, not drift`
+                )
+                continue
+              }
+              // Otherwise it is drift unless the module says a later migration
+              // made it good. That is settled AFTER every module has run, since a
+              // catch-up applied by this very build is not in the ledger yet when
+              // its own predecessor is examined.
+              const declared = catchups.get(migrationName) ?? []
               drift.push({
                 module: mod.name,
                 migration: migrationName,
                 appliedAt: recorded.appliedAt,
                 recorded: recorded.checksum,
                 onDisk,
+                declaredNoSql: declared.includes(NO_SQL_CHANGE),
+                catchups: declared.filter((n) => n !== NO_SQL_CHANGE),
               })
-              console.warn(
-                `[module-migrations] ${mod.name}/${migrationName}: DRIFT - this file has changed since it ran ` +
-                  `here (recorded ${recorded.checksum.slice(0, 12)}, on disk ${onDisk.slice(0, 12)}). ` +
-                  `It will NOT be re-applied; anything added to it after the fact has never reached this database.`
-              )
               continue
+            }
+            // Same file, byte for byte. If this row predates the normalised hash,
+            // this is the safe moment to fill it in - the content is known to be
+            // what ran - and doing it here is why a comment reworded next year is
+            // quiet rather than alarming.
+            if (onDisk && !recorded.sqlChecksum) {
+              await client
+                .query(
+                  `UPDATE "ModuleMigration" SET "sqlChecksum" = $1 WHERE "moduleName" = $2 AND "migrationName" = $3`,
+                  [sha256(normaliseSql(current)), mod.name, migrationName],
+                )
+                .catch(() => {})
             }
           }
           console.log(`[module-migrations] ${mod.name}/${migrationName}: already applied, skipping`)
@@ -286,9 +357,9 @@ async function run() {
         try {
           await client.query(sql)
           await client.query(
-            `INSERT INTO "ModuleMigration" ("id", "moduleName", "migrationName", "appliedAt", "checksum")
-             VALUES (gen_random_uuid()::text, $1, $2, NOW(), $3)`,
-            [mod.name, migrationName, checksum]
+            `INSERT INTO "ModuleMigration" ("id", "moduleName", "migrationName", "appliedAt", "checksum", "sqlChecksum")
+             VALUES (gen_random_uuid()::text, $1, $2, NOW(), $3, $4)`,
+            [mod.name, migrationName, checksum, sha256(normaliseSql(sql))]
           )
           await client.query('COMMIT')
           applied.add(appliedKey(mod.name, migrationName))
@@ -302,7 +373,41 @@ async function run() {
     }
 
     console.log('[module-migrations] All module migrations applied successfully.')
-    await reportDrift(client, drift)
+
+    // Drop every drift the module has accounted for. Done here rather than in the
+    // loop because a catch-up file applied by THIS build only reaches the ledger
+    // partway through it, and the file it makes good sorts earlier - so deciding
+    // in place would raise an alarm about something this very run had just fixed.
+    const unresolved = drift.filter((d) => {
+      if (d.declaredNoSql) {
+        console.log(`[module-migrations] ${d.module}/${d.migration}: edited since it ran, no SQL changed - not drift`)
+        return false
+      }
+      if (d.catchups.length === 0) return true
+      const missing = d.catchups.filter((n) => !applied.has(appliedKey(d.module, n)))
+      if (missing.length === 0) {
+        console.log(
+          `[module-migrations] ${d.module}/${d.migration}: edited since it ran, made good here by ` +
+            `${d.catchups.join(', ')} - not drift`
+        )
+        return false
+      }
+      // Named, but not applied here. Still missing from THIS database, which is
+      // the whole question - and now we can say exactly what to take.
+      d.awaiting = missing
+      return true
+    })
+
+    for (const d of unresolved) {
+      console.warn(
+        `[module-migrations] ${d.module}/${d.migration}: DRIFT - this file has changed since it ran ` +
+          `here (recorded ${d.recorded.slice(0, 12)}, on disk ${d.onDisk.slice(0, 12)}). ` +
+          `It will NOT be re-applied; anything added to it after the fact has never reached this database.` +
+          (d.awaiting ? ` Waiting on ${d.awaiting.join(', ')}.` : '')
+      )
+    }
+
+    await reportDrift(client, unresolved)
   } finally {
     await client.end()
   }

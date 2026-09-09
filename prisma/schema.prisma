@@ -689,6 +689,11 @@ model ModuleMigration {
   migrationName String
   appliedAt     DateTime @default(now())
   checksum      String
+  // The same file hashed again with its commentary stripped out, so the drift
+  // check can tell a reworded comment from a column nobody's database ever got.
+  // Null on every row written before that existed; back-filled by the runner on
+  // the next deploy where the file still matches what it recorded.
+  sqlChecksum   String?
 
   @@unique([moduleName, migrationName])
   @@index([moduleName])

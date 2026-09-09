@@ -1,0 +1,25 @@
+-- ---------------------------------------------------------------------------
+-- 037 - The normalised-SQL checksum on the module migration ledger.
+--
+-- The ledger already records a sha256 of each applied migration file, and since
+-- 036 the runner compares it against the file in the build so it can say when a
+-- released migration has been edited underneath an install. That check has no
+-- sense of proportion: rewording a comment changes the hash exactly as much as
+-- adding a column does, so a note tidied up months later raises the same alarm
+-- as real, missing schema. Four of those on the first site to see it, and an
+-- alarm that cries wolf is one nobody reads on the day it is right.
+--
+-- This column records a second hash of the SAME file with its commentary taken
+-- out - line comments, block comments and runs of whitespace all collapsed, but
+-- string and dollar-quoted literals left exactly as they are, because a `--`
+-- inside one is data. Two files whose normalised text matches do the identical
+-- thing to a database however differently they read, so the runner can tell a
+-- comment-only edit from a real one and stay quiet about the first.
+--
+-- Nullable, because every row written before this release has no such hash. The
+-- runner back-fills each one on the next deploy where the file is still byte-for
+-- -byte what it recorded - which is every row that has not drifted, and is why
+-- this only has to be got right once.
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE "ModuleMigration" ADD COLUMN IF NOT EXISTS "sqlChecksum" TEXT;

@@ -372,6 +372,7 @@ CREATE TABLE "ModuleMigration" (
     "migrationName" TEXT NOT NULL,
     "appliedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "checksum" TEXT NOT NULL,
+    "sqlChecksum" TEXT,
     CONSTRAINT "ModuleMigration_pkey" PRIMARY KEY ("id")
 );
 

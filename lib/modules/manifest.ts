@@ -214,6 +214,14 @@ export const ModuleManifestSchema = z.object({
   // Other modules (by name + minimum version) that must be installed and active
   // before this module can be installed. Enforced by the install/uninstall routes.
   requiresModules: z.array(ModuleDependencySchema).default([]),
+  // Which later migration made good an edit to an already-released one, keyed by
+  // the edited file's name: { "043_returnable": "047_order_item_return_note_catchup" }.
+  // A list where it took more than one, and the sentinel "none" where the edit
+  // added no SQL at all. Read by scripts/run-module-migrations.mjs, which drops a
+  // drift warning once the named catch-up is recorded as applied ON THAT INSTALL -
+  // so a site that never took it still hears about it. Nothing else reads this: it
+  // is a statement about history, not about what the module does.
+  migrationCatchups: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
   // Vercel Cron entries this module needs. Collected across all installed modules
   // into a single generated vercel.json by scripts/generate-module-cron.mjs.
   cronJobs: z.array(CronJobSchema).default([]),
