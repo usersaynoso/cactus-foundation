@@ -946,6 +946,8 @@ On a phone there is only room for one at a time, so you get the list, and then t
 
 One page, top to bottom, in the order you would think about it, with **one Save button** at the bottom of the pane. It stays put as you scroll and it saves the whole thing, so there is never a question about which button saved which half. The name is at the top, typed where you read it.
 
+**Nothing you type is thrown away by something else happening.** Topping the list up, pausing it, stopping it, pressing Send now beside somebody, or a colleague saving the same campaign from another tab used to empty every box back to the last saved version - half-written follow-ups included. Now what you have typed stays where it is, a line appears saying the campaign has changed underneath you, and Save keeps your version. Two things do snap back to the saved copy, and only if the campaign STARTS while you are typing: who it goes to, and the wording of the first message. Those are locked from that moment, so keeping your edit would leave you with a form that could not be saved and a greyed-out box you could not put back. If you try to leave a campaign with something unsaved in it - clicking another campaign, the Do-not-email list, or closing the tab - you are asked first.
+
 **Save is there on every campaign, finished ones included.** Two things lock once the first message has gone - who it goes to, and the wording of that first message, because some people have already had it and two versions of one mailshot with no way to tell who got which helps nobody. Everything else stays yours to change: the name, the follow-ups, the clock. (Previously a finished campaign had no Save button at all, while its boxes still let you type - so the changes went nowhere.)
 
 **Who it goes to** - the address it comes from, and which of your contacts get it. Pick one or more of the labels from your address book, or none of them for everybody. It counts them for you as you go, and it tells you who is being left out and why: people who have unsubscribed, addresses that have bounced, colleagues at your own domain, anybody another campaign wrote to in the last week, two contacts sharing one address. **Saving is what writes the list down** - there is no second button to press - and once it is written it is fixed, because a list that changes every time somebody imports a spreadsheet is a list whose finish date moves. **Top up** later adds anybody who has appeared since and leaves everybody already on it alone.
@@ -965,6 +967,8 @@ Everything behind it is under **Change the pace, the hours or the days**: sendin
 A campaign can carry up to three follow-ups, each with its own wait and its own wording. They only go to people who have said nothing: a reply from any address you hold for that person stands the chase down, and so does a bounce or an unsubscribe. An out-of-office does not - a fortnight in Spain is not an answer.
 
 A follow-up with no subject of its own goes out as a reply to the first message, so it lands in the same conversation in their mail program rather than arriving as a stranger asking whether they saw the last one. That is usually what you want.
+
+**Taking a follow-up out of a campaign that has already started leaves a gap in the numbering, on purpose.** Everybody still waiting is waiting for a follow-up *by number*: shuffle the rest up and the people queued for the second one quietly receive the third instead. So the ones after it keep their numbers, anybody who was waiting for the one you removed is simply finished, and nobody gets the wrong email. On a campaign that has not started yet they are renumbered as you would expect, because nobody is waiting for anything.
 
 ### What it does on its own
 
@@ -1011,7 +1015,7 @@ If you want it to keep proper time with nobody watching, the When section shows 
 
 - **No attachments.** A mailshot with a PDF on it goes to the junk folder, and a few thousand copies through your own mailbox is a bad afternoon for everybody. Link to it instead.
 - **No click tracking.** Rewriting every link in an email is what marketing mail does, and it is one of the things filters look for.
-- **No conversation per send.** Five thousand of them would bury your actual correspondence. A **reply** makes a conversation, on the next check, exactly as any other email does - which is the only part you wanted in the inbox anyway.
+- **No conversation per send, unless you ask for one.** Five thousand of them would bury your actual correspondence, so nothing a campaign sends appears in your post by itself. A **reply** makes a conversation, on the next check, exactly as any other email does - which is the only part you wanted in the inbox anyway. If you do switch on *Also file every one in the mailbox's Sent folder*, those copies come back on the next check and each one opens **its own conversation, with the person it was sent to** - not one conversation with two hundred messages in it. (It used to be exactly that. Two mailshots with the same subject looked like one conversation because they had your own address in common, which is true of everything you have ever sent and tells nobody anything.)
 - **No A/B subject lines**, no scores, no funnels. It is still an inbox.
 
 ---

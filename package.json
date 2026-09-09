@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1561",
+  "version": "0.5.1562",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -38,7 +38,8 @@
     "db:status": "prisma migrate status",
     "sync-wiki": "node scripts/sync-wiki.mjs",
     "fonts:refresh": "node scripts/fetch-google-fonts.mjs",
-    "test:inbox-merge": "RUN_INBOX_MERGE_GUARDS=1 vitest run modules/unified-inbox/lib/thread-merge.live.test.ts --testTimeout 120000 --no-file-parallelism"
+    "test:inbox-merge": "RUN_INBOX_MERGE_GUARDS=1 vitest run modules/unified-inbox/lib/thread-merge.live.test.ts --testTimeout 120000 --no-file-parallelism",
+    "test:inbox-campaign-threads": "RUN_INBOX_CAMPAIGN_THREADS=1 vitest run modules/unified-inbox/lib/campaign-threads.live.test.ts --testTimeout 120000 --no-file-parallelism"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",
