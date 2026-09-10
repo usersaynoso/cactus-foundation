@@ -112,6 +112,21 @@ A placeholder you have not filled in simply disappears rather than turning up in
 
 When you reply from the inbox, your visitor gets an ordinary email. If they reply to that, it goes to your real mailbox, not back into Cactus, and the thread splits in half.
 
+### Getting a first draft written for you
+
+With the [Google AI Studio](Google-AI-Studio) module installed and a key pasted into it, there is a
+**Suggest reply** button under the writing box.
+
+Press it and the enquiry - and every reply on it since - goes off and comes back as three drafts.
+**Click one to try it in the box**, where you can see how it actually reads. The tick keeps it; the
+cross takes it back out and puts back whatever you had written before you started looking. Click a
+different one to try that instead.
+
+From the moment you tick, it is your reply: edit it and send it like anything else. Your signature
+still goes on the bottom, and nothing leaves until you press **Send Reply**.
+
+**No button?** No key, or no module. Nothing is sent anywhere until you press it.
+
 ### They look like the rest of your email now
 
 The reply you type, and the automatic "thanks for getting in touch" if you have one switched on, both go out in your site's email design - the same logo, colours and footer as your other email. Nothing to set up: they use your site's default [email wrapper design](Configuration-reference#email-wrapper-designs), which is whichever published one sits highest in the priority order under **Layouts → Email Wrapper**. Change your mind later and your replies follow along. If you have not made one at all, they arrive as a tidy centred card rather than as bare text.

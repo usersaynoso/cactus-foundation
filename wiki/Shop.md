@@ -1399,7 +1399,7 @@ It's off to begin with, and it stays entirely inert until you've set both halves
 
 **Set the amount on each product**, on the Prices tab, in the **Amount inside the price** box. It's per item, not per order - five chairs at £6 each is £30 off. Leave it blank on anything that carries nothing.
 
-**Set the threshold on the supplier**, on the Suppliers screen, under **Order-size deduction**. That's how much of *their* goods a basket has to hold. Beside it is a box for your own wording explaining why any of this happens, which shoppers see behind a small "why?" link on the product page. Leave it empty and no link appears.
+**Set the threshold on the supplier**, on the Suppliers screen, under **Order-size deduction**. That's how much of *their* goods a basket has to hold.
 
 Some things worth knowing before you set it up:
 

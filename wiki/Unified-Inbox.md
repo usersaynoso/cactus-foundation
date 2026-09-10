@@ -223,6 +223,28 @@ Switching between **Reply** and **Reply to all** on the message's own menu refil
 
 **The cross beside it closes the reply**, and it is the one place the draft is asked about: **Save it as a draft**, **Throw it away**, or **Keep writing** - the same three answers the new-message box gives. It asks whether you have just typed something or came back to a draft you saved yesterday; only a genuinely empty box shuts without a word. There used to be a **Throw the draft away** button on the strip along the bottom as well, which put a destructive press a thumb away from Send and asked the same question in a second place. See [Drafts](#drafts).
 
+### Getting a first draft written for you
+
+With the [Google AI Studio](Google-AI-Studio) module installed and a key pasted into it, there is a
+**Suggest reply** button under the writing box.
+
+Press it and the conversation - everything on it, including the internal notes you and your
+colleagues have left - goes off and comes back as three drafts. **Click one to try it in the box**,
+where you can see how it actually reads. The tick keeps it; the cross takes it back out and puts back
+whatever you had written before you started looking. Click a different one to try that instead.
+
+From the moment you tick, it is your draft: edit it, add to it, attach something to it, and send it
+like anything else.
+
+It is on a plain reply and on a reply to everybody, and on nothing else - a forward is a covering note
+to a colleague and an internal note goes to nobody at all, so neither is a thing to have an answer to
+a customer written for.
+
+**Notes are read but never repeated.** A note is handed over marked as something the customer has
+never seen, so a draft can know the chair is the last one in stock without telling them you said so.
+
+**No button?** No key, or no module. Nothing is sent anywhere until you press it.
+
 ### Making it look like something
 
 Both writing boxes carry seven buttons on the strip along the bottom, next to the paperclip: **bold**, *italic*, ~~strikethrough~~, a colour, a link, a bullet list and a numbered list. Select some words and press one, or press it and carry on typing. **Ctrl+B** and **Ctrl+I** work as they always have. They used to sit in a band of their own above the words; everything you can do to a message is on the one strip now.
@@ -772,6 +794,8 @@ In the head of the **Bin**, between the search box and the filters, there is a b
 It takes the permission that looks after the site rather than the one that reads it, so the button only appears for somebody who has that. Putting something in a bin hides it from one screen and undoes itself with the same press; emptying one takes the conversation away from every colleague who could read it, and those are not the same act.
 
 **Nothing is ever deleted from your mail account.** Whatever arrived by email is still sitting in the mailbox it arrived in, untouched - this site has never deleted a message from anybody's mailbox and does not start here. Emptying the bin clears what is held on this site: the conversations, and any files attached to them.
+
+**And an emptied bin stays empty.** A live chat, an enquiry, a call or a text is a copy of something the part of the site that owns it still holds, and it hands that over again whenever it is asked - so what you threw away is written down as thrown away, and the next check walks past it instead of fetching it back. If somebody carries on typing in a chat you had deleted, the conversation comes back with what they have just said and none of the history you got rid of.
 
 ### The order the list is in
 

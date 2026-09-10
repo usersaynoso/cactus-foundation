@@ -1,10 +1,14 @@
 # Google AI Studio
 
-One key from Google, and your site can make pictures for you.
+One key from Google, and your site can make pictures for you and draft your replies.
 
-This module holds the key and nothing else does. The first thing it uses it for is product
-photography: on any product's **Images** tab you get an **AI photo creation** section, where you tick
-the photographs you already have, say what you would like, and pick from what comes back.
+This module holds the key and nothing else does. It uses it for two things:
+
+- **Product photography** - on any product's **Images** tab you get an **AI photo creation** section,
+  where you tick the photographs you already have, say what you would like, and pick from what comes
+  back.
+- **Suggested replies** - wherever this site has a reply box, there is a **Suggest reply** button
+  under it that offers you three drafts to choose from.
 
 It is not a replacement for a photographer. It is for the shot you were never going to pay for - the
 same desk in a different room, the chair from an angle the supplier never sent, a square version of a
@@ -84,6 +88,40 @@ earn their place.
 
 ---
 
+## Suggesting a reply
+
+With a mailbox module or the contact form installed, every reply box on the site grows a
+**Suggest reply** button underneath the writing.
+
+1. Open a conversation and press **Reply** as usual.
+2. Press **Suggest reply**. The whole conversation goes to Google, and three drafts come back.
+3. **Click one to try it.** It appears in the writing box, exactly where you would have typed it, so
+   you can see how it actually reads.
+4. **Tick** to keep it, or **cross** to take it back out - the cross puts back whatever you had
+   written before you started looking. Click a different draft to try that one instead.
+5. Edit it like anything else you have written, and send it.
+
+**Nothing is sent to anybody without you sending it.** A draft sits in your box until you press Send,
+same as one you typed. Nothing leaves this site until you press the button in the first place, either
+- the conversation is not being read by anybody in the background.
+
+The three drafts are deliberately different from one another rather than three wordings of the same
+sentence, so one of them is usually a better shape than the one you had in mind.
+
+> **They are not always right.** A model reads the conversation and writes something plausible, which
+> is not the same as something true. It is told not to invent prices, dates, stock or promises, and it
+> mostly obeys - but you are the one pressing Send, so read it.
+
+**No button?** Then no key is set, or the module is not installed. It appears on a plain reply and on
+a reply to everybody, and not on a forward or an internal note: those are messages to a colleague, not
+answers to a customer.
+
+**Internal notes are read but never repeated.** A note you and a colleague left on the conversation is
+handed over as context - so a draft knows the chair is the last one in stock - and is marked as
+something the customer has never seen, so it does not get quoted back at them.
+
+---
+
 ## What happens to the ones you keep
 
 They go into your media library, in the same folder as the product's own photographs, and they appear
@@ -117,6 +155,8 @@ afterwards. Anything left sitting in a job is cleared out a day later regardless
 | **Shape** | Square, portrait, widescreen and so on. Square suits most product listings. |
 | **Size** | How big the picture comes back. 2K is plenty for a product page; 4K costs more and takes longer. |
 | **Model** | Which of Google's picture-making models to use. Leave it alone unless Google has named a new one and you fancy trying it. |
+| **House style for replies** | How your business sounds when it writes to somebody. See below. |
+| **Writing model** | Which of Google's models writes the drafts. A different one from the picture model - a model that draws cannot write a sentence. |
 
 ### The house style is the setting that matters
 
@@ -129,6 +169,19 @@ the corner", "never with people in it". You then only have to type the one-off p
 
 You can change it for a single job without changing it for good: open **House style** under the prompt
 box on the Images tab and edit it there. That edit applies to that job and nothing else.
+
+### The house style for replies is the other one
+
+It comes filled in with something sensible: warm, plain, British spelling, no corporate padding, no
+promises the conversation does not support.
+
+That wording goes in front of every suggested reply, so it is where anything that is always true of
+how you write belongs - "we always sign off as the team, never as an individual", "never use the word
+delighted", "always offer a phone call if it is going back and forth".
+
+**It is about manner, not about content.** A house style that starts answering questions - "tell them
+delivery is five days" - will have that answer given confidently on a conversation where it is not
+true. What a reply says is the conversation's business; how it sounds is yours.
 
 ---
 
@@ -148,11 +201,13 @@ box on the Images tab and edit it there. That edit applies to that job and nothi
   Every picture it makes is a new one.
 - **No shop, no section.** With no Shop module installed the key sits there quietly until there is
   something to use it on.
+- **No mailbox, no button.** The same goes the other way: with nothing on the site that has a reply
+  box, there is nowhere for **Suggest reply** to appear.
 - **No 3D model, no button.** The **From 3D models** button only turns up where the 3D views module
   is installed *and* the product actually has a model.
 - **Nothing is left at Google.** The pictures are sent to make the new one and are not kept there
-  afterwards.
+  afterwards, and a conversation is only sent at the moment you press **Suggest reply**.
 
 ---
 
-**Wiki:** [Home](Home) · [Shop](Shop) · [Managing media](Managing-media) · [Modules](Modules) · [Product attributes](Product-attributes) · [Product 3D views](Product-3D-views) · [Configuration reference](Configuration-reference)
+**Wiki:** [Home](Home) · [Shop](Shop) · [Unified Inbox](Unified-Inbox) · [Contact form](Contact-form) · [Managing media](Managing-media) · [Modules](Modules) · [Product attributes](Product-attributes) · [Product 3D views](Product-3D-views) · [Configuration reference](Configuration-reference)

@@ -2,7 +2,7 @@
 
 The Space Planner lets a customer draw their own space to scale, put your furniture in it, and find out what actually fits before they spend anything. What they take away is a PDF with the floor plan and a priced item list in it, a full basket, or a quote request with the plan attached.
 
-> **Where it lives now.** The planner used to take four sidebar links. It takes one - **Space Planner** - with Spaces & layouts, Model corrections, Sizes and Pictures as tabs across the top. Old links still work.
+> **Where it lives now.** The planner is a tab under **Settings → Shop → Space Planner**, with Settings, Spaces & layouts, Model corrections, Sizes and Pictures across the top of it. It used to have a sidebar link of its own; every other shop add-on you own sits under Shop settings, and there was no good reason this one did not. The old addresses no longer open - the sidebar link has gone with them.
 
 It is a module, so it is not there until you install it: **Modules → Add module →** `cactus-foundation-modules/space-planner-for-shop`.
 
@@ -68,7 +68,7 @@ A chair sticking out past the front edge of a desk is what tucking one under a d
 
 **Getting it out.** **Export PDF** makes a document with the space's measurements and the priced item list, plus the floor plan, the 3D view and a quote page if they tick for them. Any saved view can be ticked in too, each photographed from its own spot, so the document can show the space from the doorway and from the window without anybody re-aiming a camera. Your logo sits at the top of every page, and the floor plan always prints in ink-on-paper colours - a customer working in dark mode used to be handed a black plan. The quote page is laid out to match the quote document your shop already sends from the cart, on a page of its own, in your own quote wording and terms. Send the lot to the basket in one go. Ask for a quote, which lands in your ordinary Quotes list with a link to the layout. Or have the layout emailed to whoever holds the budget.
 
-**Those last two only started working in 0.1.23**, and it is worth saying plainly: the machinery behind "ask for a quote", "email it to me", the share link and the version history had been finished, guarded and sat waiting since the first release, and nothing had ever been built to press it. So the four switches under **Shop settings → Space Planner** governed buttons that did not exist, no layout ever got a share link (which made the shared page and the **Shared** badge on your admin list unreachable), no layout was ever attached to a quote (so **Quotes asked for** on your Spaces & layouts screen sat at nought for ever), and every save quietly kept the version before it for nobody to read. All four buttons are on the toolbar now.
+**Those last two only started working in 0.1.23**, and it is worth saying plainly: the machinery behind "ask for a quote", "email it to me", the share link and the version history had been finished, guarded and sat waiting since the first release, and nothing had ever been built to press it. So the four switches under **Settings → Shop → Space Planner → Settings** governed buttons that did not exist, no layout ever got a share link (which made the shared page and the **Shared** badge on your admin list unreachable), no layout was ever attached to a quote (so **Quotes asked for** on your Spaces & layouts screen sat at nought for ever), and every save quietly kept the version before it for nobody to read. All four buttons are on the toolbar now.
 
 **Share a link.** Makes an address anybody can open - no account, nothing to sign up to - showing the measurements and the priced item list, and nothing they can change. **Stop sharing** takes it back, and the old address stops working there and then rather than eventually. Your customer can copy it straight out of the dialog.
 
@@ -94,7 +94,7 @@ The trip to sign in is a clean one now. Pressing Save used to raise the browser'
 
 ## Staff only
 
-**Shop settings → Space Planner → Hide the Space Planner from customers (staff only).** On to begin with, and it is the switch to reach for if you have decided the planner is not ready to be put in front of people who are paying you.
+**Settings → Shop → Space Planner → Settings → Hide the Space Planner from customers (staff only).** On to begin with, and it is the switch to reach for if you have decided the planner is not ready to be put in front of people who are paying you.
 
 With it on, the planner is not on your shop at all. No button on the basket, no button on product pages, nothing where the teaser block sits, no tab in a customer's account, and `/space-planner` tells anyone who bookmarked it that the page does not exist. Behind that, the data it runs on says the same thing, so it is genuinely gone rather than merely out of sight.
 
@@ -142,15 +142,15 @@ A model whose product the ladder knows nothing at all about - no measurement, no
 
 A space full of furniture is a great deal for a browser to draw at once, so the planner used to thin out the detail in every model before putting it on screen. On a heavy model - a mesh-backed chair, say - you would never notice. On a simple one it went badly: the Oslo oval boardroom table lost the join between its top and the band round the edge, so the curved ends came out faceted, with a gap you could see through.
 
-The planner now leaves a model alone unless it is genuinely heavy, and where it does thin one out it holds the outside edges still, which is where the damage always showed. There is also a **leave the detail alone** tick against each file in **Space Planner → Models** if you ever meet one that still does not survive the trip. Every model in your catalogue currently has that tick on.
+The planner now leaves a model alone unless it is genuinely heavy, and where it does thin one out it holds the outside edges still, which is where the damage always showed. There is also a **leave the detail alone** tick against each file in **Settings → Shop → Space Planner → Model corrections** if you ever meet one that still does not survive the trip. Every model in your catalogue currently has that tick on.
 
-**Space Planner → Models** shows what each file belongs to by product name, not only by its filename - nobody can tell forty chairs apart by their exports. Marking one checked takes it off the list, and **Show ones I have checked** brings them back if you spot a mistake later: previously a model marked checked left the only screen that could edit it, so a wrong rotation noticed afterwards could not be put right.
+**Settings → Shop → Space Planner → Model corrections** shows what each file belongs to by product name, not only by its filename - nobody can tell forty chairs apart by their exports. Marking one checked takes it off the list, and **Show ones I have checked** brings them back if you spot a mistake later: previously a model marked checked left the only screen that could edit it, so a wrong rotation noticed afterwards could not be put right.
 
 **If you have ever tried to correct a model on this screen and been told to check your connection, that was us, not your broadband.** Nothing on this screen could save - not a rotation, not the leave-detail-alone tick, not marking one checked - and it failed the same way every time, in a manner that reads exactly like a network problem. It saves now. Anything you tried to fix before and gave up on is worth another go.
 
 ### Measuring your 3D models
 
-**Space Planner → Sizes → Measure** opens every 3D model you have, measures it, and remembers the answer. It is the single best thing you can do for how the planner looks, because a measured model beats anything written on a spec sheet.
+**Settings → Shop → Space Planner → Sizes → Measure** opens every 3D model you have, measures it, and remembers the answer. It is the single best thing you can do for how the planner looks, because a measured model beats anything written on a spec sheet.
 
 Stopping it really is a pause now. Press Start again and it carries on from where it stopped, which on a catalogue of twenty thousand products is the difference between a coffee break and an afternoon. The same is true of **Work the sizes out again** below it - and if you left the page mid-run, Stop still works when you come back.
 
@@ -160,7 +160,7 @@ Worth running again after you add 3D models, and worth running once now if you h
 
 If you have run it before and it said a few hundred sizes "could not be saved", run it once more. That was a fault at our end rather than anything wrong with your models: a single model file shared by a great many products - the Eclipse Plus draughtsman kit is shared by 262 of them - was sent off in one lump too big to accept, and the same products were dropped on every run. It now goes in manageable batches, so those sizes save.
 
-Two things are worth your attention in **Space Planner → Sizes**:
+Two things are worth your attention in **Settings → Shop → Space Planner → Sizes**:
 
 - **Measurements we could not read.** The actual wording from the sheet, so you can fix it. "Overall Width: please enquire" takes a minute to sort and improves every plan afterwards.
 - **The 3D model and the spec sheet disagree.** One of the two is wrong. This is exactly how a beautifully drawn space ends up full of furniture that is not the size it claims, so it is worth a look.
@@ -169,7 +169,7 @@ Two things are worth your attention in **Space Planner → Sizes**:
 
 Filling in the category fallback sizes is the single cheapest thing you can do for the planner's quality - it is what turns "a plain block" into "roughly the right shape".
 
-**Space Planner → Sizes → Typical sizes, by category** is where you do it. Categories with nothing set yet are listed first, worst first: beside each one is the number of products currently leaning on the gap, so ten minutes of typing goes where it is actually felt rather than wherever the alphabet put it. Set a width, a depth and a height in millimetres, say whether things in that category stand on the floor or sit on a desk, and save.
+**Settings → Shop → Space Planner → Sizes → Typical sizes, by category** is where you do it. Categories with nothing set yet are listed first, worst first: beside each one is the number of products currently leaning on the gap, so ten minutes of typing goes where it is actually felt rather than wherever the alphabet put it. Set a width, a depth and a height in millimetres, say whether things in that category stand on the floor or sit on a desk, and save.
 
 That count means what it says. A product filed in four categories is only ever sized from one of them, so it is counted once, under the one that will actually be asked - and every colour and size of a range is counted, not just the range itself. Both were wrong to begin with, which had the list recommending categories where the work would have changed nothing and burying the ones where it pays best.
 
@@ -181,7 +181,7 @@ Delete a product and its remembered size hangs about until the nightly tidy-up c
 
 ## When a customer rings up about their layout
 
-**Space Planner → Spaces & layouts** is the screen for that call. Search by customer, space or layout name, then click the row: it opens to show the space's size and ceiling height, anything the customer wrote about it, and the full item list - every product, its size, how many, what each costs and what the lot comes to. Enough to talk somebody through their own layout without asking them to read it out to you.
+**Settings → Shop → Space Planner → Spaces & layouts** is the screen for that call. Search by customer, space or layout name, then click the row: it opens to show the space's size and ceiling height, anything the customer wrote about it, and the full item list - every product, its size, how many, what each costs and what the lot comes to. Enough to talk somebody through their own layout without asking them to read it out to you.
 
 Anything in the layout that has since left your shop is named at the top of that list and priced at what it cost when they saved it, which is the honest figure to quote against.
 
@@ -189,11 +189,11 @@ There is a delete on the same panel, two presses apart. It is there for the cust
 
 ## What to get 3D modelled next
 
-**Space Planner → Spaces & layouts** also keeps a count of what customers keep placing that has no 3D model. That is your shopping list, in demand order, rather than a hunch.
+**Settings → Shop → Space Planner → Spaces & layouts** also keeps a count of what customers keep placing that has no 3D model. That is your shopping list, in demand order, rather than a hunch.
 
 ## Settings
 
-They live in **Shop settings → Space Planner**.
+They live in **Settings → Shop → Space Planner → Settings**.
 
 - **Hide the Space Planner from customers (staff only).** On by default. The whole feature disappears from your shop while your own staff carry on using it - see [Staff only](#staff-only).
 - Where the buttons appear, and what they say.
@@ -211,7 +211,7 @@ They are rules of thumb to help arrange furniture. They are **not** a workplace 
 
 ## Photoreal pictures
 
-Off until you switch them on, and the admin says so rather than leaving you guessing. Switching them on is a button on **Space Planner -> Pictures**.
+Off until you switch them on, and the admin says so rather than leaving you guessing. Switching them on is a button on **Settings → Shop → Space Planner → Pictures**.
 
 Once they are on and the picture service is set up, customers get a **Make a photo** button in the planner's toolbar, next to Export PDF. It only appears when both of those are true - a button that answers "not set up yet" is worse than no button at all. On a phone it lives behind **More**, with the other occasional things.
 

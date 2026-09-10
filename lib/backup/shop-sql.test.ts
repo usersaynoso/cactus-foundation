@@ -290,9 +290,9 @@ describe.skipIf(!cfg)('order-size deduction SQL against a real database', () => 
     // Two suppliers, one with a threshold and one without, and four products
     // between them covering every branch both reports have.
     await db.$executeRawUnsafe(`
-      INSERT INTO "shp_suppliers" ("name", "order_size_deduction_threshold", "order_size_deduction_note")
-      VALUES ('Dynamic Office Solutions', 350.00, 'They stop charging us once we order enough at once.'),
-             ('Furdeco', NULL, NULL)`)
+      INSERT INTO "shp_suppliers" ("name", "order_size_deduction_threshold")
+      VALUES ('Dynamic Office Solutions', 350.00),
+             ('Furdeco', NULL)`)
     await db.$executeRawUnsafe(`
       INSERT INTO "shp_products" ("name", "slug", "type", "status", "sku", "supplier", "price", "sale_price", "order_size_deduction")
       VALUES
@@ -320,7 +320,6 @@ describe.skipIf(!cfg)('order-size deduction SQL against a real database', () => 
     // number or the rule module compares a threshold against an object.
     expect(rules[0]!.threshold).toBe(350)
     expect(typeof rules[0]!.threshold).toBe('number')
-    expect(rules[0]!.note).toContain('order enough at once')
   })
 
   it('asks nothing at all for an empty or blank list of names', async () => {
