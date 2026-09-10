@@ -1300,6 +1300,43 @@ a:hover {
 .admin-nav-fav-btn:focus-visible { opacity: 1; }
 .admin-nav-fav-btn--on { opacity: 1; color: var(--color-primary); }
 .admin-nav-fav-btn:hover { color: var(--color-primary); }
+/* ── Drag-to-reorder ──────────────────────────────────────────────────────
+   Deliberately no `cursor` rule anywhere in here: the rail should look exactly
+   the same while a link is being moved as it does at rest, so the only thing
+   that changes is the row being carried and the line showing where it lands. */
+.admin-nav--dragging .admin-nav-row {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.admin-nav-row--dragging { opacity: 0.45; }
+.admin-nav-row--drop-before::before,
+.admin-nav-row--drop-after::after {
+  content: '';
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  pointer-events: none;
+}
+.admin-nav-row--drop-before::before { top: 0; }
+.admin-nav-row--drop-after::after { bottom: 0; }
+.admin-nav-section-label--drop { color: var(--color-primary); }
+.admin-nav-drop-empty {
+  margin: 2px var(--space-2);
+  padding: 8px 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.admin-nav-drop-empty--over {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .admin-nav-spinner {
   width: 12px;
   height: 12px;

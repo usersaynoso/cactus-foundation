@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ResolvedNavItem, ResolvedNavSection, NavVisibilityMode } from '@/lib/nav/admin-menu'
 import AboutModal from './AboutModal'
+import { useNavReorder, type NavDragZone } from './useNavReorder'
 
 type Props = {
   adminPath: string
@@ -92,6 +93,9 @@ const SEARCH_ICON = (
 )
 const LOCK_ICON = (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+)
+const RESET_ORDER_ICON = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
 )
 const EYE_OFF_ICON = (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9.9 5.1A9.5 9.5 0 0 1 12 5c6 0 9 7 9 7a15 15 0 0 1-2.3 3.2M6.2 6.2A15 15 0 0 0 3 12s3 7 9 7a9.4 9.4 0 0 0 3.7-.7" /><path d="M3 3l18 18" /></svg>
@@ -234,27 +238,46 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
     } catch {
       // ignore
     }
+    return next
   }
 
   function toggleSection(label: string) {
-    setCollapsedSections((prev) => {
-      const next = { ...prev, [label]: !prev[label] }
-      persistSections(next)
-      return next
-    })
+    setCollapsedSections((prev) => persistSections({ ...prev, [label]: !prev[label] }))
   }
 
+  const persistFavourites = useCallback((next: string[]) => {
+    try {
+      localStorage.setItem(FAVOURITES_KEY, JSON.stringify(next))
+    } catch {
+      // ignore
+    }
+    return next
+  }, [])
+
   function toggleFavourite(id: string) {
-    setFavourites((prev) => {
-      const next = prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
-      try {
-        localStorage.setItem(FAVOURITES_KEY, JSON.stringify(next))
-      } catch {
-        // ignore
-      }
-      return next
-    })
+    setFavourites((prev) =>
+      persistFavourites(prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id])
+    )
   }
+
+  const setFavouritesOrder = useCallback(
+    (next: string[]) => setFavourites(persistFavourites(next)),
+    [persistFavourites]
+  )
+
+  // Drag-to-reorder. The hook re-orders what the server sent; it never changes
+  // which items exist or who can see them.
+  const reorder = useNavReorder({
+    sections,
+    favourites,
+    setFavouritesOrder,
+    onSectionDrop: (sectionId) => {
+      const label = sections.find((sec) => sec.id === sectionId)?.label
+      if (!label) return
+      setCollapsedSections((prev) => (prev[label] ? persistSections({ ...prev, [label]: false }) : prev))
+    },
+  })
+  const orderedSections = reorder.sections
 
   // Labels of every real, collapsible section currently on screen — the target
   // set for the expand-all / collapse-all control.
@@ -281,6 +304,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
   // fully operable without a mouse. Ignored while typing in the filter box.
   function onNavKeyDown(e: React.KeyboardEvent<HTMLElement>) {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    if (e.altKey) return // Alt+Arrow reorders the row instead of moving focus
     if ((e.target as HTMLElement).tagName === 'INPUT') return
     const items = Array.from(navRef.current?.querySelectorAll<HTMLElement>('[data-nav-item]') ?? [])
     if (items.length === 0) return
@@ -308,23 +332,42 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
   }, [allItems])
 
   const filterQuery = filter.trim().toLowerCase()
+  const orderedItems = useMemo(() => orderedSections.flatMap((s) => s.items), [orderedSections])
   const filterMatches = filterQuery
-    ? allItems.filter((i) => i.label.toLowerCase().includes(filterQuery))
+    ? orderedItems.filter((i) => i.label.toLowerCase().includes(filterQuery))
     : []
 
-  function renderItem(item: ResolvedNavItem, keyPrefix: string) {
+  function renderItem(item: ResolvedNavItem, keyPrefix: string, zone: NavDragZone | null) {
     const href = `${base}${item.path}`
     const active = isActive(href)
     const pending = pendingPath === item.path
     const fav = favourites.includes(item.id)
+    const dragProps = zone ? reorder.rowProps(zone, item.id) : {}
+    const dragClass = zone ? reorder.rowClass(zone, item.id) : ''
     return (
-      <div className="admin-nav-row" key={`${keyPrefix}:${item.id}`}>
+      <div className={`admin-nav-row${dragClass}`} key={`${keyPrefix}:${item.id}`} {...dragProps}>
         <Link
           href={href}
           data-nav-item=""
           className={active ? 'active' : ''}
+          // Native link dragging would swap the cursor and drag a ghost of the
+          // link; the pointer-driven reorder does the job without either.
+          draggable={false}
+          aria-keyshortcuts={zone ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
           {...tipProps(item.label)}
-          onClick={() => handleNavClick(item.path)}
+          onKeyDown={(e) => {
+            if (!zone || !e.altKey) return
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+            e.preventDefault()
+            reorder.moveByKeyboard(zone, item.id, e.key === 'ArrowUp' ? -1 : 1)
+          }}
+          onClick={(e) => {
+            if (reorder.consumeClick()) {
+              e.preventDefault()
+              return
+            }
+            handleNavClick(item.path)
+          }}
         >
           <span className="admin-nav-icon">
             {item.iconIsSvg ? (
@@ -357,11 +400,22 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
     )
   }
 
-  function renderSectionHeader(storageKey: string, displayLabel: string, icon: ReactNode | null, open: boolean) {
+  // `dropSectionId` is the resolved section's id, which is NOT the storage key -
+  // collapse state is keyed by label. Passing it makes the header a drop target,
+  // so a link can be moved into a section that is collapsed or empty.
+  function renderSectionHeader(
+    storageKey: string,
+    displayLabel: string,
+    icon: ReactNode | null,
+    open: boolean,
+    dropSectionId?: string
+  ) {
+    const over = dropSectionId ? reorder.isSectionTarget(dropSectionId) : false
     return (
       <button
         type="button"
-        className="admin-nav-section-label"
+        className={`admin-nav-section-label${over ? ' admin-nav-section-label--drop' : ''}`}
+        data-drag-section={dropSectionId}
         onClick={() => toggleSection(storageKey)}
         aria-expanded={open}
       >
@@ -379,7 +433,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
     .filter((i): i is ResolvedNavItem => !!i)
 
   return (
-    <nav ref={navRef} onKeyDown={onNavKeyDown}>
+    <nav ref={navRef} className={reorder.isDragging ? 'admin-nav--dragging' : undefined} onKeyDown={onNavKeyDown}>
       {/* Pinned block: toolbar + Favourites stay put while the rest of the tree
           scrolls under them. On the icon rail the toolbar goes (there is no room
           for a filter box) but Favourites stay - shortcuts you pinned are exactly
@@ -434,6 +488,17 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
                 )}
               </div>
             )}
+            {reorder.hasCustomOrder && (
+              <button
+                type="button"
+                className="admin-nav-tool-btn"
+                onClick={reorder.resetOrder}
+                title="Put the menu back in its default order"
+                aria-label="Put the menu back in its default order"
+              >
+                {RESET_ORDER_ICON}
+              </button>
+            )}
             <button
               type="button"
               className="admin-nav-tool-btn"
@@ -453,7 +518,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
           {(collapsed || !filterQuery) && favouriteItems.length > 0 && (
             <div className="admin-nav-pinned-favs">
               {!collapsed && renderSectionHeader(FAV_SECTION, 'Favourites', STAR_SECTION_ICON, !collapsedSections[FAV_SECTION])}
-              {(collapsed || !collapsedSections[FAV_SECTION]) && favouriteItems.map((item) => renderItem(item, 'fav'))}
+              {(collapsed || !collapsedSections[FAV_SECTION]) && favouriteItems.map((item) => renderItem(item, 'fav', 'fav'))}
             </div>
           )}
         </div>
@@ -465,7 +530,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
           {filterMatches.length === 0 ? (
             <p className="admin-nav-empty">No menu items match “{filter}”.</p>
           ) : (
-            filterMatches.map((item) => renderItem(item, 'filter'))
+            filterMatches.map((item) => renderItem(item, 'filter', null))
           )}
         </div>
       ) : (
@@ -492,14 +557,24 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
             </div>
           )}
 
-          {/* Real sections (already ordered + filtered by the server) */}
-          {sections.map((section, sectionIndex) => {
+          {/* Real sections - filtered by the server, then ordered by this user */}
+          {orderedSections.map((section, sectionIndex) => {
             const open = collapsed || !section.label || !collapsedSections[section.label]
+            const emptyTarget = reorder.isDraggingTree && open && section.items.length === 0
             return (
               <div key={section.id}>
                 {sectionIndex > 0 && collapsed && <div className="admin-nav-divider" />}
-                {!collapsed && section.label && renderSectionHeader(section.label, section.label, null, open)}
-                {open && section.items.map((item) => renderItem(item, section.id))}
+                {!collapsed && section.label && renderSectionHeader(section.label, section.label, null, open, section.id)}
+                {open && section.items.map((item) => renderItem(item, section.id, 'tree'))}
+                {/* A section you have just emptied still needs somewhere to aim at. */}
+                {emptyTarget && (
+                  <div
+                    className={`admin-nav-drop-empty${reorder.isSectionTarget(section.id) ? ' admin-nav-drop-empty--over' : ''}`}
+                    data-drag-section={section.id}
+                  >
+                    Drop a link here
+                  </div>
+                )}
               </div>
             )
           })}
