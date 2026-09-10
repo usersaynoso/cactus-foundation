@@ -247,3 +247,77 @@ export type MessageDestinationProvider = {
   label: string
   list(): Promise<MessageDestination[]>
 }
+
+// ---------------------------------------------------------------------------
+// Reply suggestions - "somebody is staring at an empty reply box; is there
+// anything on this site that could offer them a first draft?"
+//
+// The conversation belongs to whichever module holds it: an enquiry off a
+// contact form, an email thread, a chat somebody had with the site last week.
+// The ability to WRITE something is a separate thing entirely, and on most
+// sites it is not installed at all.
+//
+// So a module that can write publishes a `core.reply-suggestions`: hand it the
+// conversation as plain words and it hands back a few drafts. Core names
+// neither end of it - the module holding the conversation knows nothing about
+// which model answered, and the module that answered knows nothing about where
+// the words came from. A site with no suggester installed simply never draws
+// the button, which is the ordinary state of affairs.
+//
+// Types only, like everything else in this file - the resolver lives in
+// lib/conversations/reply-suggestions.ts, because it reads the database.
+// ---------------------------------------------------------------------------
+
+export const REPLY_SUGGESTER_POINT = 'core.reply-suggestions'
+
+/** One message on the conversation, as the suggester will read it.
+ *
+ *  `role` rather than a direction, because what matters to whoever is drafting
+ *  is only "did we say this or did they" - and an internal note is neither: it
+ *  is us talking among ourselves, which is context worth having and must never
+ *  be quoted back at a customer. */
+export type ReplySuggestionMessage = {
+  role: 'them' | 'us' | 'note'
+  /** Who wrote it, where that is known and worth saying. */
+  authorName: string | null
+  sentAt: Date | null
+  /** The words, already stripped of markup by whoever holds them. */
+  text: string
+}
+
+export type ReplySuggestionRequest = {
+  /** Oldest first - the order somebody reads a conversation in. */
+  messages: ReplySuggestionMessage[]
+  /** What the conversation is called, where it has a name. */
+  subject: string | null
+  /** Who is about to send the reply, so a draft can sound like a person rather
+   *  than a department. Null when the host would rather not say. */
+  authorName: string | null
+  /** How many drafts to come back with. A suggester may return fewer - never
+   *  more, and never nothing without saying why. */
+  count: number
+}
+
+/** What a module publishes at `core.reply-suggestions`. Server-only by nature:
+ *  it reaches an API with somebody's key on it. */
+export type ReplySuggester = {
+  /** What this one calls itself, for a screen that has to say where a draft
+   *  came from. */
+  label: string
+  /** Whether it could answer right now - a key pasted in, a model named. Cheap
+   *  by contract: a screen deciding whether to draw a button must be able to
+   *  ask without a round trip to anybody's API. */
+  isConfigured(): Promise<boolean> | boolean
+  /** The drafts, as plain words. Throws a ReplySuggestionError (its own file,
+   *  so this one stays free of runtime code) for anything the person waiting
+   *  needs told about. */
+  suggest(request: ReplySuggestionRequest): Promise<string[]>
+}
+
+/** A suggester as core resolved it: the module that published it, the manifest
+ *  entry id, and the implementation itself. */
+export type ResolvedReplySuggester = {
+  moduleName: string
+  id: string
+  suggester: ReplySuggester
+}
