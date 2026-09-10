@@ -378,7 +378,9 @@ When every parcel on an order reaches an arrived stage, and nothing is still owe
 
 The checking is deliberately unhurried: twenty-five parcels an hour, longest-unchecked first, a few at a time. A courier whose site is down simply teaches us nothing that hour - silence is never read as "not delivered" - and a shop with nothing out costs one quick look at its own database and no more. You can change how often it runs, or turn it off, under **Settings → Schedules**.
 
-**Where the driver has got to.** On a courier that reports it, the customer's order page says so in words: *"Mozam is on drop 9 of 98. You are drop 34, about an hour and a half away."* A small bar shows how far through the round the driver is, and under it, folded away until somebody wants it, sits the courier's own history - every scan, with the depot it happened at.
+**Where the driver has got to.** On a courier that reports it, the customer's order page says so in words: *"Mozam has 2 more drops to make before yours. About 15 minutes away."* A small bar fills as the van gets closer, and under it, folded away until somebody wants it, sits the courier's own history - every scan, with the depot it happened at.
+
+Both the sentence and the bar count **towards your delivery**, never across the driver's day. The courier will happily tell you the van is on its 32nd of 98 drops; said to a customer that reads as "not for hours" when the van is two streets away, so the total never appears. Two doors to go is what somebody wants to know.
 
 None of it is guessed. A courier that gives numbers and no name says "your driver"; one that gives a name and no numbers says only what it knows; one that says nothing shows nothing rather than a hopeful sentence. The estimate has the time since we last asked taken off it, so a page read at half twelve does not still claim ninety minutes because that was true at eleven - and once the estimate runs out it says "any minute now" rather than counting backwards.
 
@@ -396,7 +398,11 @@ The map only asks the courier anything while somebody is actually looking at it.
 
 Positions come from the courier as their crew drives, so they lag, pause and occasionally jump - the page says as much underneath, in those words. The map is drawn with open map data rather than the courier's own maps.
 
-**Proof of delivery.** When the courier hands over a signature, the shop takes its own copy of it. Who signed, when they signed and the signature itself appear on the customer's order page under that parcel, and on your own order screen. The copy is the point: the picture sits on the courier's server under a filename of their choosing, and a proof of delivery that disappears when somebody tidies up is not proof of anything. It is fetched once, and a delivery is still recorded as delivered even if the picture cannot be had.
+**Proof of delivery.** Couriers have stopped agreeing on what proof is. Some still take a signature on a handset; DPD and others photograph the parcel where they left it and name whoever took it in. The shop takes its own copy of whichever it is offered, and the customer's order page reads the same either way: **Received by Beckley at 12:20pm**, with the picture underneath.
+
+Where a courier gives the name and the time but no picture, you still get the line. It is the half that settles most arguments, and it arrives even when the photograph is behind the courier's own login.
+
+When the courier hands over a signature, the shop takes its own copy of it. Who signed, when they signed and the signature itself appear on the customer's order page under that parcel, and on your own order screen. The copy is the point: the picture sits on the courier's server under a filename of their choosing, and a proof of delivery that disappears when somebody tidies up is not proof of anything. It is fetched once, and a delivery is still recorded as delivered even if the picture cannot be had.
 
 **Once it has arrived.** The progress bar's delivery step stops showing the plan and shows the fact - "Delivered today", "Delivered yesterday", then "Delivered 8/9/26" once it is older than that - and the parcel's own line underneath reads "Delivered on 8th of September 2026". Both wait for the courier to give a time. Where the courier gives none, the arrangement stays as it was rather than the shop guessing from the clock.
 
