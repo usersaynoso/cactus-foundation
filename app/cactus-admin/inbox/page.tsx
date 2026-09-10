@@ -3,9 +3,38 @@ import { headers } from 'next/headers'
 import { ALL_TAB_ID, resolveInboxTabs } from '@/lib/conversations/inbox-tabs'
 import { InboxAllPanel } from '@/components/admin/InboxAllPanel'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { getInstalledModules } from '@/lib/modules/live-status'
+import { adminScreenTitle } from '@/lib/nav/admin-menu'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Inbox — Admin' }
+type InboxTabEntry = { point?: string; id?: string; label?: string }
+
+// The Inbox is one screen showing one module's messages at a time, so the tab is
+// the only thing separating five history entries. Named from the manifest's own
+// label rather than tidied up out of the ?tab= id, because the id is a slug and
+// the label is what somebody wrote ("Contact form", not "Contact Form").
+//
+// Read through getInstalledModules, which is React-cached and already fetched by
+// the admin layout on this request: resolveInboxTabs below would answer the same
+// question but costs its own query plus a permission check per tab, and this is
+// naming a browser tab, not deciding what to render.
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const { tab } = await searchParams
+  if (!tab || tab === ALL_TAB_ID) return { title: adminScreenTitle('Inbox') }
+
+  try {
+    for (const mod of await getInstalledModules()) {
+      const manifest = mod.manifest as { extensionPoints?: InboxTabEntry[] } | null
+      for (const entry of manifest?.extensionPoints ?? []) {
+        if (entry.point !== 'core.inbox-tabs' || entry.id !== tab) continue
+        if (entry.label) return { title: `Inbox: ${entry.label} — Admin` }
+      }
+    }
+  } catch {
+    // fall through to the id
+  }
+  return { title: adminScreenTitle('Inbox', tab) }
+}
 
 // The Inbox is a host, not a feature: it holds whatever messaging surfaces the
 // installed modules publish into `core.inbox-tabs`, so a site's enquiries and its

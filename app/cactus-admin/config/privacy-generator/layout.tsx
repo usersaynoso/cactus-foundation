@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react'
 import { denyUnlessAny } from '@/lib/permissions/section-gate'
+import type { Metadata } from 'next'
+
+// The generator is a client component, so its title has to live here.
+export const metadata: Metadata = { title: 'Privacy policy generator — Admin' }
 
 // The generator writes a privacy policy page and points the site's consent
 // settings at it, so it wants the same key as the rest of Settings. It gets its

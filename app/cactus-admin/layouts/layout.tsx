@@ -2,6 +2,11 @@ import type { ReactNode } from 'react'
 import { getInstalledModuleLayoutGroups } from '@/lib/layout/installed-layout-types'
 import { ModuleLayoutGroupsProvider } from '@/components/admin/ModuleLayoutGroupsContext'
 import { denyUnlessAny } from '@/lib/permissions/section-gate'
+import type { Metadata } from 'next'
+
+// The list screen is a client component, so its title has to live here. Nested
+// segments (the editor, /new) override it with their own.
+export const metadata: Metadata = { title: 'Layouts — Admin' }
 
 // Two jobs, both of which have to happen above the screens themselves.
 //

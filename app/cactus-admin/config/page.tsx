@@ -8,8 +8,14 @@ import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
 import type { HostedSettingsPanels, HostedSettingsSlots } from '@/lib/modules/hosted-settings'
-import { buildModuleNavGroups, parseAdminMenuConfig, resolveAdminMenuForEditor, type ModuleManifestNav, type EditorNavSection } from '@/lib/nav/admin-menu'
+import { adminScreenTitle, buildModuleNavGroups, parseAdminMenuConfig, resolveAdminMenuForEditor, type ModuleManifestNav, type EditorNavSection } from '@/lib/nav/admin-menu'
 import ConfigPageClient from './ConfigPageClient'
+import type { Metadata } from 'next'
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string>> }): Promise<Metadata> {
+  const { tab } = await searchParams
+  return { title: adminScreenTitle('Settings', tab) }
+}
 
 // A settings tab with `host` set is not a top-level Settings tab. It renders
 // inside another module's UI slot named by `host` (e.g. the shop payments tab),

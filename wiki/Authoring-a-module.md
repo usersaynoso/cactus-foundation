@@ -185,6 +185,22 @@ Build every admin link inside your module from the **real** admin path, never th
 - **Server components:** read the request header instead - `const adminPath = (await headers()).get('x-cactus-admin-path') ?? ''`.
 - **Exceptions:** API routes (`/api/m/<module-name>/...`) are not under the admin path and stay as-is, and nav-entry `path`s in the manifest are already prefixed with the real path by core, so they need no change.
 
+## Naming your admin screens
+
+Export `metadata` (or `generateMetadata`) from each of your admin pages, exactly as you would from any Next page:
+
+```ts
+export const metadata = { title: 'Bills — Purchase Orders — Admin' }
+```
+
+Core reads it. Every module admin screen is rendered through one core route (`app/cactus-admin/m/[module]/[[...path]]/page.tsx`), and Next only ever reads metadata from the route file, so core's `generateMetadata` resolves your page and hands your title back: your own `generateMetadata` first, then your static `metadata`. **Requires the core release that ships this (the first after 0.5.1568).** Before that, an admin page's metadata export was loaded and silently discarded - if your module has one that never seemed to work, it works now, so check what it says.
+
+- **Put the section name first.** The whole point is a browser's history and tab strip: "Bills — Purchase Orders" is findable, "Purchase Orders" thirty times over is not. Core appends the site name.
+- **Name the record on a detail screen.** `generateMetadata` gets the same params your page does, so an order screen can be titled by its order number.
+- **A client component cannot export metadata.** Put it on a `layout.tsx` in that segment instead - a small server component that returns `children` and nothing else.
+- **A tab you publish into core's Inbox is named from your manifest's `label`**, not from the extension-point id, so `?tab=contact-form` reads `Inbox: Contact form — Admin`. Write the label you want to see.
+- **Say nothing and core still names the screen**, from the sidebar link it sits under: `/m/shop/orders/<id>` becomes "Trading" because that is what the `/m/shop/orders` nav entry is called. Better than nothing, worse than a real title.
+
 ## Permissions in module code
 
 To check permissions from your module's server components or API routes:
@@ -1083,6 +1099,8 @@ One more trap, and it is the reason the module's provider file reaches its own h
 
 ### Taking over a host's tab body (not a whole part)
 
+`shop.product-attribute-values` (contributed by `product-attributes-for-shop`) is a plain read for any module that wants to group or label products by an attribute the owner chose. `listAttributes()` returns `{ id, name }` for every attribute defined; `valuesFor(attributeId, productIds)` returns a `Map` of product id to the labels ticked against it, absent where nothing is ticked. Variations are products in their own right here, so a variant's own ticks and its parent's both come back through the same call - ask for whichever ids you hold and fall back from one to the other yourself. It names no consumer and carries no consumer's shape, and a shop without an attributes module simply has no provider: look it up through the generated registry (`lib/modules/extension-points.public.ts`) rather than importing the other module, and do without when it is not there. `google-shopping-for-shop` uses it to decide each item's `shipping_label`.
+
 `shop.product-detail-spec` (`modules/shop/lib/detail-spec.ts`, shop v0.1.100) sits between the two shapes above: it is a *take-over* point like `shop.product-detail-parts`, but it replaces the **body of one tab** rather than a whole part. Its live consumer is `product-attributes-for-shop`, which swaps shop's own Specification facts table (SKU, type, weight, dimensions) for the product's attributes grouped into headed sections. A provider's `load(productId)` returns null when it has nothing for a product, and shop keeps its own facts table - the same "returning null means no take-over" rule the additive points use, which is what stops installing the module changing a product until an attribute is actually flagged for the page.
 
 It is single-winner, like `shop.product-detail-parts` and unlike `shop.product-detail-tabs`, and for the same reason: two modules both answering "what is this product's specification" would contradict each other, so the first provider with a non-null payload wins and the rest stand down. But it does **not** claim the whole product the way `shop.product-detail-parts` does - the tab, its name, its place in the strip and its styling all stay shop's, so this take-over composes cleanly with a variation product that shop-variations has already claimed for pricing. When a take-over is scoped tightly enough (one tab body, not the page's identity), the single-winner edge that bites the parts point never comes up. Resolved in `ShopProductDetail.rsc.tsx` onto `DetailPartContext.specOverride` and consumed in `buildDetailSections`, for the same dual-compile reason as the tabs point above.
@@ -1235,6 +1253,8 @@ import { CronScheduleSetting } from '@/components/admin/CronScheduleField'
 It fetches its own state, saves through core's `/api/admin/cron`, and reports back whether a deploy was started. You need no route, no table, no settings key and no knowledge of the dispatcher. It renders nothing at all if the path is not a job this install has, so an older core or a manifest that failed to parse costs you a missing control rather than a broken tab.
 
 If you are building your own layout around it, `CronScheduleField` (the bare select), `saveCronFrequency` and `describeSaveResult` come from the same file. Both need the viewer to hold `config.manage` - the API refuses otherwise, so gate your panel accordingly or accept that it will show an error to anyone else.
+
+**Run now.** `runCronJob(path)` and `describeRunResult(result)`, from the same file, give you the button that appears beside every job in Settings → Schedules. It calls `POST /api/admin/cron/run`, which runs your job through the same helper the dispatcher uses and **waits for it** - a job that takes half a minute keeps the promise open for half a minute, because "it has been asked to" is not an answer anybody can act on. It records the run exactly as a tick does, so a job run by hand resets its clock: a nightly job run at four in the afternoon is next due the following night. Disable your button while a call is in flight; a second press would start a second copy of something already running.
 
 **Authenticating cron requests.** Nothing changes here: the dispatcher calls your route with `Authorization: Bearer $CRON_SECRET`, exactly as Vercel used to. Your cron route just checks that header:
 

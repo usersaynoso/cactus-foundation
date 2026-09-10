@@ -244,7 +244,7 @@ const SHARED_TYPES = [
   `// edit, so the shape is left open and the handler is narrowed where it is read.`,
   `type ApiHandlerModule = Record<string, unknown>`,
   `type ApiRouteLoader = () => Promise<ApiHandlerModule>`,
-  `type PageModule = () => Promise<{ default: React.ComponentType<any>; generateMetadata?: (...args: any[]) => any }>`,
+  `type PageModule = () => Promise<{ default: React.ComponentType<any>; metadata?: unknown; generateMetadata?: (...args: any[]) => any }>`,
 ]
 
 function banner(target) {
@@ -330,7 +330,7 @@ admin.push(``)
 admin.push(`export async function resolveModulePage(`)
 admin.push(`  module: string,`)
 admin.push(`  path: string[]`)
-admin.push(`): Promise<{ Component: React.ComponentType<any>; mappedParams: Record<string, string> } | null> {`)
+admin.push(`): Promise<{ Component: React.ComponentType<any>; metadata?: unknown; generateMetadata?: (...args: any[]) => any; mappedParams: Record<string, string> } | null> {`)
 admin.push(`  const loaders = PAGE_LOADERS[module]`)
 admin.push(`  if (!loaders) return null`)
 admin.push(``)
@@ -339,7 +339,7 @@ admin.push(`    const pattern = patternStr ? patternStr.split('/') : []`)
 admin.push(`    const extracted = matchPattern(pattern, path)`)
 admin.push(`    if (extracted !== null) {`)
 admin.push(`      const mod = await loader()`)
-admin.push(`      return { Component: mod.default, mappedParams: extracted }`)
+admin.push(`      return { Component: mod.default, metadata: mod.metadata, generateMetadata: mod.generateMetadata, mappedParams: extracted }`)
 admin.push(`    }`)
 admin.push(`  }`)
 admin.push(`  return null`)

@@ -28,7 +28,7 @@
     {
       "name": "google-shopping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-shopping-for-shop",
-      "version": "v0.1.11"
+      "version": "v0.1.12"
     },
     {
       "name": "stock-import-for-shop",
@@ -53,7 +53,7 @@
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.72"
+      "version": "v0.1.73"
     },
     {
       "name": "product-discovery-tool",
@@ -163,7 +163,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.67"
+      "version": "v0.1.68"
     }
   ]
 }

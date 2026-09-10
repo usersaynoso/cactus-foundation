@@ -129,7 +129,7 @@ This is not how it used to behave. Until this update a colleague email was filed
 
 ### Signatures
 
-Each inbox has one signature, and it goes below a dividing line at the foot of every reply sent from that address, whoever sent it. That is deliberate: `accounts@` signs off as the accounts department whether it was you or your bookkeeper typing.
+Each inbox has one signature, and it goes below a dividing line at the foot of replies sent from that address. That is deliberate: `accounts@` signs off as the accounts department rather than as whoever happened to be typing - unless the person typing has an address of their own, which is the exception below.
 
 There are three ways to write one, and they are the same three the contact form offers, so you only ever learn this once:
 
@@ -144,6 +144,8 @@ Pasted and block-built signatures can carry fill-in tags, so one design works fo
 **Show me how it will look** renders the signature exactly as the email will, before you save it, which is a cheaper way to discover that the logo is enormous.
 
 **One exception, and it is a useful one.** If somebody has been given an inbox of their own (see [Giving somebody an inbox of their own](#giving-somebody-an-inbox-of-their-own)), the signature they wrote there is the one that goes out on their replies wherever they send from - so a purchasing manager answering out of `sales@` still signs off in their own name. If their own address has no signature, the address the reply is leaving from provides it, exactly as before.
+
+**So a shared address's signature is the fallback, not the rule.** On a team where everybody has been given an address of their own, `accounts@`'s own signature is what signs for anybody who has not - and it is what a [campaign](#campaigns) sent from that address uses, whoever set the campaign up. It is worth writing one even if you rarely see it. The other way round, an address that is somebody's own signs as them outright, whoever presses Send: a reply leaving `sam@` is from Sam even when a colleague sent it out for him.
 
 If you already had a signature before this arrived, it is still there and still goes out unchanged, sitting under **HTML**.
 
@@ -249,9 +251,15 @@ The phone goes halfway through a reply, and until now that cost you the reply. N
 
 **The one exception is somebody's own address, and only for the people covering it.** If Sam's address has been shared with you by name, Sam's unfinished replies show under **Sam Blake → Drafts** on the rail. That is a deliberate choice and worth being plain about: you are already reading every message that arrives at Sam's address and every message that leaves it, and the one thing you could not see was the answer Sam started on Tuesday and did not finish - which is exactly how the same customer ends up written to twice, once by Sam on Friday and once by you this morning. Nobody who has not been put on that address sees any of it.
 
-**Reading is the whole of it.** You cannot finish somebody else's draft, send it, change it or throw it away, from that folder or anywhere else, and there is no button offering to. The cost of that is honest and worth saying: a half-written message belonging to somebody on leave waits for them. If it needs to go out, write it yourself and send it - now knowing what they had already said.
+**You cannot change it, and you can send it.** Somebody else's draft is theirs to finish: there is no writing box, no way to edit a word of it, and no way to throw it away. What you can do, if you are allowed to send from that address, is send it out exactly as it stands - a button at the foot marked **Send it for Sam**. It asks first, and says what happens: the message leaves Sam's address, signed as Sam, and there is no getting it back.
 
-**Opening one shows the message rather than a writing box**: who it is to, what it is about, what is attached, when it is set to go out if it is, and the words. If it is an answer to a conversation, there is a link across to that conversation. At the foot it says whose writing it is and that only they can finish it, so there is no hunting for a Send button that was never going to be there.
+That is deliberately the only thing on offer. Editing somebody's half-written sentence and posting it under their name is putting words in their mouth; sending the paragraph they actually wrote is a decision about a message that already exists, taken by somebody who has just read every word of it. It is also the way out of the one case this privacy costs: the finished quote sitting on the address of somebody who is away for a fortnight.
+
+**Sending it for them needs the sending grant, not just the reading one.** Being let into Sam's address to read it is not the same as being allowed to write as it (see [Who can see what](#who-can-see-what)). If you have only been given the reading half, the foot of the page says so and no button appears.
+
+**Sent says who actually pressed it.** The customer sees a message from Sam's address with Sam's signature, exactly as if Sam had sent it - but the entry in **Sent** credits whoever sent it, so there is no mystery afterwards about who let it go. If the draft had a chase on it, the chase is still Sam's: they asked for it.
+
+**Opening one shows the message rather than a writing box**: who it is to, what it is about, what is attached, when it is set to go out if it is, and the words. If it is an answer to a conversation, there is a link across to that conversation. At the foot it says whose writing it is, that only they can change it, and - where you may - offers to send it for them.
 
 Opening a conversation shows your own draft on it, if you left one. There is one draft per conversation per person, which is the box, put down; saving again writes over it rather than leaving you to choose between two halves of the same sentence. Two people can each have one on the same conversation, and each sees only their own.
 
@@ -510,12 +518,12 @@ Once somebody is on it, that address appears in their rail under **Team inboxes*
 
 | Folder | What is in it |
 | --- | --- |
-| **Drafts** | What **they** have started on that address and not sent. Read only - see below. |
+| **Drafts** | What **they** have started on that address and not sent. You cannot change one; you can send one out as it stands if you may send from the address - see below. |
 | **Sent** | Everything that has left that address. |
 | **Mentioned** | Conversations on that address that its owner has been tagged in. |
 | **Spam** | What has been thrown away out of their post, including anything you binned while covering. |
 
-**All four are theirs, and Drafts is the one worth pausing on.** Covering somebody's post means knowing what they have half-answered as well as what they have answered; not knowing is how a customer gets two replies from two people. So the folder holds Sam's unfinished writing, and it is there whether or not there is anything in it, exactly like the three beside it. It is **read only** - opening one shows the message and says so at the foot. Only Sam can finish, send, change or throw away one of Sam's drafts, and no button here offers otherwise. Your own half-written writing, wherever you left it, stays under **Drafts** in **Yours**.
+**All four are theirs, and Drafts is the one worth pausing on.** Covering somebody's post means knowing what they have half-answered as well as what they have answered; not knowing is how a customer gets two replies from two people. So the folder holds Sam's unfinished writing, and it is there whether or not there is anything in it, exactly like the three beside it. Opening one shows the message rather than a writing box: only Sam can change, finish or throw away one of Sam's drafts. If you may send from Sam's address, the foot of the page offers to **send it for Sam** exactly as it stands - see [Drafts](#drafts). Your own half-written writing, wherever you left it, stays under **Drafts** in **Yours**.
 
 The list is headed with the colleague's name in front of the folder - **Sam Blake · Drafts** - the same way their Sent, Spam and Mentioned lists are.
 
@@ -526,7 +534,7 @@ The name itself is their inbox, exactly as a shared address's name is. Press the
 - You read that address, and you answer from it only if **Can reply as this address** was ticked beside your name. Reading and answering are two separate grants everywhere in this hub, and this is no exception.
 - Their conversations join your **All** view and your search results, because you can genuinely open them. Nobody else's do.
 - **Their Mentioned folder is read-only to you.** You can see what colleagues have asked them about, which is exactly the point when you are covering for them; you cannot mark it done or put it off until Thursday. Somebody else's list of jobs is theirs to work through.
-- **Their Drafts folder is read-only to you too**, and for the same reason it is there at all: knowing what they have already half-answered is how you avoid answering it a second time. You can read the words; you cannot finish, change, send or throw away one of their drafts.
+- **You cannot edit their drafts, and you can send one for them** if **Can reply as this address** was ticked. The folder is there so that knowing what they have already half-answered stops you answering it a second time; the button is there so that a finished message does not sit waiting out somebody's fortnight in Spain. Changing the words, or throwing one away, stays theirs.
 - It is one address, not a person. Being let into `sam@` does not let you into anything else of Sam's, and it does not follow them if the address is later handed to somebody else.
 - **Untick the name and it is gone again**, immediately and completely - out of the rail, out of **All**, out of search.
 
@@ -570,9 +578,11 @@ Even so, it is somebody else being told something about your customer, which is 
 
 Turn it off again and everybody is back to initials immediately, including on a page somebody left open.
 
-**Working through several at once.** Rows are picked the way a mail program has picked them for thirty years: a plain click opens a conversation, cmd-click (ctrl on Windows) adds or removes one on its own, and shift-click picks everything between the last one and this one. Space and shift-space do the same for anybody on the keyboard. Pick a few and a bar appears above the list offering the things you would otherwise open each of them to do: **Mark as done**, **Mark as read**, **Mark as unread**, **Open again** and **Mark as spam**. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
+**Working through several at once.** Rows are picked the way a mail program has picked them for thirty years: a plain click opens a conversation, cmd-click (ctrl on Windows) adds or removes one on its own, and shift-click picks everything between the last one and this one. Space and shift-space do the same for anybody on the keyboard. Pick a few and a bar appears above the list offering the things you would otherwise open each of them to do: **Mark as done**, **Mark as read**, **Mark as unread**, **Open again**, **Snooze** and **Mark as spam**. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
 
 Only the buttons that would actually change something are drawn. Pick six conversations you have already read and there is no **Mark as read** to press; pick six that are all open and there is no **Open again**. One out of six is enough to bring a button back, since that is exactly when you want it.
+
+**Snooze is the exception, and it is always there.** It opens the same list of times the clock on a single conversation opens - later today, tomorrow morning, next week, or a day and time of your own off the calendar - with the day and hour each one lands on written beside it. Every one of the picked conversations goes to sleep until then and comes back at the top of the list. It stays on the bar even when they are all already asleep, because choosing a new time for something is a real change rather than writing down what was written already. Bringing a pile back early is **Open again** beside it, not in here.
 
 **Mark as spam** asks before it does anything. It tells you the lot are about to go into a spam folder - yours, or a colleague's where the address is their own rather than the team's - and asks whether you would also like to turn those senders away in future, listing them so you can see who. **No, just move them** does the move and leaves the front door alone. **Block them all** does both. **Cancel**, the cross in the corner and Escape all leave every one of them exactly where it is, which is what you want the moment a finger lands on the wrong button in a toolbar. Blocking means nothing further from them reaches an inbox on this site, shared or personal - it goes straight in the spam folder instead, so you can still see what they sent. Nothing already here is touched, and you can let anybody back in from the Spam folder or the inbox settings. The blocking half only appears for somebody allowed to answer messages, since shutting the front door changes what everybody on the site receives - and where there is nobody in the pile to turn away, or you are not the one who may, it asks the shorter question instead: move them, or cancel.
 
@@ -1015,7 +1025,9 @@ Your business name and address for that footer go in **Settings → Unified Inbo
 
 This is worth two minutes of your attention, because it decides whether a campaign keeps to the pace you set.
 
-While the Campaigns screen is open in front of you, it sends on time. When nobody is looking, it relies on your site's own scheduled round, which on most hosting comes past about once an hour - so an unattended campaign creeps along rather than keeping to your ninety seconds.
+While **any** inbox screen is open in front of you, it sends on time. Reading your post is enough - it does not have to be the Campaigns screen, and it never did make much sense that it did. The page quietly asks every half minute whether anything is due, which costs nothing when nothing is: the gap between messages is kept on our side, so a request that arrives early sends nothing at all.
+
+When nobody is looking, it relies on your site's own scheduled round, which on most hosting comes past every few minutes at best and once an hour at worst - so an unattended campaign creeps along rather than keeping to your ninety seconds. A tab left open behind another window counts as nobody looking: browsers stop the clock on a background tab, which is exactly what you would want a page left open for a fortnight to do.
 
 If you want it to keep proper time with nobody watching, the When section shows an address you can point any free website-pinger at, once a minute. Treat it like a password: anybody who has it can nudge your campaigns along. Asking it too often is harmless - the gap is kept on our side, and a request that arrives early sends nothing at all.
 

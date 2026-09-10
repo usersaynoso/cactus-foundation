@@ -470,3 +470,84 @@ export function resolveAdminMenuForEditor(
     .sort((a, b) => a.order - b.order)
     .map((s) => ({ id: s.section.id, defaultLabel: s.defaultLabel, label: s.label, items: s.items }))
 }
+
+// ── Page titles ──────────────────────────────────────────────────────────────
+
+/** kebab/snake segment -> "Words With Capitals". Only ever a last resort. */
+function prettifySegment(segment: string): string {
+  return segment
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+/**
+ * Segments that identify a record rather than name a screen — never a title.
+ * Deliberately narrow: a long word is not an id, or "collections" would be one.
+ */
+function looksLikeId(segment: string): boolean {
+  if (/^\d+$/.test(segment)) return true
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(segment)) return true
+  // cuid/nanoid: long, unbroken, and carrying at least one digit.
+  return segment.length >= 8 && /\d/.test(segment) && !/[-_]/.test(segment)
+}
+
+/**
+ * A human name for a module admin screen, for the browser tab and history.
+ *
+ * Used only when the module's own page exports no metadata: the sidebar link the
+ * screen sits under is the closest thing to a section name a site owner would
+ * recognise, so the longest nav entry whose path prefixes this one wins
+ * ("/m/shop/orders/abc" -> the "/m/shop/orders" link's label). Falling back
+ * through the last non-id path segment and then the module's own slug means the
+ * caller always has something to put in front of the site name, which is the
+ * whole point - every admin screen sharing one title makes browser history
+ * useless.
+ *
+ * Pure, so lib/nav/admin-menu.test.ts can cover it without a database.
+ */
+export function resolveModulePageTitle(
+  moduleSlug: string,
+  path: string[],
+  manifests: Array<ModuleManifestNav | null>
+): string {
+  const target = ['', 'm', moduleSlug, ...path].join('/')
+
+  let best: { label: string; length: number } | null = null
+  for (const manifest of manifests) {
+    for (const entry of manifest?.navEntries ?? []) {
+      const entryPath = entry.path.replace(/\/+$/, '')
+      if (!entryPath) continue
+      const matches = target === entryPath || target.startsWith(`${entryPath}/`)
+      if (!matches) continue
+      if (!best || entryPath.length > best.length) best = { label: entry.label, length: entryPath.length }
+    }
+  }
+  if (best) return best.label
+
+  const named = [...path].reverse().find((segment) => !looksLikeId(segment))
+  if (named) return prettifySegment(named)
+  // "-for-shop" is a packaging convention, not part of anything's name.
+  return prettifySegment(moduleSlug.replace(/-for-[a-z0-9-]+$/, ''))
+}
+
+/**
+ * The one title format every core admin screen uses: the section name first, so a
+ * browser's history and tab strip stay readable when a dozen admin screens are
+ * open. `tab` names the ?tab= a heavily-tabbed screen (Settings, Users) is showing,
+ * which is otherwise the only thing separating five identical entries.
+ *
+ * The em dash matches the format module admin screens already ship.
+ */
+export function adminScreenTitle(section: string, tab?: string | null): string {
+  const trimmed = tab?.trim()
+  if (!trimmed) return `${section} — Admin`
+  // Sentence case, not Title Case: a ?tab= id stands in for a label somebody
+  // wrote ("Contact form", "Pending approval"), and Title Case would rename it.
+  const words = trimmed.replace(/[-_]+/g, ' ').trim()
+  const label = words.charAt(0).toUpperCase() + words.slice(1)
+  return `${section}: ${label} — Admin`
+}

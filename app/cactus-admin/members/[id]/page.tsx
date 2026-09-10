@@ -7,10 +7,27 @@ import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import MemberDetailClient from './MemberDetailClient'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Member detail — Admin' }
-
 type ExtensionPointEntry = { point: string; id: string; permission?: string }
 type Props = { params: Promise<{ id: string }> }
+
+// Named after the member being looked at, not "Member detail": with a handful of
+// these open they were indistinguishable in the browser's history. The read is
+// best-effort - a title is never worth a 500 on the screen behind it - and the
+// render below fetches the full row separately, on the same request.
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  try {
+    const member = await prisma.member.findUnique({
+      where: { id },
+      select: { displayName: true, fullName: true, username: true },
+    })
+    const name = member?.displayName ?? member?.fullName ?? member?.username
+    if (name) return { title: `Members: ${name} — Admin` }
+  } catch {
+    // fall through
+  }
+  return { title: 'Members — Admin' }
+}
 
 export default async function MemberDetailPage({ params }: Props) {
   const user = await getSessionFromCookie()

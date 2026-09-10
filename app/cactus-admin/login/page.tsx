@@ -2,6 +2,9 @@ import { resolveBranding } from '@/lib/config/branding'
 import { prisma } from '@/lib/db/prisma'
 import { buildAdminThemeStyles, buildFontHref } from '@/lib/design/tokens'
 import LoginForm from './LoginForm'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Sign in — Admin' }
 
 export default async function LoginPage() {
   // Both reads are best-effort. This is the page every locked-out session lands on,

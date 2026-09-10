@@ -112,6 +112,36 @@ A service the shop cannot put a firm number on gets left out rather than misquot
 
 **On tax classes.** The charge follows the product: a variation uses its own tax class, or its parent listing's where it has none of its own, exactly as its price does. Only a product with no tax class anywhere - itself or its parent - sends its delivery charge without VAT, and that product is already selling at the wrong price too, so it is a catalogue problem rather than a delivery one.
 
+## Grouping products for delivery rates
+
+The other way round from the section above, and the two are alternatives rather than a pair. Instead of sending Google your charges, you can tell it which **delivery group** each product belongs to and set the rate for each group over in Merchant Center. It suits a shop where what you charge depends on what the thing is - a chair, a desk, something made to order - more than on the product itself.
+
+Find it under **Delivery** in the Google Shopping settings tab, as **Group your products for delivery rates**. Pick one of your product attributes and each product goes to Google labelled with its own value for it. Off to start with, and off is the whole list until you pick something.
+
+- A variation uses its **own** value where it has one, and its parent listing's where it has not - the same way everything else about a variation reads.
+- A product ticked against two values of the attribute sends the first of them, in the order you have the values in. Arbitrary, but the same every time - a label that wandered between runs would move the product between rate groups every time Google fetched the feed.
+- The dropdown is empty, and the setting greyed out, on a shop with no module keeping product attributes. Nothing to group by.
+
+**Keep the wording brief.** Google allows 100 characters. Anything longer is shortened on the way out, with four odd-looking characters put on the end so that two long values that only differ near their end do not arrive as the same group - which would quietly hand them the same delivery rate. It works, but you then have to recognise the shortened version in Merchant Center, so short names are worth the ten minutes.
+
+Whatever the label says is what you type into the delivery rate in Merchant Center. It is your own wording travelling across unchanged, not a code.
+
+## Things that cannot be sent back
+
+Some things genuinely cannot come back - upholstered to order in a fabric somebody chose, cut to a size nobody else wants, painted a colour only one office likes. The shop already knows which those are: it is the **Returns** setting on the product, and the sentence you wrote there is what a customer reads before they buy.
+
+Turn on **Tell Google which things cannot be sent back**, under Delivery in the Google Shopping settings tab, and that same sentence travels to Google as the item's return policy label. Off to start with, and deliberately so - see the warning below.
+
+- Every variation of a listing you marked follows it, without you touching a single combination. A variation that carries its own answer keeps it, in both directions: the one stock finish in a bespoke range can be returnable, and the one made-to-order finish in a stock range need not be.
+- A product you marked as non-returnable without writing a reason sends the stock sentence instead of nothing at all, because sending nothing tells Google the thing **is** returnable.
+- Anything you have not marked sends no label and is judged by whatever default policy your Merchant Center account holds. That is the right answer for ordinary stock.
+
+**Set the policies up first.** Merchant Center holds the actual policies - how long somebody has, who pays the postage, what state it has to come back in. The feed only names one. Create a return policy in Merchant Center for each different reason you use, named **exactly** the sentence you wrote on the product, character for character. A name Google does not recognise is ignored without a word, and the item goes back to being treated as returnable - which is the one outcome worth avoiding, and the reason this starts switched off.
+
+The same 100-character limit applies as to delivery groups above, and the same shortening if you go over it. One sentence per reason is plenty.
+
+If you change the wording on the product, change the policy name in Merchant Center to match. They are one thing said in two places, and they only work while they agree.
+
 ## Customer reviews on Google
 
 Two separate things, and a shop can have either on its own. Both live under **Shop → Settings → Google Shopping → Customer reviews on Google**.

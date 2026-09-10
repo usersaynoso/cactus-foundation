@@ -62,6 +62,42 @@ export async function saveCronFrequency(path: string, frequency: string | null):
   return body as CronSaveResult
 }
 
+export interface CronRunResult {
+  /** Whether the job itself answered happily. False is a job that ran and
+   *  failed, which is not the same as this request failing - both are worth
+   *  saying out loud, and only one of them is the site's fault. */
+  ok: boolean
+  job: { path: string; lastRunAt: string; lastStatus: string; lastError: string | null }
+  detail: string | null
+}
+
+/** Run one scheduled job this instant, and wait for it to finish. Used by the
+ *  Run now button on Settings > Schedules and by any module hosting the same
+ *  control on its own settings tab.
+ *
+ *  It really does wait: a job that takes half a minute keeps this promise open
+ *  for half a minute, because "it has been asked to" is not an answer anybody
+ *  can act on and the point of the button is to find out what happens. */
+export async function runCronJob(path: string): Promise<CronRunResult> {
+  const res = await fetch('/api/admin/cron/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  })
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(body?.error ?? 'Could not run that job')
+  return body as CronRunResult
+}
+
+/** What a run means, in words the owner can act on. A job that failed says why
+ *  where it said anything at all - the whole difference between a job somebody
+ *  can fix and one nobody can. */
+export function describeRunResult(result: CronRunResult): { message: string; tone: 'success' | 'danger' } {
+  if (result.ok) return { message: 'Done - that has just run.', tone: 'success' }
+  const why = result.job.lastError ?? result.detail
+  return { message: why ? `That did not finish: ${why}` : 'That did not finish.', tone: 'danger' }
+}
+
 // What a save means for the site, in words the owner can act on. A frequency change is
 // unusual among settings in that it can need a deploy before it is true, and saying so
 // is the difference between "it's working on it" and "it's ignoring me".

@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db/prisma'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import AccountPageClient from './AccountPageClient'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'My account — Admin' }
 
 export const dynamic = 'force-dynamic'
 

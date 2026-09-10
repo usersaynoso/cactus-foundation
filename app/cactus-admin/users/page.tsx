@@ -10,9 +10,13 @@ import PendingApprovalClient from './PendingApprovalClient'
 import InvitesClient from './InvitesClient'
 import MembersSettingsTab, { type MembersSettingsTabKey } from '../config/MembersSettingsTab'
 import RolesClient from '../config/RolesClient'
+import { adminScreenTitle } from '@/lib/nav/admin-menu'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Users — Admin' }
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const { tab } = await searchParams
+  return { title: adminScreenTitle('Users', tab) }
+}
 
 // Everything about the people on this site lives here: the staff and member
 // lists, the approval queue, invites, roles and the registration/account

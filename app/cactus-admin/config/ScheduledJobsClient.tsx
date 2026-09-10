@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   CronScheduleField,
+  describeRunResult,
   describeSaveResult,
+  runCronJob,
   saveCronFrequency,
   type CronFrequencyOption,
   type CronJobRow,
@@ -52,6 +54,7 @@ export default function ScheduledJobsClient() {
   const [data, setData] = useState<Payload | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingPath, setSavingPath] = useState<string | null>(null)
+  const [runningPath, setRunningPath] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ message: string; tone: 'success' | 'warning' | 'danger' } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -128,6 +131,43 @@ export default function ScheduledJobsClient() {
     [data]
   )
 
+  // Run now. The job is called and waited for, then its own row is updated from
+  // what came back - so "Last run" says what just happened rather than making
+  // the owner reload the page to find out whether it worked.
+  //
+  // One at a time, and never the same one twice: the button is disabled while
+  // its job is in flight, because a second press would start a second copy of
+  // something that is already running.
+  const runNow = useCallback(async (job: CronJobRow) => {
+    setRunningPath(job.path)
+    setNotice(null)
+    try {
+      const result = await runCronJob(job.path)
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              jobs: current.jobs.map((j) =>
+                j.path === job.path
+                  ? {
+                      ...j,
+                      lastRunAt: result.job.lastRunAt,
+                      lastStatus: result.job.lastStatus,
+                      lastError: result.job.lastError,
+                    }
+                  : j
+              ),
+            }
+          : current
+      )
+      setNotice(describeRunResult(result))
+    } catch (err) {
+      setNotice({ message: err instanceof Error ? err.message : 'Could not run that job', tone: 'danger' })
+    } finally {
+      setRunningPath(null)
+    }
+  }, [])
+
   if (loading) return <div style={{ color: 'var(--color-text-muted)' }}>Loading…</div>
   if (error) return <div className="alert alert-danger">{error}</div>
   if (!data) return null
@@ -156,6 +196,9 @@ export default function ScheduledJobsClient() {
                   <th>Job</th>
                   <th style={{ width: '16rem' }}>How often</th>
                   <th>Last run</th>
+                  <th style={{ width: '7rem' }}>
+                    <span className="sr-only">Run now</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -175,6 +218,19 @@ export default function ScheduledJobsClient() {
                       {job.lastStatus === 'failed' && job.lastError && (
                         <div style={{ fontSize: '0.8125rem' }}>{job.lastError}</div>
                       )}
+                    </td>
+                    <td>
+                      {/* Waits for the job rather than firing and forgetting, so
+                          the button says "Running…" for as long as it really is
+                          and the answer underneath it is the truth. */}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        disabled={runningPath !== null}
+                        onClick={() => void runNow(job)}
+                      >
+                        {runningPath === job.path ? 'Running…' : 'Run now'}
+                      </button>
                     </td>
                   </tr>
                 ))}
