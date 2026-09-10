@@ -480,13 +480,15 @@ The inbox is laid out the way a mail program is: one box the height of the windo
 
 | Group | What is in it |
 | --- | --- |
-| **Yours** | Your own address if you have been given one, then **All**, **Mentioned**, **Drafts**, **Scheduled**, **Sent** and **Spam**. The handful of places one person opens all day, in whatever order you drag them into. **Drafts** and **Scheduled** are only there while there is something in them. |
+| **Yours** | Your own address if you have been given one, then **All**, **Mentioned**, **Drafts**, **Scheduled** and **Sent**. The handful of places one person opens all day, in whatever order you drag them into. **Drafts** and **Scheduled** are only there while there is something in them. Underneath is a **More** button holding the two nobody opens on purpose - **Spam** and **Bin**. |
 | **Shared inboxes** | The addresses the business owns, each with a coloured dot and the number of open conversations beside it. Press one and its **Sent** folder appears underneath - everything that has left that address, whoever wrote it. |
-| **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Press one and their folders open out underneath - **Drafts**, **Sent**, **Mentioned** and **Spam**. Only there if somebody has shared one with you. |
+| **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Press one and their folders open out underneath - **Drafts**, **Sent**, **Mentioned**, **Spam** and **Bin**. Only there if somebody has shared one with you. |
 | **Channels** | The chat, form and phone conversations, where another part of the site owns them. |
 | **Everything else** | **Contacts** (the address book), **Campaigns** if you are allowed them, and, for whoever looks after the site, **Not filed**. |
 
-**The number beside an address is what is still open on it.** Not what has arrived unread: a conversation you have looked at, thought about and left is still a job, and a badge that emptied itself the moment you glanced at the list said nothing about the work in front of you. It is the same number the list shows when you click the address, because clicking one lands you on **Open** - so the rail and the head of the list agree. Something snoozed until Thursday is not in it, having been decided about, and neither is anything marked done. **Spam is the exception**: that number is unread junk, because a bin nobody empties would otherwise sit at a permanent 47 and stop meaning anything.
+**The number beside an address is what is still open on it.** Not what has arrived unread: a conversation you have looked at, thought about and left is still a job, and a badge that emptied itself the moment you glanced at the list said nothing about the work in front of you. It is the same number the list shows when you click the address, because clicking one lands you on **Open** - so the rail and the head of the list agree. Something snoozed until Thursday is not in it, having been decided about, and neither is anything marked done. **Spam and Bin are the exception**: those numbers are unread post, because a folder nobody empties would otherwise sit at a permanent 47 and stop meaning anything. How much is actually in a bin is written at the head of the folder, beside the button that empties it.
+
+**Spam and Bin live behind More.** They are the two places you go when something has gone missing rather than as part of a morning, and two rows both meaning "gone" sitting in the middle of the handful of places you actually live in are two rows to read past every time. Press **More** at the foot of **Yours** and they appear; press **Less** and they fold away again. While anything is waiting unread in either of them the button says how much, so folding them away cannot hide the one thing about them worth noticing - and standing in either folder leaves it showing, so the row telling you where you are is never the row that is hidden.
 
 The refresh button sits in a box stuck to the foot of the rail, with **Updated** and the time your post last arrived beside it (see [How often it checks](#how-often-it-checks)), and beside them the **bell** that turns browser nudges on and off (see [Being told when post arrives](#being-told-when-post-arrives)). The box does not scroll away with the list.
 
@@ -521,11 +523,12 @@ Once somebody is on it, that address appears in their rail under **Team inboxes*
 | **Drafts** | What **they** have started on that address and not sent. You cannot change one; you can send one out as it stands if you may send from the address - see below. |
 | **Sent** | Everything that has left that address. |
 | **Mentioned** | Conversations on that address that its owner has been tagged in. |
-| **Spam** | What has been thrown away out of their post, including anything you binned while covering. |
+| **Spam** | What has been marked as junk out of their post, including anything you marked while covering. |
+| **Bin** | What has been deleted out of their post, including anything you deleted while covering. Nothing in it is destroyed until somebody empties it. |
 
-**All four are theirs, and Drafts is the one worth pausing on.** Covering somebody's post means knowing what they have half-answered as well as what they have answered; not knowing is how a customer gets two replies from two people. So the folder holds Sam's unfinished writing, and it is there whether or not there is anything in it, exactly like the three beside it. Opening one shows the message rather than a writing box: only Sam can change, finish or throw away one of Sam's drafts. If you may send from Sam's address, the foot of the page offers to **send it for Sam** exactly as it stands - see [Drafts](#drafts). Your own half-written writing, wherever you left it, stays under **Drafts** in **Yours**.
+**All five are theirs, and Drafts is the one worth pausing on.** Covering somebody's post means knowing what they have half-answered as well as what they have answered; not knowing is how a customer gets two replies from two people. So the folder holds Sam's unfinished writing, and it is there whether or not there is anything in it, exactly like the three beside it. Opening one shows the message rather than a writing box: only Sam can change, finish or throw away one of Sam's drafts. If you may send from Sam's address, the foot of the page offers to **send it for Sam** exactly as it stands - see [Drafts](#drafts). Your own half-written writing, wherever you left it, stays under **Drafts** in **Yours**.
 
-The list is headed with the colleague's name in front of the folder - **Sam Blake · Drafts** - the same way their Sent, Spam and Mentioned lists are.
+The list is headed with the colleague's name in front of the folder - **Sam Blake · Drafts** - the same way their Sent, Spam, Mentioned and Bin lists are.
 
 The name itself is their inbox, exactly as a shared address's name is. Press the **&rsaquo;** again and the folders fold away. On a phone or a tablet, where there is no pointer to hover with, the arrow is simply always there.
 
@@ -560,7 +563,7 @@ Your widths are remembered in your own browser, so they are yours rather than th
 
 **Closing one again.** There is a **×** at the top right of anything open, level with its title, which shuts it and gives the width back. On a phone the same link reads **Back to the list**, because there the list is not on the screen at all. The same goes for a person's page.
 
-Junk is part of covering somebody too: what you throw away out of their inbox goes into their spam folder rather than yours, and their **Spam** folder sits under their name beside **Sent** and **Mentioned**. See [Junk, and turning a sender away](#junk-and-turning-a-sender-away).
+Junk and deleting are part of covering somebody too: what you mark as junk or delete out of their inbox goes into **their** spam folder or **their** bin rather than yours, and both sit under their name beside **Sent** and **Mentioned**. See [Junk, and turning a sender away](#junk-and-turning-a-sender-away) and [The bin](#the-bin).
 
 ### People's own pictures
 
@@ -578,7 +581,7 @@ Even so, it is somebody else being told something about your customer, which is 
 
 Turn it off again and everybody is back to initials immediately, including on a page somebody left open.
 
-**Working through several at once.** Rows are picked the way a mail program has picked them for thirty years: a plain click opens a conversation, cmd-click (ctrl on Windows) adds or removes one on its own, and shift-click picks everything between the last one and this one. Space and shift-space do the same for anybody on the keyboard. Pick a few and a bar appears above the list offering the things you would otherwise open each of them to do: **Mark as done**, **Mark as read**, **Mark as unread**, **Open again**, **Snooze** and **Mark as spam**. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
+**Working through several at once.** Rows are picked the way a mail program has picked them for thirty years: a plain click opens a conversation, cmd-click (ctrl on Windows) adds or removes one on its own, and shift-click picks everything between the last one and this one. Space and shift-space do the same for anybody on the keyboard. Pick a few and a bar appears above the list offering the things you would otherwise open each of them to do: **Mark as done**, **Mark as read**, **Mark as unread**, **Open again**, **Snooze**, **Mark as spam** and **Delete**. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
 
 Only the buttons that would actually change something are drawn. Pick six conversations you have already read and there is no **Mark as read** to press; pick six that are all open and there is no **Open again**. One out of six is enough to bring a button back, since that is exactly when you want it.
 
@@ -624,7 +627,7 @@ Every ask is written into the conversation's own log, naming who was asked, so "
 
 **Anything that closes a conversation offers to take it back.** Mark one done, snooze it, or junk it, and for five seconds afterwards a small **Undo** sits at the bottom of the screen. Pressing it puts the conversation back exactly where it stood - open if it was open, and still asleep until Monday if that is what it was. Leave it alone and it fades away by itself. It is there because all three of those take the conversation off the list you were looking at, and finding one again meant knowing that **All** exists and which of the forty rows in it was yours.
 
-The same offer appears when you do any of it to a picked pile from the bar above the list: **6 conversations snoozed**, with an **Undo** that puts all six back where each of them individually stood. Where you also turned the senders away, Undo brings the post back out of the bin and leaves the front door shut - it says so - because letting somebody back in is a decision about the whole site rather than about six messages, and it is made in the Spam folder or in the inbox settings.
+The same offer appears when you do any of it to a picked pile from the bar above the list: **6 conversations snoozed**, with an **Undo** that puts all six back where each of them individually stood. Where you also turned the senders away, Undo brings the post back out of the spam folder and leaves the front door shut - it says so - because letting somebody back in is a decision about the whole site rather than about six messages, and it is made in the Spam folder or in the inbox settings.
 
 **And the conversation stops being open beside the list.** Filing something, putting it to sleep or junking it takes it off the list you were reading, so the pane goes back to **Nothing open** rather than leaving you looking at a conversation the list beside it has just dropped. Junk has always done this; done and snoozed used to sit there afterwards, which read as though the press had not worked. If the pile you acted on from the bar happened to include the conversation you had open, the same thing happens.
 
@@ -693,7 +696,7 @@ Merging *conversations* and merging *people* are two different jobs. If the same
 
 ### Junk, and turning a sender away
 
-Every conversation has a **waste basket** at the top of it, on the left of the little alarm clock. Press it and you are asked before anything moves; answer, and the conversation goes into a **Spam** folder - whose, depending on where it came from.
+Every conversation has a **no-entry sign** at the top of it, between the waste basket and the little alarm clock. It is deliberately not a basket: a basket means Delete everywhere else in the world, and the basket beside it means exactly that (see [The bin](#the-bin)). This one means refused, which is what pressing it does - press it and you are asked before anything moves; answer, and the conversation goes into a **Spam** folder, whose depending on where it came from.
 
 **On a shared address, it goes in yours.** Nobody else's screen changes at all. What one person files as junk is the supplier newsletter a colleague reads every Tuesday, and on an address like `sales@` there are several people with several opinions - so the button records yours and leaves everybody else's list exactly as it was.
 
@@ -701,31 +704,31 @@ Every conversation has a **waste basket** at the top of it, on the left of the l
 
 It also leaves *your* view of their inbox, which is rather the point of covering somebody: you are trying to see what they would see, and post they have already binned is post you should not be working through.
 
-You can look in their bin, and take something back out of it, under their name on the rail - **Spam** sits there beside their **Sent** and **Mentioned**. So a mis-click while covering is a mis-click you can fix.
+You can look in their spam folder, and take something back out of it, under their name on the rail - **Spam** sits there beside their **Sent** and **Mentioned**. So a mis-click while covering is a mis-click you can fix.
 
 **Nothing is deleted.** The conversation keeps every message in it. Open the spam folder, press the same button again, and it goes straight back where it was.
 
-**The press asks before it moves anything.** Where there is a sender who could be turned away, pressing the basket puts up a second question - **would you like to block them as well?** - and nothing has happened yet when it appears. There are three answers:
+**The press asks before it moves anything.** Where there is a sender who could be turned away, pressing the sign puts up a second question - **would you like to block them as well?** - and nothing has happened yet when it appears. There are three answers:
 
 - **No, just move it** is the ordinary one. The conversation goes into the spam folder and the front door stays open.
 - **Block them** does the move *and* shuts the site's front door on that address. Nothing further from them reaches *any* inbox on this site - the shared ones, every colleague's own, and the ones nobody has opened in months. It is one list for the whole site, because a block that only covered the address you happened to be standing in is no block at all: they would simply write to `hello@` instead and turn up in somebody else's list an hour later.
 - **Cancel**, the cross in the top corner, Escape and a click on the background all mean the same thing: you did not mean to press it. Nothing moves and nobody is blocked.
 
-The two decisions are deliberately kept apart. Throwing one message away is a small decision about your own screen; refusing somebody in future is a decision about the whole business, and it should not happen by accident on the way past. The cross is there for the same reason in the other direction - the junk button sits next to the buttons you press all day, and a mis-press should cost you one click rather than a hunt through the bin.
+The two decisions are deliberately kept apart. Throwing one message away is a small decision about your own screen; refusing somebody in future is a decision about the whole business, and it should not happen by accident on the way past. The cross is there for the same reason in the other direction - the junk button sits next to the buttons you press all day, and a mis-press should cost you one click rather than a hunt through the spam folder.
 
 Where there is nobody to block - a conversation between colleagues, a caller who withheld their number, a sender already turned away, or you not being allowed to shut the front door - the question is a shorter one: **Move it to the spam folder?**, with **Move it to spam** and **Cancel**. The way out is there either way, because that is the half of it a mis-press needs.
 
 #### Where blocked post goes
 
-**Straight into the Spam folder, and nowhere else.** Post from a blocked address is still collected - it is just dropped in the bin the moment it arrives, **marked as dealt with** so it is out of everybody's way, and left **unread** so the folder can tell you how much of it there is. It never appears in an inbox, never adds to an address's number, never nudges anybody's browser and is never handed to a colleague as a job.
+**Straight into the Spam folder, and nowhere else.** Post from a blocked address is still collected - it is just dropped in the spam folder the moment it arrives, **marked as dealt with** so it is out of everybody's way, and left **unread** so the folder can tell you how much of it there is. It never appears in an inbox, never adds to an address's number, never nudges anybody's browser and is never handed to a colleague as a job.
 
-It is in the bin for **everybody**, which is the one thing on this screen that is not a matter of opinion. Junk you mark yourself is your own view of one conversation; a block is a decision about the site, so the post it turns away is out of everybody's lists and in everybody's Spam folder.
+It is in the spam folder for **everybody**, which is the one thing on this screen that is not a matter of opinion. Junk you mark yourself is your own view of one conversation; a block is a decision about the site, so the post it turns away is out of everybody's lists and in everybody's Spam folder.
 
 **Why collect it at all?** Because "did they ever actually write?" is a question somebody asks eventually, usually the week a customer rings up cross about being ignored - and until now the only way to answer it was to go and log into the mailbox yourself. A nuisance is a nuisance either way and you never have to look; somebody blocked in a temper turns out to have written four times, and now you can see that.
 
 **Blocking never deletes anything either.** Their old conversations stay exactly where they are - often that history is the whole reason you want them stopped.
 
-**If one of them turns out to be real**, open it in the Spam folder and press the same junk button at the top of it. That takes the conversation out of the bin for everybody and puts it back in the ordinary lists. The sender stays blocked: letting one conversation through and opening the front door again are two different decisions, and they are two different buttons.
+**If one of them turns out to be real**, open it in the Spam folder and press the same junk button at the top of it. That takes the conversation out of the spam folder for everybody and puts it back in the ordinary lists. The sender stays blocked: letting one conversation through and opening the front door again are two different decisions, and they are two different buttons.
 
 #### Who is blocked, and letting them back in
 
@@ -737,6 +740,30 @@ There are two ways to the list, and it is the same list either way:
 Both list every address the site refuses, who blocked it and when. Press **Let them through** and their post arrives normally again from the next round onwards. What was collected while the door was shut stays in the Spam folder until somebody takes it out, one conversation at a time.
 
 You need permission to reply in order to block somebody or to let them back in, since it changes what everybody receives. Seeing the list needs the same permission as the rest of the inbox settings, so the button in the Spam folder only appears for somebody who has that. Marking something as junk yourself only needs permission to read, because it only changes your own screen.
+
+### The bin
+
+Beside the junk sign at the top of every conversation is a **waste basket**, and it means what a waste basket means everywhere else: get rid of this one. Pick several in the list and there is a **Delete** button on the bar above them that does the same to the lot.
+
+**They are two different jobs, which is why there are two buttons.** Junk says "do not show me this sort of post" and is really about the sender; the bin says "I have finished with this particular conversation" and is about the conversation. With only one of the two on the screen people reach for whichever is there, and a spam folder slowly fills with post that was never spam - at which point it is no use for the one job it does have.
+
+**A deletion is yours, exactly as junk is.** What you delete leaves your lists and changes nothing at all on a colleague's screen. On a shared address like `sales@` it goes into **your** bin, because the address belongs to the team and the decision is yours alone.
+
+**On a colleague's own address it goes into theirs.** Covering somebody's post while they are away means clearing their inbox on their behalf, so what you delete out of it lands in **their** bin - not yours, which has no business filling up with a fortnight of somebody else's post. The button says so before you press it. Their bin sits under their name on the rail, beside their **Sent**, **Mentioned** and **Spam**, so a mis-click while covering is a mis-click you can fix.
+
+**Shared addresses have no bin of their own**, for the same reason they have no spam folder: a bin belongs to a person, and a shared address is nobody in particular.
+
+**Nothing is destroyed by being deleted.** The conversation keeps every message in it and sits in the bin until somebody empties it. Open the **Bin**, press the same basket again, and it goes straight back where it was - or pick a pile and press **Put back**, which is what the Delete button turns into inside the folder. You also get five seconds of **Undo** on the press itself, in the corner of the screen.
+
+**Nothing empties itself.** There is no thirty-day timer and no nightly sweep. A conversation that vanishes on a date nobody chose is exactly what makes people stop trusting a bin, so this one holds what you put in it until somebody presses the button.
+
+#### Emptying it
+
+In the head of the **Bin**, between the search box and the filters, there is a basket with its lid off. That is the one press on this screen that genuinely throws something away, and it asks first - it tells you how many conversations are about to go, that they go **for everybody who could see them** rather than only off your own screen, and that there is no way back. The keyboard starts on **Cancel**.
+
+It takes the permission that looks after the site rather than the one that reads it, so the button only appears for somebody who has that. Putting something in a bin hides it from one screen and undoes itself with the same press; emptying one takes the conversation away from every colleague who could read it, and those are not the same act.
+
+**Nothing is ever deleted from your mail account.** Whatever arrived by email is still sitting in the mailbox it arrived in, untouched - this site has never deleted a message from anybody's mailbox and does not start here. Emptying the bin clears what is held on this site: the conversations, and any files attached to them.
 
 ### The order the list is in
 
@@ -766,7 +793,7 @@ Nothing announces any of this while you are simply running your eye down the rai
 
 If you would rather not use a mouse for it, put the keyboard focus on a row, hold **Alt** and press the up or down arrow keys.
 
-**Yours is yours, and the other three are the site's.** The order of **Yours** - your own address, **All**, **Mentioned**, **Drafts**, **Scheduled**, **Sent**, **Spam** - is saved against you and seen by nobody else, so it needs no permission at all: somebody who lives in **Sent** can put it second, and everybody else's rail carries on exactly as it was. The other three are one arrangement that everybody who opens the inbox sees, which is why only people who can manage inboxes can change them. If you can read the inbox but not manage it, those three sit where whoever looks after the site has put them and do not drag; **Yours** still does.
+**Yours is yours, and the other three are the site's.** The order of **Yours** - your own address, **All**, **Mentioned**, **Drafts**, **Scheduled**, **Sent**, and **Spam** and **Bin** behind **More** - is saved against you and seen by nobody else, so it needs no permission at all: somebody who lives in **Sent** can put it second, and everybody else's rail carries on exactly as it was. The other three are one arrangement that everybody who opens the inbox sees, which is why only people who can manage inboxes can change them. If you can read the inbox but not manage it, those three sit where whoever looks after the site has put them and do not drag; **Yours** still does.
 
 One quiet detail about the channels: you can only rearrange the ones you can see, and what somebody may see is decided by the module each channel belongs to. Move the two you have and the ones you do not stay exactly where they were for the colleagues who do.
 
@@ -1112,9 +1139,9 @@ Four permissions, handed out through [Managing users](Managing-users) as usual:
 
 | Permission | What it allows |
 |---|---|
-| `unifiedinbox.view` | Read conversations, mark them as junk in your own spam folder, and read the address book |
+| `unifiedinbox.view` | Read conversations, mark them as junk in your own spam folder, delete them into your own bin, and read the address book |
 | `unifiedinbox.reply` | Reply, forward, note, assign, snooze, mark done, block a sender, add and correct a contact, make a category |
-| `unifiedinbox.manage` | Settings, mail accounts, inboxes, the list of blocked senders and letting one back in, merging conversations, merging people, export and erase, importing an address book, removing an organisation, renaming or removing a category |
+| `unifiedinbox.manage` | Settings, mail accounts, inboxes, the list of blocked senders and letting one back in, merging conversations, merging people, **emptying a bin**, export and erase, importing an address book, removing an organisation, renaming or removing a category |
 | `unifiedinbox.campaigns` | Write, start, pause and stop campaigns, and manage the do-not-email list |
 
 **Campaigns is its own permission on purpose.** Renaming a folder and emailing five thousand customers are not the same act, and a site that has given somebody the first has not thereby given them the second. Sending a campaign from an address still needs permission to reply from that address as well - a campaign is a great many replies, and it is not a way round the guest list.

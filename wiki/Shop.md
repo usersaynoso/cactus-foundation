@@ -869,9 +869,36 @@ The whole thing can be switched off under **Settings → Shop → Checkout → O
 
 One thing to know if you've edited your emails: the *Keep track of your order* line is part of the wording Cactus ships, and any template you've already rewritten keeps your wording rather than having ours put back. Add `{{orderUrl}}` where you want the link on those, in **Settings → Email → Templates**.
 
-Anyone can still look an order's status up the old way as well, using their order number and the email address it was placed under.
+Anyone can still look an order's status up the old way as well, using their order number and the email address it was placed under. That is typed into a box now rather than being carried in the address of the page, so there is no link to that order for anybody to come across afterwards.
 
 **Orders** and **Addresses & Phone Numbers** appear as tabs inside the customer's account, after **Account & Security**. If you've switched on **Put the whole account on one page** (under **Users → Settings → Account sections**), they come onto that page instead, in the same order the tabs run in, and the tabs scroll to them. An individual order still opens on a page of its own either way.
+
+### The receipt page, and whose device it opens on
+
+The page a customer lands on after paying is a receipt: their name, the address the parcel is going to, every line they bought and what they paid. Its address carries a long code that says which order it is, and that code cannot be guessed.
+
+What it can do is travel. Receipt links get forwarded to a colleague, pasted into a family chat, left in the history of a shared computer at work, and quietly synced between somebody's laptop and their phone. So the code alone no longer opens the page.
+
+The machine that placed the order is let straight in, every time, with nothing to type. Buying the thing is the proof, and the shop makes a note of it at the till. Come back to the same link on that machine a week later and the receipt is simply there.
+
+Anywhere else, the page asks for the **delivery postcode** first, and then shows the receipt exactly as it would have done. Same box, same forgiveness about spaces and capitals, and the same protection behind it: eight wrong answers on one order and that order stops answering for an hour, however many computers the guesses come from. On a shop selling to somewhere that does not use postcodes, it asks for the email address the order was placed with instead, because a blank box must never be the key to anything.
+
+That note lasts **30 days**, which is the same as the postcode proof elsewhere. After that a customer opening an old receipt gives their postcode once, which on a link that has had a month to be passed around is the right way round.
+
+Nothing about this needs setting up, and there is nothing to switch off. It does not touch the order page, the tracking page, or looking an order up with an order number and an email address, all of which work exactly as they did.
+
+### Your paperwork asks the same question
+
+Invoices, credit notes and proformas used to open for anybody holding their link. That was deliberate once - the person who actually pays a bill is very often somebody in an accounts department who will never have a login here - but the link never expires, it sits in a mail archive for years, and what it opens is a name, an address and what was spent.
+
+So the three of them now ask the same one question the receipt does. The customer goes straight through on the machine they ordered from, and so does anybody signed in: you and your staff from the order screen, and the customer from their own order page. Anybody else gives the delivery postcode once, and then the document is theirs.
+
+Two things worth knowing:
+
+- **The PDF still travels with the email.** Where you have PDF paperwork switched on, the invoice or credit note is attached to the message itself, so forwarding it to an accounts department is a matter of forwarding the email. Nothing about that has changed.
+- **A forwarded LINK now asks for the postcode.** If you send somebody the address of an invoice rather than the file, they will be asked for the delivery postcode before it opens. Worth a sentence in the covering email if you do that often.
+
+Nothing needs setting up, and there is nothing to switch off.
 
 ### Order updates by text message
 
