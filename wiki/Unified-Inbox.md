@@ -245,11 +245,13 @@ The phone goes halfway through a reply, and until now that cost you the reply. N
 
 **It is only there while there is something in it.** Nothing half-written, no Drafts row: an empty folder is a place you can only ever go and be disappointed by, and being able to write from an address is not a reason to be shown one. It appears the moment a box puts itself down and goes again once the last one has been sent or thrown away - except while you are standing in it, so emptying the folder does not pull the list out from under you.
 
-**Your drafts are yours.** Nobody else sees them, whatever they are allowed to read and whatever address they sit on. Sharing accounts@ shares what has been sent from it and what has arrived at it; it does not share the sentence somebody is halfway through typing. A price you have not checked yet, or an apology you have not decided to make, is not something a colleague finds in a list - which is how every mail program has worked since the nineties, and how this one works.
+**Your drafts are yours on a shared address.** Sharing accounts@ shares what has been sent from it and what has arrived at it; it does not share the sentence somebody is halfway through typing. A price you have not checked yet, or an apology you have not decided to make, is not something the rest of the team finds in a list.
 
-**And nobody else can finish one, either.** Being allowed to send as accounts@ does not let you open, change, send or throw away a draft somebody else started on it. The cost of that is honest and worth saying: a half-written message belonging to somebody on leave waits for them, and there is no way to take it over. If it needs to go out, write it and send it.
+**The one exception is somebody's own address, and only for the people covering it.** If Sam's address has been shared with you by name, Sam's unfinished replies show under **Sam Blake → Drafts** on the rail. That is a deliberate choice and worth being plain about: you are already reading every message that arrives at Sam's address and every message that leaves it, and the one thing you could not see was the answer Sam started on Tuesday and did not finish - which is exactly how the same customer ends up written to twice, once by Sam on Friday and once by you this morning. Nobody who has not been put on that address sees any of it.
 
-Drafts under a colleague's name are **yours**, and the rail calls them **Your drafts** so that there is no reading of it where they are theirs. They show only where you have left something on that address, and the list is headed with the address it was left on - **Drafts · sam@example.com** - rather than with the colleague's name, because whose writing it is and which address it sits on are two different facts.
+**Reading is the whole of it.** You cannot finish somebody else's draft, send it, change it or throw it away, from that folder or anywhere else, and there is no button offering to. The cost of that is honest and worth saying: a half-written message belonging to somebody on leave waits for them. If it needs to go out, write it yourself and send it - now knowing what they had already said.
+
+**Opening one shows the message rather than a writing box**: who it is to, what it is about, what is attached, when it is set to go out if it is, and the words. If it is an answer to a conversation, there is a link across to that conversation. At the foot it says whose writing it is and that only they can finish it, so there is no hunting for a Send button that was never going to be there.
 
 Opening a conversation shows your own draft on it, if you left one. There is one draft per conversation per person, which is the box, put down; saving again writes over it rather than leaving you to choose between two halves of the same sentence. Two people can each have one on the same conversation, and each sees only their own.
 
@@ -471,10 +473,12 @@ The inbox is laid out the way a mail program is: one box the height of the windo
 | Group | What is in it |
 | --- | --- |
 | **Yours** | Your own address if you have been given one, then **All**, **Mentioned**, **Drafts**, **Scheduled**, **Sent** and **Spam**. The handful of places one person opens all day, in whatever order you drag them into. **Drafts** and **Scheduled** are only there while there is something in them. |
-| **Shared inboxes** | The addresses the business owns, each with a coloured dot and the number of unread conversations beside it. |
-| **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Put the pointer on one and its coloured dot becomes a **&rsaquo;** you can press to open their folders - their **Sent**, **Mentioned** and **Spam**. Only there if somebody has shared one with you. |
+| **Shared inboxes** | The addresses the business owns, each with a coloured dot and the number of open conversations beside it. |
+| **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Put the pointer on one and its coloured dot becomes a **&rsaquo;** you can press to open their folders - their **Drafts**, **Sent**, **Mentioned** and **Spam**. Only there if somebody has shared one with you. |
 | **Channels** | The chat, form and phone conversations, where another part of the site owns them. |
 | **Everything else** | **Contacts** (the address book), **Campaigns** if you are allowed them, and, for whoever looks after the site, **Not filed**. |
+
+**The number beside an address is what is still open on it.** Not what has arrived unread: a conversation you have looked at, thought about and left is still a job, and a badge that emptied itself the moment you glanced at the list said nothing about the work in front of you. It is the same number the list shows when you click the address, because clicking one lands you on **Open** - so the rail and the head of the list agree. Something snoozed until Thursday is not in it, having been decided about, and neither is anything marked done. **Spam is the exception**: that number is unread junk, because a bin nobody empties would otherwise sit at a permanent 47 and stop meaning anything.
 
 The refresh button sits in a box stuck to the foot of the rail, with **Updated** and the time your post last arrived beside it (see [How often it checks](#how-often-it-checks)), and beside them the **bell** that turns browser nudges on and off (see [Being told when post arrives](#being-told-when-post-arrives)). The box does not scroll away with the list.
 
@@ -490,7 +494,7 @@ The refresh button sits in a box stuck to the foot of the rail, with **Updated**
 
 ### On a phone or a tablet
 
-The same mail program, one pane at a time. Below about 1200px there is no room for a column of places down the left, so **the rail becomes a bar along the top** saying where you are - the inbox's coloured dot, its name and what is unread in it - with the magnifier and the pen beside it. **Press the name and the whole rail slides in from the left** as a drawer: the same five groups, the same headings, the same order, your name and picture at the top of it and the refresh button and bell at the foot. Pick a place and it slides away again; the cross at the top, the dimmed page behind it or the Escape key put it away without choosing. It used to be one strip that scrolled sideways, with half the addresses off the edge of the screen and nothing to say so.
+The same mail program, one pane at a time. Below about 1200px there is no room for a column of places down the left, so **the rail becomes a bar along the top** saying where you are - the inbox's coloured dot, its name and what is still open in it - with the magnifier and the pen beside it. **Press the name and the whole rail slides in from the left** as a drawer: the same five groups, the same headings, the same order, your name and picture at the top of it and the refresh button and bell at the foot. Pick a place and it slides away again; the cross at the top, the dimmed page behind it or the Escape key put it away without choosing. It used to be one strip that scrolled sideways, with half the addresses off the edge of the screen and nothing to say so.
 
 **On a tablet** (roughly 900px and up) the list stays beside what you have opened, exactly as on a desktop. **On a phone** you see the list, or the thing you opened from it, never both: a **&lsaquo;** at the start of the subject line takes you back to the list, and the box fills the screen edge to edge under the admin's own bar rather than sitting in a frame. Every pane scrolls its own contents, so the conversation's subject and its buttons stay at the top while you read, and the note bar stays at the bottom. The buttons on the subject line run sideways under your thumb rather than piling up in rows.
 
@@ -506,11 +510,14 @@ Once somebody is on it, that address appears in their rail under **Team inboxes*
 
 | Folder | What is in it |
 | --- | --- |
+| **Drafts** | What **they** have started on that address and not sent. Read only - see below. |
 | **Sent** | Everything that has left that address. |
 | **Mentioned** | Conversations on that address that its owner has been tagged in. |
-| **Your drafts** | What **you** have started on that address and not sent. Only there while there is something in it. |
+| **Spam** | What has been thrown away out of their post, including anything you binned while covering. |
 
-**Your drafts is yours, and it says so in the name.** A draft belongs to whoever wrote it, so a list under somebody else's name could only ever hold your own writing - calling it plain "Drafts" under **Sam Blake** would read as Sam's half-written messages, and those are nobody's to see but Sam's. It appears the moment you leave something on their address and goes again once the last one has been sent or thrown away, so an address you only ever read carries no such row.
+**All four are theirs, and Drafts is the one worth pausing on.** Covering somebody's post means knowing what they have half-answered as well as what they have answered; not knowing is how a customer gets two replies from two people. So the folder holds Sam's unfinished writing, and it is there whether or not there is anything in it, exactly like the three beside it. It is **read only** - opening one shows the message and says so at the foot. Only Sam can finish, send, change or throw away one of Sam's drafts, and no button here offers otherwise. Your own half-written writing, wherever you left it, stays under **Drafts** in **Yours**.
+
+The list is headed with the colleague's name in front of the folder - **Sam Blake · Drafts** - the same way their Sent, Spam and Mentioned lists are.
 
 The name itself is their inbox, exactly as a shared address's name is. Press the **&rsaquo;** again and the folders fold away. On a phone or a tablet, where there is no pointer to hover with, the arrow is simply always there.
 
@@ -519,6 +526,7 @@ The name itself is their inbox, exactly as a shared address's name is. Press the
 - You read that address, and you answer from it only if **Can reply as this address** was ticked beside your name. Reading and answering are two separate grants everywhere in this hub, and this is no exception.
 - Their conversations join your **All** view and your search results, because you can genuinely open them. Nobody else's do.
 - **Their Mentioned folder is read-only to you.** You can see what colleagues have asked them about, which is exactly the point when you are covering for them; you cannot mark it done or put it off until Thursday. Somebody else's list of jobs is theirs to work through.
+- **Their Drafts folder is read-only to you too**, and for the same reason it is there at all: knowing what they have already half-answered is how you avoid answering it a second time. You can read the words; you cannot finish, change, send or throw away one of their drafts.
 - It is one address, not a person. Being let into `sam@` does not let you into anything else of Sam's, and it does not follow them if the address is later handed to somebody else.
 - **Untick the name and it is gone again**, immediately and completely - out of the rail, out of **All**, out of search.
 
@@ -608,7 +616,7 @@ Every ask is written into the conversation's own log, naming who was asked, so "
 
 That covers the customer answering, and it covers a colleague answering them from their own phone or from Outlook rather than from here. Either way somebody is dealing with it now, and it should not be hidden.
 
-**Done is the half that matters more**, which is not obvious. A snoozed conversation comes back on its own on Thursday whatever happens. A finished one never does - and the unread count on your address tabs deliberately skips conversations you have marked done, because otherwise every tidy-up would leave a badge behind. So before this, a customer replying to something you had finished with landed unread at the top of the **Done** tab, with no number anywhere to tell you, and stayed there. It is now back in Open with the rest of your morning.
+**Done is the half that matters more**, which is not obvious. A snoozed conversation comes back on its own on Thursday whatever happens. A finished one never does - and the number on your address tabs counts open conversations, so a finished one is not in it. So before this, a customer replying to something you had finished with landed at the top of the **Done** tab, with no number anywhere to tell you, and stayed there. It is now back in Open with the rest of your morning.
 
 Three things deliberately leave a conversation where it is. An out-of-office and a bounce, because that is the mail system talking rather than a person - which is also what stops a mailing list nobody has unsubscribed from dragging a finished conversation back into Open every week. An internal note, for the same reason it does not bump the conversation or mark it unread: us talking among ourselves is not the customer writing back. And your own reply sent from here, because you already knew you were answering.
 
@@ -691,7 +699,7 @@ Where there is nobody to block - a conversation between colleagues, a caller who
 
 #### Where blocked post goes
 
-**Straight into the Spam folder, and nowhere else.** Post from a blocked address is still collected - it is just dropped in the bin the moment it arrives, **marked as dealt with** so it is out of everybody's way, and left **unread** so the folder can tell you how much of it there is. It never appears in an inbox, never bumps an unread badge, never nudges anybody's browser and is never handed to a colleague as a job.
+**Straight into the Spam folder, and nowhere else.** Post from a blocked address is still collected - it is just dropped in the bin the moment it arrives, **marked as dealt with** so it is out of everybody's way, and left **unread** so the folder can tell you how much of it there is. It never appears in an inbox, never adds to an address's number, never nudges anybody's browser and is never handed to a colleague as a job.
 
 It is in the bin for **everybody**, which is the one thing on this screen that is not a matter of opinion. Junk you mark yourself is your own view of one conversation; a block is a decision about the site, so the post it turns away is out of everybody's lists and in everybody's Spam folder.
 
@@ -801,7 +809,7 @@ A colleague who is allowed to see the contact form but not this hub keeps their 
 
 A contact form can name the inbox its enquiries belong in. Edit the page, open the **Contact Form** block, and pick one under **Deliver enquiries to**.
 
-From then on an enquiry from that form is ordinary post in that inbox. It sits in the list with the emails, it counts towards that inbox's unread number, and whoever is allowed to read that inbox is allowed to read it - which is worth reading twice, because it is the whole rule. Point a form at an inbox only two people can open, and only those two see what comes in on it.
+From then on an enquiry from that form is ordinary post in that inbox. It sits in the list with the emails, it counts towards that inbox's number, and whoever is allowed to read that inbox is allowed to read it - which is worth reading twice, because it is the whole rule. Point a form at an inbox only two people can open, and only those two see what comes in on it.
 
 It also stops appearing under **Other channels**, because it is in an inbox now and one thing should be in one place. Enquiries from forms that name no inbox stay where they always were.
 
