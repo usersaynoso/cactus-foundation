@@ -3,7 +3,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { deleteMedia } from '@/lib/media/upload'
-import { reconcileMediaStorage, correctRecordedSizes, purgeMissingRows } from '@/lib/media/reconcile'
+import { reconcileMediaStorage, correctRecordedSizes, purgeMissingRows, adoptClaimedObjects } from '@/lib/media/reconcile'
 
 // Compare the media library against what storage actually holds, and repair the
 // two drifts that are safe to repair. Slow by nature - it lists every object the
@@ -42,6 +42,15 @@ export async function GET() {
 //                                              `claimed`, never `orphaned`, so a
 //                                              stale page asking for one is
 //                                              simply skipped.
+//   { action: 'adopt-claimed', keys: [] }    - gives a library entry to objects
+//                                              the site is using that the library
+//                                              has never heard of. Writes rows,
+//                                              touches no file, so it needs the
+//                                              upload permission rather than the
+//                                              delete one. A module's private
+//                                              files are never claimed in the
+//                                              first place, so they cannot be
+//                                              adopted by asking for them here.
 //   { action: 'purge-missing', keys: [],     - removes library entries whose
 //     force?: boolean }                        file is no longer in storage.
 //                                              Deletes no blob (there isn't one
@@ -90,6 +99,15 @@ export async function POST(request: NextRequest) {
         }
       }
       return NextResponse.json({ deleted: deleted.length, skipped: skipped.length, reclaimedBytes })
+    }
+
+    if (action === 'adopt-claimed') {
+      if (!await hasPermission(user, 'media.upload')) return errorResponse('Forbidden', 403)
+
+      const requested = Array.isArray(body?.keys) ? body.keys.filter((k: unknown) => typeof k === 'string') as string[] : []
+      if (requested.length === 0) return errorResponse('No files selected')
+
+      return NextResponse.json(await adoptClaimedObjects(requested, user.id))
     }
 
     if (action === 'purge-missing') {

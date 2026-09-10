@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { formatBytes } from './format'
 // Type-only - erased at build, so the server-only reconcile module (and its
 // prisma import) never reaches the client bundle.
-import type { StorageReconcile, PurgeMissingResult } from '@/lib/media/reconcile'
+import type { StorageReconcile, PurgeMissingResult, AdoptClaimedResult } from '@/lib/media/reconcile'
 
 // Storage check. Every other figure on this page is counted from the library's
 // own records, so it can only ever agree with itself; this is the one thing that
@@ -14,7 +14,7 @@ import type { StorageReconcile, PurgeMissingResult } from '@/lib/media/reconcile
 // object the storage holds, which is far too slow to sit in front of a page
 // render, and it is a maintenance job an admin reaches for rather than a number
 // they watch.
-export default function MediaStorageCheck({ canDelete }: { canDelete: boolean }) {
+export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete: boolean; canUpload: boolean }) {
   const [state, setState] = useState<'idle' | 'scanning' | 'working'>('idle')
   const [result, setResult] = useState<StorageReconcile | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +74,7 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
   // limit, whatever the size of the cleanup. Purges are cheap per key (bulk row
   // deletes); orphan deletes call storage once per file, so they go in smaller
   // batches.
-  const BATCH_SIZE = { 'purge-missing': 200, 'delete-orphans': 25 } as const
+  const BATCH_SIZE = { 'purge-missing': 200, 'delete-orphans': 25, 'adopt-claimed': 50 } as const
 
   async function post(action: string, keys?: string[], force?: boolean) {
     setState('working'); setError(null); setNote(null); setBlocked([])
@@ -82,6 +82,22 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
       if (action === 'correct-sizes') {
         const data = await requestRepair<{ corrected: number }>(action)
         setNote(data.corrected === 0 ? 'Nothing needed correcting.' : `Corrected ${data.corrected} recorded size${data.corrected === 1 ? '' : 's'}.`)
+      } else if (action === 'adopt-claimed') {
+        const all = keys ?? []
+        const size = BATCH_SIZE[action]
+        let adopted = 0, adoptedBytes = 0
+        const refused: AdoptClaimedResult['skipped'] = []
+        for (let i = 0; i < all.length; i += size) {
+          if (all.length > size) setNote(`Adding… ${Math.min(i, all.length)} of ${all.length} handled so far.`)
+          const data = await requestRepair<AdoptClaimedResult>(action, all.slice(i, i + size))
+          adopted += data.adopted
+          adoptedBytes += data.adoptedBytes
+          refused.push(...(data.skipped ?? []))
+        }
+        setNote(
+          `Added ${adopted} file${adopted === 1 ? '' : 's'} to the library, ${formatBytes(adoptedBytes)} in all.` +
+          (refused.length > 0 ? ` ${refused.length} could not be added: ${refused.map((r) => `${r.key} - ${r.reason}`).join('; ')}.` : '')
+        )
       } else if (action === 'purge-missing') {
         const all = keys ?? []
         const size = BATCH_SIZE[action]
@@ -179,15 +195,42 @@ export default function MediaStorageCheck({ canDelete }: { canDelete: boolean })
             rows={result.orphaned.map((o) => ({ key: o.key, label: o.key, detail: formatBytes(o.sizeBytes) }))}
           />
 
-          {/* No button of any kind: these are in use. They are shown so the gap
-              is visible, not so it can be cleared. */}
+          {/* Never a delete button: these are in use. The one thing on offer is
+              the opposite - give each of them the library entry it should have
+              had, which is also the only way this list ever empties. */}
           <Group
             title="In use, but with no entry here"
             empty="Everything the site uses has an entry in this library."
             count={result.claimed.length}
             summary={`${formatBytes(result.claimedBytes)}, kept safe and never offered for deletion`}
+            action={
+              canUpload && result.claimed.length > 0
+                ? {
+                    label: state === 'working' ? 'Adding…' : 'Add these to the library',
+                    danger: false,
+                    onClick: () => {
+                      const ok = window.confirm(
+                        `Add ${result.claimed.length} file${result.claimed.length === 1 ? '' : 's'} to this library?\n\nNothing is moved, copied or changed - each one gets the entry it should have had, filed where its address already says it lives. They will then show up in the library and count towards your storage total.`
+                      )
+                      if (ok) void post('adopt-claimed', result.claimed.map((o) => o.key))
+                    },
+                  }
+                : undefined
+            }
             rows={result.claimed.map((o) => ({ key: o.key, label: o.key, detail: formatBytes(o.sizeBytes) }))}
           />
+
+          {/* Only rendered when there are some: on a site with no module keeping
+              private files it is a line about nothing. No button of any kind -
+              staying out of the library is the whole point of them. */}
+          {result.moduleOwned.length > 0 && (
+            <Group
+              title="Kept outside the library on purpose"
+              count={result.moduleOwned.length}
+              summary={`${formatBytes(result.moduleOwnedBytes)}, held by a feature that keeps its own files - email attachments and the like`}
+              rows={result.moduleOwned.map((o) => ({ key: o.key, label: o.key, detail: formatBytes(o.sizeBytes) }))}
+            />
+          )}
 
           <Group
             title="Files that have gone"
@@ -282,14 +325,15 @@ const MAX_ROWS_SHOWN = 20
 
 function Group({
   title,
-  empty,
+  empty = '',
   count,
   summary,
   rows,
   action,
 }: {
   title: string
-  empty: string
+  /** Shown when the group is empty. Omitted by a group only rendered when it isn't. */
+  empty?: string
   count: number
   summary: string
   rows: { key: string; label: string; detail: string }[]

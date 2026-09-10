@@ -119,6 +119,21 @@ export default async function PublicLayout({ children }: { children: React.React
       {modulePublicHead?.jsonLd.map((data, i) => (
         <script key={`module-jsonld-${i}`} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(data) }} />
       ))}
+      {/* Site-wide <link> tags a module wants on every page. React hoists a
+          <link> into the head from anywhere, which is what lets a layout
+          contribute one - the same trick as the JSON-LD above. This is how the
+          site says it keeps Markdown copies of itself, and there is no meta tag
+          that can say that. */}
+      {modulePublicHead?.links.map((link, i) => (
+        <link
+          key={`module-link-${link.rel}-${i}`}
+          rel={link.rel}
+          href={link.href}
+          {...(link.type ? { type: link.type } : {})}
+          {...(link.title ? { title: link.title } : {})}
+          {...(link.hrefLang ? { hrefLang: link.hrefLang } : {})}
+        />
+      ))}
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       {cssStyles && <style dangerouslySetInnerHTML={{ __html: cssStyles }} />}
       <AosInit />

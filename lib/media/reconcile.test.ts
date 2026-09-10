@@ -91,6 +91,40 @@ describe('diffStorageAgainstRows', () => {
     expect(d.claimed).toEqual([])
   })
 
+  it('files a module\u2019s private object separately, and never as an orphan', () => {
+    // An email attachment nobody has opened yet: no library row, and nothing in
+    // the usage index mentions it either. Without the private test it reads as a
+    // leftover with a delete button over it.
+    const d = diffStorageAgainstRows(
+      'B2',
+      [],
+      [obj('media/unified-inbox/msg-1/a-invoice.pdf', 90_000), obj('media/spare.webp', 10)],
+      () => false,
+      (k) => k.startsWith('media/unified-inbox/'),
+    )
+    expect(d.moduleOwned.map((o) => o.key)).toEqual(['media/unified-inbox/msg-1/a-invoice.pdf'])
+    expect(d.moduleOwnedBytes).toBe(90_000)
+    expect(d.orphaned.map((o) => o.key)).toEqual(['media/spare.webp'])
+    expect(d.claimed).toEqual([])
+  })
+
+  it('keeps a private object out of the claimed pile, so nothing offers to adopt it', () => {
+    // The private test is asked FIRST. A claimed private file would be listed as
+    // one the admin should give a library entry to, which is the single thing the
+    // module wrote it outside the library to prevent.
+    const key = 'media/unified-inbox/msg-1/a-invoice.pdf'
+    const d = diffStorageAgainstRows('B2', [], [obj(key, 90_000)], () => true, () => true)
+    expect(d.claimed).toEqual([])
+    expect(d.orphaned).toEqual([])
+    expect(d.moduleOwned.map((o) => o.key)).toEqual([key])
+  })
+
+  it('leaves every pile but the orphans alone when no private test is given', () => {
+    const d = diffStorageAgainstRows('B2', [], [obj('media/a.webp', 500)])
+    expect(d.moduleOwned).toEqual([])
+    expect(d.moduleOwnedBytes).toBe(0)
+  })
+
   it('matches keys exactly, so a shared prefix is not treated as the same file', () => {
     const d = diffStorageAgainstRows(
       'B2',

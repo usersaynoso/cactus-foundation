@@ -83,7 +83,11 @@ export function normaliseVercelEdgeTtl(value: unknown): VercelEdgeTtl {
 // The machine-read addresses that get the long window. Matched on the path
 // alone, so a page of a site's own called "sitemap" (/sitemap, no extension) is
 // not one of them.
-const MACHINE_READ_PATH = /^\/(?:robots\.txt|sitemap[\w-]*\.xml)$|\/feed\.xml$/
+//
+// The .md suffix is in here for the Markdown twin of every page - nothing else
+// on the site answers on that suffix, and a page whose slug genuinely ends in
+// ".md" is served as Markdown too, so it belongs in the same window either way.
+const MACHINE_READ_PATH = /^\/(?:robots\.txt|llms\.txt|llms-full\.txt|sitemap[\w-]*\.xml)$|\/feed\.xml$|\.md$/
 
 export function usesLongCacheWindow(path: string, hasQuery: boolean): boolean {
   return hasQuery || MACHINE_READ_PATH.test(path)

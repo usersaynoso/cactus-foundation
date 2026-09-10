@@ -214,7 +214,7 @@ for (const moduleName of moduleNames) {
 // uk-bookkeeping's ledger UI) was landing in the browser bundle of every public
 // page. 5.5MB of JavaScript to draw a category listing. Splitting the tables so
 // the public route can only reach public loaders is the whole fix; keep it that
-// way. Nothing under app/(public), app/sitemap.ts or app/robots.ts may import
+// way. Nothing under app/(public), app/sitemap.ts or app/robots.txt may import
 // lib/modules/router.ts, and lib/modules/router.public.ts may never import it
 // back - guarded by lib/modules/router-split.test.ts.
 // ---------------------------------------------------------------------------
@@ -356,11 +356,11 @@ admin.push(`export const MODULES_IN_BUILD: ReadonlySet<string> = new Set(${JSON.
 
 // ---------------------------------------------------------------------------
 // lib/modules/router.public.ts — the public site's half. Everything reachable
-// from app/(public), app/sitemap.ts and app/robots.ts, and nothing else.
+// from app/(public), app/sitemap.ts and app/robots.txt, and nothing else.
 // ---------------------------------------------------------------------------
 const pub = banner([
   `// The public site's module routing. Imported by app/(public)/[slug], its feed`,
-  `// routes, app/sitemap.ts and app/robots.ts.`,
+  `// routes, app/sitemap.ts and app/robots.txt.`,
   `//`,
   `// This file exists so those routes cannot reach PAGE_LOADERS in router.ts. A lazy`,
   `// \`() => import(...)\` is still an import edge, so when the two lived together the`,
@@ -368,6 +368,11 @@ const pub = banner([
   `// editor, its client block map and three.js. Keep the halves apart.`,
 ])
 
+// Type-only, so it adds no runtime edge to this file's graph, and emitted ahead
+// of the shared type aliases so the file still opens with its imports. The
+// shape belongs to the serialiser that consumes it, not to the generator.
+pub.push(`import type { RobotsGroup } from '@/lib/seo/robots-txt'`)
+pub.push(``)
 pub.push(...SHARED_TYPES)
 pub.push(``)
 
@@ -500,14 +505,60 @@ for (const { moduleName, importPath } of robotsModules) {
 pub.push(`  return paths`)
 pub.push(`}`)
 pub.push(``)
+// The two optional halves of the same lib/robots.ts contract: rules aimed at
+// one named crawler rather than at everybody, and lines with no directive of
+// their own (Content-Signal). Both are called only when the module exports
+// them - every module that shipped before they existed exports neither, and a
+// generated file that called them unconditionally would throw for all of them.
+pub.push(`export async function collectModuleRobotsGroups(): Promise<RobotsGroup[]> {`)
+pub.push(`  const groups: RobotsGroup[] = []`)
+for (const { moduleName, importPath } of robotsModules) {
+  pub.push(`  try {`)
+  // Read through an index type rather than the module's own: a module that
+  // does not export this - which is every module written before it existed -
+  // makes `mod.getPublicRobotsGroups` a type error rather than the `undefined`
+  // the guard is checking for.
+  pub.push(`    const mod: Record<string, unknown> = await import('${importPath}')`)
+  pub.push(`    const fn = mod.getPublicRobotsGroups`)
+  pub.push(`    if (typeof fn === 'function') {`)
+  pub.push(`      groups.push(...await (fn as () => Promise<RobotsGroup[]>)())`)
+  pub.push(`    }`)
+  pub.push(`  } catch (err) {`)
+  pub.push(`    console.error('[collectModuleRobotsGroups] ${moduleName} failed:', err)`)
+  pub.push(`  }`)
+}
+pub.push(`  return groups`)
+pub.push(`}`)
+pub.push(``)
+pub.push(`export async function collectModuleRobotsExtraLines(): Promise<string[]> {`)
+pub.push(`  const lines: string[] = []`)
+for (const { moduleName, importPath } of robotsModules) {
+  pub.push(`  try {`)
+  pub.push(`    const mod: Record<string, unknown> = await import('${importPath}')`)
+  pub.push(`    const fn = mod.getPublicRobotsExtraLines`)
+  pub.push(`    if (typeof fn === 'function') {`)
+  pub.push(`      lines.push(...await (fn as () => Promise<string[]>)())`)
+  pub.push(`    }`)
+  pub.push(`  } catch (err) {`)
+  pub.push(`    console.error('[collectModuleRobotsExtraLines] ${moduleName} failed:', err)`)
+  pub.push(`  }`)
+}
+pub.push(`  return lines`)
+pub.push(`}`)
+pub.push(``)
 pub.push(`export type ModulePublicHead = {`)
 pub.push(`  jsonLd: object[]`)
 pub.push(`  meta: Array<{ name?: string; property?: string; content: string }>`)
+// A <link> is not a <meta>, and the difference matters for the one thing this
+// was added for: rel="alternate" type="text/markdown" is how a reader is told
+// the page has a Markdown twin, and there is no way to say that in a meta tag.
+pub.push(`  links: Array<{ rel: string; href: string; type?: string; title?: string; hrefLang?: string }>`)
 pub.push(`}`)
 pub.push(``)
 pub.push(`export async function collectModulePublicHead(siteUrl: string): Promise<ModulePublicHead> {`)
 pub.push(`  const jsonLd: object[] = []`)
 pub.push(`  const meta: ModulePublicHead['meta'] = []`)
+pub.push(`  const links: ModulePublicHead['links'] = []`)
 if (headModules.length === 0) {
   pub.push(`  void siteUrl`)
 }
@@ -517,11 +568,12 @@ for (const { moduleName, importPath } of headModules) {
   pub.push(`    const part = await mod.getPublicHead(siteUrl)`)
   pub.push(`    if (Array.isArray(part?.jsonLd)) jsonLd.push(...part.jsonLd)`)
   pub.push(`    if (Array.isArray(part?.meta)) meta.push(...part.meta)`)
+  pub.push(`    if (Array.isArray(part?.links)) links.push(...part.links)`)
   pub.push(`  } catch (err) {`)
   pub.push(`    console.error('[collectModulePublicHead] ${moduleName} failed:', err)`)
   pub.push(`  }`)
 }
-pub.push(`  return { jsonLd, meta }`)
+pub.push(`  return { jsonLd, meta, links }`)
 pub.push(`}`)
 
 writeFileSync(routerPath, admin.join('\n') + '\n')

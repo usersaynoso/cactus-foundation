@@ -640,7 +640,15 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  return withSecurity(await withPageCache(request, NextResponse.next()))
+  // The address the visitor actually asked for, forwarded to the app.
+  //
+  // A server component cannot ask what the current path is - there is no API
+  // for it, and the client component that could would mean shipping JavaScript
+  // to every page to answer a question this file already knows the answer to.
+  // Set as a REQUEST header, so it reaches the render rather than the browser.
+  const forwarded = new Headers(request.headers)
+  forwarded.set('x-cactus-path', pathname)
+  return withSecurity(await withPageCache(request, NextResponse.next({ request: { headers: forwarded } })))
 }
 
 export const config = {

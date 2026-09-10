@@ -67,12 +67,20 @@ describe('the generated module router', () => {
 })
 
 describe('public render paths', () => {
-  // Every core file a public request can reach. app/(public) is the site itself;
-  // sitemap and robots share its server graph because they sit in the same app.
+  // Every core file a public request can RENDER through. app/(public) is the
+  // site itself; sitemap and robots share its server graph because they sit in
+  // the same app.
+  //
+  // The agent-content routes (app/llms.txt, app/llms-full.txt,
+  // app/api/agent-content/**) are deliberately NOT here. They read the full
+  // extension-point map on purpose: their providers query the whole catalogue
+  // and are registered serverOnly, so the public map does not carry them. A
+  // route handler has its own function bundle and renders no React, so nothing
+  // it imports can reach a page - which is the only thing this guard is about.
   const publicFiles = [
     ...collect(path.join(ROOT, 'app', '(public)')),
     path.join(ROOT, 'app', 'sitemap.ts'),
-    path.join(ROOT, 'app', 'robots.ts'),
+    path.join(ROOT, 'app', 'robots.txt', 'route.ts'),
     path.join(ROOT, 'app', 'not-found.tsx'),
   ].filter((f) => existsSync(f) && !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
 

@@ -370,11 +370,23 @@ Saving a date and both times sends the customer the new **Delivery time confirme
 
 **Following the courier automatically.** Some couriers publish a tracking page the shop can read for itself. On those, set **Follow this courier's tracking automatically** and the shop checks each live parcel once an hour, keeps the answer on your own site, and never sends the customer anywhere near the courier's page.
 
+Pick the one that matches the tracking links you get: **Multidrop tracking pages**, **GFS parcel pages** for parcels booked through Global Freight Solutions, or **DPD**. GFS are the booking company rather than the van, so they also ask which carrier is actually carrying it - usually DPD.
+
 You tell it what the stages mean, in two boxes, using the courier's own wording: which stages mean **it is out on a van** (so the customer's order changes from *Delivery scheduled* to *Out for delivery*), and which mean **it has arrived**. They are settings rather than something baked in, because only the courier really knows whether "Assigned to Crew" means a van is out this morning or that tomorrow's round has been planned - and when you find out, you change a box rather than wait for an update.
 
 When every parcel on an order reaches an arrived stage, and nothing is still owed, the order marks itself **Complete** and the customer gets your completion message, exactly as though you had pressed the button. Leave the arrived box empty and nothing is ever finished off automatically. An order with two parcels waits for both.
 
 The checking is deliberately unhurried: twenty-five parcels an hour, longest-unchecked first, a few at a time. A courier whose site is down simply teaches us nothing that hour - silence is never read as "not delivered" - and a shop with nothing out costs one quick look at its own database and no more. You can change how often it runs, or turn it off, under **Settings → Schedules**.
+
+**Where the driver has got to.** On a courier that reports it, the customer's order page says so in words: *"Mozam is on drop 9 of 98. You are drop 34, about an hour and a half away."* A small bar shows how far through the round the driver is, and under it, folded away until somebody wants it, sits the courier's own history - every scan, with the depot it happened at.
+
+None of it is guessed. A courier that gives numbers and no name says "your driver"; one that gives a name and no numbers says only what it knows; one that says nothing shows nothing rather than a hopeful sentence. The estimate has the time since we last asked taken off it, so a page read at half twelve does not still claim ninety minutes because that was true at eleven - and once the estimate runs out it says "any minute now" rather than counting backwards.
+
+**The button out to the courier.** On a courier you follow automatically, the customer already has the timeline, the window and the driver on your page - so sending them to the courier for *tracking* offers them what they have just read. What the courier's own page is genuinely good for is the things nobody else can do: leaving it in a safe place, giving it to a named neighbour, or moving the delivery to another day.
+
+So each courier now carries **what that button says** and **the line underneath it**. Leave them empty and it reads "Track your parcel", exactly as before. Fill them in - "Change delivery options at DPD", "Safe place, a neighbour, or a different day" - and the button stops competing with your own page and starts pointing at the one thing it can offer that you cannot.
+
+**The follow-my-parcel link.** Some couriers email you a second, shorter link once they actually have the parcel - DPD's looks like `www.dpd.co.uk/d/…`. It is not the tracking link, and it is worth more: paste it into the parcel's **Details** and the shop can read the delivery window, the driver's name and the drop numbers above. Without it the parcel still tracks, it just says less. It usually turns up the day before delivery, so it normally goes in by editing the parcel rather than at dispatch.
 
 **Watching the van on the day.** On those same couriers, once a parcel is out with a crew, the customer's own order page shows a map with the van on it, the courier's own sentence about how far off it is ("The crew have 1 more drop to make before reaching you"), and - the important bit - how long ago the van last reported its position.
 

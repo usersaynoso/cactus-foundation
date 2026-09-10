@@ -109,7 +109,7 @@ export default async function MediaPage({ searchParams }: Props) {
             canDelete={canDelete}
             perPage={perPage}
           />
-          {canCheckStorage && <MediaStorageCheck canDelete={canDelete} />}
+          {canCheckStorage && <MediaStorageCheck canDelete={canDelete} canUpload={canUpload} />}
         </>
       }
     />

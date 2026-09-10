@@ -104,6 +104,74 @@ Run it on demand from the button, or let it run itself weekly (Mondays, 4am, whe
 
 > **Fixed in 0.1.6.** Both lists were being collected only from modules that serve public pages under a prefix of their own, which this module does not - so the rules you added here were saved, listed back to you, and then had no effect whatsoever on the live `/sitemap.xml` and `/robots.txt`. They apply now. If you added a Disallow rule at any point and wondered why the page was still being crawled, that is why, and it is worth a look at the list to check you still mean all of it.
 
+## AI & agents
+
+**New in 0.1.12.** People increasingly find a shop by asking an assistant rather than by searching. This tab is about being findable that way - and about having a say in it, because "AI crawler" covers three quite different visitors and only one of them takes without giving anything back.
+
+Nothing here changes what your site publishes until you change it, with one exception said plainly below.
+
+### What you publish for AI readers
+
+Three things, and the first three switches are **on** from the start:
+
+- **`/llms.txt`** - one Markdown page listing everything on the site, with a line of summary each. This is the file assistants look for first.
+- **`/llms-full.txt`** - the same index with the shorter pages written out in full. Products are deliberately left out: a catalogue of any size makes a file nobody would finish fetching. They are still in the index, one line each, with their own address.
+- **A Markdown twin of every page** - the same page at the same address with `.md` on the end. `/about` also answers at `/about.md`, `/task-chair` at `/task-chair.md`, and the home page at `/index.md`. No menus, no buttons, no scripts: the words, the headings, the links and - for a product - the price, the stock, the specification, the variations and whether there is a 3D model of it.
+
+You choose which kinds of content get a twin, and you can write a sentence or two at the top of the index saying what the site is. Untick a content type and it drops out of the index and its twins are removed at the next rebuild.
+
+**Why "rebuild".** The twins are built ahead of time and stored, not generated when somebody asks for one. Building a large catalogue's worth takes real time and real money; serving one that is already built is a single lookup. So they are rebuilt overnight, whenever you save a summary, and whenever you press the button - and the overnight rebuild only touches pages that have actually changed since last time, so on a night when nothing was edited it costs almost nothing. The practical effect is that an edit made today is in the Markdown copy tomorrow morning; press the button if you want it there sooner. Two buttons: **Rebuild what has changed**, and **Rebuild everything** for after a change to how the pages are put together rather than to what they say. A very large catalogue may not finish in one go; it says so, and picks up where it stopped next time.
+
+### What each page says about itself
+
+Two switches that share one lookup, so having both costs no more than having either. **Both off by default**, because unlike everything above them they put a small database read on the render of every public page - which shows on your Vercel bill as **Fluid Active CPU**. A cached page does not pay it twice, and a page with no Markdown copy built does not pay it at all.
+
+**Publish structured data on every page.** This is the machine-readable summary that puts the trail of links under your name in a search result, and that an assistant reads to work out what a page actually is. What goes out depends on the page:
+
+| Page | What it publishes |
+| --- | --- |
+| Anything with a trail above it | Breadcrumbs - Home > Office Chairs > Task Chairs > this one |
+| A blog post | Its headline, summary, picture, author and dates |
+| A category or collection | That it is a listing page, and the first thirty things on it |
+| A directory entry | That it is a business, with its address, telephone and website |
+| A product | Breadcrumbs only - see below |
+
+**Your shop already publishes the product details on a product page**, with the tax handled and the prices withheld when you have set the shop to hide them. This deliberately does not repeat them: two different prices for one item is the fastest way to have a shopping feed suspended. Breadcrumbs are the half nobody was publishing.
+
+**Tell each page's reader where its Markdown copy is.** A line in the page's head pointing at the same address with `.md` on the end, so an assistant finds the plain-text version without having to guess that it exists. Needs the Markdown twins switched on above; it greys out if they are not, because a link to a page that answers "not found" is worse than no link.
+
+Neither switch changes anything until a page has a Markdown copy built - they read the same rebuilt-overnight table everything else does, so a brand new page gets both the morning after it is published, or straight away if you press **Rebuild what has changed**.
+
+### Which AI crawlers may read the site
+
+Every crawler on this screen is currently allowed, because that is what your site does today and an update has no business quietly changing it. They are grouped by what they are actually for, which is the distinction no single robots.txt line can make:
+
+- **The ones that send you customers** - they index your pages so an assistant can recommend you and link to you. Blocking these is how a business disappears from answers people are already asking.
+- **The ones fetching a page for somebody right now** - somebody asked their assistant about you and it went to look. Block one and the person is told your site would not answer.
+- **The ones that take and give nothing back** - they collect your pages to train a model. No link, no visit, no credit. Plenty of owners block the lot, and it costs nothing in search: Google's and Apple's training opt-outs are separate from their ordinary search crawlers, so turning them off does not affect either company's search results.
+
+There is a **Block the lot** button on the third group for owners who want exactly that and no further reading.
+
+Below that, **what they may do with what they read**: three declarations - may we be shown in results and answers, may our pages be used to answer a question being asked right now, may our pages be used to train a model. These are a statement of intent rather than a lock on the door, published as a `Content-Signal` line that a growing number of companies have agreed to honour. Each starts unanswered, because saying nothing and saying no are different answers and it is not for this module to put words in your mouth.
+
+### Who has been reading
+
+**Off by default, and it costs money.** Switched on, this counts AI crawler visits and people arriving from an assistant, and answers the question everybody asks next: is any of this working? Each AI visit is one small database write, which shows on your Vercel bill as **Fluid Active CPU**. An ordinary human visitor costs nothing extra - the check that decides is two string comparisons and never touches the database - and the write happens after the page has already been sent.
+
+Counts are kept per day, per assistant and per page, for as long as you choose.
+
+### Letting agents query the site directly
+
+**Off by default, and it costs money.** This turns on a read-only endpoint at `/api/m/ultimate-seo/mcp` that an assistant can use to search your catalogue and read any page in one call instead of crawling the site. It is read-only in the strict sense: there is no tool there that changes anything, and it can see only what the site already publishes to anybody with a browser.
+
+Every request is a function call - **Invocations** and **Fluid Active CPU** on your Vercel bill. An agent can make a great many of them in a short space of time, and unlike a person it does not get bored. That is the whole reason it starts switched off. When it is on, the address is named in `/llms.txt` so an agent that reads the index can find it.
+
+### Summaries written for AI readers
+
+One line per page, written by you, that goes at the top of that page's Markdown twin and into its line in the index. It is the line a model quotes when it only has room for one. Costs nothing, and the box appears on the **Pages** tab beside everything else about that page; saving one rebuilds that page's twin there and then.
+
+The Pages tab also gains a **Ready for AI** column, which says whether each page has a Markdown copy built and whether it has a summary.
+
 ## Structured data
 
 **New in 0.1.10.** Fill this in once and it goes out on every page of the site. Before, the only way to tell search engines who you were was to drag a block onto a page, and it then applied to that page and no other.
@@ -159,8 +227,15 @@ Two blocks also appear in the page builder, for the pages that need to say somet
 ## For developers
 
 - Repo: [cactus-foundation-modules/ultimate-seo](https://github.com/cactus-foundation-modules/ultimate-seo)
-- Requires core `0.5.1418+` (the site-wide head hook the structured data is emitted through arrived in that release; earlier core builds also never collected this module's sitemap and robots entries at all). No environment variables; the weekly audit authenticates with the standard `CRON_SECRET`.
-- Tables are prefixed `seo_` (settings singleton, per-page analysis, audit runs and issues, robots rules, sitemap entries) and are torn down on uninstall. `002_structured_data.sql` adds the `structured_data` column to the settings singleton.
-- Integration is entirely through existing module hooks: `lib/sitemap.ts` (`getPublicSitemapEntries`), `lib/robots.ts` (`getPublicRobotsDisallow`), `lib/head.ts` (`getPublicHead`, new in core 0.5.1418 - see [Authoring a module](Authoring-a-module)), a `settingsTabs` manifest entry, manifest `puckBlocks`, and a `cronJobs` entry.
+- Requires core `0.5.1565+` from 0.1.12 (the `core.agent-content` extension point, the `links` half of the head hook and the `/llms.txt`, `/llms-full.txt` and `.md` addresses all arrived there). 0.1.11 and earlier require `0.5.1418+` (the site-wide head hook the structured data is emitted through arrived in that release; earlier core builds also never collected this module's sitemap and robots entries at all). No environment variables; the weekly audit authenticates with the standard `CRON_SECRET`.
+- Tables are prefixed `seo_` (settings singleton, per-page analysis, audit runs and issues, robots rules, sitemap entries, materialised Markdown documents, AI hit counts) and are torn down on uninstall. `002_structured_data.sql` adds the `structured_data` column to the settings singleton; `003_ai_seo.sql` adds the `ai` column, `seo_page_meta.ai_abstract`, `seo_llm_documents` and `seo_ai_hits`.
+- `seo_llm_documents` is unique on `(entity_type, entity_id)` **and** on `path`. The first is what makes a rebuild update a product that has moved slug rather than leaving a second row answering at the old address; the second is what stops two entities claiming one address, and a batch carrying such a clash is retried row by row so the loser is reported rather than taking the rebuild down.
+- `seo_ai_hits` is a running count keyed on `(day, kind, agent, path)`, not a row per request: the table then grows with how many different pages the crawlers ask for rather than with how often they ask.
+- Integration is entirely through existing module hooks: `lib/sitemap.ts` (`getPublicSitemapEntries`), `lib/robots.ts` (`getPublicRobotsDisallow`, plus `getPublicRobotsGroups` and `getPublicRobotsExtraLines` from core 0.5.1565), `lib/head.ts` (`getPublicHead`, new in core 0.5.1418 - see [Authoring a module](Authoring-a-module)), `lib/agent-content.ts` on the `core.agent-content` extension point, a `settingsTabs` manifest entry, manifest `puckBlocks`, and two `cronJobs` entries.
+- The Markdown twins are materialised by `lib/ai/materialise.ts` - the weekly `cron/ai` job, the admin button, or a summary being saved - never on the request. Measured on a live catalogue: a hundred products with their variations, attributes and 3D models take about a second and a half, so a twenty-thousand-product shop rendered per fetch would be a bill rather than a feature. A rebuild compares each entity's `updatedAt` against the stored `source_updated_at` and skips what has not moved, stops at a four-minute budget rather than being killed mid-write, and only prunes after a complete pass.
+- `lib/ai/html-to-markdown.ts` is a small parser written for the purpose rather than a dependency, and `lib/ai/puck-markdown.ts` walks stored page-builder props generically - it knows no block types, because the palette differs per install - with a ProseMirror renderer for the rich-text fields that store an editor document rather than HTML.
+- The MCP endpoint reads the same materialised documents as everything else, so there is no second definition of "what this site says" to drift out of step with the first.
+- Per-page structured data is built at request time from **facts** stored in `seo_llm_documents.page_facts` (`004_page_structured_data.sql`), not from finished JSON-LD. Structured data is full of absolute URLs - `@id`, `url`, `image`, every breadcrumb step - and a hostname baked into twenty thousand rows is a hostname that has to be rebuilt out of them; this platform's one live site changed domain in its first year, and the same rows are read on preview deployments under another name again. The row holds names, paths and dates; `lib/ai/json-ld.ts` builds the blocks against whatever host the page is being served on, and is pure.
+- The page's own head contributions cost **one** indexed read, made only when the owner has switched one of the two on, wrapped in `cache()` so it happens once per request whichever switch asked for it. The path comes from core's `x-cactus-path` request header (core 0.5.1565); an older core sets no header, and the module then simply publishes nothing extra rather than failing.
 - The JSON-LD builders in `lib/structured-data.ts` are pure functions with no database or environment access, so the admin preview and the live page are the same code path rather than two renderings that agree until one is edited.
 - One-click fixes write only to core `InfoPage` rows (columns plus the Puck `root.props` mirror in both draft and published data, so a later publish does not revert them). Module-owned content is analysed read-only and deep-linked to its own editor - this module never writes another module's tables.

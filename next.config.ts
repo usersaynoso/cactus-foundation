@@ -83,6 +83,15 @@ const config: NextConfig = {
       // lib/well-known/providers.ts.
       afterFiles: [
         { source: '/.well-known/:path*', destination: '/api/well-known/:path*' },
+        // The Markdown twin of any public page, at that page's own address with
+        // .md on the end. afterFiles for the same reason as the line above: a
+        // real file in /public wins, and so does any route the app already has.
+        //
+        // The pattern captures the whole path with its suffix intact rather
+        // than stripping it here, so the route can tell /guide.md (a Markdown
+        // twin) from a page whose slug is genuinely "guide.md". See
+        // app/api/agent-content/markdown/[...path]/route.ts.
+        { source: '/:mdPath(.*\\.md)', destination: '/api/agent-content/markdown/:mdPath' },
       ],
       fallback: [],
     }

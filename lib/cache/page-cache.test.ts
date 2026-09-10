@@ -236,7 +236,7 @@ describe('usesLongCacheWindow', () => {
   })
 
   it('takes the machine-read files', () => {
-    for (const path of ['/robots.txt', '/sitemap.xml', '/sitemap-0.xml', '/blog/feed.xml']) {
+    for (const path of ['/robots.txt', '/sitemap.xml', '/sitemap-0.xml', '/blog/feed.xml', '/llms.txt', '/llms-full.txt', '/about.md', '/shop/products/a-desk.md']) {
       expect(usesLongCacheWindow(path, false), path).toBe(true)
     }
   })
