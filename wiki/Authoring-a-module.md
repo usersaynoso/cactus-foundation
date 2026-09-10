@@ -1032,6 +1032,34 @@ Sitting *under* the grid is still a second place to look. Where a contribution i
 - **The host never decides what a gesture means.** It reports a drag, a typed description and a press of the **×**; the contributor decides. shop-variations' **×** is "off the gallery, still on the variation", which shop has no way of knowing and no business guessing - so the tile carries a `removeLabel` saying so in words.
 - **`items` need not be memoised, handlers must not be depended on.** The registration is keyed off the items' *contents*, and handlers are held in a ref - they close over the contributor's state and change on every keystroke, and re-registering for that would put the grid in a loop.
 
+#### Handing a picture over rather than keeping it: `gallery-add-bus`
+
+`gallery-extras` is for pictures your module **owns** and keeps. The other case is a picture being
+**handed over** - it becomes one of the product's own photographs and your module never thinks about
+it again. Shop's `components/admin/product-editor/gallery-add-bus.ts` (shop v0.1.412) is that seam:
+`addImagesToProductGallery([{ url, altText? }])` puts them at the end of the gallery as unsaved edits,
+which the editor's own **Save** button then writes like any other picture. A url already in the
+gallery is ignored, so a sender may repeat itself harmlessly.
+
+It is a plain window `CustomEvent` (`'cactus-shop-product-gallery-add'`, detail `{ images }`) rather
+than a hook, and that is the point of it. A contribution to
+`shop.product-editor-media-sections` renders inside the shop's own tab, but the contributing module
+may have **no dependency on shop at all** - `google-ai-studio` works on a site with no shop, so it
+cannot have a static `import` of `@/modules/shop/...` anywhere in its graph, because that path does
+not exist at build time on an install without one. Such a module dispatches the event itself, from
+a documented name, and imports nothing.
+
+The event is `cancelable`, and the Images tab calls `preventDefault()` when it takes the pictures -
+so `dispatchEvent` answering `true` means **nothing was listening**: no product editor on screen, or
+a shop too old to know the event. A sender must say so ("saved to your media library, add them with
+the Add images button") rather than reporting a success that did not happen. That check is what makes
+the seam safe to use from a module with no `requiresModules` entry to pin the shop version with.
+
+The wider pattern is worth copying whenever a point's contributors might not depend on the host:
+publish the contract as an event name and a detail shape, answer with `preventDefault()`, and let the
+sender degrade honestly when nobody answers. `purchase-orders` is the reference for the rest of it -
+probe for the host's **tables** rather than its module row, and read across with raw SQL.
+
 ### Replacing a part rather than adding to one
 
 Most points are additive: the host renders its own page and contributions land alongside. Sometimes a contributor instead needs to *take over* a part the host already renders, because the host's version would be wrong. Shop's `shop.product-detail-parts` point is the worked example - a product with options has no single price or stock level of its own, so shop's static price and add-to-cart would contradict what the shopper actually chose. Rendering both is not an option; the shopper would see two prices.

@@ -45,6 +45,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Reply Catcher](Reply-catcher) | Threading real-mailbox replies back into the contact form inbox |
 | [Twilio](Twilio) | Call forwarding for your Twilio numbers and sign-in codes by text message |
 | [Gemini Watermark Remover](Gemini-Watermark-Remover) | Retired - no longer available to install |
+| [Google AI Studio](Google-AI-Studio) | One Google AI Studio key, and the site can make pictures for you - starting with product photographs built from the ones you already have |
 | [Google Tag](Google-Tag) | Measuring what your site achieves: visitor numbers in Google Analytics, and orders counted against the adverts that earned them, all behind your cookie banner |
 | [Ultimate SEO](Ultimate-SEO) | Site-wide SEO scoring, page analysis with one-click fixes, crawl audits, sitemap and robots controls |
 | [UK Bookkeeping](UK-Bookkeeping) | Keeping the books, filing your VAT return with HMRC, and working out your accounts and corporation tax from those same records |

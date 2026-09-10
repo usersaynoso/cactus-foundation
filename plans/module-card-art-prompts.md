@@ -1,6 +1,6 @@
 # Cactus module card art - image generator prompts
 
-35 images, one per module. All share one style block so the set reads as a family.
+36 images, one per module. All share one style block so the set reads as a family.
 
 ## Spec
 
@@ -239,4 +239,10 @@ A cream clay smartphone standing upright, a small rounded clay bank building sit
 
 ```
 Three cream clay archways of decreasing size standing one behind another to form a short tunnel, with a single rounded terracotta block resting on the ground at the far end of it. 3D render, soft matte clay / plasticine materials, rounded edges, no sharp corners, no glossy highlights. A single object, centred, three-quarter view from slightly above, occupying about 55% of the frame height with generous even margins on all sides. Background: smooth deep forest-green gradient running from #1a4c3a in the top-left to #0e2a1e in the bottom-right, edge to edge, fully opaque, no transparency, no alpha channel. Soft warm key light from the upper left, cool green fill from the lower right, one soft contact shadow under the object. Colour palette strictly limited to forest greens #2c7558 #1a4c3a #133929, warm cream #faf9f7, pale sand #d2cdbf, and a single terracotta accent #e05232 used on one focal detail only. Faint soft radial glow behind the object. Very fine film grain over the whole image. No text, no letters, no numbers, no logos, no watermarks, no user interfaces, no screenshots, no people, no hands, no brand marks. Aspect ratio 16:9.
+```
+
+## 36. Google AI Studio -> `google-ai-studio.webp`
+
+```
+A small stack of cream clay photographic prints resting on a low clay slab, the topmost print lifted away and hovering just clear of the stack as a freshly made one, with a single rounded terracotta four-pointed spark floating above its raised corner. 3D render, soft matte clay / plasticine materials, rounded edges, no sharp corners, no glossy highlights. A single object, centred, three-quarter view from slightly above, occupying about 55% of the frame height with generous even margins on all sides. Background: smooth deep forest-green gradient running from #1a4c3a in the top-left to #0e2a1e in the bottom-right, edge to edge, fully opaque, no transparency, no alpha channel. Soft warm key light from the upper left, cool green fill from the lower right, one soft contact shadow under the object. Colour palette strictly limited to forest greens #2c7558 #1a4c3a #133929, warm cream #faf9f7, pale sand #d2cdbf, and a single terracotta accent #e05232 used on one focal detail only. Faint soft radial glow behind the object. Very fine film grain over the whole image. No text, no letters, no numbers, no logos, no watermarks, no user interfaces, no screenshots, no people, no hands, no brand marks. Aspect ratio 16:9.
 ```
