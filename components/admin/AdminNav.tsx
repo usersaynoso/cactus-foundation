@@ -381,9 +381,12 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
   return (
     <nav ref={navRef} onKeyDown={onNavKeyDown}>
       {/* Pinned block: toolbar + Favourites stay put while the rest of the tree
-          scrolls under them. Hidden on the icon rail, where neither renders. */}
-      {!collapsed && (
-        <div className="admin-nav-pinned" ref={pinnedRef}>
+          scrolls under them. On the icon rail the toolbar goes (there is no room
+          for a filter box) but Favourites stay - shortcuts you pinned are exactly
+          what the rail is for, so they hold the top of it as icons. */}
+      {(!collapsed || favouriteItems.length > 0) && (
+        <div className={`admin-nav-pinned${collapsed ? ' admin-nav-pinned--collapsed' : ''}`} ref={pinnedRef}>
+          {!collapsed && (
           <div className="admin-nav-tools">
             <div className="admin-nav-filter-wrap">
               <span className="admin-nav-filter-icon">{SEARCH_ICON}</span>
@@ -441,13 +444,16 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
               {anyExpanded ? '⊟' : '⊞'}
             </button>
           </div>
+          )}
 
           {/* Favourites - pinned with the toolbar, and given its own scrollbar so a
-              long list can never swallow the whole rail. */}
-          {!filterQuery && favouriteItems.length > 0 && (
+              long list can never swallow the whole rail. Collapsed, the heading
+              would be a word with nowhere to sit, so the icons stand on their own
+              and the block's own border marks where they end. */}
+          {(collapsed || !filterQuery) && favouriteItems.length > 0 && (
             <div className="admin-nav-pinned-favs">
-              {renderSectionHeader(FAV_SECTION, 'Favourites', STAR_SECTION_ICON, !collapsedSections[FAV_SECTION])}
-              {!collapsedSections[FAV_SECTION] && favouriteItems.map((item) => renderItem(item, 'fav'))}
+              {!collapsed && renderSectionHeader(FAV_SECTION, 'Favourites', STAR_SECTION_ICON, !collapsedSections[FAV_SECTION])}
+              {(collapsed || !collapsedSections[FAV_SECTION]) && favouriteItems.map((item) => renderItem(item, 'fav'))}
             </div>
           )}
         </div>

@@ -30,7 +30,7 @@ Every module repo must contain `cactus.module.json` at its root:
     {
       "label": "Forum",
       "path": "/forum",
-      "icon": "💬",
+      "icon": "<path d=\"M4 4h16v12H8l-4 4z\"/><path d=\"M8 9h8M8 12h5\"/>",
       "permission": "forum.threads.read"
     }
   ],
@@ -58,7 +58,7 @@ Every module repo must contain `cactus.module.json` at its root:
 | `description` | `string` | Short description shown in the admin. |
 | `requiresCoreVersion` | `string` | Optional. Minimum Cactus core version (semver, no leading `v`) this module needs. Install and update are refused with an "update Cactus first" message when the running core is older. Set this whenever your module imports a core helper introduced in a specific core release - without it, installing on an older core commits the module and breaks the site's next build. |
 | `requiredEnvVars` | `Array<{name: string, required: boolean}>` | Env vars this module needs. `required: true` vars block installation if missing; `required: false` vars show a warning but don't block. Declaring a var here is also what lets your settings tab write it through `/api/admin/env` - that route only accepts keys the installed modules have declared. Adding a new one in a later version of your module works from Cactus 0.5.875 onwards, which refreshes the stored manifest when a module updates; before that the manifest was frozen at install time and the new key was silently ignored. If a site's copy of your module is behind, `/api/admin/env` answers with the unaccepted keys in `skipped` (or a 400 if it accepted none), so surface that rather than showing a bare "Saved". |
-| `navEntries` | `NavEntry[]` | Admin navigation entries to add for this module. **Keep it to one.** The sidebar is shared with every other module and it does not scale: register a single link and make everything else a tab on that page (see `TabStrip`, and the `*Nav.tsx` components in gazette, boards, ultimate-seo and space-planner-for-shop for the pattern). Settings belong in a `settingsTabs` entry, not a link. A screen that belongs inside another module's page - or core's Inbox or Media - should publish into that page's tab extension point and register no link at all. Two links is for a module the size of Shop; more than two wants a very good reason. |
+| `navEntries` | `NavEntry[]` | Admin navigation entries to add for this module. **The `icon` is SVG, not an emoji:** give it the *inside* of a 24x24 `viewBox` icon - a bare run of `<path>`, `<circle>`, `<rect>` and friends, no `<svg>` wrapper. The sidebar supplies the wrapper, and with it the viewBox, the stroke width and `currentColor`, so your icon inherits the theme and matches the core icons beside it. Draw it as a stroked outline (no `fill`) unless you mean a solid. Anything that is not markup - an emoji, a name, a URL - is ignored and the link draws the generic module puzzle piece instead. **Keep it to one.** The sidebar is shared with every other module and it does not scale: register a single link and make everything else a tab on that page (see `TabStrip`, and the `*Nav.tsx` components in gazette, boards, ultimate-seo and space-planner-for-shop for the pattern). Settings belong in a `settingsTabs` entry, not a link. A screen that belongs inside another module's page - or core's Inbox or Media - should publish into that page's tab extension point and register no link at all. Two links is for a module the size of Shop; more than two wants a very good reason. |
 | `navGroupLabel` | `string` | Optional. If set, this module's `navEntries` get their own sidebar section heading (e.g. `"Gazette"`) instead of being bucketed into the shared "Modules" section with every other module's entries. Use this if your module contributes several distinct admin areas (Gazette: Posts/Tags/Series/Authors/Comments/Templates) rather than one single link. | **Only worth setting when a module keeps two or more links - a section heading over a single link is noise. Shop is the only module that still uses one.**
 | `navGroupOrder` | `number` | Optional, only meaningful alongside `navGroupLabel`. Lower numbers sort earlier among labelled module sections; modules that omit it sort after any that set it, in their existing order. Use this if your module's section should appear above another module's, rather than wherever install order happens to put it. |
 | `permissions` | `string[]` | Permission keys this module declares. They're seeded into the `Permission` table on install and appear in the Roles matrix. |
@@ -1060,6 +1060,39 @@ publish the contract as an event name and a detail shape, answer with `preventDe
 sender degrade honestly when nobody answers. `purchase-orders` is the reference for the rest of it -
 probe for the host's **tables** rather than its module row, and read across with raw SQL.
 
+### A point between two modules that do not know each other
+
+The same seam runs between two peers, neither of which depends on the other. The worked example is
+`google-ai-studio.reference-image-sources`: `google-ai-studio` wants extra reference pictures for its
+AI photo panel, `product-3d-views-for-shop` can produce them by capturing stills off a product's 3D
+model, and **neither module has a `requiresModules` entry for the other**. Either can be released
+first, and each is perfectly useful without the other installed.
+
+Three parts, and each one is doing a job:
+
+1. **The host declares the point and resolves it on the server.** `google-ai-studio`'s section
+   component reads the installed modules from `prisma.module`, matches manifest `extensionPoints`
+   entries on the point name, honours each entry's `permission`, and looks the components up in
+   `moduleExtensionPointComponents`. The resolved elements are then passed **down into its own client
+   panel as a prop**, exactly as shop passes this very panel into its client product editor - a
+   client component may never import the extension-point map, and does not need to.
+
+2. **Watch for an import cycle.** A module that both hosts a point *and* contributes to somebody
+   else's is imported by the generated registry, so a static `import` of that registry from the same
+   file is a cycle - `lib/modules/import-cycles.test.ts` fails the build over it, and names the edge.
+   The fix it prescribes is `await import('@/lib/modules/extension-points')` inside the async server
+   component, which is fine: it is a server file, and the map is only needed once per render.
+
+3. **The contribution hands its result back over a documented window event**, never a callback prop -
+   a server-rendered node cannot be given a function by the client component that mounts it. The
+   contract is the same shape as the gallery seam above: a `cancelable` `CustomEvent`
+   (`'cactus-ai-reference-image'`, detail `{ dataUrl, label }`), taken by `preventDefault()`, so a
+   producer whose host is too old to listen says so instead of appearing to work.
+
+Mount contributions **lazily** where they are expensive. The 3D picker stands up a WebGL context and
+downloads a model; the panel keeps it unmounted until the owner presses the button that asks for it.
+The node itself costs nothing sitting in a prop - React builds nothing until it is rendered.
+
 ### Replacing a part rather than adding to one
 
 Most points are additive: the host renders its own page and contributions land alongside. Sometimes a contributor instead needs to *take over* a part the host already renders, because the host's version would be wrong. Shop's `shop.product-detail-parts` point is the worked example - a product with options has no single price or stock level of its own, so shop's static price and add-to-cart would contradict what the shopper actually chose. Rendering both is not an option; the shopper would see two prices.
@@ -1544,7 +1577,7 @@ Here is the smallest possible working module:
   "description": "Site-wide announcements.",
   "requiredEnvVars": [],
   "navEntries": [
-    { "label": "Announcements", "path": "/announcements", "permission": "ann.manage" }
+    { "label": "Announcements", "path": "/announcements", "icon": "<path d=\"M4 9v6h3l6 4V5L7 9z\"/><path d=\"M17 9a4 4 0 0 1 0 6\"/>", "permission": "ann.manage" }
   ],
   "permissions": ["ann.manage"]
 }

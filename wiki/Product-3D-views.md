@@ -211,6 +211,25 @@ Between them the two platforms cover the field: iPhones and iPads use Apple's ow
 
 ---
 
+## Making product photographs from your model
+
+If you also have the [Google AI Studio](Google-AI-Studio) module, your 3D models can do a second job:
+posing for photographs.
+
+Open a product's **Images** tab, scroll to **AI photo creation**, and press **From 3D models**. The
+model comes up with a dropdown for each of its options, so you can put it in the colour, size and
+finish you want - materials and all, exactly as a shopper would see that combination. Turn it to the
+angle you are after and press **Create view**; turn it somewhere else and press it again.
+
+Each view joins the photographs going to Google as another reference picture. That is the whole
+point of it: three photographs taken from the front tell an AI nothing about the back of the chair,
+so it invents one. Your model has a back.
+
+The views are never saved anywhere. They exist while you are on the page and go when you leave it -
+only the finished picture, if you decide to keep it, ends up in your media library.
+
+---
+
 ## Turning it with a keyboard
 
 Not everybody uses a mouse, and a shopper who cannot is exactly as interested in the back of the chair as one who can. So the viewer takes keyboard focus like any other control on the page: tab to it and a ring appears round the model, along with a note saying which keys do what.
@@ -336,4 +355,4 @@ If it is a GLB and it looks right when you open it on your own computer, the sit
 
 ---
 
-**Wiki:** [Home](Home) · [Shop](Shop) · [Shop Variations](Shop-variations) · [Product Attributes](Product-attributes) · [Managing media](Managing-media) · [Modules](Modules)
+**Wiki:** [Home](Home) · [Shop](Shop) · [Shop Variations](Shop-variations) · [Product Attributes](Product-attributes) · [Google AI Studio](Google-AI-Studio) · [Managing media](Managing-media) · [Modules](Modules)

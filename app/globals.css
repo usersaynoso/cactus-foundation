@@ -1153,6 +1153,20 @@ a:hover {
   overflow-x: hidden;
 }
 
+/* On the icon rail there is no toolbar above the favourites, so the block needs
+   its own top padding, and the icons can have more of the rail before they
+   scroll - there is no filter box or Recent list competing for it. */
+.admin-nav-pinned--collapsed {
+  padding-top: var(--space-1);
+}
+.admin-nav-pinned--collapsed .admin-nav-pinned-favs {
+  max-height: 50vh;
+  scrollbar-width: none;
+}
+.admin-nav-pinned--collapsed .admin-nav-pinned-favs::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Sidebar tools: filter, quick-create, expand/collapse-all ── */
 .admin-nav-tools {
   display: flex;

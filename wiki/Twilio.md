@@ -244,7 +244,7 @@ Worth knowing:
 - **Nothing already logged changes.** Their past calls, messages and recordings stay exactly where they are. Blocking is about the next call, not the last one.
 - **Unblocking is one press**, from either the call log or the blocked list, and takes effect immediately.
 
-If [Unified Inbox](Unified-Inbox) is installed, the same **Block** button sits at the top of that person's conversation there, and the two lists are the same list.
+If [Unified Inbox](Unified-Inbox) is installed, the same block is one press away in that person's conversation there, and the two lists are the same list. It is asked as part of marking the conversation as junk rather than as a button of its own: press the no-entry sign at the top of the conversation and the question that comes up offers to stop them getting through as well. Once somebody is blocked, an **Unblock them** button appears at the top of that conversation - and either list will let them back in.
 
 ---
 

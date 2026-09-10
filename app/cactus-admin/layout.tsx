@@ -8,7 +8,7 @@ import { MODULES_IN_BUILD } from '@/lib/modules/router'
 import AdminShell from '@/components/admin/AdminShell'
 import { getUnreadCount } from '@/lib/notifications/deployment'
 import { buildAdminThemeStyles, buildFontHref } from '@/lib/design/tokens'
-import { sanitizeSvg } from '@/lib/sanitize'
+import { sanitizeSvgFragment } from '@/lib/sanitize'
 import { resolveBranding } from '@/lib/config/branding'
 import { getSiteConfig } from '@/lib/config/site'
 import pkg from '@/package.json'
@@ -123,7 +123,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // access to the jsdom-backed sanitiser.
   const moduleNavGroups = buildModuleNavGroups(manifests, {
     canSee: (permission) => !permission || navPermissions[permission] === true,
-    sanitizeIcon: sanitizeSvg,
+    sanitizeIcon: sanitizeSvgFragment,
   })
 
   // Resolve the sidebar for this user: apply the site owner's saved customisation

@@ -131,3 +131,23 @@ export function sanitizeSvg(svg: string): string {
     ADD_TAGS: ['use'],
   })
 }
+
+// Nav icons are SVG *fragments* - a bare run of <path>/<circle>/... with no
+// <svg> root, because the admin sidebar supplies the root element (and with it
+// the viewBox, stroke width and currentColor) and injects the fragment inside
+// it. Handing such a fragment straight to sanitizeSvg strips it to an empty
+// string: with no root element the markup parses in HTML context, where <path>
+// is an unknown element and DOMPurify drops it - which is why every module's
+// sidebar icon silently fell back to the generic puzzle piece. Wrapping the
+// fragment in an <svg> root before sanitising puts the parser in SVG context,
+// then the root is peeled back off. A whole <svg> passed in is unwrapped too,
+// so a module may supply either shape.
+export function sanitizeSvgFragment(svg: string): string {
+  const inner = (markup: string): string => {
+    const match = markup.match(/^\s*<svg\b[^>]*>([\s\S]*)<\/svg>\s*$/i)
+    return match?.[1] ?? markup
+  }
+  const sanitised = inner(sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`))
+  // A module that supplied a complete <svg> leaves one nested root behind.
+  return inner(sanitised).trim()
+}
