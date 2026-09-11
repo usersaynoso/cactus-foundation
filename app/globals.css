@@ -3476,3 +3476,98 @@ tbody tr:hover {
 a[data-eml] {
   cursor: pointer;
 }
+
+/* ============================================================
+   EMAIL TEMPLATE EDITOR (Settings > Email > Templates)
+   ============================================================ */
+/* Pick a section, then a template from the pills, then edit it with the real
+   rendered email alongside. Nothing at all shows until a section is chosen -
+   the full list of every email the site can send is a wall, not a menu. */
+.emt-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-5);
+}
+.emt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.375rem 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.emt-pill:hover:not([aria-pressed="true"]) {
+  border-color: var(--color-primary);
+  background: var(--color-bg-subtle);
+}
+.emt-pill[aria-pressed="true"] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--font-medium);
+}
+/* Badges keep their own colours when the pill is unselected; on the selected
+   pill they would vanish into the primary fill, so they borrow its contrast. */
+.emt-pill[aria-pressed="true"] .badge {
+  background: transparent;
+  border: 1px solid var(--color-on-primary);
+  color: var(--color-on-primary);
+}
+
+/* Editor on the left, live preview on the right. One column once there is no
+   longer room for two readable ones side by side. */
+.emt-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+@media (max-width: 1180px) {
+  .emt-split { grid-template-columns: minmax(0, 1fr); }
+  .emt-preview-pane { position: static; }
+}
+.emt-preview-pane {
+  position: sticky;
+  top: var(--space-4);
+}
+
+/* A merge tag and its copy button read as one chip. */
+.emt-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 2px 4px 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--color-bg-subtle);
+  font-size: var(--text-sm);
+}
+.emt-tag-required { border-color: var(--color-border); }
+.emt-tag code {
+  font-size: inherit;
+  background: none;
+  padding: 0;
+}
+.emt-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.emt-copy:hover { color: var(--color-primary); background: var(--color-surface); }
+.emt-copy svg { width: 0.75rem; height: 0.75rem; display: block; }

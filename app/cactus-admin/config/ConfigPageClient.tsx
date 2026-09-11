@@ -717,6 +717,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     syncTabUrl('email', next)
   }, [syncTabUrl])
 
+  // The only tab with a second strip of its own underneath the main one.
+  const hasEmailSubTabs = tab === 'email' && canManageConfig && canManageEmailTemplates
+
   // Deep links carry a #section hash; pull that section into view once its tab has
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
@@ -1667,9 +1670,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         onSave={saveAndLeave}
       />
 
-      {/* Tab bar */}
+      {/* Tab bar. The email tab puts a second strip directly underneath, and two
+          underlined rows with 2rem of nothing between them read as a mistake -
+          so the gap closes up to the sub-tabs' own spacing when they are there. */}
       <TabStrip
-        style={{ marginBottom: '2rem' }}
+        style={{ marginBottom: hasEmailSubTabs ? '0.5rem' : '2rem' }}
         items={[
           ...visibleCoreTabs.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => selectTab(t) })),
           ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => selectTab('navigation') }] : []),
@@ -2223,7 +2228,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           )}
         </div>
       )}
-      {tab === 'email' && canManageConfig && canManageEmailTemplates && (
+      {hasEmailSubTabs && (
         <TabStrip
           items={[
             { key: 'delivery', label: 'Delivery', active: emailSubTab === 'delivery', onClick: () => selectEmailSubTab('delivery') },
