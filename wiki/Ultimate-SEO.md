@@ -115,9 +115,13 @@ Nothing here changes what your site publishes until you change it, with one exce
 Four things, and all four switches are **on** from the start:
 
 - **`/llms.txt`** - one Markdown page listing everything on the site, with a line of summary each. This is the file assistants look for first.
-- **`/llms-full.txt`** - the same index with the shorter pages written out in full. Products are deliberately left out: a catalogue of any size makes a file nobody would finish fetching. They are still in the index, one line each, with their own address.
+- **`/llms-full.txt`** - the same index with the shorter pages written out in full. Products are deliberately left out: a catalogue of any size makes a file nobody would finish fetching. They are still in the index, one line each, with their own address. The index names this file, so a reader that has only fetched the index knows it is there.
 - **Who you are, at the top of the index** - your registered name, your company registration number, VAT number, address, the countries you sell to, your opening hours and how to reach a human. All of it comes straight from the **Structured data** tab, so there is one set of facts rather than two that drift apart. It sits above the page lists on purpose: an assistant reads the top of the file first, and it will not put a business in front of somebody it cannot identify. If you would rather not publish it there, the switch turns it off - but it is the single most useful thing on this page for getting recommended, and everything in it is already on your pages in a form search engines read. It only goes out while **Publish the organisation details on every page** is switched on over on **Structured data**: if you have decided those facts are not for publishing, they are not published here either.
 - **A Markdown twin of every page** - the same page at the same address with `.md` on the end. `/about` also answers at `/about.md`, `/task-chair` at `/task-chair.md`, and the home page at `/index.md`. No menus, no buttons, no scripts: the words, the headings, the links and - for a product - the price, the stock, the specification, the variations and whether there is a 3D model of it.
+
+**Prices in a copy are the prices on the page.** If your shop stores its prices one way and shows them another - typed without VAT, shown with it, or the other way round - the Markdown copy does the same sum the shop does and carries your own wording after the figure ("ex VAT", "inc. VAT"). An assistant quoting a copy quotes what the shopper will actually see.
+
+**Who supplies it is your business.** Product copies name the supplier behind each item, which suits a site that wants the brand said out loud and suits a reseller rather less. The switch turns it off. It is on to begin with because that is what the copies already did, and an update has no business quietly removing something your site was publishing.
 
 You choose which kinds of content get a twin, and you can write a sentence or two at the top of the index saying what the site is. Untick a content type and it drops out of the index and its twins are removed at the next rebuild.
 
@@ -167,7 +171,9 @@ Counts are kept per day, per assistant and per page, for as long as you choose.
 
 **Off by default, and it costs money.** This turns on a read-only endpoint at `/api/m/ultimate-seo/mcp` that an assistant can use to search your catalogue and read any page in one call instead of crawling the site. It is read-only in the strict sense: there is no tool there that changes anything, and it can see only what the site already publishes to anybody with a browser.
 
-Four things an agent can ask for: **who runs this site** (the same business details that go at the top of the index - it is told to ask this first, before it recommends you to anybody), **what kinds of content there are and how much of each**, **a search across the lot**, and **any one page in full**.
+Five things an agent can ask for: **who runs this site** (the same business details that go at the top of the index, returns policy included - it is told to ask this first, before it recommends you to anybody), **what kinds of content there are and how much of each**, **a search across the lot**, **any one page in full**, and **the catalogue narrowed down**.
+
+That last one is the one that gets you recommended. Somebody does not ask their assistant "what do you sell"; they ask for an office chair under £250 they can have this week. An index of four hundred products does not answer that without the assistant fetching all four hundred - which it will not do, so it answers from a site that made it easier. So an agent can ask for products by **price range**, **whether they are in stock**, **which category or collection they are in**, and have them back **cheapest first**. A listing running £200 to £400 counts as being under £250, because £250 buys one. Every result comes back with its price, your tax wording and its stock on the line, so nothing has to be fetched twice to compare two things.
 
 Every request is a function call - **Invocations** and **Fluid Active CPU** on your Vercel bill. An agent can make a great many of them in a short space of time, and unlike a person it does not get bored. That is the whole reason it starts switched off. When it is on, the address is named in `/llms.txt` so an agent that reads the index can find it.
 
@@ -187,6 +193,8 @@ The Pages tab also gains a **Ready for AI** column, which says whether each page
 - **Website details on every page** - names the site itself and ties it to the organisation above, so the two read as one record rather than two unrelated claims.
 - **A search box in search results** - lets Google offer a search box for your site directly in its results. Needs a search address containing `{search_term_string}` where the visitor's words go, and the website details switched on.
 
+**Returns are worth the five minutes.** An assistant asked to recommend a supplier is really being asked what happens when the thing turns out to be wrong. Filling in the Returns card answers that before anybody asks, in a form both search engines and assistants read - and the same answer is said in plain English at the top of `/llms.txt` and handed to any agent that asks who runs this site.
+
 **What kind of organisation is this?** - tick as many as are true, not just one. An online shop is both an *Organisation* and an *Online shop*, and saying so is how it qualifies for both sets of treatment in search results. *Local business*, *Shop with premises* and *Professional service* are for somewhere with a door, and ticking one of those three is what makes the opening hours and price range fields appear - putting them on the others is markup search engines throw away.
 
 **Everything else is a field.** The whole record is fillable in, with nothing needing hand-written JSON:
@@ -199,6 +207,7 @@ The Pages tab also gains a **Ready for AI** column, which says whether each page
 | Contact point | What it is for, email, phone, areas served, languages |
 | Registration numbers | VAT number, tax ID, D-U-N-S number, ISO 6523 code, and one free "other number" pair - what it is, and the number |
 | Official profiles | One URL per line |
+| Returns | Whether you accept them, how long you allow, how they come back, who pays, where it applies, and the page it is written on |
 | Premises | Opening hours, price range - only when a premises type is ticked |
 
 Leave anything blank and it is simply left out. Leave the name blank and it uses the site name; leave the home page blank and it uses this site. The logo can be a full web address or a site path like `/brand/logo.png`; either way it goes out as a full address, because whatever reads it has no idea what site it came from.
@@ -208,6 +217,7 @@ A few things the screen decides for you, so you do not have to think about them:
 - **A single value goes out as a single value.** One area served is `"GB"`, not `["GB"]`. Both are correct; only one of them matches what you will see in every reference example when you go to check your own markup.
 - **The contact point needs a way to be contacted.** A contact type with no email and no phone number says nothing anybody can act on, so it is left out entirely until one of them is filled in.
 - **The "other number" needs both halves.** A registration number nobody can name is a number nobody can use.
+- **A returns policy states itself or says nothing at all.** Leave the first box on *Not stated* and none of it goes out - a policy nobody has typed in is not a policy of "no returns". Choose a set number of days and the day count appears; choose *no time limit* or *not accepted* and it does not, because a window on a policy that has no window is a contradiction, and a reader throws out the whole record rather than the half that disagreed. A return fee is published only with a currency beside it.
 - **The free-text "other number" is for anything with a name** - a Companies House company number, a charity number, a licence number. The named boxes above it exist because VAT, D-U-N-S and ISO 6523 have proper homes of their own in the vocabulary.
 
 **The preview** on the right is not a mock-up. It is the exact text every page will carry, built by the same code that builds the live one, so it cannot quietly drift into being a flattering approximation. Paste it into Google's Rich Results Test if you want a second opinion.

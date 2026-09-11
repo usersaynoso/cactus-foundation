@@ -8,6 +8,7 @@ import {
 } from './vps-database'
 import { rememberAddressForMember } from '@/modules/shop/lib/db/addresses'
 import { getDeductionRules, listOrderSizeDeductionChecks } from '@/modules/shop/lib/db/suppliers'
+import { getCategoryFaqChainBySlug, getProductFaqCategoryChain } from '@/modules/shop/lib/db/catalogue'
 import type { ShpAddress } from '@/modules/shop/lib/types'
 import { splitMigrationStatements } from './migration-sql'
 
@@ -343,5 +344,118 @@ describe.skipIf(!cfg)('order-size deduction SQL against a real database', () => 
     // supplier has no threshold for it to be missing an amount against.
     expect(missing.map((r) => r.sku)).toEqual(['EX000231'])
     expect(missing[0]!.supplier).toBe('Dynamic Office Solutions')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Product FAQs: the walk from a product up its category tree (migration 055).
+//
+// A recursive CTE with a scalar sub-select feeding its non-recursive term - the
+// exact shape nothing short of Postgres will tell you about. It is also the one
+// query on the product page that can be wrong QUIETLY: a chain that came back
+// in the wrong order would print the parent range's answers over the child's,
+// and every check outside this file would stay green.
+// ---------------------------------------------------------------------------
+describe.skipIf(!cfg)('product FAQ category chain against a real database', () => {
+  let db: PrismaClient
+  let dbName: string
+  let roleName: string
+
+  beforeAll(async () => {
+    const suffix = `${Date.now()}`.slice(-9)
+    dbName = `${TEST_PREFIX}faq_${suffix}`
+    roleName = `${TEST_PREFIX}role_faq_${suffix}`
+    const role = await createTestRole(cfg!, roleName)
+    await createTestDatabase(cfg!, dbName, role)
+    db = new PrismaClient({ datasources: { db: { url: connectionUri(cfg!, dbName, role) } } })
+
+    const initSql = path.join(process.cwd(), 'prisma/migrations/20260626000000_init/migration.sql')
+    for (const s of splitMigrationStatements(readFileSync(initSql, 'utf8'))) {
+      await db.$executeRawUnsafe(s)
+    }
+    const dir = path.join(process.cwd(), 'modules/shop/migrations')
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
+      for (const s of splitMigrationStatements(readFileSync(path.join(dir, f), 'utf8'))) {
+        await db.$executeRawUnsafe(s)
+      }
+    }
+
+    // Furniture > Seating > Task chairs, questions on the outer two only, so a
+    // gap in the middle of the chain has to survive the walk as well.
+    await db.$executeRawUnsafe(`
+      INSERT INTO "shp_categories" ("id", "name", "slug", "parent_id", "position", "faqs")
+      VALUES
+        ('cat-furniture', 'Furniture', 'furniture', NULL, 0,
+          '{"items":[{"question":"Do you deliver?","answer":"Everywhere on the mainland."}],"inherit":true}'),
+        ('cat-seating', 'Seating', 'seating', 'cat-furniture', 0, NULL),
+        ('cat-task', 'Task chairs', 'task-chairs', 'cat-seating', 0,
+          '{"items":[{"question":"Is it assembled?","answer":"Arms and castors go on at your end."}],"inherit":true}'),
+        ('cat-desks', 'Desks', 'desks', 'cat-furniture', 1,
+          '{"items":[{"question":"Cable tray?","answer":"Optional."}],"inherit":false}')`)
+
+    await db.$executeRawUnsafe(`
+      INSERT INTO "shp_products" ("id", "name", "slug", "type", "status", "price", "master_category_id")
+      VALUES
+        ('prod-chair', 'Operator chair', 'operator-chair', 'PHYSICAL', 'ACTIVE', 199.00, 'cat-task'),
+        ('prod-desk', 'Bench desk', 'bench-desk', 'PHYSICAL', 'ACTIVE', 399.00, 'cat-desks'),
+        ('prod-filed', 'Filed only', 'filed-only', 'PHYSICAL', 'ACTIVE', 49.00, NULL),
+        ('prod-loose', 'Filed nowhere', 'filed-nowhere', 'PHYSICAL', 'ACTIVE', 9.00, NULL)`)
+
+    // No master category, but filed under two - the fallback picks the
+    // lowest-positioned one, which is Furniture (position 0), not Desks.
+    await db.$executeRawUnsafe(`
+      INSERT INTO "shp_product_categories" ("product_id", "category_id")
+      VALUES ('prod-filed', 'cat-desks'), ('prod-filed', 'cat-furniture')`)
+  }, 300_000)
+
+  afterAll(async () => {
+    await db?.$disconnect()
+    if (dbName) await dropTestDatabase(cfg!, dbName)
+    if (roleName) await dropTestRole(cfg!, roleName)
+  }, 120_000)
+
+  it('walks from the master category outwards, nearest first', async () => {
+    const chain = await getProductFaqCategoryChain('prod-chair', { client: db })
+    // Task chairs, Seating, Furniture - three rungs, in that order, with the
+    // empty middle one still present so the walk is provably not skipping it.
+    expect(chain).toHaveLength(3)
+    expect(chain[0]!.items[0]!.question).toBe('Is it assembled?')
+    expect(chain[1]!.items).toEqual([])
+    expect(chain[2]!.items[0]!.question).toBe('Do you deliver?')
+  })
+
+  it('carries a category own inherit flag back off the column', async () => {
+    const chain = await getProductFaqCategoryChain('prod-desk', { client: db })
+    expect(chain[0]!.inherit).toBe(false)
+    // The walk itself does not stop - stopping is resolveProductFaqs' job, and
+    // it needs the parent in hand to decide. The query hands back the lot.
+    expect(chain).toHaveLength(2)
+  })
+
+  it('falls back to the lowest-positioned filed category when there is no master', async () => {
+    const chain = await getProductFaqCategoryChain('prod-filed', { client: db })
+    expect(chain).toHaveLength(1)
+    expect(chain[0]!.items[0]!.question).toBe('Do you deliver?')
+  })
+
+  it('asks nothing of a product filed nowhere at all', async () => {
+    expect(await getProductFaqCategoryChain('prod-loose', { client: db })).toEqual([])
+    expect(await getProductFaqCategoryChain('no-such-product', { client: db })).toEqual([])
+  })
+
+  // The category page's own walk, rooted at a slug rather than at a product.
+  it('walks a category up to the root from its slug, nearest first', async () => {
+    const chain = await getCategoryFaqChainBySlug('task-chairs', { client: db })
+    expect(chain).toHaveLength(3)
+    expect(chain[0]!.items[0]!.question).toBe('Is it assembled?')
+    expect(chain[1]!.items).toEqual([])
+    expect(chain[2]!.items[0]!.question).toBe('Do you deliver?')
+  })
+
+  it('hands a top-level category back on its own, and an unknown slug nothing', async () => {
+    const chain = await getCategoryFaqChainBySlug('furniture', { client: db })
+    expect(chain).toHaveLength(1)
+    expect(chain[0]!.items[0]!.question).toBe('Do you deliver?')
+    expect(await getCategoryFaqChainBySlug('no-such-category', { client: db })).toEqual([])
   })
 })

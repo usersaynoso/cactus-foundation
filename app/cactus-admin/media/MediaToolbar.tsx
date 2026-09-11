@@ -29,6 +29,7 @@ export default function MediaToolbar({
   tags,
   view,
   onView,
+  onRefresh,
   activeSearch,
   searchEverywhere,
   onSearchEverywhere,
@@ -61,6 +62,8 @@ export default function MediaToolbar({
   tags: TagInfo[]
   view: ViewMode
   onView: (v: ViewMode) => void
+  /** Re-reads the folder being browsed, plus the tree and tags, from the server. */
+  onRefresh: () => void | Promise<void>
   /** The committed search term (not the in-progress input) - drives the chip. */
   activeSearch: string
   /** False confines a search to the folder being browsed; true spans the library. */
@@ -151,6 +154,7 @@ export default function MediaToolbar({
           </Select>
         )}
 
+        <RefreshButton onRefresh={onRefresh} />
         <ViewToggle view={view} onView={onView} />
       </div>
 
@@ -208,6 +212,53 @@ function Select({ value, onChange, label, children }: { value: string; onChange:
     <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} style={selectStyle}>
       {children}
     </select>
+  )
+}
+
+// Re-reads the current folder on demand. Worth having because plenty of what
+// lands in the library arrives from elsewhere - an optimiser finishing, another
+// tab uploading, a module filing its own files - and none of that pushes a
+// message to a page already sitting open.
+function RefreshButton({ onRefresh }: { onRefresh: () => void | Promise<void> }) {
+  const [busy, setBusy] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        if (busy) return
+        setBusy(true)
+        try { await onRefresh() } finally { setBusy(false) }
+      }}
+      disabled={busy}
+      aria-label="Refresh this folder"
+      title="Refresh this folder"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 36,
+        height: 36,
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius)',
+        background: 'var(--color-surface)',
+        color: 'var(--color-text-muted)',
+        cursor: busy ? 'default' : 'pointer',
+        fontSize: '1rem',
+        fontFamily: 'inherit',
+        lineHeight: 1,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          display: 'inline-block',
+          animation: busy ? 'cactus-media-refresh-spin 0.8s linear infinite' : undefined,
+        }}
+      >
+        ⟳
+      </span>
+      <style>{'@keyframes cactus-media-refresh-spin { to { transform: rotate(360deg) } }'}</style>
+    </button>
   )
 }
 

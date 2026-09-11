@@ -564,6 +564,12 @@ export default function MediaLibrary({
     } catch { /* ignore */ }
   }, [])
 
+  // What the Refresh button does: the grid you are looking at, plus the tree and
+  // the tag list, since files arriving from elsewhere change folder counts too.
+  const refreshLibrary = useCallback(async () => {
+    await Promise.all([fetchItems(), refetchFolders(), refetchTags()])
+  }, [fetchItems, refetchFolders, refetchTags])
+
   async function loadMore(): Promise<LibraryItem[]> {
     if (loading || !hasMore) return []
     setLoading(true)
@@ -1475,6 +1481,7 @@ export default function MediaLibrary({
             tags={tags}
             view={view}
             onView={setView}
+            onRefresh={refreshLibrary}
             activeSearch={search}
             searchEverywhere={searchEverywhere}
             onSearchEverywhere={setSearchEverywhere}
