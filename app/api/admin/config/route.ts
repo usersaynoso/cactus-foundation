@@ -292,6 +292,13 @@ export async function PATCH(request: NextRequest) {
   }
   if (rest.behindCloudflare !== undefined) invalidateSiteConfigCache()
 
+  // Moving the homepage moves a redirect with it: the page assigned to the root
+  // sends its own /slug there permanently, and the page that used to hold the job
+  // stops doing so. Both live in the [slug] route, which is held indefinitely
+  // under `revalidate = false`, so without this the old slug would go on
+  // redirecting and the new one would go on serving a copy of the homepage.
+  if (homepageId !== undefined) revalidatePath('/', 'layout')
+
   // Mirror changes to Edge Config
   const edgeUpdates: { adminPath?: string; siteStatus?: SiteStatus } = {}
   if (adminPath) edgeUpdates.adminPath = adminPath

@@ -227,6 +227,16 @@ To choose which page appears at your site's root address:
 2. Find the **Homepage** field and select the page you want.
 3. Save.
 
+**The homepage only has one address.** A page has its own address built from its
+slug - `/about`, `/contact` - but the moment you assign one as the homepage, that
+address stops being a second way in. Anybody who asks for `/home` (or whatever
+the page's slug happens to be) is sent to the bare domain instead, permanently,
+and the slug version is dropped from your sitemap. Search engines otherwise treat
+the two as separate pages that happen to be identical, index both, and let them
+compete with each other for the same searches. If Google is already showing both,
+it will fold them into one over the next few crawls now that the site only admits
+to one.
+
 ---
 
 ## Setting a page as coming-soon or maintenance

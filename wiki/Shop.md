@@ -1005,9 +1005,11 @@ One thing worth knowing: what counts is how the product was marked **when the or
 
 Damage is not on the returns list, and that is deliberate. A return is somebody deciding they don't want a thing, and it ends in a collection and a refund; damage is your problem, and it ends in a replacement. Sat side by side in one dropdown, "it arrived damaged" is the line people pick, and every breakage then has to be unpicked by email.
 
-So it has its own button: **Report damage**. The customer says which item and what happened, and adds photographs - up to six, shrunk in their browser on the way so a phone camera on a bad signal still manages it. Please-add-at-least-one is as far as the nagging goes: "parts are missing" is a report of something that isn't there to photograph.
+So it has its own button: **Report an issue**. The customer says which item and what happened, and adds photographs - up to six, shrunk in their browser on the way so a phone camera on a bad signal still manages it. Please-add-at-least-one is as far as the nagging goes: "parts are missing" is a report of something that isn't there to photograph.
 
-Three things are true of it that are not true of a return. There is no window, because a fault does not read a calendar. It works on the things you would never take back, because the customer who cannot send a desk back is exactly the one who most needs to tell you it turned up smashed. And it runs alongside a cancellation or a return rather than instead of one, so a second parcel arriving broken doesn't have to wait its turn.
+Four things are true of it that are not true of a return. There is no window, because a fault does not read a calendar. It works on the things you would never take back, because the customer who cannot send a desk back is exactly the one who most needs to tell you it turned up smashed. It runs alongside a cancellation or a return rather than instead of one, so a second parcel arriving broken doesn't have to wait its turn. And it does not go away once it has been used: the button comes back as **Report another issue**, because an order of eight desks is opened one carton at a time and the second fault shouldn't have to arrive as an email. Each report gets its own line on their order page, with its own way of taking it back.
+
+**Putting the link in your emails.** Your order emails can carry a link straight to that form: `{{reportIssueUrl}}` opens the customer's own order page with the report already open, so "something not right?" is one click rather than a hunt for the right button. Wrap it in `{{#if hasReportIssueUrl}} ... {{/if}}` like any other optional line - it fills itself in on the emails sent after something has left you (dispatched, part-dispatched, completed, delivery booked, and both replacement emails), and it empties itself on a shop that has reports switched off, taking the whole line with it. Somebody following it who has to prove their postcode first still lands on the open form, rather than on the order page with the thing they clicked for shut.
 
 The report lands in the same queue with its photographs on it, and the buttons read **Putting it right** and **Turn it down** rather than approve and decline, because nobody approves a broken table. Refunding is still offered if that is how you'd rather settle it.
 
@@ -1024,6 +1026,30 @@ Approving a cancellation that covers the whole order also closes the order, so i
 If the refund itself fails - a card processor having a bad minute - you're told plainly, the request still counts as approved, and you can retry the refund from the order page where the refund tools already live.
 
 Customers get an email when their request arrives, and another when you've decided. You get one too, at whichever address takes your new-order alerts. Damage has its own set rather than borrowing the return wording, so softening a decline doesn't accidentally reword an apology. All eight are editable like every other email the site sends, in **Settings → Email → Templates**.
+
+#### Sending a replacement part
+
+Telling somebody you'll put it right is the easy half. The part itself - picked off a shelf, put in a box, handed to a courier - used to be written down nowhere at all, and the customer had no more idea where it was than you did.
+
+**Send a replacement** sits on the order screen, and on any damage report in the queue. You say what's going in the box, how many, and which line of the original order it's for. That last one matters, because a replacement is almost never the thing that was bought: nobody sends a second chair, they send the gas lift out of it.
+
+It goes out as an order of its own, numbered off the one it's putting right - order `DW000182` gets `DW000182-R1`, then `-R2` if a second one is needed. You dispatch it exactly as you'd dispatch anything else, and **everything that follows a parcel follows this one too**: courier, tracking number, the scans, where the van is, the signature on delivery. The customer watches it on the same page they watched the original, rather than copying a tracking number into a courier's website and hoping.
+
+It's free unless you put a price on it. Leave the price box alone and the customer is charged nothing, which is the ordinary case; type a figure in and it's an ordinary sale of a spare part, out of warranty or otherwise. Either way it never inflates your order count - a warranty part is not another sale - while a part you did charge for counts as the money it is.
+
+**Both orders point at each other.** The original carries a green note at the top listing what's been sent and how far along it is, each one a link. Its item lines say it too, so the chair itself reads *1 × Gas lift sent as DW000182-R1*. The replacement says what it's putting right, and links back. So does the customer's order list, so a £0 order in their history reads as *Replacement for DW000182* rather than as a puzzle - and so does your own orders list, where it carries a **Replacement** tag. Your orders export gains two columns for the same reason, right beside the order number.
+
+Customers who never made an account are not asked to prove themselves twice: having shown they know the delivery postcode of the original, they can open its replacements straight from the link. It's the same address, so it's the same proof. And the number works in the tracking box the way they'd actually type it - `DW000182-R1`, `182-R1`, `182r1` all land on it.
+
+They're told three times: when you raise it, so they're not left guessing for a fortnight while a part comes in from a supplier; when it leaves you; and when it arrives. All three have their own wording rather than borrowing the order emails - "thanks for your order, total £0.00" reads as a second mistake on top of the first - and all three are editable in **Settings → Email → Templates**, with matching text messages for customers who take those.
+
+**Tracking that turns up late.** Plenty of couriers collect in the morning and issue the number that afternoon, by which time the dispatch email has already gone saying the goods have left and giving no way of following them. Dispatch it anyway - the email goes out either way, and simply has no tracking line in it. When the number arrives, press **Details** on the parcel, type it in, and tick **Let the customer know the tracking**: they get a follow-up naming the courier and the number, with a link to follow it. Once each, on a parcel that went out with nothing - correcting a typo afterwards does not send it again, and a parcel that already carried its number in the dispatch note says nothing twice.
+
+**It closes itself.** The same hourly check that follows your ordinary parcels follows this one: when the courier says the part was delivered, the replacement is marked complete on its own and the arrival message goes out, naming the day and whoever signed for it. That last one ends on "if anything is still not right, reply and we'll sort it out" rather than "thanks for shopping with us", which is the wrong note to finish a complaint on. You need press nothing.
+
+One thing that does **not** happen: a free replacement never raises an invoice, even on a shop set to invoice everything on dispatch. A £0 bill for a part you sent to put your own mistake right reads as a demand for money. One you charged for is an ordinary sale of a spare, and is invoiced like one.
+
+**Keeping a list of parts.** Tick **This is a spare part** on any product and it drops out of the shop entirely - no grids, no search, nothing for Google to find - while keeping its stock figure, its cost price and its supplier code. You pick it by name when you send a replacement, the stock comes off when you dispatch it, and what your warranty actually costs you is a figure rather than a feeling. You don't have to: the box also takes anything you type, which is the right answer for a fixings pack you'll never send again.
 
 ---
 
@@ -1353,6 +1379,18 @@ It works two ways. Leave your checkout exactly as it is and add a "Save basket a
 
 **Settings → Shop** is split into General, Checkout, Payments and Notifications tabs. General covers store identity (currency, order number format, weight/dimension units), page title and description for search engines, the shop's open/browse-only/closed status, what happens to products that have [sold out](#hiding-things-that-have-sold-out), the supplier support described below, and the product image zoom described below. Checkout covers tax mode, guest checkout, minimum/maximum order value, what to say to a shopper whose postcode you don't deliver to, whether a phone number is required, which checkout steps are shown, the back-in-stock account nudge, whether guests can see their own orders by giving the delivery postcode (and the short web address that form lives at), and how mixed pre-order/in-stock baskets are sent out (see [Mixed baskets with a pre-order in them](#mixed-baskets-with-a-pre-order-in-them) above). Payments lists every method the shop can take money with - switch each on or off, drag them into the order shoppers meet them at checkout, and give each one a button of its own holding its keys, its bank details or its wording. Notifications covers alert addresses for new orders and low stock, and - on a site running [Unified Inbox](Unified-Inbox) - two things under **Where this email goes**: which of your inboxes your customer emails go out as, so a reply to an order confirmation lands with the people who deal with orders rather than in the site's general post, and which inbox a copy of each one is filed in, so you can read what a customer was actually told. Either works on its own; order emails leave through your sending service and never appear in a mail folder unless you ask for that copy. What those emails actually say - order confirmed, shipped, back in stock, and the rest - is edited on **Settings → Email → Templates** alongside every other email your site sends, wrapped in whichever design you have set there. Any wording you had already changed came across with the update.
 
+### Showing the RRP, and telling search engines about it
+
+Switch the **retail price** on under **Shop → Settings → General → Prices** and every product gets an RRP box. On its own that is a reference for you and nobody else sees it.
+
+Tick **Show the retail price to shoppers** and it prints as "RRP £x" beside the price, on product pages and on cards, whenever it is higher than what you are charging.
+
+Under that sits **Send the retail price to search engines too**, off to begin with. Tick it and the RRP is added to the hidden product details Google and the rest read off your pages, in the slot they print as a crossed-out price.
+
+Worth knowing before you tick it: that slot means "what this used to cost here", which is not quite what an RRP is. It is your call whether you are content for yours to be read that way, which is why nothing does it unless you say so. A product actually on offer sends its own previous price instead, since that is the honest answer and it wins.
+
+Listings with options send the cheapest choice's RRP against the "from" price - the same pairing your product cards print - so the two never disagree.
+
 ### Recording who supplied something
 
 **Enable suppliers support** on the General tab is off to begin with, on the reasonable assumption that plenty of shops make their own things and have nobody to name. Switch it on and two things appear: a **Suppliers** entry in the menu under Shop, and a box on every product for picking which of them it came from.
@@ -1414,6 +1452,8 @@ Some things worth knowing before you set it up:
 **Two lists worth checking** live on **Shop → Reports → Order-size deduction**, and the tab only appears once you've switched the feature on. The first finds anything stamped with more than it actually sells for, which is almost always a typo and would otherwise sell for nothing. The second finds things that are on offer, from a supplier who has a threshold, with no amount on them - either you meant that, or it's money a customer will never get back. Neither is an error exactly, which is why they're a list to look at rather than something that stops you saving.
 
 The amount travels with your product spreadsheet too, in an **order_size_deduction** column, so a few hundred of them is a paste rather than an afternoon.
+
+**You can advertise it on Google**, rather than leaving shoppers to find it in the basket - see [Discounts on your listings](Google-Shopping#discounts-on-your-listings) in the Google Shopping module. Read the catch there first: Google can only express a whole-basket minimum, and yours is counted per supplier.
 
 ### Giving the supplier's name a badge of its own
 

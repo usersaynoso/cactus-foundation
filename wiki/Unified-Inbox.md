@@ -673,9 +673,13 @@ That covers the customer answering, and it covers a colleague answering them fro
 
 **Done is the half that matters more**, which is not obvious. A snoozed conversation comes back on its own on Thursday whatever happens. A finished one never does - and the number on your address tabs counts open conversations, so a finished one is not in it. So before this, a customer replying to something you had finished with landed at the top of the **Done** tab, with no number anywhere to tell you, and stayed there. It is now back in Open with the rest of your morning.
 
-Three things deliberately leave a conversation where it is. An out-of-office and a bounce, because that is the mail system talking rather than a person - which is also what stops a mailing list nobody has unsubscribed from dragging a finished conversation back into Open every week. An internal note, for the same reason it does not bump the conversation or mark it unread: us talking among ourselves is not the customer writing back. And your own reply sent from here, because you already knew you were answering.
+**Answering one yourself does it too.** Reply from here to something you had marked done and it goes back to Open, because writing to somebody is the plainest possible statement that you are not finished with them - and you are now waiting on an answer that will land somewhere you can see it. It used to stay under **Done** with your own reply sitting on it, on the reasoning that you knew what you had just done; what that actually meant was that their answer, when it came, was the first you heard of it.
 
-When one comes back this way it says so in **What has been done to this** at the foot of the conversation, with the time, and it says which it was - stopped being snoozed, or opened again. A conversation turning up in Open on Tuesday when you asked for Thursday, or one you were sure you had finished with, is explained rather than mysterious.
+**A snooze you set yourself is left alone, though.** Put a conversation to sleep until Thursday and then send something on it - now, or on a timer - and Thursday is still when you see it. That is the whole of **Send later & snooze**, and waking it up because of the message you yourself set going would undo half of what you asked for. Only **done** is reversed by your own reply. Somebody else writing on it still cancels both, as above.
+
+Two things deliberately leave a conversation where it is whoever wrote them. An out-of-office and a bounce, because that is the mail system talking rather than a person - which is also what stops a mailing list nobody has unsubscribed from dragging a finished conversation back into Open every week. And an internal note, for the same reason it does not bump the conversation or mark it unread: us talking among ourselves is not the customer writing back.
+
+When one comes back this way it says so in **What has been done to this** at the foot of the conversation, with the time, and it says which it was - stopped being snoozed, or opened again. Where it was your own reply that did it, the line carries your name: **Marcus answered it, so it was opened again**. A conversation turning up in Open on Tuesday when you asked for Thursday, or one you were sure you had finished with, is explained rather than mysterious.
 
 ### Finding something
 
@@ -727,6 +731,28 @@ A few things worth knowing before you press it:
 - **You cannot merge into something that has itself been merged away.** Undo that one first, or merge into the conversation it became.
 
 Merging *conversations* and merging *people* are two different jobs. If the same human has turned up twice in the address book, that is a merge on their card - see [People, and how conversations collapse](#people-and-how-conversations-collapse).
+
+### Moving one message out, and deleting one
+
+Merging puts two conversations together. These two do the opposite, one message at a time, and they are the answer to the same problem: working out which conversation an email belongs to is guesswork, and now and then the guess is wrong. Two customers both write "Re: Quote", a mail program forgets what it was replying to, and a stray message ends up glued onto somebody else's thread.
+
+Both live behind the **dots beside a message**, under a rule, below the everyday entries. Both ask before they do anything. Neither appears at all unless you can manage inboxes - the same permission merging takes, and for the same reason: these change what *everybody* on the address sees, rather than what your own screen shows.
+
+**Move to its own conversation.** The message leaves this conversation and starts a fresh one of its own, with anything attached to it. The rest of the conversation stays exactly as it was, and nothing is sent to anybody. You land on the new conversation as soon as it is made.
+
+- It keeps the address it was in, so it is still in the tab you found it in.
+- It arrives **without a name on it**. Whoever it is with gets worked out from the message itself on the next check, rather than inheriting the name it was wrongly filed under - which is usually the reason for moving it in the first place.
+- **The way back is Merge.** If it turns out you were wrong, pick the two conversations and merge them together again. There is no separate undo, because the one that exists already does exactly this job.
+- The only message in a conversation cannot be moved: it is already a conversation of its own.
+- A message from one of the other channels - a chat, an enquiry, a call, a text - cannot be moved. The part of the site that owns it decides what is in its conversations, and it would be handed straight back on the next collection.
+
+**Delete this message.** One message goes, along with anything attached to it, and there is no getting it back. The rest of the conversation stays.
+
+- **Nothing is deleted from your mail account.** The email is still sitting in whatever mailbox it arrived in; this is a fact about what the site holds. Same for the other channels: the part of the site that owns a chat still has every word of it.
+- **It does not come back.** The site writes down that you threw it away, so the next check walks past it rather than collecting it again - which is what would otherwise happen the first time somebody filed that email into another folder from their phone.
+- It goes for **everybody** who can see the address, which is what makes it different from the waste basket at the top of a conversation. That one is yours alone and puts back with the same press - see [The bin](#the-bin).
+- Both are written into **What has been done to this** at the foot of the conversation, so there is a record that something left. What was in the deleted message is deliberately not kept there: a deletion that quietly filed away the subject and the sender would not be much of a deletion.
+- On a voicemail from one of the calling channels you will see a **Delete** button in the foot of the message instead. That one is a bigger thing - it deletes the recording at the phone company as well - so the two are never offered side by side.
 
 ### Junk, and turning a sender away
 
@@ -1179,7 +1205,7 @@ Four permissions, handed out through [Managing users](Managing-users) as usual:
 |---|---|
 | `unifiedinbox.view` | Read conversations, mark them as junk in your own spam folder, delete them into your own bin, and read the address book |
 | `unifiedinbox.reply` | Reply, forward, note, assign, snooze, mark done, block a sender, add and correct a contact, make a category |
-| `unifiedinbox.manage` | Settings, mail accounts, inboxes, the list of blocked senders and letting one back in, merging conversations, merging people, **emptying a bin**, export and erase, importing an address book, removing an organisation, renaming or removing a category |
+| `unifiedinbox.manage` | Settings, mail accounts, inboxes, the list of blocked senders and letting one back in, merging conversations, merging people, **moving one message out to its own conversation**, **deleting one message**, **emptying a bin**, export and erase, importing an address book, removing an organisation, renaming or removing a category |
 | `unifiedinbox.campaigns` | Write, start, pause and stop campaigns, and manage the do-not-email list |
 
 **Campaigns is its own permission on purpose.** Renaming a folder and emailing five thousand customers are not the same act, and a site that has given somebody the first has not thereby given them the second. Sending a campaign from an address still needs permission to reply from that address as well - a campaign is a great many replies, and it is not a way round the guest list.

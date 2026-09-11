@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.413"
+      "version": "v0.1.414"
     },
     {
       "name": "address-lookup-for-shop",
@@ -28,7 +28,7 @@
     {
       "name": "google-shopping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-shopping-for-shop",
-      "version": "v0.1.13"
+      "version": "v0.1.15"
     },
     {
       "name": "stock-import-for-shop",
@@ -133,7 +133,7 @@
     {
       "name": "ultimate-seo",
       "repoUrl": "https://github.com/cactus-foundation-modules/ultimate-seo",
-      "version": "v0.1.13"
+      "version": "v0.1.14"
     },
     {
       "name": "search",
@@ -163,7 +163,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.74"
+      "version": "v0.1.75"
     },
     {
       "name": "google-ai-studio",

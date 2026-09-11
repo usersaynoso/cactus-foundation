@@ -142,6 +142,36 @@ The same 100-character limit applies as to delivery groups above, and the same s
 
 If you change the wording on the product, change the policy name in Merchant Center to match. They are one thing said in two places, and they only work while they agree.
 
+## Discounts on your listings
+
+If your shop takes money off once a basket holds enough of one supplier's goods - the **order-size discount**, set up under Shop → Settings → Pricing and on each supplier - Google can print that on the listings themselves rather than leaving shoppers to find it in the basket.
+
+Turn on **Advertise the discount on Google**, under Discounts on your listings in the Google Shopping settings tab, and the module serves a third document: a promotions data source. Off to start with, and there is a genuine catch below.
+
+The address is your feed address with `&content=promotions` on the end, and there is a Copy button beside it. It goes into Merchant Center as a **third data source**, the promotions one - alongside the product feed, not in place of it. Google asks to be let into promotions before they will read it, which is a form on their side rather than a switch on ours, and they review each offer before it shows on anything.
+
+### What it works out for you
+
+- **One offer per supplier and amount.** Two products from the same supplier, one taking £6 off and one taking £40, make two offers - because Google's offers carry one figure each. Every product is told which offer it belongs to, so you never have to match them up by hand and there is no limit worth worrying about on how many products an offer covers.
+- **Only products currently on offer take part**, because only they carry the money. A product whose sale ends drops out of the next fetch on its own.
+- **Every figure includes VAT**, whichever way round you keep your prices, because that is what Google quotes a shopper.
+- **A product stamped with more than it sells for is left out.** The basket would only ever take it down to nothing, so advertising the full amount would be a promise nobody could keep. Shop's own mis-stamp report already flags those.
+
+### The catch, in plain words
+
+Google can only say **"spend this much"** about a whole basket. Your rule counts one supplier's goods, and leaves delivery out of the total. So a basket that reaches the figure across two suppliers meets Google's condition and does not meet yours.
+
+The terms sent with every offer say so - that the total is counted across those products only, and that delivery does not count towards it - and there is a box for anything else you want to add. That is the honest fix available, and it is why this starts switched off: it is your advertisement, so it is your decision.
+
+Two smaller differences, both in the shopper's favour, so neither needs an apology:
+
+- The money comes off **each** qualifying item. Google advertises the single figure, so a basket of three gets three times what it says.
+- Where a group of products sits on two different VAT rates, the advertised discount is the smallest one anybody gets and the advertised spend is the highest bar anybody has.
+
+### How long an offer lasts
+
+Google caps a promotion at 183 days, so a standing discount is served as a rolling six-month window that every fetch renews. You do not have to do anything about it, and there is no end date to remember.
+
 ## Customer reviews on Google
 
 Two separate things, and a shop can have either on its own. Both live under **Shop → Settings → Google Shopping → Customer reviews on Google**.

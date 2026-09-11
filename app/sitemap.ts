@@ -19,12 +19,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   try {
-    const pages = await prisma.infoPage.findMany({
-      where: { status: 'published' },
-      select: { slug: true, updatedAt: true },
-    })
+    const [pages, config] = await Promise.all([
+      prisma.infoPage.findMany({
+        where: { status: 'published' },
+        select: { id: true, slug: true, updatedAt: true },
+      }),
+      prisma.siteConfig
+        .findUnique({ where: { id: 'singleton' }, select: { homepageId: true } })
+        .catch(() => null),
+    ])
     base.push(
-      ...pages.map((p) => ({
+      // The page assigned to the homepage is already listed above as the bare
+      // domain, and its own /slug now redirects there. Listing both asked a
+      // crawler to index one address twice.
+      ...pages.filter((p) => p.id !== config?.homepageId).map((p) => ({
         url: `${siteUrl}/${p.slug}`,
         lastModified: p.updatedAt,
         changeFrequency: 'monthly' as const,

@@ -1,5 +1,5 @@
 import { cache } from 'react'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
@@ -28,6 +28,19 @@ const getPageBySlug = cache((slug: string) =>
       metaDescription: true, ogImageId: true,
     },
   })
+)
+
+// The page assigned to the homepage is served at the root, and the same row is
+// reachable here under its own slug - /home, or whatever it was named. Two
+// addresses, identical content: a crawler indexes both, they compete with each
+// other in the results, and whatever authority the homepage has is split
+// between them. Reading the assignment once per request, behind cache(), is
+// what lets the route below send the slug form to the root for good.
+const getHomepageId = cache(() =>
+  prisma.siteConfig
+    .findUnique({ where: { id: 'singleton' }, select: { homepageId: true } })
+    .then((c) => c?.homepageId ?? null)
+    .catch(() => null)
 )
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
@@ -81,8 +94,13 @@ export async function generateStaticParams() {
   // as before.
   if (process.env.SKIP_BUILD_STATIC_GENERATION) return []
   try {
-    const pages = await prisma.infoPage.findMany({ where: { status: 'published' }, select: { slug: true } })
-    return pages.map((p) => ({ slug: p.slug }))
+    const [pages, homepageId] = await Promise.all([
+      prisma.infoPage.findMany({ where: { status: 'published' }, select: { id: true, slug: true } }),
+      getHomepageId(),
+    ])
+    // The homepage's own slug is left out: every request for it redirects to the
+    // root, so prerendering it builds a page nobody is ever served.
+    return pages.filter((p) => p.id !== homepageId).map((p) => ({ slug: p.slug }))
   } catch { return [] }
 }
 
@@ -92,6 +110,12 @@ export const revalidate = false
 export default async function InfoPageRoute({ params, searchParams }: Props) {
   const { slug } = await params
   const page = await getPageBySlug(slug).catch(() => null)
+
+  // Assigned homepage: one address, permanently. Done before the draft check so
+  // an admin following an old link lands on the root with the draft banner,
+  // exactly where the page actually lives. permanentRedirect throws, so it must
+  // stay out of any try/catch.
+  if (page && page.id === (await getHomepageId())) permanentRedirect('/')
 
   if (!page) {
     // No InfoPage at this slug - fall through to a module's public index, then to
