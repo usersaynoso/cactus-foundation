@@ -917,6 +917,8 @@ A few sensible details:
 
 No Twilio, or no text-enabled number? None of this appears anywhere, and orders carry on being emailed about exactly as before.
 
+Want texts turned off without touching Twilio - so login codes and everything else it does keep working? **Settings → Shop → Checkout**, untick **Offer text message updates on the confirmation page**. Every customer goes back to email only: the choice disappears from the confirmation page, and any order that already had texts switched on stops getting them too.
+
 ### What a signed-in customer actually sees
 
 **Orders** and **Addresses & Phone Numbers** are tabs in the customer's account, next to Profile and Security, and those pages carry the same tabs across the top - so nobody clicks "order history" and finds themselves stranded on a page with no way back.
