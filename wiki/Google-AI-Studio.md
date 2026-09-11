@@ -108,6 +108,20 @@ same as one you typed. Nothing leaves this site until you press the button in th
 The three drafts are deliberately different from one another rather than three wordings of the same
 sentence, so one of them is usually a better shape than the one you had in mind.
 
+### Chasing something nobody answered
+
+If the last message on the conversation is **yours** - you wrote, and nothing came back - the button
+says **Suggest a follow-up** instead, and that is what you get: a chase, not an answer.
+
+This matters more than it sounds. Asked for a reply to a conversation ending in your own email, a
+model will cheerfully write one - a reply to *you*, in the customer's voice, on your behalf. So it is
+told plainly who spoke last, how long ago, and that it is writing the next thing you send rather than
+answering the last one. The three come out as a short nudge, a fuller one, and one that gives the
+customer an easy way to say no.
+
+An internal note does not count as speaking: a colleague writing "chase this on Friday" has said
+nothing to the customer, so it stays a follow-up.
+
 > **They are not always right.** A model reads the conversation and writes something plausible, which
 > is not the same as something true. It is told not to invent prices, dates, stock or promises, and it
 > mostly obeys - but you are the one pressing Send, so read it.
@@ -158,6 +172,11 @@ afterwards. Anything left sitting in a job is cleared out a day later regardless
 | **House style for replies** | How your business sounds when it writes to somebody. See below. |
 | **Writing model** | Which of Google's models writes the drafts. A different one from the picture model - a model that draws cannot write a sentence. |
 
+Both **Model** settings are a menu of what your key can actually use, fetched from Google itself, with
+a **Type a name instead** link beside it for a model Google named this morning. If the name saved
+against your site is not one Google offers, the box says so in red rather than leaving you to find
+out when nothing comes back.
+
 ### The house style is the setting that matters
 
 It comes filled in with something sensible: keep the product exactly as it is, light it cleanly, plain
@@ -203,6 +222,9 @@ true. What a reply says is the conversation's business; how it sounds is yours.
   something to use it on.
 - **No mailbox, no button.** The same goes the other way: with nothing on the site that has a reply
   box, there is nowhere for **Suggest reply** to appear.
+- **A brand-new model is often a busy one.** Google names them faster than it builds capacity for
+  them, and the newest is frequently too busy to answer for its first few weeks. If a suggestion
+  comes back saying so, pick the one below it on the list.
 - **No 3D model, no button.** The **From 3D models** button only turns up where the 3D views module
   is installed *and* the product actually has a model.
 - **Nothing is left at Google.** The pictures are sent to make the new one and are not kept there

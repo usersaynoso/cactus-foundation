@@ -125,6 +125,9 @@ different one to try that instead.
 From the moment you tick, it is your reply: edit it and send it like anything else. Your signature
 still goes on the bottom, and nothing leaves until you press **Send Reply**.
 
+If the last message on the enquiry is your own - you replied, and nothing came back - the button says
+**Suggest a follow-up** and writes a chase instead of an answer.
+
 **No button?** No key, or no module. Nothing is sent anywhere until you press it.
 
 ### They look like the rest of your email now

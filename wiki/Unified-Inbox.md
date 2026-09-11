@@ -240,6 +240,12 @@ It is on a plain reply and on a reply to everybody, and on nothing else - a forw
 to a colleague and an internal note goes to nobody at all, so neither is a thing to have an answer to
 a customer written for.
 
+**Chasing an email nobody answered.** If the last message on the conversation is your own, the button
+says **Suggest a follow-up** and writes one - a chase, referring back to what you already said, with
+an easy way out for the customer. Without that it would write a reply to your own email, which reads
+perfectly well right up until you notice it is answering you. A note left by a colleague does not
+count as speaking to the customer, so it stays a follow-up.
+
 **Notes are read but never repeated.** A note is handed over marked as something the customer has
 never seen, so a draft can know the chair is the last one in stock without telling them you said so.
 
