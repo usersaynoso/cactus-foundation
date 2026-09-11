@@ -259,7 +259,15 @@ export async function previewEmailTemplate(
 
 /** Stand-in merge values for a preview. Recognisable as fake on sight, so
  * nobody mistakes a test for the real order confirmation. */
-function sampleValueFor(tag: string): string {
+export function sampleValueFor(tag: string): string {
+  // A `hasSomething` tag is never printed - it is the flag a {{#if}} block is
+  // gated on, and only the literal 'true' survives. Standing in for it with
+  // '[hasTracking]' switched every optional line in the email OFF in the
+  // preview, so the courier, the tracking number and the order link were all
+  // missing from the one place an owner looks to see what they had just
+  // written. On means they see the fullest version of their own email, which is
+  // the version worth checking.
+  if (/^has[A-Z]/.test(tag)) return 'true'
   if (/url$/i.test(tag)) return 'https://example.com/sample-link'
   if (/email$/i.test(tag)) return 'sample@example.com'
   if (/code$/i.test(tag)) return '123456'

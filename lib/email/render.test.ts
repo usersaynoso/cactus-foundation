@@ -12,7 +12,7 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }))
 
-const { previewEmailTemplate } = await import('@/lib/email/render')
+const { previewEmailTemplate, sampleValueFor } = await import('@/lib/email/render')
 
 describe('previewEmailTemplate', () => {
   it('shows the real site name in the subject and the body', async () => {
@@ -35,6 +35,25 @@ describe('previewEmailTemplate', () => {
   it('lets the caller override a site value anyway', async () => {
     const rendered = await previewEmailTemplate('member.verify-email', {}, { siteName: 'Beta Ltd' })
     expect(rendered.subject).toBe('Verify your Beta Ltd account')
+  })
+
+})
+
+describe('sample merge values', () => {
+  // Every optional line in an email sits behind a {{#if hasSomething}} flag, and
+  // only the literal 'true' survives applyConditionals. Standing '[hasTracking]'
+  // in for one switched the block OFF, so an owner checking their own wording
+  // saw an email with the courier, the tracking number and the order link all
+  // missing, and concluded the tags were broken.
+  it('switches conditional flags on rather than standing in for them', () => {
+    expect(sampleValueFor('hasTracking')).toBe('true')
+    expect(sampleValueFor('hasParentOrderUrl')).toBe('true')
+  })
+
+  it('still stands in for everything a flag is not', () => {
+    expect(sampleValueFor('orderUrl')).toBe('https://example.com/sample-link')
+    expect(sampleValueFor('hashtag')).toBe('[hashtag]')
+    expect(sampleValueFor('customerName')).toBe('[customerName]')
   })
 })
 

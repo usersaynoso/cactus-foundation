@@ -2426,6 +2426,13 @@ input[type="radio"] {
   color: var(--color-text-muted);
   line-height: var(--leading-sm);
 }
+/* A hint is usually a <p>, and a <p> arrives with the browser's own 1em above
+   and below it. Inside a .field that margin lands on top of the flex gap above
+   and the field's own margin below, which is how a one-line hint ends up sitting
+   in a band of nothing twice its own height. The field does the spacing. */
+.field > .field-hint {
+  margin: 0;
+}
 .field-error {
   font-size: var(--text-sm);
   color: var(--color-error);

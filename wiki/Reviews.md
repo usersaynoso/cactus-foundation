@@ -136,9 +136,13 @@ Guests get the box too. Somebody who has proved the delivery postcode on their o
 
 Switched off until you switch it on, because installing a module should never start writing to your customer list on its own.
 
-Turn it on and once a night, a while after an order has gone out, the customer gets **one** email asking how they got on with what they bought, linking to each product. Not one email per item - one per order, however many things were in it.
+Turn it on and once a day mid-morning, a while after an order has gone out, the customer gets **one** email asking how they got on with what they bought, linking to each product. Not one email per item - one per order, however many things were in it. It goes out at 10am through the summer and 9am through the winter, which is the closest a site with customers in more than one country can honestly get to "ten o'clock".
 
-Nobody is asked twice about the same order, and nobody is asked about something they have already reviewed off their own bat. The first run on a shop with years of history writes to at most forty orders, and the rest go out on following nights, so your sending reputation survives the enthusiasm.
+Nobody is asked twice about the same order. Nobody is asked at all if they have already reviewed something off that order - one review is them having done the thing the email was going to ask for, and chasing them anyway reads as a shop not paying attention. It counts whether they wrote it from their order page or off their own bat on a product page, and it counts while the review is still waiting for you to approve it. The first run on a shop with years of history writes to at most forty orders, and the rest go out on following nights, so your sending reputation survives the enthusiasm.
+
+The email shows the order the way your dispatch notes and confirmations show it - a photograph, the name, the quantity and the price, with each line linking to that product's reviews. Under it, on an order you have marked completed, is a **Review your order** button: it opens the customer's own order page, where they can rate everything they bought in one sitting without hunting through product pages. A guest is asked for the delivery postcode first, the same check as every other order link you send.
+
+Nothing to do on your part, and if you have rewritten the invitation in Settings > Emails you keep your wording - the order table and the button are in the chip list as `orderItems` and `orderUrl` when you want them.
 
 The email is deliberately plain and says it would rather have the truth than the compliment. Reviews you fished for read like reviews you fished for.
 
