@@ -8,7 +8,7 @@ import {
 } from './vps-database'
 import { rememberAddressForMember } from '@/modules/shop/lib/db/addresses'
 import { getDeductionRules, listOrderSizeDeductionChecks } from '@/modules/shop/lib/db/suppliers'
-import { getCategoryFaqChainBySlug, getProductFaqCategoryChain } from '@/modules/shop/lib/db/catalogue'
+import { getCategoryFaqChainBySlug, getCollectionFaqSetBySlug, getProductFaqCategoryChain } from '@/modules/shop/lib/db/catalogue'
 import type { ShpAddress } from '@/modules/shop/lib/types'
 import { splitMigrationStatements } from './migration-sql'
 
@@ -450,6 +450,26 @@ describe.skipIf(!cfg)('product FAQ category chain against a real database', () =
     expect(chain[0]!.items[0]!.question).toBe('Is it assembled?')
     expect(chain[1]!.items).toEqual([])
     expect(chain[2]!.items[0]!.question).toBe('Do you deliver?')
+  })
+
+  it('reads a collection own set, and an empty one for a slug that matches nothing', async () => {
+    await db.$executeRawUnsafe(`
+      INSERT INTO "shp_collections" ("id", "name", "slug", "faqs")
+      VALUES
+        ('col-impulse', 'Impulse', 'impulse',
+          '{"items":[{"question":"Is Impulse a range?","answer":"Desks, storage and screens that match."}],"inherit":false}'),
+        ('col-plain', 'Clearance', 'clearance', NULL)`)
+
+    const impulse = await getCollectionFaqSetBySlug('impulse', { client: db })
+    expect(impulse.items[0]!.question).toBe('Is Impulse a range?')
+    // The flag has to survive the column, or a collection that said "just mine"
+    // would quietly start printing the shop's questions under its own.
+    expect(impulse.inherit).toBe(false)
+
+    // A collection with nothing written, and a slug that is nobody's, both read
+    // as the empty inheriting set - which is what prints the shop-wide list.
+    expect(await getCollectionFaqSetBySlug('clearance', { client: db })).toEqual({ items: [], inherit: true })
+    expect(await getCollectionFaqSetBySlug('no-such-collection', { client: db })).toEqual({ items: [], inherit: true })
   })
 
   it('hands a top-level category back on its own, and an unknown slug nothing', async () => {

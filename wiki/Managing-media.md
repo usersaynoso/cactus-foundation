@@ -199,6 +199,12 @@ So the shop tells you when it has happened. Rename or re-parent a category under
 
 > **Why not just do it automatically?** Because moving files is real work in your storage, and a single category can carry tens of thousands of them. A rename that quietly turned into twenty minutes of copying would either give up half way or leave you staring at a spinner. Better to tell you, and let you press the button.
 
+### Email files itself too
+
+If you have the Unified Inbox installed, everything that arrives on a message or goes out on one is filed under **Inbox → the other person's email address → Received** or **Sent**. One supplier's whole paper trail in one folder, without anybody dragging anything anywhere.
+
+Two things worth knowing. **They are ordinary library items**, so anybody who can use the media library can see them, invoices included. And **the message still points at them**: renaming or moving one of those folders is fine, because the conversations follow it, but deleting a file out of there does mean the paperclip on that email has nothing left to open. The library will tell you a file is in use before you delete it, and an email counts.
+
 > **Careful with deleting folders.** Deleting a folder is permanent and takes *everything* inside it with it - every file and every subfolder, removed from your storage for good. Before it does anything, Cactus shows you exactly how much it's about to remove and warns you by name about any files that are still in use on your site. There's no undo, so read that summary before you confirm.
 
 ---
@@ -396,7 +402,7 @@ Press **Run check**. It can take a little while on a big library, because it gen
 
 - **Leftover files** - files sitting in storage that no item in your library points to and nothing on your site is using, along with how much room they're taking up. These are the usual reason your provider's own dashboard reports more files than your library does. They build up in small ways: a file gets replaced or moved and the old copy doesn't quite get cleared away.
 - **In use, but with no entry here** - files your site is genuinely serving that never got an entry in the library. A 3D model or a product photograph added in bulk can land this way, and so can a file whose entry was deleted while a product page carried on using it. They look like leftovers and are anything but, so nothing here is ever offered for deletion.
-- **Kept outside the library on purpose** - files an add-on holds that were never meant to be library items in the first place: an email attachment out of a shared inbox, say. Those stay out of the media picker deliberately, so this is a count for the sake of the arithmetic and nothing more. There is no button, and there won't be one. You'll only see this heading at all if something on your site keeps files that way.
+- **Kept outside the library on purpose** - files an add-on holds that were never meant to be library items in the first place: a picture that is part of an email rather than attached to it, say, or a file dropped onto a reply that has not been sent yet. Those stay out of the media picker deliberately, so this is a count for the sake of the arithmetic and nothing more. There is no button, and there won't be one. You'll only see this heading at all if something on your site keeps files that way.
 - **Files that have gone** - the opposite problem. An item shows in your library but its actual file is no longer in storage, which is why it appears as a broken picture. Usually because someone tidied up in the provider's own dashboard: deleting a file there tells Cactus nothing, so the entry stays behind.
 - **Sizes recorded wrongly** - where Cactus has the wrong size written down for a file. Harmless in itself, but it makes the "Storage used" figure on this page slightly out.
 

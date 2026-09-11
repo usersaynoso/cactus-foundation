@@ -25,7 +25,7 @@ You will find it under **Inbox** in the admin sidebar, as a tab called **Unified
 | **Overview** | Whether it is working, how much has been collected, and a short list of anything wanting your attention - with a button beside each one that takes you to where it is fixed. On a site with nothing set up yet it is a three-step start instead. |
 | **Mail accounts** | The mailboxes it reads. Test connection, Check now, and how far the first collection has got. |
 | **Inboxes** | The addresses people write to: where each is collected from, how its replies go out, what they are signed with, and who may read them. |
-| **Collecting** | How far back to go, how long to keep things, attachments, and which way round a conversation reads. |
+| **Collecting** | How far back to go, how long to keep things, attachments, which way round a conversation reads, and the button for putting older files on your media page. |
 | **Sent replies** | Whether to find out what became of a reply after it left. |
 | **People** | Telling colleagues from customers, whether to show people's own pictures, the categories you file contacts under, and the shape of your order and quote numbers. |
 | **Campaigns** | Your business name and address for the unsubscribe footer, how long to leave between writing to the same person twice, and how long a finished campaign's log is kept. |
@@ -383,6 +383,8 @@ All of this amounts to keeping a note of what somebody did with an email you sen
 ### Attachments
 
 You can attach anything from your media library. There is a ceiling of about nine megabytes for everything on one message, which is what the email services themselves allow, and **an attachment that will not fit is refused before you send** rather than quietly dropped on the way out.
+
+A file you drag onto the message is put on your media page once it has gone, under **Inbox**, the address you sent it to, and **Sent**. A file you picked out of the media library is left exactly where it already lives: it is one file, not two, and hauling a product photograph out of its shop folder because somebody emailed it would break the page pointing at it.
 
 **Attach a file** is the paperclip at the left-hand end of the strip along the bottom, beside the price tag and the formatting buttons, with the ways to send it at the other end. On a narrow window the strip wraps and the send buttons stay hard right.
 
@@ -896,7 +898,15 @@ Post that arrived before this was fixed is included as far as it can be. Older m
 
 Once you have pressed it for a message, that message keeps its pictures. Go off to something else, come back to it a fortnight later, and it opens with them already there rather than asking again - the sender found out the first time, and there is nothing left to protect by making you click twice. It is remembered by the browser you pressed it in, so a different computer starts the message the careful way round. The five hundred most recent are held; older ones quietly drop off the end.
 
-**Attachments are fetched when somebody opens one**, not while collecting, and they are kept where only this module can reach them. They never appear in your media library or in the picker when you are building a page, which is deliberate: an invoice pulled out of `accounts@` has no business turning up in front of everybody who can edit a page.
+**Attachments are fetched when somebody opens one**, not while collecting. Once fetched they go into your media library like any other file, filed under whoever the message was with: **Inbox**, then their email address, then **Received** or **Sent**. So one supplier's whole paper trail sits in one folder, and you can find last March's invoice from the media page without going anywhere near the conversation it came on.
+
+**Worth knowing before you rely on it:** anything filed there can be seen by everybody on your site who can use the media library. Attachments used to be kept where only the inbox could reach them, precisely so that an invoice out of `accounts@` did not turn up in front of everybody who can edit a page. Putting them on the media page gives that up, on purpose. If that is not what you want for a particular address, the people who can open that inbox is still the setting that matters, but the files themselves are now in the open.
+
+Two sorts of file stay where they were, because both would bury everything else: **pictures that are part of the message itself** (a signature logo, a screenshot pasted into the middle of a sentence) and anything on an internal note, which has nobody to file it under. Those are still readable on the conversation, which is where anybody looking for them would look first.
+
+**Older files.** Anything collected before this was how it worked is still tucked away where the media page cannot see it, and nothing moves it on its own. **Settings → Collecting → Older files** has a button that moves it across, and it only appears if you have any. It works through them a few at a time and you can stop whenever you like: nothing is thrown away, and pressing it again carries on from where it got to.
+
+**Deleting a message deletes its files.** Throwing away a message, emptying the bin, erasing somebody's data, and the keeping window expiring all take the attachment out of storage and off the media page with it. The one exception is a file you attached **from** your media library: that one is yours, it belongs to the library rather than to the email, and sending it somewhere never puts it at risk.
 
 There is a setting called **Fetch everything as it arrives**. It currently behaves the same as fetching one when somebody opens it. Pulling every attachment on a busy account through the hourly check needs a budget and a storage conversation of its own, so it is honestly a setting that does not do anything yet rather than one that does it badly.
 
@@ -1319,7 +1329,7 @@ The tidy ending is to turn Reply Catcher's mailbox connection off, or uninstall 
 
 ## If you uninstall it
 
-Choosing "remove code and data" takes every conversation, message, person and campaign with it - the do-not-email list included, so be sure before you do it on a site that has ever sent one. **The attachment files in your media storage are not taken**, because they live outside the database. They stop being claimed by anything, so the media library's **Unused** count picks them up and offers them for deletion. It is one more step rather than a hidden leak, but it is a step somebody has to take.
+Choosing "remove code and data" takes every conversation, message, person and campaign with it - the do-not-email list included, so be sure before you do it on a site that has ever sent one. **The attachment files themselves are not taken.** They stay in your media library, in the **Inbox** folders they were filed into, exactly as they were - you keep every invoice and every signed order, which is usually the point. What goes is the record of which message each one came on, so from then on they are simply files in folders named after email addresses. Nothing is left claiming them either, so they will show up in the media library's **Unused** count, ready to be tidied away if you decide you no longer want them.
 
 ---
 

@@ -225,8 +225,31 @@ three blocks:
   nothing written yet simply leave no gap.
 - **Shop: Filters & Product Grid** - the usual grid. It needs no settings here: the
   page tells it which products to start from and which filters to tick.
+- **Filter Page: FAQs** - the questions that page answers. Drop it under the grid.
 
 Publish it and every filter collection wears it, present and future.
+
+### Questions on a filter page
+
+Each filter collection can answer questions of its own, written in the box at the foot
+of its panel on the **Filter collections** screen. They appear on that page through the
+**Filter Page: FAQs** piece above - no piece in your layout, nothing shown.
+
+It works exactly as the rest of the shop's FAQs do, because it is the same machinery:
+the same accordion, the same wording, and the same hidden details search engines and AI
+assistants read. See [Frequently asked questions](Shop#frequently-asked-questions) in
+the Shop guide for the whole arrangement.
+
+Two choices on the piece. **Questions to show** is either this page's own questions (the
+default) or those followed by your shop-wide ones - the default keeps the shop's standard
+delivery and returns answers off a page whose products already carry them. And there is a
+tick on the page itself, *also show the shop's own questions*, for a page where the
+standard answers would be wrong. **Columns on desktop** lists them in two columns or one;
+either way it drops to one column on a tablet or a phone.
+
+These questions belong to the PAGE. The products listed on it never inherit them - a
+product can appear on any number of filter pages, and inheriting from all of them would
+have it answering one question several different ways with no rule for which wins.
 
 ## Settings
 

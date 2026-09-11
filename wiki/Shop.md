@@ -191,6 +191,7 @@ You write them in three places, and a product page shows all three at once.
 
 - **For the whole shop** - **Shop → Settings → General → Product FAQs**. Delivery, returns, how to get hold of you: the answers that are true of everything you sell. Written once, shown on every product.
 - **For a range** - on the Categories screen, open a category and there's a questions list at the bottom of its panel. Everything filed under that category shows them, and so does everything under its sub-categories, so writing the office-chair answers once covers all four hundred office chairs. A category with questions written against it carries a small **FAQs** badge in the tree, so you can see at a glance which ranges have been done.
+- **For one collection** - the collection's own **FAQs** tab on the Collections screen. These are for the collection's own page and nothing else: a product can sit in several collections at once, and one that inherited from all of them would answer the same question three different ways with no rule for which wins.
 - **For one product** - the product's own **FAQs** tab, for the things that are only true of that one thing.
 
 **Nearest wins.** Ask the same question in two places and the one closest to the product answers it: a product's answer beats its category's, and a category's beats the shop's. That's how you keep one set of delivery wording for the whole catalogue and still say something different about the one item that's made to order. It isn't fussy about matching - capital letters, extra spaces and the question mark are all ignored, so you don't have to retype the heading character for character.
@@ -201,12 +202,26 @@ You write them in three places, and a product page shows all three at once.
 
 **Where it appears on a product page.** The section is part of the product page's usual run of sections - Description, Specification, Dimensions, FAQs, Downloads - so it inherits whatever you've chosen for those under **Editing pages**: stacked one after another, or collapsible. Nothing to place, nothing to drag.
 
-**And on a category page.** Category, collection and tag pages can carry the questions too, but there you place them yourself: **Editing pages → Shop → Category** (or Collection, or Tag), then drop in the **Shop: FAQs** piece wherever you want it - usually under the product grid, where a shopper who has scrolled the range still has a question. It has a heading box, and a choice of what to print:
+**On a product page it's a search box, not a list.** A product can inherit thirty questions from its range and from the shop, and thirty collapsed headings is a second page to read rather than an answer. So the FAQs section opens on a search box and nothing else. The shopper types a word or two, a short list of matching questions drops down, and picking one opens that answer underneath. They can open as many as they like, and close them again.
 
-- **This category's own questions** (the default) - just what you wrote against that category. The shop-wide answers are already on every product underneath it, and printing them here as well means the same questions on the category page and on all four hundred things in it, which is not what anybody wants a search engine to find.
+The search looks at the answers as well as the questions, so somebody typing "delivery" finds *How long until it arrives?* even though the question never says the word. Questions beginning with what they typed come first, then questions containing it, then answers containing it - and where two are equally good, the one written closest to the product wins.
+
+You can change the wording on the box itself: **Shop → Settings → General → Product FAQs → What the product page's search box says**.
+
+**Search engines and AI still see every answer.** This is worth being clear about, because hiding things from shoppers usually means hiding them from Google too, and here it does not. Every question and every answer is written into the page itself, exactly as before - the search box only decides which of them are *shown*, and it decides it in the shopper's browser. The hidden product details that search engines and AI assistants read carry the full set whatever anybody types, and a visitor with JavaScript turned off gets the whole list as a plain set of headings, with no search box at all.
+
+**At the top of the suggestions: "Can't find your answer? Ask a new question."** It sits above the near-misses on purpose - a shopper who has typed their question and not found it is precisely the person with a new one to ask, and they shouldn't have to read to the bottom of a list of things that don't help first. Clicking it opens the question form directly, with no second button to press. It only appears if you've switched **Let shoppers ask a question** on, below.
+
+Category and collection pages are unaffected: the **Shop: FAQs** piece there lists its questions plainly, since a category page carries a handful rather than thirty.
+
+**And on your other shop pages.** The shop home page, category pages, collection pages and tag pages can all carry the questions, but there you place them yourself: **Editing pages → Shop → Shop Home** (or Category, or Collection, or Tag), then drop in the **Shop: FAQs** piece wherever you want it - usually under the product grid, where a shopper who has scrolled the range still has a question. It has a heading box, a choice of one or two columns, and a choice of what to print:
+
+- **This category's or collection's own questions** (the default) - just what you wrote against that one. On a category, the shop-wide answers are already on every product underneath it, and printing them here as well means the same questions on the category page and on all four hundred things in it, which is not what anybody wants a search engine to find.
 - **Those, plus the parent categories and the shop** - the full set a product in this range would show. Fuller page, at the cost of that repetition.
 
-On a Collection or Tag layout there is nothing else to choose: neither carries questions of its own, so the piece prints the shop-wide set whichever option is picked. And as everywhere else, a page with no questions to show gets no heading and no empty box - the piece simply isn't there.
+On the Shop Home and Tag layouts there is nothing to choose: neither carries questions of its own, so the piece prints your shop-wide set whichever option is picked. That is how you get your main FAQs onto `/shop`. And as everywhere else, a page with no questions to show gets no heading and no empty box - the piece simply isn't there.
+
+**Two columns.** On these pages the questions list in two columns on a desktop screen, and one on a tablet or a phone, where two columns of accordion would be two columns of nothing. Set the piece to **One** column if you would rather they ran down the page. Product pages are unaffected - they have the search box instead.
 
 ### Letting shoppers ask one
 
