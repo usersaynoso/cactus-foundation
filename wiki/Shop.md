@@ -1015,6 +1015,8 @@ Four things are true of it that are not true of a return. There is no window, be
 
 The report lands in the same queue with its photographs on it, and the buttons read **Putting it right** and **Turn it down** rather than approve and decline, because nobody approves a broken table. Refunding is still offered if that is how you'd rather settle it.
 
+Those photographs are also filed in your media library, under a folder named for the order (Orders → the order number → issues), so if you ever need to find them again outside the queue itself, that is where they are.
+
 #### The queue
 
 Requests land in **Shop → Cancellations, returns & damage** in your admin, waiting ones first and the oldest at the top. Each shows who asked, for what, why, in their own words, and what the order was worth. Anything covering a discretionary line is flagged **Your call**, so you can see the decision is genuinely open without opening the order and reading the lines. You approve or decline, and either way you can add a line that goes in the email to them. Approving offers a tickbox to send the money back at the same time - it's a second, deliberate step, because a refund is money leaving the business and shouldn't be one stray click away. Leave it unticked to approve now and refund when the goods are actually back in your hands.
