@@ -151,6 +151,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <>
+      {/* The admin's own typefaces. They used to be requested from the root layout,
+          which wraps the public site too, so every shopper on every install paid a
+          render-blocking round trip for two faces only this shell ever draws in.
+          Here they reach the pages that use them and nowhere else.
+          Instrument Sans is --font-sans and JetBrains Mono is --font-mono (see
+          globals.css); a site that has adopted its own primary font overrides
+          --font-sans below, and the mono face is left alone either way. */}
+      {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router: a layout is the correct place for fonts; this rule was written for the Pages Router */}
+      <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet"
+      />
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       {adminThemeStyles && <style dangerouslySetInnerHTML={{ __html: adminThemeStyles }} />}
       <AdminShell

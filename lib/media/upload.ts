@@ -6,6 +6,7 @@ import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex, isMediaInContent } from '@/lib/media/references'
+import { recordFormerMediaAddress, type MediaMoveReason } from '@/lib/media/former-addresses'
 import { sanitizeSvg } from '@/lib/sanitize'
 import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isVideoDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
@@ -964,7 +965,25 @@ export async function getMediaReferencesBulk(mediaIds: string[]): Promise<Map<st
     if (avatarCount > 0) refs.push(`${avatarCount} member avatar${avatarCount > 1 ? 's' : ''}`)
     if ((exportCounts.get(mediaId) ?? 0) > 0) refs.push('a data export')
 
-    if (isMediaInContent(media, usageIndex)) refs.push('page, layout or module content')
+    if (isMediaInContent(media, usageIndex)) {
+      // Named separately from a live reference: "nothing points at this any more"
+      // and "something points at where this used to be" want different answers
+      // from whoever is holding the delete button.
+      refs.push(
+        usageIndex.referencedViaFormerAddress.has(mediaId)
+          ? 'page, layout or module content, at an address this item has moved off'
+          : 'page, layout or module content',
+      )
+    }
+
+    // A module's usage provider failed, so the scan above saw only part of the
+    // site. The library's grid already treats everything as in use in that state
+    // (see isMediaInUse); this check has to agree, or the two halves of the same
+    // question contradict each other and the delete goes through unwarned while
+    // the card next to it says the item is in use.
+    if (usageIndex.degraded && refs.length === 0) {
+      refs.push('something we could not check - a module could not answer')
+    }
 
     result.set(mediaId, refs)
   }
@@ -1076,7 +1095,7 @@ async function optimiseModelInPlace(media: Media): Promise<OptimiseResult> {
     )
   }
 
-  await repointMediaToBlob(media, upload, { optimised: true })
+  await repointMediaToBlob(media, upload, { optimised: true, reason: 'optimise' })
 
   return { optimised: true, before: result.before, after: result.after }
 }
@@ -1180,7 +1199,7 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
     undefined,
     keepName,
   )
-  await repointMediaToBlob(media, result, { optimised: true, bytes: encoded })
+  await repointMediaToBlob(media, result, { optimised: true, reason: 'optimise', bytes: encoded })
 
   return { optimised: true, before, after }
 }
@@ -1339,7 +1358,7 @@ async function persistDerivedImage(
   // and no reference has to move at all.
   const exactName = isExactNameKey(media.key, media.originalName)
   const result = await uploadMedia(encoded, media.mimeType, provider, media.originalName ?? undefined, folderPath || undefined, exactName)
-  return repointMediaToBlob(media, result, { optimised: media.optimised, bytes: encoded })
+  return repointMediaToBlob(media, result, { optimised: media.optimised, reason: 'resize', bytes: encoded })
 }
 
 /**
@@ -1369,6 +1388,8 @@ async function repointMediaToBlob(
   result: UploadResult,
   data: {
     optimised: boolean
+    // What moved the blob, for the former-address trail below.
+    reason: MediaMoveReason
     // Only passed when the swap changes the display name (a replacement file of a
     // different type re-extensions it). Omitted leaves the name alone.
     originalName?: string | null
@@ -1419,6 +1440,11 @@ async function repointMediaToBlob(
   // key exactly where it was: it is the only form whose new key is guaranteed to
   // equal its old one.
   if (result.key !== oldKey || result.url !== oldUrl) {
+    // Remembered BEFORE the rewrite, so an address is on record even if a module
+    // rewriter throws and the operation aborts: a spare row naming an address the
+    // item still answers to costs nothing, whereas a move nobody wrote down is how
+    // a live product photograph ends up in the "Unused" tile.
+    await recordFormerMediaAddress(media.id, oldUrl, oldKey, data.reason)
     await rewriteMediaReferencesInContent(oldUrl, result.url, oldKey, result.key)
   }
 
@@ -1468,7 +1494,7 @@ export async function applyOptimisedVideo(
   return repointMediaToBlob(
     media,
     { key: written.key, url, mimeType: 'video/mp4', sizeBytes: written.sizeBytes },
-    { optimised: true, ...(originalName !== undefined ? { originalName } : {}) },
+    { optimised: true, reason: 'optimise', ...(originalName !== undefined ? { originalName } : {}) },
   )
 }
 
@@ -1568,7 +1594,7 @@ export async function replaceMediaFile(
   // A file someone just picked has not been through the optimiser, whatever the
   // item it replaces had been — so the badge clears and the item is offered for
   // optimising again, exactly as a fresh upload of the same file would be.
-  return repointMediaToBlob(media, result, { optimised: false, originalName: plan.originalName, bytes: buffer })
+  return repointMediaToBlob(media, result, { optimised: false, reason: 'replace', originalName: plan.originalName, bytes: buffer })
 }
 
 // Replace an item's bytes with a blob the client already PUT straight to the
@@ -1590,7 +1616,7 @@ export async function adoptReplacementBlob(
     mimeType,
     sizeBytes: await confirmedSizeBytes(media.provider, key, sizeBytes),
   }
-  return repointMediaToBlob(media, result, { optimised: false, originalName })
+  return repointMediaToBlob(media, result, { optimised: false, reason: 'replace', originalName })
 }
 
 /**

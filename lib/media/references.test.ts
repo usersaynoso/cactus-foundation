@@ -1,12 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { extractReferenceTokens, isMediaInContent, isMediaInUse, type MediaUsageIndex } from '@/lib/media/references'
 
-function index(haystack: string, ids: string[] = [], degraded = false): MediaUsageIndex {
+function index(
+  haystack: string,
+  ids: string[] = [],
+  degraded = false,
+  formerAddressIds: string[] = [],
+): MediaUsageIndex {
   const lowered = haystack.toLowerCase()
   return {
     referencedIds: new Set(ids),
     haystack: lowered,
     referenced: extractReferenceTokens(lowered),
+    referencedViaFormerAddress: new Set(formerAddressIds),
     degraded,
   }
 }
@@ -81,5 +87,25 @@ describe('isMediaInUse', () => {
 
   it('is false only when neither the ids nor the content mention it', () => {
     expect(isMediaInUse(item, index('nothing here'))).toBe(false)
+  })
+})
+
+describe('a reference to an address the item has moved off', () => {
+  // The failure this exists for: a product's photography was optimised (.png ->
+  // .webp) while its editor was open, the editor saved the pre-optimise urls
+  // minutes later, and nothing in the site named the item's current url. It read
+  // as unused, landed in the "Unused" tile, and three live product photographs
+  // were deleted - bytes and all.
+  const OLD_URL = 'https://media.deskwell.co.uk/media/shop/office-chairs/luna/kc1234_1.png'
+
+  it('counts as in use, even though nothing names the current address', () => {
+    const stale = index(`"${OLD_URL}"`, [], false, [ID])
+    expect(isMediaInContent(item, stale)).toBe(true)
+    expect(isMediaInUse(item, stale)).toBe(true)
+  })
+
+  it('does not make an item in use just because some OTHER item moved', () => {
+    const stale = index(`"${OLD_URL}"`, [], false, ['some-other-media-id'])
+    expect(isMediaInUse(item, stale)).toBe(false)
   })
 })

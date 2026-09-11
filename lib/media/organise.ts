@@ -1,6 +1,7 @@
 import type { Media } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { relocateMediaBlob, rewriteMediaReferencesInContent, deleteMedia } from '@/lib/media/upload'
+import { recordFormerMediaAddress } from '@/lib/media/former-addresses'
 
 // ---------------------------------------------------------------------------
 // Media library organisation: folders, moves, physical renames, cascade delete.
@@ -307,6 +308,12 @@ async function resolveCollision(
  * member avatars, data exports).
  */
 async function takeOverMediaReferences(victim: Media, replacement: Media): Promise<void> {
+  // The victim's whole address - and its id - now belong to the replacement, so
+  // anything written against them afterwards resolves to the survivor rather than
+  // to a row that no longer exists.
+  await recordFormerMediaAddress(replacement.id, victim.url, victim.key, 'dedupe')
+  await recordFormerMediaAddress(replacement.id, victim.url, victim.id, 'dedupe')
+
   // Puck content: swap the victim's url + key, then its id, onto the replacement.
   await rewriteMediaReferencesInContent(victim.url, replacement.url, victim.key, replacement.key)
   await rewriteMediaReferencesInContent(victim.url, replacement.url, victim.id, replacement.id)
@@ -394,6 +401,7 @@ export async function moveOrRenameMedia(
     },
   })
 
+  await recordFormerMediaAddress(media.id, media.url, media.key, renaming ? 'rename' : 'move')
   await rewriteMediaReferencesInContent(media.url, relocated.url, media.key, relocated.key)
 
   // 'replace' collision: the incoming item is now safely in place under the
@@ -551,6 +559,7 @@ async function relocateWithinSameFolder(mediaId: string): Promise<void> {
     where: { id: mediaId },
     data: { key: relocated.key, url: relocated.url },
   })
+  await recordFormerMediaAddress(media.id, media.url, media.key, 'move')
   await rewriteMediaReferencesInContent(media.url, relocated.url, media.key, relocated.key)
   try {
     await deleteMedia(media.provider, media.key)

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { siteLogoAlign, siteLogoCellHeight, siteLogoImages, siteLogoNudge } from '@/lib/puck/siteLogoAlign'
 import { sanitizeHref } from '@/lib/email-obfuscate'
 import type { ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { SharedStyle } from '@/components/SharedStyle'
 
 type Props = {
   id?: string
@@ -111,7 +112,9 @@ export default function SiteLogoClient({
         {alignCss && <style>{alignCss}</style>}
         {nudgeCss && <style>{nudgeCss}</style>}
         {cellHCss && <style>{cellHCss}</style>}
-        <style>{`header[data-shrink-ready] img[data-site-logo]{transition:height 0.25s ease;}`}</style>
+        {/* Identical for every logo on the page, and a header can hold three (a
+            light one, a dark one, a mobile one). Shared, so it is written once. */}
+        <SharedStyle id="site-logo-shrink" css={`header[data-shrink-ready] img[data-site-logo]{transition:height 0.25s ease;}`} />
         {cellHShrunk && (
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}

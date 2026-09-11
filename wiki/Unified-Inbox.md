@@ -25,7 +25,7 @@ You will find it under **Inbox** in the admin sidebar, as a tab called **Unified
 | **Overview** | Whether it is working, how much has been collected, and a short list of anything wanting your attention - with a button beside each one that takes you to where it is fixed. On a site with nothing set up yet it is a three-step start instead. |
 | **Mail accounts** | The mailboxes it reads. Test connection, Check now, and how far the first collection has got. |
 | **Inboxes** | The addresses people write to: where each is collected from, how its replies go out, what they are signed with, and who may read them. |
-| **Collecting** | How far back to go, how long to keep things, attachments, which way round a conversation reads, and the button for putting older files on your media page. |
+| **Collecting** | How far back to go, how long to keep things, attachments, and which way round a conversation reads. |
 | **Sent replies** | Whether to find out what became of a reply after it left. |
 | **People** | Telling colleagues from customers, whether to show people's own pictures, the categories you file contacts under, and the shape of your order and quote numbers. |
 | **Campaigns** | Your business name and address for the unsubscribe footer, how long to leave between writing to the same person twice, and how long a finished campaign's log is kept. |
@@ -904,7 +904,7 @@ Once you have pressed it for a message, that message keeps its pictures. Go off 
 
 Two sorts of file stay where they were, because both would bury everything else: **pictures that are part of the message itself** (a signature logo, a screenshot pasted into the middle of a sentence) and anything on an internal note, which has nobody to file it under. Those are still readable on the conversation, which is where anybody looking for them would look first.
 
-**Older files.** Anything collected before this was how it worked is still tucked away where the media page cannot see it, and nothing moves it on its own. **Settings → Collecting → Older files** has a button that moves it across, and it only appears if you have any. It works through them a few at a time and you can stop whenever you like: nothing is thrown away, and pressing it again carries on from where it got to.
+**Older files sort themselves out.** Anything collected before this was how it worked was tucked away where the media page could not see it. The nightly tidy moves it across a few at a time, so a busy account catches up over a handful of nights and a quiet one is done by the morning. There is nothing to press and nothing to switch on, which is rather the point: "your files are in the wrong folder, shall I move them?" is not a question anybody should have to answer about their own site.
 
 **Deleting a message deletes its files.** Throwing away a message, emptying the bin, erasing somebody's data, and the keeping window expiring all take the attachment out of storage and off the media page with it. The one exception is a file you attached **from** your media library: that one is yours, it belongs to the library rather than to the email, and sending it somewhere never puts it at risk.
 

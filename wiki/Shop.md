@@ -245,6 +245,16 @@ A question marked **Not on the page** was emailed but not added to the FAQs: eit
 
 **Categories** are the usual grouping (Mugs, under Kitchenware, under Homeware). A category can also carry a set of [frequently asked questions](#frequently-asked-questions) for its whole range, inherited by everything filed under it. A product can belong to several at once, and one is nominated the **master category** on the product page - the lead one, which decides which range's questions it inherits, and which is also where its photos get filed in your media library (under Shop → that category → the product's own folder, and if the category is itself a sub-category, nested inside its parents to match your tree). Products with no master land in a "Uncategorised" folder instead. **Tags** are free-text labels for cross-cutting themes, and get a page and an optional card badge of their own - see below. **Collections** are curated groups you build by hand (a "Summer Sale" collection, say), each with a page of its own. Unlike categories they follow no rule and inherit nothing: a product is in a collection because you put it there. See **Collections** below.
 
+### Why your category pages got lighter
+
+A card in a category grid is drawn about three centimetres wide. The photograph behind it was, until recently, the full studio shot - on one real catalogue, a 646 KB picture squeezed into a 300-pixel tile, twelve at a time.
+
+Cactus now keeps a **small copy** of every product photograph and every variation photograph, and cards are drawn from that. So are the little thumbnails in the strip under the main image on a product page. The main image itself is still the full one - that is the picture people lean in and study.
+
+This applies everywhere a card appears: category pages, collection pages, tag pages, search results, the related and upsell strips, and any product grid you have dropped onto a page of your own.
+
+Nothing for you to do. Add or swap a photograph, on a product or on one of its variations, and the small copy is made when you save. It is covered in more detail under [Small copies, for where a picture is drawn small](Managing-media#small-copies-for-where-a-picture-is-drawn-small) in the media guide, including what happens for the handful of pictures that cannot have one, and how a shop that has been running a while catches up on the photographs it already had.
+
 ### Renaming a category, and where the pictures live
 
 A product's photos, 3D models and spec sheets are filed in your media library under its master category's name. That filing is stamped when each file goes up, so **renaming a category, or moving it under a different parent, leaves the existing files under the old name** while anything uploaded afterwards goes to the new one. The shop carries on showing everything perfectly well - only the media library looks untidy, listing what is really one category twice.
@@ -468,6 +478,8 @@ When the courier hands over a signature, the shop takes its own copy of it. Who 
 The delivery questions stop being offered on a parcel that has arrived, since all of them are about something that has not happened yet. A link from an older delivery message still opens the order page as normal; it simply has no questions to show.
 
 If you mark an order complete yourself before the courier has published the signature - which is the natural thing to do when the van has just been - the shop keeps asking for a fortnight afterwards and files the proof when it appears. Nothing is asked once it has it.
+
+**Where the picture is kept.** In your own Media library, under **Orders / <the order number> / Proof of delivery** - the same place a customer's photograph of something damaged goes, so everything to do with one order sits together. You can open it, download it or send it on like any other file. It is counted as in use, so it will never turn up in the Unused pile with a delete button over it: the whole point of taking a copy is that it is still there on the day somebody says the furniture never came.
 
 **Delivery questions.** Each courier can carry its own questions and answers - will they take it upstairs, what happens if nobody is in, do they ring first. They appear as a **Questions about your delivery** button on the customer's order page, and as a link in the delivery message, which opens the same questions when they arrive. A courier with no questions shows no button and no link, so an empty list is simply invisible rather than an empty box. Answers are plain words, typed exactly as you write them.
 
@@ -1435,6 +1447,25 @@ Want your customers saying why the thing was good, where the next shopper will r
 Paste a product's address into WhatsApp, Facebook, LinkedIn or most anywhere else and the preview now arrives with the product's main photo on it, along with its name and short description - the same details search engines are shown. Nothing to switch on; every product page does it.
 
 Better still, the link remembers what was chosen. On a product with options, the address bar quietly updates as the shopper picks - colour, width, whatever you offer - so the address they copy carries those choices with it. Whoever opens it lands on the page with the same options already selected, the price to match, and the preview picture showing the chosen combination's own photo rather than the general one. Ticked add-ons ride along in the link too, choices and quantities included. See [Shop variations](Shop-variations) and [Product Add-ons](Product-Add-ons) for the details.
+
+## What search engines and AI assistants are told about a product
+
+Every product page carries a hidden description of itself, written for machines rather than people. It is what puts a price, a photograph and an "in stock" beside your product in a search result, and it is increasingly what an AI assistant reads before deciding whether to recommend you when somebody asks it where to buy an office chair. None of it is typed anywhere separately - it is assembled from what is already on the page.
+
+What goes out:
+
+- **The name, the photographs, the short description and your own SKU.**
+- **The price** - the figure actually on screen, on the same side of VAT you print. A listing with options publishes the range instead: the cheapest, the dearest and how many combinations there are, rather than a bare "from" figure that left a shopper's question half-answered.
+- **The sale price it is reduced from**, where the page is showing one.
+- **Whether it is in stock, out of stock or on pre-order.**
+- **Every delivery service the item can be bought with** - the name, the charge, and how long each one takes. A shop with eight services publishes eight, free ones included. This is the single most useful thing on the page to whoever is asking, and it needs [Advanced Shipping](Advanced-Shipping) installed; without it nothing about delivery goes out.
+- **The star rating**, where the item has published reviews, with the number of them. Needs [Reviews](Reviews). A product nobody has reviewed publishes no rating - inventing one is the kind of thing search engines hand out penalties for.
+- **"This cannot be sent back"**, with your own wording, on anything you have marked non-returnable. An item you will take back says nothing here on purpose: how long your returns window is and who pays the postage are set once on the **Structured data** tab of [Ultimate SEO](Ultimate-SEO), and one policy stated once beats the same policy restated on twenty thousand products until they disagree.
+- **The brand, barcode, part number and condition**, where you have filled them in for [Google Shopping](Google-Shopping) - see below.
+
+**A shop that withholds its prices withholds them here too.** Switch to quoting and the figures come straight out of the hidden description as well. How it arrives and whether it can come back still go out - those say nothing about what it costs, and they are the half a buyer most wants.
+
+**Where the brand comes from, and a thing worth checking.** The make, the barcode and the part number are the ones you set for Google Shopping, reused rather than typed a second time - so the search result and the Google listing can never name two different makers. That does mean one setting now reaches further than it used to. If **Use the supplier as the brand** is switched on in Google Shopping settings, the supplier's name is the brand on your product pages as well, not only in the feed. On a shop that sells its own range that is exactly right. On a shop that buys in from a distributor it may not be, and the switch is on the Google Shopping settings tab.
 
 ## Quoting instead of selling
 

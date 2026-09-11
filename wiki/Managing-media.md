@@ -378,11 +378,60 @@ Turn it off and every image on a page is fetched immediately, whether anyone scr
 
 ---
 
+## When a file moves
+
+A few things change where a file actually lives without changing which file it is: optimising it (a PNG becomes a WebP), resizing or cropping it, replacing it, renaming it, or dragging it into a different folder. Cactus goes round and updates everything that pointed at the old spot - your pages, your layouts, your product photographs, your swatches - so nothing breaks.
+
+The awkward case is a screen that was already open. If you had a product open in one tab, optimised its pictures in another, and then pressed Save on the first tab, that Save wrote down where the pictures *used* to be. There was nothing to update at the time, because you hadn't saved yet.
+
+Cactus now keeps a note of every address a file has ever had, which sorts out both halves of that:
+
+- **The file never counts as spare.** Something still points at it, even if it's pointing at the old address, so it stays out of the **Unused** tile and won't be offered up for deletion.
+- **The old address gets quietly corrected.** Save that product page and Cactus swaps the out-of-date address for the current one on its way into the database, so the pictures keep showing.
+
+You don't have to do anything for this. It's worth knowing about mainly so that a file listed as unused really is unused.
+
+One limit, and it's an honest one: this only covers moves from this version onwards. Anything that shifted before it has no note against it.
+
+---
+
+## Small copies, for where a picture is drawn small
+
+A product photograph is a big file because it has to be. Somebody on the product page wants to lean in and see the weave of the fabric, so the picture behind it is a few thousand pixels across and weighs the better part of a megabyte.
+
+The same photograph then gets drawn about three centimetres wide on a category page, twelve of them at a time, and as a postage stamp in the strip of thumbnails under the main image. Sending the big one to do those jobs is like posting a poster to somebody who asked for a stamp.
+
+So Cactus keeps a **small copy** of each picture, 300 pixels on its longest side, filed in the same folder as the original with `-thumb` on the end of its name. Category pages, product cards and thumbnail strips are drawn from that copy; the product page's main image is still the original, because that's the one people look at properly.
+
+On a real catalogue this is the difference between a category page pulling down five and a half megabytes of photography and pulling down a few hundred kilobytes.
+
+**You don't have to do anything.** Add a photograph to a product - or to one of its variations - and the small copy is made when you save. It's the same for a picture you swap in later.
+
+A few pictures won't get one, and that's fine rather than broken:
+
+- anything already small enough that a copy would be a waste of a file
+- drawings and animations (SVG and GIF), which either scale on their own or would stop moving
+- a picture hosted somewhere else, where there are no bytes for us to work from
+
+In every one of those cases the original is used, exactly as it always was. Slightly heavier, never wrong.
+
+**These copies count as in use.** They'll show up in the media library like any other file, and they will *not* appear in the **Unused** tile - something is pointing at them. Don't go hunting them down to tidy up; deleting one takes a card picture with it.
+
+### Catching up an existing shop
+
+A shop that has been running a while has thousands of photographs and no small copies of any of them, and they only get made when somebody saves the product. Rather than asking you to open and re-save every product you own, there's a one-off sweep that goes through the lot.
+
+It isn't a button, and deliberately so: it reads every photograph in the shop once, which on a decent-sized catalogue is several gigabytes and a couple of hours. That's a job for whoever looks after your site, run from their own machine, not something to set off from a web page and hope it survives. Ask them and point them at `modules/shop/scripts/backfill-thumbs.mts`.
+
+It picks up where it left off if it's interrupted, so there's no way to half-break it.
+
+---
+
 ## Deleting media
 
 Deleting an image via the admin removes it from your storage provider immediately. There is no recycle bin or undo. If you need a deleted image back, you'll need to re-upload it or restore from a backup.
 
-If the image is still in use somewhere - a page, a layout, your logo, and so on - Cactus won't let you delete it by accident, and tells you where it's being used. Swap it out or remove it there first, then delete.
+If the image is still in use somewhere - a page, a layout, your logo, and so on - Cactus won't let you delete it by accident, and tells you where it's being used. Swap it out or remove it there first, then delete. That includes anything still pointing at an address the file has since moved off (see **When a file moves** above), and anything Cactus couldn't check because part of your site wasn't answering - it would rather hold a file back than bin one it wasn't sure about.
 
 ### Deleting several at once
 

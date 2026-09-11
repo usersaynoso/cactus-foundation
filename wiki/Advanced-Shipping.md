@@ -365,6 +365,15 @@ Thursday" against your listings - and, if you switch it on there, what each
 delivery service costs. Nothing changes for a shop running Advanced Shipping on
 its own.
 
+The second is the shop itself. Every product page carries a hidden description of
+itself for search engines and AI assistants, and with this module installed that
+description now lists every delivery service the item can be bought with, each
+with its charge and its days - free ones included. "Free, five days, or assembled
+by Thursday for £37.95" is the answer to the question a shopper actually asks,
+and until now it was on the page for people and nowhere a machine could read it.
+Nothing to switch on, and a shop without this module simply publishes nothing
+about delivery there. See [Shop](Shop#what-search-engines-and-ai-assistants-are-told-about-a-product).
+
 ## Changed in 0.1.18
 
 Earlier versions kept **delivery rules** (base timing per range, category or

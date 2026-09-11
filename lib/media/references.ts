@@ -41,6 +41,20 @@ export type MediaUsageIndex = {
    */
   referenced: Set<string>
   /**
+   * Ids of items that are referenced only at an address they no longer live at.
+   *
+   * A blob moves - optimise, resize, crop, replace, rename, move, dedupe - and
+   * core rewrites every reference that exists at that moment. A reference written
+   * AFTERWARDS against a url captured BEFORE is the one nothing can rewrite: an
+   * editor opened before the optimise and saved after it. The picture 404s, and
+   * the item it meant to name reads as unreferenced - which is how a product's
+   * photography ended up in the "Unused" tile with a delete button over it.
+   *
+   * MediaFormerAddress remembers those addresses, so a reference to one still
+   * counts as a reference to the item behind it.
+   */
+  referencedViaFormerAddress: Set<string>
+  /**
    * True when at least one module's usage provider failed, so the index is known
    * to be incomplete. Everything is then treated as in use: an over-cautious
    * "nothing to reclaim" is a wasted click, whereas an under-cautious "unused"
@@ -181,8 +195,25 @@ async function buildMediaUsageIndex(): Promise<MediaUsageIndex> {
   }
 
   const haystack = parts.join('\n').toLowerCase()
+  const referenced = extractReferenceTokens(haystack)
 
-  return { referencedIds, haystack, referenced: extractReferenceTokens(haystack), degraded }
+  // An item can also be referenced at an address it has since moved off. Asked of
+  // the token set that has just been built, so this is a lookup per remembered
+  // address rather than another scan of the haystack.
+  const referencedViaFormerAddress = new Set<string>()
+  const formerAddresses = await prisma.mediaFormerAddress.findMany({
+    select: { mediaId: true, url: true, key: true },
+  })
+  for (const former of formerAddresses) {
+    if (referencedViaFormerAddress.has(former.mediaId)) continue
+    const url = former.url ? former.url.toLowerCase() : ''
+    const key = former.key ? former.key.toLowerCase() : ''
+    if ((url && referenced.has(url)) || (key && referenced.has(key))) {
+      referencedViaFormerAddress.add(former.mediaId)
+    }
+  }
+
+  return { referencedIds, haystack, referenced, referencedViaFormerAddress, degraded }
 }
 
 // Wrapped in React's `cache` so a single request never builds the index twice
@@ -212,6 +243,10 @@ export function isMediaInContent(
   const url = media.url ? media.url.toLowerCase() : ''
   const key = media.key ? media.key.toLowerCase() : ''
 
+  // Somewhere still names an address this item used to live at. Stale, but a
+  // reference all the same - and the one that matters most, because it is the
+  // shape core cannot rewrite and so the shape that quietly reads as "unused".
+  if (index.referencedViaFormerAddress.has(media.id)) return true
   if (url && referenced.has(url)) return true
   if (key && referenced.has(key)) return true
   if (referenced.has(media.id.toLowerCase())) return true

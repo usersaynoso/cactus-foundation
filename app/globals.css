@@ -3353,8 +3353,15 @@ tbody tr:hover {
 :root {
   --color-primary-dark:   var(--cactus-600);
   --color-primary-subtle: var(--cactus-50);
-  --font-heading: "Instrument Sans", system-ui, sans-serif;
-  --font-body:    "Instrument Sans", system-ui, sans-serif;
+  /* The public site's default typeface, for an install that has not chosen one in
+     Appearance > Styles. A system stack rather than a named webfont: the site only
+     loads the faces its own design tokens ask for (see app/(public)/layout.tsx), so
+     naming one here would have been a font the page never fetches - and fetching it
+     would have been a render-blocking round trip to a third party on every page of
+     every site, chosen by nobody. Choosing a font in Appearance overrides all three
+     of these and loads it properly. */
+  --font-heading: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body:    system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --border-radius: 6px;
   --color-link:       var(--cactus-500);
   --color-link-hover: var(--cactus-600);

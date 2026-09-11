@@ -76,6 +76,30 @@ function isExactFormKey(fullKey: string): boolean {
   return !NANOID_KEY_RE.test(basename)
 }
 
+// A DERIVED copy of another library picture, made by lib/media/renditions.ts and
+// named after its original with one of core's own suffixes on the end.
+//
+// These carry exact-form keys - that is the point of them, it is how the copy is
+// found again from the original's name - so the rule above would put them on the
+// five-minute lifetime. That would be wrong, and for once we can say so with
+// certainty rather than caution: nothing ever writes over a rendition. The only
+// code that makes one either finds the existing file and uses it or mints a new
+// one under a new name; there is no "replace this copy in place" path to go
+// stale, in the way there is for a swatch an admin re-uploads.
+//
+// It matters at scale. A catalogue's card pictures are all renditions - 27,763 of
+// them on the install this was written for - so this is the difference between a
+// shopper's second page view re-checking every picture on it and fetching none.
+//
+// Keep the suffixes in step with the ones core mints: `thumb` in
+// lib/media/thumb-renditions.ts, `small` and `tiny` in lib/media/swatch-renditions.ts.
+const RENDITION_KEY_RE = /-(?:thumb|small|tiny)(?:-\d+)?\.[a-z0-9]+$/
+
+function isRenditionKey(fullKey: string): boolean {
+  const basename = fullKey.slice(fullKey.lastIndexOf('/') + 1)
+  return RENDITION_KEY_RE.test(basename)
+}
+
 // Ceiling for a direct-to-Worker PUT. The body is buffered whole to hash it, so
 // this is what stops one request eating the isolate's memory. Mirrors
 // MAX_DIRECT_UPLOAD_BYTES in lib/media/limits.ts - keep the two in step.
@@ -294,7 +318,7 @@ const worker = {
     // A five-minute conditional revalidation on a file this size is nothing next
     // to serving the heavy copy for months.
     const cacheableForever =
-      (!isExactFormKey(fullKey) || isProtectedKey(fullKey)) && !isVideoKey(fullKey)
+      (!isExactFormKey(fullKey) || isProtectedKey(fullKey) || isRenditionKey(fullKey)) && !isVideoKey(fullKey)
     const responseHeaders = new Headers({
       'Cache-Control': cacheableForever
         ? 'public, max-age=31536000, immutable'

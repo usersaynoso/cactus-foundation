@@ -167,6 +167,8 @@ Only **published** reviews travel, along with the star rating, the wording, the 
 
 Reviews that came from the invitation emails above are marked to Google as having been asked for after delivery, which is a distinction they care about.
 
+Separately, and with nothing to switch on: with this module installed, each product's star rating and review count go into the hidden description its page carries for search engines and AI assistants. That is what puts a row of stars under your listing in a search result and what an assistant reads before deciding whether to recommend the thing. A product nobody has reviewed publishes no rating at all - a rating with nothing behind it is the sort of thing search engines hand out penalties for. See [Shop](Shop#what-search-engines-and-ai-assistants-are-told-about-a-product).
+
 ## What it does not do
 
 - **Photographs with reviews.** Not yet. Shoppers' photos need a moderation flow of their own, and half-built it is worse than absent.

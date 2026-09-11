@@ -64,6 +64,8 @@ Three places, in this order, first one that has an answer wins:
 
 Most shops file everything under a supplier already, so in practice nobody types a brand on anything.
 
+**These four now reach further than the feed.** The brand, the barcode, the part number and the condition are also published in the hidden description every product page carries for search engines and AI assistants - see [Shop](Shop#what-search-engines-and-ai-assistants-are-told-about-a-product). It is the same answer resolved the same way, so a shopping result and a Google listing can never name two different makers. Worth a look at rule 2 above if your suppliers are middlemen: switched on, the middleman's name is now the brand on your own product pages too, not only in the feed.
+
 Left entirely alone, the feed still works: products with no GTIN or MPN are marked for Google as having no standard identifiers, which is normal for made-to-order furniture and the like.
 
 ## The feed address and its key

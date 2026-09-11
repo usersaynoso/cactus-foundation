@@ -439,6 +439,10 @@ model Media {
   folderId     String?
   folder       Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
   tags         MediaTag[]
+  // Every url/key this item has answered to before its current one. See
+  // MediaFormerAddress: a reference written against one of these is still a
+  // reference to this item.
+  formerAddresses MediaFormerAddress[]
   createdAt    DateTime @default(now())
 
   @@index([uploadedById])
@@ -453,6 +457,11 @@ model Media {
   // @unique: two rows may legitimately name the same url, and the callers all
   // take the first match.
   @@index([url])
+  // Finding a picture's shrunk copies again. A rendition is filed under a name
+  // derived from its original's key (see renditionFileName), so this is how a
+  // card grid resolves the small copy of every picture on it in one query
+  // instead of one per picture.
+  @@index([originalName])
 }
 
 // A folder in the media library. Folders nest (self-relation) to any depth; a
@@ -494,6 +503,47 @@ model MediaTag {
 
   @@id([mediaId, tagId])
   @@index([tagId])
+}
+
+// An address a media item used to live at.
+//
+// A library item keeps its identity but not its address: optimise re-encodes a
+// .jpg to a .webp, resize and crop write a fresh key, rename and move rebuild the
+// key from the folder path, and dedupe folds one row into another. Core rewrites
+// every reference it can reach at the moment of the move - Puck builder JSON, and
+// whatever the installed modules repoint through core.media-reference-rewriters.
+//
+// What no rewrite can reach is a reference written AFTER the move against a url
+// captured BEFORE it: an editor screen opened before the optimise, saved five
+// minutes after it. That reference names an address nothing answers to, so the
+// image 404s - and, far worse, the item it meant to name looks unreferenced, lands
+// in the library's "Unused" tile, and is offered up for deletion. It happened: a
+// product's photography was optimised while its editor was open, saved with the
+// pre-optimise urls, and the pictures were binned as spare an hour later.
+//
+// Remembering the old address closes both halves. A stale reference still counts
+// as a reference (see lib/media/references.ts), so the item is never "unused"; and
+// a module about to store a url can ask what that url resolves to now (see
+// resolveCurrentMediaUrls) and store the live one instead.
+//
+// Not unique on url or key: an address is only ever read to find the item behind
+// it, callers take the first match, and a hard constraint here would turn a
+// merely-confusing history into a failed optimise.
+model MediaFormerAddress {
+  id        String   @id @default(cuid())
+  mediaId   String
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  // The public url and storage key the item answered to, verbatim.
+  url       String
+  key       String
+  // What moved it - optimise | resize | crop | replace | rename | move | dedupe.
+  // Display only; nothing branches on it.
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([mediaId])
+  @@index([url])
+  @@index([key])
 }
 
 // A media migration job moves every Media row not already on `toProvider`

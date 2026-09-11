@@ -7,6 +7,7 @@ import { navButtonWidthCss } from '@/lib/puck/menuNavButton'
 import HeadingFitText from '@/lib/puck/components/HeadingFitText'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { emailSafeHref, maskEmailText } from '@/lib/email-obfuscate'
+import { SharedStyle } from '@/components/SharedStyle'
 
 // A menu item pointing at "mailto:hi@example.com" gets the same spam protection
 // as an address typed into page copy: the mailto never reaches the served HTML,
@@ -825,7 +826,7 @@ export default function MenuBlockClient({
         // Base (non-breakpoint) display only. The breakpoint @media rules are
         // emitted by buildTokenStyles so they track the site's breakpoint settings.
         // The dropdown trigger's base display:none lives inline on the element.
-        <style>{`.cactus-nav-menu{display:flex}.cactus-nav-toggle{display:none}`}</style>
+        <SharedStyle id="nav-menu-base" css={`.cactus-nav-menu{display:flex}.cactus-nav-toggle{display:none}`} />
       )}
       {hasShrink && (
         <style>{[

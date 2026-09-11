@@ -144,10 +144,22 @@ export default async function RootLayout({
             pool the <img> requests would not reuse - the tag would look right
             and buy nothing. */}
         {mediaOrigin && <link rel="preconnect" href={mediaOrigin} />}
+        {/* The font host, named early for whichever layout below actually asks it
+            for a stylesheet - the public one for the site's own typefaces, the
+            admin one for the admin's. Cheap either way, and it is the difference
+            between the font arriving with the first paint or one round trip after
+            it.
+
+            What is NOT here any more: a hardcoded request for Instrument Sans and
+            JetBrains Mono. Those are the ADMIN's typefaces, and this layout wraps
+            every page on the site, so every public page on every install was
+            making a render-blocking round trip to a third party for two faces it
+            never draws a character in. They now load from the admin layout, which
+            is the only place that uses them. A public page loads exactly the fonts
+            the site's own design tokens ask for, and a site that asks for none
+            loads none at all. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router: layout.tsx is the correct place for fonts; this rule was written for Pages Router */}
-        <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
       </head>
       <body>
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: flashPreventionScript }} />

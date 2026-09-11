@@ -315,6 +315,18 @@ There is also a choice of what the turning actually moves. Normally the view swi
 
 ---
 
+## When the viewer actually loads
+
+The 3D viewer is a sizeable piece of machinery - it has to be, it is a full graphics engine - and it used to come down with the page whether or not anybody opened a model.
+
+On a category page that is a real cost paid by everybody for something a minority click: twelve product cards, twelve little **View in 3D** badges, and the whole engine fetched and unpacked before the shopper has decided whether they even like the chair. Measured on a live shop it was the better part of a megabyte of unpacking, on a page where nothing 3D was showing.
+
+It now waits for the click. Tap the badge on a card, or a model in the strip under a product photo, and the viewer is fetched then - you'll see the same small spinner it already shows while a fabric is loading, usually for a fraction of a second. Everything else is as it was: the badge, the thumbnails and the little preview images are all still there on first paint, because those are a much lighter thing than the viewer itself.
+
+Nothing to switch on, and nothing about your models or settings changes.
+
+---
+
 ## If something looks wrong
 
 **The thumbnail is there but the model never appears.** The file may be too complex, or damaged. Try re-exporting it as GLB.
