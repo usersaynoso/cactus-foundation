@@ -24,6 +24,15 @@ import path from 'path'
 //
 // The rule is mechanical, so it may as well be checked: if a component accepts
 // `resizing`, every place that renders it has to hand it over.
+//
+// WHAT THIS DOES NOT CATCH, so nobody mistakes a green run for full cover: a
+// component that draws a picture and never accepts `resizing` at all is
+// invisible here. One shipped that way immediately after this test was written -
+// the add-on picker's row thumbnail, a 44px box fed the full 130 KB original.
+// Catching that shape means deciding which <img> tags SHOULD be resized, and
+// plenty legitimately should not (already-small renditions, SVGs, a document
+// rendered for print), so it is a judgement rather than a grep. Read this test
+// as "the hand-offs that exist are complete", not "every picture is sized".
 
 const ROOT = path.join(__dirname, '..', '..')
 

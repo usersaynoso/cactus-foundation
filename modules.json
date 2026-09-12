@@ -13,12 +13,12 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.184"
+      "version": "v0.1.185"
     },
     {
       "name": "product-addons-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-addons-for-shop",
-      "version": "v0.1.35"
+      "version": "v0.1.36"
     },
     {
       "name": "google-sheet-products-for-shop",
@@ -58,7 +58,7 @@
     {
       "name": "product-discovery-tool",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-discovery-tool",
-      "version": "v0.1.12"
+      "version": "v0.1.13"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
