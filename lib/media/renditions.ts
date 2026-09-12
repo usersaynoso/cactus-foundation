@@ -10,6 +10,10 @@ import {
   type RenditionSpec,
 } from '@/lib/media/rendition-naming'
 
+// Re-exported so every existing caller keeps working. The lookup itself lives in a
+// sharp-free file (rendition-lookup.ts) so a module can resolve a small copy
+// without pulling an image library into its bundle.
+export { findRenditionUrls } from '@/lib/media/rendition-lookup'
 export { renditionFileName, RENDITION_FOLDER_NAME, type RenditionSpec }
 
 // Shrunk copies of a media library picture, filed in a `thumb` folder beside the
@@ -206,94 +210,6 @@ export async function generateImageRendition(
   return made[suffix] ?? null
 }
 
-// A folder id is nullable (the library root), and null cannot be part of a string
-// key that a lookup would also find - so the root is spelled out rather than left
-// to coerce into "null" and collide with a folder literally called that.
-const ROOT_FOLDER = ' root'
-
-function folderScopedName(folderId: string | null, fileName: string): string {
-  return `${folderId ?? ROOT_FOLDER} ${fileName}`
-}
-
-/**
- * Find the existing renditions for a batch of original urls.
- *
- * Two queries for the whole batch, whatever its size. This is called on a page
- * render - a category grid resolving the small copy of every picture on it, a
- * product save resolving the copies its images already have - so a query per
- * picture was never on the cards.
- *
- * Returns a map from original url to rendition url. An original with no
- * rendition is simply absent, and callers fall back to the original: always a
- * correct answer, if a heavy one.
- *
- * Matched on folder AND name rather than name alone. A rendition is filed in its
- * original's `thumb` folder, and an original whose key carries no nanoid (an
- * exact-form key - see lib/media/keys.ts) can share a basename with an unrelated
- * picture elsewhere. The name narrows it to a handful; the folder settles it.
- *
- * Two folders are accepted for each original: its `thumb` folder, and the
- * original's own folder, which is where copies were filed before that folder
- * existed. An install part-way through the refile has them in both places, and
- * the `thumb` one wins wherever both answer - so a picture whose copy has been
- * tidied away resolves to the tidied one and never flips back.
- */
-export async function findRenditionUrls(
-  originalUrls: string[],
-  suffix: string,
-): Promise<Map<string, string>> {
-  const out = new Map<string, string>()
-  const unique = [...new Set(originalUrls)].filter(Boolean)
-  if (unique.length === 0) return out
-
-  const originals = await prisma.media.findMany({
-    where: { url: { in: unique } },
-    select: { url: true, key: true, folderId: true },
-  })
-  if (originals.length === 0) return out
-
-  // One query for every `thumb` folder in play, whatever the batch size.
-  const renditionFolders = await findChildFolders(originals.map((o) => o.folderId), RENDITION_FOLDER_NAME)
-
-  const wanted = new Map<string, string>()
-  const wantedBeside = new Map<string, string>()
-  for (const o of originals) {
-    const name = renditionFileName(o.key, suffix)
-    const renditionFolderId = renditionFolders.get(o.folderId)
-    if (renditionFolderId) wanted.set(folderScopedName(renditionFolderId, name), o.url)
-    wantedBeside.set(folderScopedName(o.folderId, name), o.url)
-  }
-
-  const names = [...new Set(originals.map((o) => renditionFileName(o.key, suffix)))]
-  const found = await prisma.media.findMany({
-    where: { mimeType: 'image/webp', originalName: { in: names } },
-    select: { url: true, originalName: true, folderId: true },
-    // Oldest first, so a folder holding a duplicate minted before renditions were
-    // deduped resolves to the same file on every run rather than drifting between
-    // them - the same tie-break the writer above applies.
-    orderBy: { createdAt: 'asc' },
-  })
-
-  // Gathered in two passes rather than one, because the rows arrive in age order
-  // and the preference is by FOLDER: a copy sitting untidied beside its original
-  // is older than the tidied one and would otherwise win on age alone.
-  const beside = new Map<string, string>()
-  for (const f of found) {
-    if (!f.originalName) continue
-    const scoped = folderScopedName(f.folderId, f.originalName)
-    const tidy = wanted.get(scoped)
-    if (tidy) {
-      if (!out.has(tidy)) out.set(tidy, f.url)
-      continue
-    }
-    const untidy = wantedBeside.get(scoped)
-    if (untidy && !beside.has(untidy)) beside.set(untidy, f.url)
-  }
-  for (const [originalUrl, renditionUrl] of beside) {
-    if (!out.has(originalUrl)) out.set(originalUrl, renditionUrl)
-  }
-  return out
-}
 
 /**
  * Every folder an item's shrunk copies could be sitting in: its `thumb` folder,

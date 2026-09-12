@@ -10,6 +10,16 @@ Individual posts live wherever you tell them to - see **Where your posts live** 
 
 ---
 
+## Post cards use a small copy of your cover picture
+
+A post card draws its cover at card size - a few centimetres. Your covers are often product photographs, and a product photograph is a full studio shot, so the cards were downloading pictures many times larger than the space they fill. Three of them on one homepage came to nearly 600 KB.
+
+Cards now draw the small copy the media library keeps of every picture, and the post's own page still shows the full one where somebody is actually looking at it. Nothing to switch on, nothing to re-save - it applies to the feed block, your listings, the related-posts strip and the "load more" button alike.
+
+A cover with no small copy on file - one already small enough to need none - is shown as it always was.
+
+---
+
 ## Where your posts live
 
 Out of the box a post sits under the Gazette, at `/gazette/your-post-title`. Some sites would rather posts sat straight off the front door instead, at `/your-post-title` - shorter, tidier, and one less word between a reader and the thing they came for.
