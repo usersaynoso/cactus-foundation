@@ -4,6 +4,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { deleteMediaBytes, getMediaReferences } from '@/lib/media/upload'
+import { detachMediaReferences } from '@/lib/media/detach'
 
 // Bulk companion to the per-id DELETE in ../[id]/route.ts — same reference
 // check and force-override semantics, just applied to a list. Items still in
@@ -34,6 +35,12 @@ export async function POST(request: NextRequest) {
       skipped.push({ id, references: refs })
       continue
     }
+
+    // Forced through, so take the item off whatever held it before it goes -
+    // otherwise every one of those surfaces is left naming a blob that is about
+    // to stop existing. Skipped for an item nothing pointed at, which is the
+    // whole of an Unused-tile sweep and is where the volume is.
+    if (refs.length > 0) await detachMediaReferences(media)
 
     await deleteMediaBytes(media)
     await prisma.media.delete({ where: { id } })

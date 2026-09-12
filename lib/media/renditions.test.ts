@@ -276,6 +276,57 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
     // picture is bad, drawing a broken one is worse.
     expect(deleteMedia).not.toHaveBeenCalled()
   })
+
+  // Both of the following took a live product's thumbnail off the site (Deskwell,
+  // 2026-09-12): a photograph was uploaded as `iris.jpeg` beside an existing
+  // `iris.webp`, the optimiser re-keyed it, and the refresh deleted a small copy
+  // that two gallery rows were pointing at. Neither tsc, eslint nor a build can
+  // see it - the only symptom is a picture that 404s some minutes later.
+  it('never deletes the copy the remake just ADOPTED', async () => {
+    // The remake resolves to a copy that already exists: generateImageRenditions
+    // reuses one filed under the name it was about to write. Here that is the
+    // stale row itself, so there is nothing to replace - and deleting it would
+    // leave every reference aimed at a file that is no longer there.
+    findFirst.mockImplementation(async (args: { where: Record<string, unknown> }) => {
+      if (args.where.url === EDITED.url) return { ...EDITED, sizeBytes: 900_000, uploadedById: 'u1' }
+      return args.where.originalName === 'oak-thumb.webp' ? { url: staleThumb.url } : null
+    })
+    findMany.mockImplementation(async (args: { where: { originalName?: string } }) =>
+      args.where.originalName === 'oak-thumb.webp' ? [staleThumb] : [])
+
+    await refreshRenditions(EDITED, OLD_KEY)
+
+    // Nothing minted, nothing repointed - and above all nothing deleted.
+    expect(saveMediaRecord).not.toHaveBeenCalled()
+    expect(deleteRow).not.toHaveBeenCalled()
+    expect(deleteMedia).not.toHaveBeenCalled()
+  })
+
+  it('leaves alone a copy that belongs to another picture in the same folder', async () => {
+    // A copy is named after its original's key with the extension taken off, so
+    // `iris.jpeg` and `iris.webp` sitting in one folder both answer to
+    // `iris-thumb.webp`. Optimising the first re-keys it, and the copies the OLD
+    // key was named after are then the OTHER picture's - not this item's to remake
+    // and certainly not its to delete.
+    const OPTIMISED = { ...EDITED, key: 'shop/attributes/id9-iris.webp', url: 'https://cdn.example/shop/attributes/id9-iris.webp' }
+    const neighboursThumb = { id: 'r9', key: 'shop/attributes/thumb/ab1-iris-thumb.webp', url: 'https://cdn.example/shop/attributes/thumb/ab1-iris-thumb.webp' }
+
+    findFirst.mockImplementation(async (args: { where: Record<string, unknown> }) => {
+      if (args.where.url === OPTIMISED.url) return { ...OPTIMISED, sizeBytes: 900_000, uploadedById: 'u1' }
+      return null
+    })
+    findMany.mockImplementation(async (args: { where: { originalName?: string } }) => {
+      // The sibling question: which other originals live in this folder?
+      if (args.where.originalName === undefined) return [{ key: 'shop/attributes/iris.webp' }]
+      return args.where.originalName === 'iris-thumb.webp' ? [neighboursThumb] : []
+    })
+
+    await refreshRenditions(OPTIMISED, 'shop/attributes/iris.jpeg')
+
+    expect(deleteRow).not.toHaveBeenCalled()
+    expect(deleteMedia).not.toHaveBeenCalled()
+    expect(rewriteMediaReferencesInContent).not.toHaveBeenCalled()
+  })
 })
 
 // A copy left behind by a move is stranded twice over - wrong folder, and a name

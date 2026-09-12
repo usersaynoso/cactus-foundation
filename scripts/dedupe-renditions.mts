@@ -20,9 +20,16 @@
 // every duplicate into a thumb folder and they have to be cleared from there.
 //
 // Flags:
-//   --dry-run       report what would go and delete nothing
-//   --limit=<n>     stop after n duplicate groups (default: keep going)
-//   --batch=<n>     groups per pass (default 100)
+//   --dry-run          report what would go and delete nothing
+//   --limit=<n>        stop after n duplicate groups (default: keep going)
+//   --batch=<n>        groups per pass (default 100)
+//   --shard=<k>        this worker's slice of the groups (default 0)
+//   --shards=<n>       how many slices in total (default 1)
+//
+// Sharding is by a hash of each group's (folder, name), so workers never meet on
+// a group and need no cursor between them. A group is a self-contained unit -
+// one survivor and its losers - so N workers is N times the speed with no
+// coordination at all.
 
 import Module from 'module'
 
@@ -35,6 +42,8 @@ const flag = (name: string): string | undefined =>
   args.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
 const dryRun = args.includes('--dry-run')
 const batch = Number(flag('batch') ?? 100)
+const shard = Number(flag('shard') ?? 0)
+const shards = Number(flag('shards') ?? 1)
 const limitArg = flag('limit')
 const limit = limitArg ? Number(limitArg) : Number.POSITIVE_INFINITY
 
@@ -48,11 +57,11 @@ const countDuplicateRenditions = mod.countDuplicateRenditions ?? mod.default?.co
 const dedupeRenditions = mod.dedupeRenditions ?? mod.default?.dedupeRenditions
 
 const pending = await countDuplicateRenditions()
-console.log(`${pending.toLocaleString()} duplicate copies on file.`)
+console.log(`${pending.toLocaleString()} duplicate copies on file${shards > 1 ? ` (this is shard ${shard} of ${shards})` : ''}.`)
 if (pending === 0) process.exit(0)
 
 if (dryRun) {
-  const sample = await dedupeRenditions({ limit: batch, dryRun: true })
+  const sample = await dedupeRenditions({ limit: batch, dryRun: true, shard, shards })
   console.log(
     `Dry run over ${sample.groups.toLocaleString()} groups: ` +
     `${sample.deleted.toLocaleString()} rows would go` +
@@ -71,7 +80,7 @@ for (;;) {
   if (groups >= limit) break
   let result
   try {
-    result = await dedupeRenditions({ limit: Math.min(batch, limit - groups) })
+    result = await dedupeRenditions({ limit: Math.min(batch, limit - groups), shard, shards })
   } catch (err) {
     console.error('Pass failed, stopping - re-run to carry on:', err)
     break

@@ -1,5 +1,6 @@
 import type { Media, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
+import { detachMediaReferences } from '@/lib/media/detach'
 import { relocateMediaBlob, rewriteMediaReferencesInContent, deleteMedia } from '@/lib/media/upload'
 import { recordFormerMediaAddress } from '@/lib/media/former-addresses'
 import { isRenditionFileName } from '@/lib/media/rendition-naming'
@@ -731,6 +732,16 @@ export async function deleteFolderCascade(folderId: string): Promise<{ deletedMe
   const items = await prisma.media.findMany({ where: { folderId: { in: subtreeIds } } })
 
   for (const item of items) {
+    // Everything pointing at this item first, or the cascade leaves a hole in
+    // every surface that drew it: a folder of product photography taken out this
+    // way used to leave the gallery rows behind, each naming a blob that no
+    // longer existed. The confirm dialog above it says how many files go; it does
+    // not say "and the product pages that use them will break", so this has to.
+    // Allowed to throw, and deliberately not caught: a detacher that fails has
+    // to stop the cascade with the folder and its blobs still there, rather than
+    // leave a catalogue naming files that have gone. Try again once whatever
+    // threw has been put right.
+    await detachMediaReferences(item)
     try {
       await deleteMedia(item.provider, item.key)
     } catch {

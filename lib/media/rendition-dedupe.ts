@@ -44,19 +44,19 @@ export type RenditionDedupeProgress = {
 
 export type RenditionDedupeResult = RenditionDedupeProgress & { more: boolean }
 
-type DuplicateRow = {
-  id: string
-  key: string
-  url: string
-  provider: Parameters<typeof deleteMedia>[0]
-  folderId: string | null
-  originalName: string | null
-  createdAt: Date
-}
+// A rendition name, optionally carrying the " (1)" / " (2)" tail that a
+// collision-avoiding writer appends when the name it wanted was already taken.
+//
+// Matching only the plain form was a real miss: it left 11,429 copies untouched
+// on the catalogue this was written for - 10,691 of them "(1)" and 738 "(2)" -
+// and reported "0 duplicates remaining", which was true only inside the pattern
+// it happened to look at. Every one of those had a plain sibling in the same
+// folder, so every one was a second file serving a picture that already had one.
+const RENDITION_NAME_RE = KNOWN_RENDITION_SPECS.map((spec) => spec.suffix).join('|')
 
-/** Every rendition name shape, for the SQL filter. */
-function renditionNamePatterns(): string[] {
-  return KNOWN_RENDITION_SPECS.map((spec) => `%-${spec.suffix}.webp`)
+/** SQL regex for any rendition name, with or without a " (n)" tail. */
+function renditionNameRegex(): string {
+  return `-(${RENDITION_NAME_RE})( \\(\\d+\\))?\\.webp$`
 }
 
 /** How many duplicate rows are outstanding - the number this is working through. */
@@ -64,8 +64,8 @@ export async function countDuplicateRenditions(): Promise<number> {
   const rows = await prisma.$queryRaw<{ n: bigint }[]>`
     SELECT COALESCE(sum(c - 1), 0) AS n FROM (
       SELECT count(*) AS c FROM "Media"
-      WHERE "mimeType" = 'image/webp' AND "originalName" LIKE ANY(${renditionNamePatterns()})
-      GROUP BY "folderId", "originalName"
+      WHERE "mimeType" = 'image/webp' AND "originalName" ~ ${renditionNameRegex()}
+      GROUP BY "folderId", regexp_replace("originalName", ' \\(\\d+\\)\\.webp$', '.webp')
       HAVING count(*) > 1
     ) d
   `
@@ -84,15 +84,32 @@ export async function countDuplicateRenditions(): Promise<number> {
 export async function dedupeRenditions(opts?: {
   limit?: number
   dryRun?: boolean
+  /** Which slice of the duplicate groups to take: 0 <= shard < shards. */
+  shard?: number
+  shards?: number
   onProgress?: (p: RenditionDedupeProgress) => void
 }): Promise<RenditionDedupeResult> {
   const limit = opts?.limit ?? 100
   const dryRun = opts?.dryRun ?? false
+  const shards = Math.max(1, opts?.shards ?? 1)
+  const shard = Math.min(Math.max(0, opts?.shard ?? 0), shards - 1)
 
+  // Sharded on a HASH of the group's identity rather than on a row offset.
+  //
+  // Each group is a self-contained unit of work - one survivor, its losers - so
+  // workers need never coordinate, but they must never be handed the SAME group:
+  // two workers collapsing one group both delete the same losers and the slower
+  // one fails on rows that are already gone. A hash of (folder, name) is stable,
+  // needs no cursor, and cannot drift as rows disappear underneath it, which an
+  // OFFSET-based split would do on every pass.
   const groups = await prisma.$queryRaw<{ folderId: string | null; originalName: string }[]>`
-    SELECT "folderId", "originalName" FROM "Media"
-    WHERE "mimeType" = 'image/webp' AND "originalName" LIKE ANY(${renditionNamePatterns()})
-    GROUP BY "folderId", "originalName"
+    SELECT "folderId",
+           regexp_replace("originalName", ' \\(\\d+\\)\\.webp$', '.webp') AS "originalName"
+    FROM "Media"
+    WHERE "mimeType" = 'image/webp' AND "originalName" ~ ${renditionNameRegex()}
+      AND mod(abs(hashtext(coalesce("folderId", '') ||
+            regexp_replace("originalName", ' \\(\\d+\\)\\.webp$', '.webp'))), ${shards}) = ${shard}
+    GROUP BY 1, 2
     HAVING count(*) > 1
     LIMIT ${limit + 1}
   `
@@ -103,11 +120,30 @@ export async function dedupeRenditions(opts?: {
 
   for (const group of batch) {
     progress.groups += 1
-    const rows = await prisma.media.findMany({
-      where: { folderId: group.folderId, originalName: group.originalName, mimeType: 'image/webp' },
-      // Oldest first: the survivor has to be the row every lookup already picks.
-      orderBy: { createdAt: 'asc' },
-    })
+    // Every row in the group: the plainly-named one and any " (n)" siblings.
+    //
+    // Ordered so the survivor is the row a LOOKUP will actually resolve to.
+    // Every lookup in renditions.ts matches `originalName` against the name
+    // derived from the original's key - the plain form, with no " (n)" - and
+    // then takes the oldest. So the plain name wins first and age only settles
+    // ties. Keeping a " (1)" row because it happened to be older would leave the
+    // group with nothing a lookup can find, and every one of those pictures
+    // would silently fall back to drawing its full-size original.
+    const ordered = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "Media"
+      WHERE "mimeType" = 'image/webp'
+        AND "folderId" IS NOT DISTINCT FROM ${group.folderId}
+        AND regexp_replace("originalName", ' \\(\\d+\\)\\.webp$', '.webp') = ${group.originalName}
+      ORDER BY ("originalName" = ${group.originalName}) DESC, "createdAt" ASC
+    `
+    if (ordered.length < 2) continue
+
+    // Full rows, because handing references over needs the whole item. Re-sorted
+    // into the order the statement above decided, which findMany does not keep.
+    const byId = new Map(
+      (await prisma.media.findMany({ where: { id: { in: ordered.map((o) => o.id) } } })).map((m) => [m.id, m]),
+    )
+    const rows = ordered.map((o) => byId.get(o.id)).filter((m): m is NonNullable<typeof m> => !!m)
     if (rows.length < 2) continue
 
     const [keeper, ...losers] = rows

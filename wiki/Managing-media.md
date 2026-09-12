@@ -205,7 +205,7 @@ If you have the Unified Inbox installed, everything that arrives on a message or
 
 Two things worth knowing. **They are ordinary library items**, so anybody who can use the media library can see them, invoices included. And **the message still points at them**: renaming or moving one of those folders is fine, because the conversations follow it, but deleting a file out of there does mean the paperclip on that email has nothing left to open. The library will tell you a file is in use before you delete it, and an email counts.
 
-> **Careful with deleting folders.** Deleting a folder is permanent and takes *everything* inside it with it - every file and every subfolder, removed from your storage for good. Before it does anything, Cactus shows you exactly how much it's about to remove and warns you by name about any files that are still in use on your site. There's no undo, so read that summary before you confirm.
+> **Careful with deleting folders.** Deleting a folder is permanent and takes *everything* inside it with it - every file and every subfolder, removed from your storage for good. Before it does anything, Cactus shows you exactly how much it's about to remove and warns you by name about any files that are still in use on your site. Anything that was in use gets unhooked as it goes (see **Deleting something that is still in use** below), so a folder of product photography does not leave a row of broken pictures behind it. There's no undo, so read that summary before you confirm.
 
 ---
 
@@ -465,13 +465,30 @@ Deleting an image via the admin removes it from your storage provider immediatel
 
 If the image is still in use somewhere - a page, a layout, your logo, and so on - Cactus won't let you delete it by accident, and tells you where it's being used. Swap it out or remove it there first, then delete. That includes anything still pointing at an address the file has since moved off (see **When a file moves** above), and anything Cactus couldn't check because part of your site wasn't answering - it would rather hold a file back than bin one it wasn't sure about.
 
+### Deleting something that is still in use
+
+You can still go ahead. Choose **Delete anyway** and Cactus unhooks the picture as it goes, so nothing is left pointing at a file that is no longer there:
+
+- A **product photograph** is taken out of that product's gallery, on every product using it, and the remaining photos close the gap. If it was the main photo, the next one takes over as main - so a product is never left with a full gallery and nothing on its card.
+- A **small copy** - the shrunk version Cactus makes for cards and thumbnail strips - is simply unhooked, and those surfaces go back to drawing the full-size original until a new small copy is made. The original is untouched.
+- An **option swatch** loses its picture but keeps the choice: a fabric called Rivet Teal is still orderable, it just shows as a name rather than a square.
+- A **category picture**, a **collection cover**, a **social sharing image**, your **logo**, your **icons**, a **page's sharing image** and a **member's photo** are all cleared.
+
+Three things are deliberately left alone, because unhooking them would lose something you cannot get back by re-uploading the file:
+
+- A **digital download somebody has bought**. The product keeps its download entry so you can see what is missing and put a new file in its place. Left to a sweep, it would look as though there was never a file at all.
+- A **delivery photo or signature**, and a **customer's "report an issue" photograph**. That is evidence, kept for the day there is a disagreement about an order. A tidy-up of the library is not the moment to erase it.
+- A picture **inside a designed description**. That one sits in a block with its own heading and text around it, and whether the block should go, shrink or show a gap is an editing decision rather than something to guess at. Open the description and take it out yourself.
+
+None of this brings the file back - it only makes sure the rest of your site carries on rendering. And if something goes wrong part-way through unhooking, the delete stops and the file stays where it is, rather than leaving you half-way.
+
 ### Deleting several at once
 
 Tick the small checkbox in the corner of each thumbnail (or the tick-boxes in the list view) to select more than one file. A bar appears above the library telling you how many you've picked, with a **Delete** button. Confirm in the pop-up and they're gone.
 
 Got a long run of files to bin? Tick the first one, then hold **Shift** and tick the last one - everything in between gets picked too.
 
-If any of your selection turns out to be in use somewhere, Cactus holds those back and tells you where - you can then choose **Delete anyway** if you're sure, or back out and go and unlink them first.
+If any of your selection turns out to be in use somewhere, Cactus holds those back and tells you where - you can then choose **Delete anyway** if you're sure, or back out and go and unlink them first. **Delete anyway** unhooks each one on the way out, exactly as described above, so a bulk tidy-up does not leave a trail of broken pictures behind it.
 
 ---
 

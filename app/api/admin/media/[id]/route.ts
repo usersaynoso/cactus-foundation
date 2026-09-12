@@ -4,6 +4,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { deleteMediaBytes, getMediaReferences } from '@/lib/media/upload'
+import { detachMediaReferences } from '@/lib/media/detach'
 import { moveOrRenameMedia, MediaNameCollisionError, type CollisionMode } from '@/lib/media/organise'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -93,6 +94,14 @@ export async function DELETE(request: NextRequest, { params }: Ctx) {
       )
     }
   }
+
+  // Forced through, so the owner has seen what holds this and meant it. Take the
+  // item off every one of those surfaces before it goes: a reference left behind
+  // names a blob that is about to stop existing, which on the storefront is a
+  // broken picture on a live product page. Only worth asking when something
+  // actually pointed at it - an item the scan found nothing for has nothing to
+  // detach, so a tidy-up of the Unused tile pays none of this cost.
+  if (refs.length > 0) await detachMediaReferences(media)
 
   // Delete from the provider the row actually lives on (not the active selection).
   await deleteMediaBytes(media)

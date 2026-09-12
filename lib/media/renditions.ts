@@ -222,6 +222,42 @@ async function renditionFolderCandidates(folderId: string | null): Promise<Array
 }
 
 /**
+ * Is `name` the small copy of some OTHER picture in this folder, rather than of
+ * this one?
+ *
+ * A copy is named after its original's key with the extension taken off, so two
+ * originals in one folder whose names differ only by extension - `iris.jpeg`
+ * uploaded beside an existing `iris.webp` - derive the SAME copy name and share
+ * one file. That is survivable while nothing deletes anything.
+ *
+ * It stops being survivable the moment one of the two is edited. An optimise
+ * re-keys `iris.jpeg` to a nanoid WebP, and the refresh below then goes looking
+ * for the copies the OLD key was named after - and finds the other picture's,
+ * which is neither stale nor its to remake. Deleting it took a live product's
+ * thumbnail off two gallery rows at once (Deskwell, 2026-09-12): one photograph
+ * was optimised, and a different photograph's small copy was the thing that went.
+ *
+ * So before a copy is thrown away, the folder's other originals are asked whether
+ * they still answer to that name. One query per size, on a path that already does
+ * a download and an encode.
+ */
+async function isAnotherOriginalsRendition(
+  media: { id: string; folderId: string | null },
+  name: string,
+  suffix: string,
+): Promise<boolean> {
+  const siblings = await prisma.media.findMany({
+    where: {
+      folderId: media.folderId,
+      id: { not: media.id },
+      mimeType: { in: [...RESIZABLE_TYPES] },
+    },
+    select: { key: true },
+  })
+  return siblings.some((sibling) => renditionFileName(sibling.key, suffix) === name)
+}
+
+/**
  * Bring an item's shrunk copies with it when the item itself moves or is renamed.
  *
  * Left behind, a copy is stranded twice over: it sits in the old folder, and - if
@@ -328,6 +364,15 @@ export async function refreshRenditions(
   for (const spec of KNOWN_RENDITION_SPECS) {
     try {
       const staleName = renditionFileName(oldKey, spec.suffix)
+
+      // The name this item's copy will be called from here on. When the edit did
+      // not change it (a crop, which keeps the key) the copies found below are
+      // this item's own and are remade as normal. When it DID change it, a copy
+      // still answering to the old name might belong to another picture in the
+      // folder - and then it is not this item's to remake or to delete.
+      const currentName = renditionFileName(media.key, spec.suffix)
+      if (staleName !== currentName && (await isAnotherOriginalsRendition(media, staleName, spec.suffix))) continue
+
       const stale = await prisma.media.findMany({
         where: {
           mimeType: 'image/webp',
@@ -356,6 +401,19 @@ export async function refreshRenditions(
       if (!fresh) continue
 
       for (const old of stale) {
+        // The remake can hand back a copy that already exists rather than a new
+        // one: generateImageRenditions reuses a copy filed under the name it was
+        // about to write, which is the whole reason a backfill does not mint a
+        // second file per picture. When the file it reused IS one of the stale
+        // ones, there is nothing to replace and nothing to repoint - and the two
+        // lines below would delete the copy that was just adopted, leaving every
+        // reference aimed at a file that is no longer there.
+        //
+        // The rewrite would not even flag it: an identical url pair is a no-op,
+        // so the delete goes through in silence and the only symptom is a broken
+        // picture some hours later.
+        if (old.url === fresh) continue
+
         // The same hook that follows any other blob move, so a url held in a
         // module's own table - the shop keeps its cards' copies in
         // shp_product_media.thumb_url - is repointed rather than left aimed at a
@@ -380,15 +438,22 @@ export async function refreshRenditions(
  * a broken image, which is worse.
  */
 async function discardRenditions(
-  media: { key: string; url: string; provider: MediaProviderType; folderId: string | null },
+  media: { id: string; key: string; url: string; provider: MediaProviderType; folderId: string | null },
   oldKey: string,
 ): Promise<void> {
   for (const spec of KNOWN_RENDITION_SPECS) {
     try {
+      const staleName = renditionFileName(oldKey, spec.suffix)
+
+      // The same trap refreshRenditions guards: a copy answering to the old name
+      // may be another picture's, and clearing this item's copies must not take
+      // a neighbour's with them.
+      if (await isAnotherOriginalsRendition(media, staleName, spec.suffix)) continue
+
       const stale = await prisma.media.findMany({
         where: {
           mimeType: 'image/webp',
-          originalName: renditionFileName(oldKey, spec.suffix),
+          originalName: staleName,
           OR: (await renditionFolderCandidates(media.folderId)).map((folderId) => ({ folderId })),
         },
         select: { id: true, key: true, url: true },
