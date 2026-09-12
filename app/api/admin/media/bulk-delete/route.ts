@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { deleteMediaBytes, getMediaReferences } from '@/lib/media/upload'
 import { detachMediaReferences } from '@/lib/media/detach'
+import { discardRenditionsOfDeleted } from '@/lib/media/renditions'
 
 // Bulk companion to the per-id DELETE in ../[id]/route.ts — same reference
 // check and force-override semantics, just applied to a list. Items still in
@@ -41,6 +42,10 @@ export async function POST(request: NextRequest) {
     // to stop existing. Skipped for an item nothing pointed at, which is the
     // whole of an Unused-tile sweep and is where the volume is.
     if (refs.length > 0) await detachMediaReferences(media)
+
+    // And the item's own shrunk copies, referenced or not - a copy of a picture
+    // that has gone is an orphan nothing can draw or find.
+    await discardRenditionsOfDeleted(media)
 
     await deleteMediaBytes(media)
     await prisma.media.delete({ where: { id } })

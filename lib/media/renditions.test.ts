@@ -41,7 +41,12 @@ vi.mock('@/lib/media/organise', () => ({
   moveOrRenameMedia: (...a: unknown[]) => moveOrRenameMedia(...a),
 }))
 
-const { generateImageRenditions, refreshRenditions, carryRenditionsWithOriginal } =
+const detachMediaReferences = vi.fn()
+vi.mock('@/lib/media/detach', () => ({
+  detachMediaReferences: (...a: unknown[]) => detachMediaReferences(...a),
+}))
+
+const { generateImageRenditions, refreshRenditions, carryRenditionsWithOriginal, discardRenditionsOfDeleted } =
   await import('@/lib/media/renditions')
 
 const SOURCE = 'https://cdn.example/shop/attributes/oak.png'
@@ -282,24 +287,31 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
   // `iris.webp`, the optimiser re-keyed it, and the refresh deleted a small copy
   // that two gallery rows were pointing at. Neither tsc, eslint nor a build can
   // see it - the only symptom is a picture that 404s some minutes later.
-  it('never deletes the copy the remake just ADOPTED', async () => {
-    // The remake resolves to a copy that already exists: generateImageRenditions
-    // reuses one filed under the name it was about to write. Here that is the
-    // stale row itself, so there is nothing to replace - and deleting it would
-    // leave every reference aimed at a file that is no longer there.
+  // The other half of the same trap, and the one that actually bit: an
+  // exact-named picture keeps its key through a crop, a resize and an
+  // extension-only optimise, so the copy's name never changes - and the resizer
+  // handed the STALE copy straight back as though it had just made it. The guard
+  // below then correctly declined to delete it, and the pre-edit thumbnail stayed
+  // on every card. Deskwell, 2026-09-12: bella.webp, cropped and unchanged.
+  it('RE-ENCODES rather than reusing the stale copy when the key survives the edit', async () => {
+    const SAME_KEY = 'shop/attributes/oak.webp'
     findFirst.mockImplementation(async (args: { where: Record<string, unknown> }) => {
       if (args.where.url === EDITED.url) return { ...EDITED, sizeBytes: 900_000, uploadedById: 'u1' }
+      // A copy already on file under exactly the name this run would write.
       return args.where.originalName === 'oak-thumb.webp' ? { url: staleThumb.url } : null
     })
     findMany.mockImplementation(async (args: { where: { originalName?: string } }) =>
       args.where.originalName === 'oak-thumb.webp' ? [staleThumb] : [])
 
-    await refreshRenditions(EDITED, OLD_KEY)
+    await refreshRenditions(EDITED, SAME_KEY)
 
-    // Nothing minted, nothing repointed - and above all nothing deleted.
-    expect(saveMediaRecord).not.toHaveBeenCalled()
-    expect(deleteRow).not.toHaveBeenCalled()
-    expect(deleteMedia).not.toHaveBeenCalled()
+    // A genuinely new file, at a new address, from the CURRENT bytes.
+    expect(uploadMedia).toHaveBeenCalled()
+    const fresh = 'https://cdn.example/shop/attributes/id1-oak-thumb.webp'
+    expect(saveMediaRecord).toHaveBeenCalledWith(expect.objectContaining({ url: fresh }))
+    // References follow it, and only then does the stale one go.
+    expect(rewriteMediaReferencesInContent).toHaveBeenCalledWith(staleThumb.url, fresh, staleThumb.key, fresh)
+    expect(deleteMedia).toHaveBeenCalledWith('B2', staleThumb.key)
   })
 
   it('leaves alone a copy that belongs to another picture in the same folder', async () => {
@@ -367,5 +379,56 @@ describe('carryRenditionsWithOriginal, when the original moves', () => {
     await carryRenditionsWithOriginal(MOVED, 'f1', 'shop/tables/oak.png')
     expect(getOrCreateChildFolder).not.toHaveBeenCalled()
     expect(moveOrRenameMedia).not.toHaveBeenCalled()
+  })
+})
+
+// Deleting a picture and leaving its small copies behind is the thing an owner
+// least expects: they deleted it, and there it still is in the library. Nothing
+// used to clear them - the delete routes took the item's own row and blob and
+// stopped there.
+describe('discardRenditionsOfDeleted', () => {
+  const DOOMED = {
+    id: 'm1',
+    key: 'shop/attributes/oak.webp',
+    provider: 'B2' as const,
+    folderId: 'f1',
+    originalName: 'oak.webp',
+  }
+  const copy = { id: 'r1', key: 'shop/attributes/thumb/id9-oak-thumb.webp', url: 'https://cdn.example/shop/attributes/thumb/id9-oak-thumb.webp', provider: 'B2', folderId: 'f1-thumb', originalName: 'oak-thumb.webp' }
+
+  it('detaches what held each copy, then deletes the copy', async () => {
+    findMany.mockImplementation(async (args: { where: { originalName?: string } }) =>
+      args.where.originalName === 'oak-thumb.webp' ? [copy] : [])
+
+    await discardRenditionsOfDeleted(DOOMED)
+
+    // Detached BEFORE the delete, or a module column is left naming a file that
+    // has stopped existing - which is the whole point of the detachers.
+    expect(detachMediaReferences).toHaveBeenCalledWith({ id: 'r1', url: copy.url, key: copy.key })
+    expect(deleteRow).toHaveBeenCalledWith({ where: { id: 'r1' } })
+    expect(deleteMedia).toHaveBeenCalledWith('B2', copy.key)
+
+    const [detachAt] = detachMediaReferences.mock.invocationCallOrder
+    const [deleteAt] = deleteMedia.mock.invocationCallOrder
+    expect(detachAt as number).toBeLessThan(deleteAt as number)
+  })
+
+  it('leaves a copy that another original in the folder still answers to', async () => {
+    findMany.mockImplementation(async (args: { where: { originalName?: string } }) => {
+      // The sibling question: another original deriving the same copy name.
+      if (args.where.originalName === undefined) return [{ key: 'shop/attributes/oak.jpeg' }]
+      return args.where.originalName === 'oak-thumb.webp' ? [copy] : []
+    })
+
+    await discardRenditionsOfDeleted(DOOMED)
+
+    expect(deleteRow).not.toHaveBeenCalled()
+    expect(deleteMedia).not.toHaveBeenCalled()
+  })
+
+  it('does nothing for an item that IS a copy', async () => {
+    await discardRenditionsOfDeleted({ ...DOOMED, key: copy.key, originalName: 'oak-thumb.webp' })
+    expect(findMany).not.toHaveBeenCalled()
+    expect(deleteMedia).not.toHaveBeenCalled()
   })
 })

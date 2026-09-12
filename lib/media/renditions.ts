@@ -6,6 +6,7 @@ import { findChildFolder, findChildFolders, getOrCreateChildFolder, moveOrRename
 import {
   KNOWN_RENDITION_SPECS,
   RENDITION_FOLDER_NAME,
+  isRenditionFileName,
   renditionFileName,
   type RenditionSpec,
 } from '@/lib/media/rendition-naming'
@@ -59,7 +60,7 @@ const RESIZABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 export async function generateImageRenditions(
   sourceUrl: string,
   specs: RenditionSpec[],
-  { worthwhileBytes, userId }: { worthwhileBytes: number; userId?: string },
+  { worthwhileBytes, userId, remake }: { worthwhileBytes: number; userId?: string; remake?: boolean },
 ): Promise<Record<string, string | null>> {
   const out: Record<string, string | null> = {}
   for (const spec of specs) out[spec.suffix] = null
@@ -128,18 +129,32 @@ export async function generateImageRenditions(
       // the one already on file is the whole point of this lookup, and it would be
       // a poor trade to mint a duplicate of every picture in the catalogue because
       // a tidy-up had not been run yet.
-      const tidy = renditionFolderId
-        ? await prisma.media.findFirst({
+      //
+      // `remake` turns the reuse OFF, and refreshRenditions is the caller that
+      // needs it. After an in-place edit the copy on file is a picture of what
+      // used to be there, and it is filed under the name this run would write -
+      // so the lookup below finds it and hands it straight back as though it had
+      // just been made. The caller then sees "nothing changed" and the pre-edit
+      // thumbnail stays on every card indefinitely. It is the same file the
+      // caller is about to throw away; reusing it is precisely wrong.
+      //
+      // Which is not a hypothetical: an exact-named picture (bella.webp) keeps
+      // its key through a crop, a resize and an extension-only optimise, so the
+      // name never changes and the reuse hit EVERY such edit. Deskwell,
+      // 2026-09-12: cropped at the top of the hour, still showing the old
+      // photograph twenty minutes later.
+      const tidy = remake || !renditionFolderId
+        ? null
+        : await prisma.media.findFirst({
             where: { folderId: renditionFolderId, mimeType: 'image/webp', originalName: fileName },
             select: { url: true },
             orderBy: { createdAt: 'asc' },
           })
-        : null
-      const found = tidy ?? await prisma.media.findFirst({
+      const found = tidy ?? (remake ? null : await prisma.media.findFirst({
         where: { folderId: media.folderId, mimeType: 'image/webp', originalName: fileName },
         select: { url: true },
         orderBy: { createdAt: 'asc' },
-      })
+      }))
       if (found) {
         out[spec.suffix] = found.url
         continue
@@ -390,7 +405,10 @@ export async function refreshRenditions(
       // the first pass: the copy already exists and something is pointing at it, so
       // "this picture is small enough not to bother" is not a decision to re-take -
       // taking it would leave the pointer aimed at the stale file for good.
-      const made = await generateImageRenditions(media.url, [spec], { worthwhileBytes: 0 })
+      // `remake` so the resizer actually RE-ENCODES rather than handing back the
+      // stale copy it finds under the name it was about to write. Without it this
+      // whole function is a no-op for any picture whose key survives the edit.
+      const made = await generateImageRenditions(media.url, [spec], { worthwhileBytes: 0, remake: true })
       const fresh = made[spec.suffix]
 
       // No replacement means the copy could not be remade - storage had a moment,
@@ -401,17 +419,12 @@ export async function refreshRenditions(
       if (!fresh) continue
 
       for (const old of stale) {
-        // The remake can hand back a copy that already exists rather than a new
-        // one: generateImageRenditions reuses a copy filed under the name it was
-        // about to write, which is the whole reason a backfill does not mint a
-        // second file per picture. When the file it reused IS one of the stale
-        // ones, there is nothing to replace and nothing to repoint - and the two
-        // lines below would delete the copy that was just adopted, leaving every
-        // reference aimed at a file that is no longer there.
-        //
-        // The rewrite would not even flag it: an identical url pair is a no-op,
-        // so the delete goes through in silence and the only symptom is a broken
-        // picture some hours later.
+        // A backstop, not the fix. `remake` above stops the resizer handing back
+        // a copy that already exists, so this can no longer be the file that was
+        // just adopted - but if it ever is again, deleting it would leave every
+        // reference aimed at a file that is not there, and the rewrite would not
+        // even flag it: an identical url pair is a no-op, so the delete goes
+        // through in silence and the only symptom is a broken picture hours later.
         if (old.url === fresh) continue
 
         // The same hook that follows any other blob move, so a url held in a
@@ -424,6 +437,72 @@ export async function refreshRenditions(
       }
     } catch (err) {
       console.warn(`[media] could not remake the ${spec.suffix} copy of ${media.url}:`, err)
+    }
+  }
+}
+
+/**
+ * Throw away the shrunk copies of an item that is itself being DELETED.
+ *
+ * A 300px copy of a photograph that no longer exists is an orphan by definition:
+ * nothing can draw it, nothing can find it from the library (its name is derived
+ * from a key that has gone), and it sits there being counted as storage for ever.
+ * Deleting the picture and leaving its small copies behind is the thing an owner
+ * least expects - they deleted the picture, and there it still is in the library.
+ *
+ * Different from discardRenditions, which runs when an item's BYTES changed into
+ * something unshrinkable and the item itself lives on. Here the item is going, so
+ * there is no original to send anything back to: whatever held a copy is detached
+ * the same way it would be for any other deletion, and only then does the copy go.
+ *
+ * Never throws. A copy that could not be cleared leaves an orphan in the library,
+ * which is untidy; failing the delete the owner asked for would be worse.
+ *
+ * Called BEFORE the item's own row and blob go, so a copy is never left pointing
+ * at a parent that has already vanished if this is interrupted half way.
+ */
+export async function discardRenditionsOfDeleted(media: {
+  id: string
+  key: string
+  provider: MediaProviderType
+  folderId: string | null
+  originalName: string | null
+}): Promise<void> {
+  // A copy has no copies of its own - `oak-thumb-thumb.webp` is not a thing
+  // anything writes - so a rendition being deleted has nothing to sweep, and
+  // asking would be three queries per file on a bulk tidy-up.
+  if (isRenditionFileName(media.originalName) || isRenditionFileName(media.key.split('/').pop())) return
+
+  const { detachMediaReferences } = await import('@/lib/media/detach')
+
+  for (const spec of KNOWN_RENDITION_SPECS) {
+    try {
+      const name = renditionFileName(media.key, spec.suffix)
+
+      // The same ambiguity guard the refresh applies: two originals in one folder
+      // whose names differ only by extension derive the SAME copy name, and one
+      // of them being deleted must not take the other's thumbnail with it.
+      if (await isAnotherOriginalsRendition(media, name, spec.suffix)) continue
+
+      const copies = await prisma.media.findMany({
+        where: {
+          mimeType: 'image/webp',
+          originalName: name,
+          OR: (await renditionFolderCandidates(media.folderId)).map((folderId) => ({ folderId })),
+        },
+        select: { id: true, key: true, url: true, provider: true, folderId: true, originalName: true },
+      })
+
+      for (const copy of copies) {
+        // Detached first, so a module column holding this copy - the shop keeps
+        // its cards' in shp_product_media.thumb_url - is emptied rather than left
+        // naming a file about to stop existing. Before the delete, never after.
+        await detachMediaReferences({ id: copy.id, url: copy.url, key: copy.key })
+        await prisma.media.delete({ where: { id: copy.id } }).catch(() => {})
+        await deleteMedia(copy.provider, copy.key).catch(() => {})
+      }
+    } catch (err) {
+      console.warn(`[media] could not clear the ${spec.suffix} copy of the deleted ${media.id}:`, err)
     }
   }
 }

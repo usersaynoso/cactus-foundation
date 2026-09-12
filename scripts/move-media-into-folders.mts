@@ -56,22 +56,37 @@ const pairs = readFileSync(listPath, 'utf8')
   .filter(Boolean)
   .map((line) => line.split('\t'))
   .filter((parts): parts is [string, string] => parts.length === 2 && !!parts[0] && !!parts[1])
-  // Every Nth line, so the shards interleave rather than carving the list into
-  // blocks - a block split would put all of one listing's pictures on one worker
-  // again, which is the very thing this is here to undo.
-  .filter((_, i) => i % shards === shard)
+
+// ONE LINE PER ITEM, before the shard split. The split is by line index, so two
+// lines naming the SAME media id land on different shards and two workers move
+// one row at once - and neither sees the other, because both read the row's
+// folder before either writes it. What comes out is a blob per worker, a former
+// address per worker, and a reference rewrite per worker: the row ends on the
+// address the last UPDATE wrote while the columns end on the address the last
+// REWRITE wrote, which need not be the same one. On the catalogue this was
+// written for that left 128 items moved between 2 and 24 times inside three
+// seconds, 125 orphaned blobs in storage, and 2,443 swatch columns naming a file
+// with no library entry - all of it serving, none of it findable.
+//
+// The list is a query's output and a query is free to return an id twice. So the
+// guard belongs here rather than in whoever wrote the list.
+const unique = new Map(pairs)
+const work = [...unique].filter((_, i) => i % shards === shard)
+if (unique.size !== pairs.length) {
+  console.log(`list had ${pairs.length - unique.size} duplicate item(s); ${unique.size} unique`)
+}
 
 const { prisma } = await import('@/lib/db/prisma')
 const { moveOrRenameMedia } = await import('@/lib/media/organise')
 
-console.log(`shard ${shard}/${shards}: ${pairs.length} items`)
+console.log(`shard ${shard}/${shards}: ${work.length} items`)
 
 const started = Date.now()
 let moved = 0
 let skipped = 0
 let failed = 0
 
-for (const [mediaId, folderId] of pairs) {
+for (const [mediaId, folderId] of work) {
   try {
     const media = await prisma.media.findUnique({ where: { id: mediaId }, select: { folderId: true } })
     if (!media) { skipped += 1; continue }

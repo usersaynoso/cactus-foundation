@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { deleteMediaBytes, getMediaReferences } from '@/lib/media/upload'
 import { detachMediaReferences } from '@/lib/media/detach'
+import { discardRenditionsOfDeleted } from '@/lib/media/renditions'
 import { moveOrRenameMedia, MediaNameCollisionError, type CollisionMode } from '@/lib/media/organise'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -102,6 +103,14 @@ export async function DELETE(request: NextRequest, { params }: Ctx) {
   // actually pointed at it - an item the scan found nothing for has nothing to
   // detach, so a tidy-up of the Unused tile pays none of this cost.
   if (refs.length > 0) await detachMediaReferences(media)
+
+  // The item's own shrunk copies go with it. A 300px copy of a photograph that
+  // no longer exists cannot be drawn by anything and cannot be found from the
+  // library either, since its name is derived from a key that has gone - so
+  // leaving it behind means an owner deletes a picture and finds it still in
+  // their library. Unconditional: this is true whether or not anything
+  // referenced the item.
+  await discardRenditionsOfDeleted(media)
 
   // Delete from the provider the row actually lives on (not the active selection).
   await deleteMediaBytes(media)

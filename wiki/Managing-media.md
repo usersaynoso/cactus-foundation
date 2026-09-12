@@ -471,6 +471,7 @@ You can still go ahead. Choose **Delete anyway** and Cactus unhooks the picture 
 
 - A **product photograph** is taken out of that product's gallery, on every product using it, and the remaining photos close the gap. If it was the main photo, the next one takes over as main - so a product is never left with a full gallery and nothing on its card.
 - A **small copy** - the shrunk version Cactus makes for cards and thumbnail strips - is simply unhooked, and those surfaces go back to drawing the full-size original until a new small copy is made. The original is untouched.
+- And the other way round: deleting a **picture** takes its own small copies with it. A shrunk copy of a photograph that no longer exists cannot be drawn by anything and cannot be found in the library either, so leaving it behind would only ever mean finding a file you thought you had deleted. Anything holding one of those copies is unhooked first, exactly as above.
 - An **option swatch** loses its picture but keeps the choice: a fabric called Rivet Teal is still orderable, it just shows as a name rather than a square.
 - A **category picture**, a **collection cover**, a **social sharing image**, your **logo**, your **icons**, a **page's sharing image** and a **member's photo** are all cleared.
 
