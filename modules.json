@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.424"
+      "version": "v0.1.425"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,7 +13,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.182"
+      "version": "v0.1.183"
     },
     {
       "name": "product-addons-for-shop",
@@ -28,7 +28,7 @@
     {
       "name": "google-shopping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-shopping-for-shop",
-      "version": "v0.1.18"
+      "version": "v0.1.19"
     },
     {
       "name": "stock-import-for-shop",
@@ -48,17 +48,17 @@
     {
       "name": "filters-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/filters-for-shop",
-      "version": "v0.1.53"
+      "version": "v0.1.54"
     },
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.74"
+      "version": "v0.1.76"
     },
     {
       "name": "product-discovery-tool",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-discovery-tool",
-      "version": "v0.1.11"
+      "version": "v0.1.12"
     },
     {
       "name": "gocardless-instant-bank-pay-for-shop",
@@ -83,7 +83,7 @@
     {
       "name": "quote-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/quote-for-shop",
-      "version": "v0.1.32"
+      "version": "v0.1.33"
     },
     {
       "name": "abandoned-carts-for-shop",
@@ -103,17 +103,17 @@
     {
       "name": "directory",
       "repoUrl": "https://github.com/cactus-foundation-modules/directory",
-      "version": "v0.1.14"
+      "version": "v0.1.16"
     },
     {
       "name": "boards",
       "repoUrl": "https://github.com/cactus-foundation-modules/boards",
-      "version": "v0.1.22"
+      "version": "v0.1.23"
     },
     {
       "name": "gazette",
       "repoUrl": "https://github.com/cactus-foundation-modules/gazette",
-      "version": "v0.1.30"
+      "version": "v0.1.31"
     },
     {
       "name": "contact-form",
@@ -138,7 +138,7 @@
     {
       "name": "search",
       "repoUrl": "https://github.com/cactus-foundation-modules/search",
-      "version": "v0.1.45"
+      "version": "v0.1.46"
     },
     {
       "name": "live-chat",
