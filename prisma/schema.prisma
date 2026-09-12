@@ -241,6 +241,16 @@ model SiteConfig {
   // The cost of a non-zero value is that a publish's purge takes this long to be
   // visible everywhere; 0 restores the instant-purge behaviour.
   vercelEdgeTtl          Int        @default(60)
+  // Settings > General > Speed. True when the site's media host sits behind a
+  // Cloudflare zone with Image Transformations switched on, which lets a picture be
+  // asked for at the size it is actually drawn (and re-encoded to AVIF on the way):
+  // a live hero went from 45.8 KB of WebP to 15.1 KB of AVIF at its drawn width.
+  //
+  // Off by default and deliberately not detected. Transformations is a paid feature
+  // on a zone the platform cannot see, and guessing wrong does not degrade - every
+  // picture on the site 404s. So the owner turns it on once, having checked.
+  // See lib/media/resize-url.ts.
+  cloudflareImageResizing Boolean   @default(false)
   // Settings > General > Speed. True when the site's traffic is proxied through
   // Cloudflare, which is the only condition under which the CF-Connecting-IP
   // header may be believed. See clientIpFromHeaders in lib/auth/rate-limit.ts:

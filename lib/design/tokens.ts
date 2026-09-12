@@ -1,4 +1,5 @@
 import { setResponsiveBreakpoints } from '@/lib/puck/responsiveValue'
+import { proxiedFontHref, sanitiseFontQuery } from '@/lib/design/font-proxy'
 
 export type Typo = {
   family?: string
@@ -883,6 +884,15 @@ export function buildTokenStyles(tokens: unknown): string {
 
 const SYSTEM_KEYWORDS = ['system-ui', 'arial', 'georgia', 'helvetica', 'times', 'sans-serif', 'serif', 'monospace', '-apple-system']
 
+// Every weight a block can choose between, asked for once. See buildFontHref.
+const FULL_WEIGHTS = '400;500;600;700'
+
+// Family names arrive from a picker, a token blob and a block prop, so they differ
+// in case and stray whitespace without differing in meaning.
+function sameFamily(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+
 function isSystemFont(family: string): boolean {
   const lower = family.toLowerCase()
   return SYSTEM_KEYWORDS.some(k => lower.includes(k))
@@ -893,11 +903,20 @@ function isSystemFont(family: string): boolean {
 // empty/system families, which need no stylesheet. Requests the 400-700 weights
 // so per-block weight settings all render. Used by blocks whose font can be set
 // outside the site-wide tokens (which buildFontHref below already covers).
-export function googleFontHrefForFamily(family?: string): string | null {
+export function googleFontHrefForFamily(family?: string, alreadyLoaded?: readonly string[]): string | null {
   if (!family) return null
   const first = (family.split(',')[0] ?? '').trim().replace(/^["']|["']$/g, '')
   if (!first || isSystemFont(first)) return null
-  return `https://fonts.googleapis.com/css2?family=${first.replace(/ /g, '+')}:wght@400;500;600;700&display=swap`
+  // Nothing to ask for if the page is already loading this typeface. That is the
+  // ordinary case rather than an edge one: a block whose font is set to the site's
+  // own heading face was asking Google for it a SECOND time, at a second
+  // render-blocking 750 ms, for a typeface the document had already requested.
+  // buildFontHref asks for the full 400-700 range precisely so this can be true -
+  // see FULL_WEIGHTS there.
+  if (alreadyLoaded?.some((f) => sameFamily(f, first))) return null
+  const params = new URLSearchParams()
+  params.append('family', `${first.replace(/ /g, '+')}:wght@${FULL_WEIGHTS}`)
+  return proxiedFontHref(sanitiseFontQuery(params) ?? params)
 }
 
 export function buildFontHref(tokens: unknown): string | null {
@@ -932,11 +951,41 @@ export function buildFontHref(tokens: unknown): string | null {
 
   if (families.size === 0) return null
 
-  const params = Array.from(families.entries()).map(([family, weights]) => {
-    const name = family.trim().replace(/ /g, '+')
-    if (weights.size === 0) return `family=${name}`
-    return `family=${name}:wght@${Array.from(weights).sort().join(';')}`
-  })
+  // Always the full 400-700 range, whatever weights the tokens actually name.
+  //
+  // The point is not the weights themselves - a browser downloads only the faces a
+  // page uses, so the extra declarations are free. It is that a BLOCK with a font of
+  // its own can then find its typeface already loaded and ask for nothing, instead
+  // of opening a second render-blocking request to Google for a wider range of the
+  // same face. One request for the page beats one for the page and one per block.
+  const out = new URLSearchParams()
+  for (const family of families.keys()) {
+    out.append('family', `${family.trim().replace(/ /g, '+')}:wght@${FULL_WEIGHTS}`)
+  }
 
-  return `https://fonts.googleapis.com/css2?${params.join('&')}&display=swap`
+  return proxiedFontHref(sanitiseFontQuery(out) ?? out)
+}
+
+/** The families a set of design tokens loads, for a block deciding whether to ask again. */
+export function fontFamiliesFromTokens(tokens: unknown): string[] {
+  const t = (tokens && typeof tokens === 'object' ? tokens : {}) as Partial<DesignTokens>
+  const out = new Set<string>()
+  const add = (family?: string) => {
+    if (!family || isSystemFont(family)) return
+    const first = (family.split(',')[0] ?? '').trim().replace(/^["']|["']$/g, '')
+    if (first) out.add(first)
+  }
+  for (const f of t.designSystem?.fonts ?? []) add(f.family)
+  const ts = t.themeStyle
+  if (ts) {
+    add(ts.body?.family)
+    add(ts.headingsFont)
+    for (const tag of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const) add(ts.headings?.[tag]?.family)
+    add(ts.display?.family)
+    add(ts.caption?.family)
+    add(ts.buttons?.typo?.family)
+    add(ts.formFields?.typo?.family)
+    add(ts.formFields?.labelTypo?.family)
+  }
+  return [...out]
 }

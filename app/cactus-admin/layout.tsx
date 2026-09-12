@@ -158,6 +158,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           Instrument Sans is --font-sans and JetBrains Mono is --font-mono (see
           globals.css); a site that has adopted its own primary font overrides
           --font-sans below, and the mono face is left alone either way. */}
+      {/* Its own preconnects, because the root layout no longer carries them - a
+          public page gets its fonts from this site's own origin and had no use for
+          them. The admin still asks Google directly. */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router: a layout is the correct place for fonts; this rule was written for the Pages Router */}
       <link
         href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&family=JetBrains+Mono:wght@400;500&display=swap"

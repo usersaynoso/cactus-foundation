@@ -8,6 +8,18 @@ requirement rather than a nicety - its groups, filters and rules *are* the vocab
 the last step asks in, and all the matching is its code. There is no second set of
 filters to keep in step.
 
+## Why the flow appears a moment after the rest of the page
+
+The flow does a great deal of work before it can show you anything: it works out every product it could ever offer, runs all your filters over them, prices them and puts them in order. On a large catalogue that takes a few seconds.
+
+It used to do all of that before the page sent anything at all, so the first person to load a page carrying the flow sat looking at nothing while it thought. Now the rest of the page - your header, your pictures, everything else you put on it - arrives straight away, and the flow drops into place a moment later with a short "Finding your options" note holding its spot.
+
+Nothing about the flow itself changed: same questions, same counts, same products, same order. It just no longer keeps the rest of the page waiting.
+
+You will mostly not see this at all, because pages are usually served from a stored copy that already has the flow in it. It shows up on the first load after something changes.
+
+---
+
 ## The idea
 
 A filter panel assumes the shopper already knows what they want. Plenty do not. Somebody

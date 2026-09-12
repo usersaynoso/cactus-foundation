@@ -100,6 +100,8 @@ import { IconLinkBlock, ICON_LINK_ICONS } from '@/lib/puck/components/IconLinkBl
 import ScaleToFit from '@/lib/puck/components/ScaleToFit'
 import HeadingFitText from '@/lib/puck/components/HeadingFitText'
 import { isHeaderShrinkEnabled, HEADER_SHRUNK_SELECTOR } from '@/lib/puck/headerShrink'
+import { blockFontHref } from '@/lib/puck/blockFont'
+import { responsiveImg, FULL_WIDTH_LADDER, HALF_WIDTH_LADDER, CARD_WIDTH_LADDER } from '@/lib/media/resize-url'
 
  
 
@@ -1005,7 +1007,7 @@ function SiteHeaderBlock(props: any) {
       }}>
         <SiteLogoRsc logoUrl={logoUrl} logoUrlDark={logoUrlDark} siteName={siteName} logoHeight={logoHeight} showTextWithLogo={showText ? 'true' : 'false'} showIcon="true" homeUrl={logoHomeUrl} />
         {resolvedItems && (
-          <MenuBlockClient resolvedItems={resolvedItems} spacing="normal" alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} hoverBackground={hoverBackground} activeColor={activeColor} activeFontWeight={activeFontWeight} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} showDropdowns={showDropdowns} showMobileToggle={showMobileToggle} showTabletToggle={showTabletToggle} />
+          <MenuBlockClient loadedFonts={props.puck?.metadata?.loadedFonts} resolvedItems={resolvedItems} spacing="normal" alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform="none" itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} hoverBackground={hoverBackground} activeColor={activeColor} activeFontWeight={activeFontWeight} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} showDropdowns={showDropdowns} showMobileToggle={showMobileToggle} showTabletToggle={showTabletToggle} />
         )}
       </div>
     </header>
@@ -2036,7 +2038,7 @@ function PhoneBlock(props: any) {
     : {}
   const fillCss = isFill ? blockFillCssResponsive('data-phone-id', id, (d) => mhAt(d) === 'fill') : ''
 
-  const fontHref = googleFontHrefForFamily(fontFamily)
+  const fontHref = blockFontHref(fontFamily, props.puck)
   const css = `${wrapCss}${linkResetCss}${baseUnderlineCss}${hoverTextCss}${hoverColorCss}${iconCss}${mobileTextCss}${fillCss}`
 
   const inner = (
@@ -2182,7 +2184,7 @@ function ImageBlock(props: any) {
           the trade and says to turn it off if the top of the page feels slow. decoding="async" is free
           either way. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={mediaUrl} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
+      <img {...responsiveImg(mediaUrl, '(max-width: 700px) 100vw, 700px', FULL_WIDTH_LADDER, puck?.metadata?.imageResizing)} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
       {caption && <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>{protectText(caption, obfuscate)}</figcaption>}
     </figure>
   )
@@ -2315,7 +2317,7 @@ function Hero(props: any) {
         // The hero image is the LCP element on most pages, so it is fetched eagerly and at
         // high priority - never lazy, which would push it behind the preload scanner.
         // eslint-disable-next-line @next/next/no-img-element
-        <img data-hero-img src={imageUrl} alt="" fetchPriority="high" decoding="async" style={{ width: '45%', minWidth: 240, objectFit: 'cover', borderRadius: 8, flexShrink: 0, display: layoutBase === 'right-image' ? 'block' : 'none' }} />
+        <img data-hero-img {...responsiveImg(imageUrl, '(max-width: 700px) 100vw, 45vw', HALF_WIDTH_LADDER, puck?.metadata?.imageResizing)} alt="" fetchPriority="high" decoding="async" style={{ width: '45%', minWidth: 240, objectFit: 'cover', borderRadius: 8, flexShrink: 0, display: layoutBase === 'right-image' ? 'block' : 'none' }} />
       )}
     </>
   )
@@ -2517,7 +2519,7 @@ function Card(props: any) {
       {...getAosProps(animationType, animationDuration, animationDelay)}>
       {(wrapCss || fillCss) && <style>{`${wrapCss}${fillCss}`}</style>}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-      {mediaUrl && <img src={mediaUrl} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
+      {mediaUrl && <img {...responsiveImg(mediaUrl, '(max-width: 700px) 100vw, 350px', CARD_WIDTH_LADDER, puck?.metadata?.imageResizing)} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }} />}
       <div style={{ padding: '1.25rem' }}>
         {heading && <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-fg)' }}>{protectText(heading, obfuscate)}</h3>}
         {body && <p style={{ margin: '0 0 1rem', color: 'var(--color-fg-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{protectText(body, obfuscate)}</p>}
@@ -2572,8 +2574,12 @@ function ImageChipPanel(props: any) {
       {/* No z-index on the image: the grid sits in the panel background (always
           behind), while the scan beam and chips come later in the DOM so they
           paint over the image without needing an explicit stacking order. */}
+      {/* Responsive: the picture spans the content column, so a phone is offered a
+          narrow source instead of the desktop one. Measured on the live hero -
+          45.8 KB of WebP at 800px became 15.1 KB of AVIF at the 460px it was drawn
+          at. Emits no srcset at all unless the owner has switched resizing on. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-      <img src={mediaUrl} alt={alt ?? ''} loading={imageLoading === 'eager' ? 'eager' : imgLoading(puck)} {...(imageLoading === 'eager' ? { fetchPriority: 'high' as const } : {})} decoding="async" style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
+      <img {...responsiveImg(mediaUrl, '(max-width: 700px) 100vw, 700px', FULL_WIDTH_LADDER, puck?.metadata?.imageResizing)} alt={alt ?? ''} loading={imageLoading === 'eager' ? 'eager' : imgLoading(puck)} {...(imageLoading === 'eager' ? { fetchPriority: 'high' as const } : {})} decoding="async" style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
       {/* Chips are a plain data array, not a Puck slot — Puck doesn't insert its per-item
           drag-handle wrapper around array-field items, so each Chip's own position:absolute
           resolves against this same box in both the editor canvas and the live render. */}
@@ -2883,7 +2889,7 @@ function MenuBlock(props: any) {
   // React hoists+dedupes precedence-tagged stylesheet links, so a Google font
   // picked on this block alone (not in the site tokens buildFontHref covers)
   // still loads on the published page.
-  const menuFontHref = googleFontHrefForFamily(itemFontFamily)
+  const menuFontHref = blockFontHref(itemFontFamily, props.puck)
   // Per-breakpoint overrides for the vertical menu, keyed on the block's own
   // shrink classes (already unique per id). Font-size is skipped when the fluid
   // clamp owns it; gap is skipped when fluid item spacing does. Matches the
@@ -2939,7 +2945,7 @@ function MenuBlock(props: any) {
   const showDesktopToggle = nav.desktop ?? 'show'
   const showTabletToggle = nav.tablet ?? showDesktopToggle
   const showMobileToggle = nav.mobile ?? showTabletToggle
-  return <MenuBlockClient blockId={id} resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} activeColor={activeColor} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} activeFontWeight={activeFontWeight} showDropdowns={showDropdowns} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} scale={scale} dropdownAlign={dropdownAlign} fitOneLine={fitOneLine} navButtonWidth={navButtonWidth} navButtonColor={navButtonColor} navButtonBackground={navButtonBackground} navButtonBorderColor={navButtonBorderColor} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
+  return <MenuBlockClient blockId={id} loadedFonts={props.puck?.metadata?.loadedFonts} resolvedItems={resolvedItems} spacing={spacing} alignment={alignment} itemFontSize={itemFontSize} itemFontWeight={itemFontWeight} textTransform={textTransform} itemColor={itemColor} itemFontFamily={itemFontFamily} hoverColor={hoverColor} activeColor={activeColor} activeUnderline={activeUnderline} activeUnderlineColor={activeUnderlineColor} activeUnderlineThickness={activeUnderlineThickness} activeUnderlineOffset={activeUnderlineOffset} activeFontWeight={activeFontWeight} showDropdowns={showDropdowns} hoverBackground={hoverBackground} showDesktopToggle={showDesktopToggle} showTabletToggle={showTabletToggle} showMobileToggle={showMobileToggle} scale={scale} dropdownAlign={dropdownAlign} fitOneLine={fitOneLine} navButtonWidth={navButtonWidth} navButtonColor={navButtonColor} navButtonBackground={navButtonBackground} navButtonBorderColor={navButtonBorderColor} spacingShrunk={spacingShrunk} itemFontSizeShrunk={itemFontSizeShrunk} itemFontWeightShrunk={itemFontWeightShrunk} itemSpacingFluid={itemSpacingFluid} letterSpacingFluid={letterSpacingFluid} itemFontSizeFluid={itemFontSizeFluid} />
 }
 
 function LoginButton(props: any) {

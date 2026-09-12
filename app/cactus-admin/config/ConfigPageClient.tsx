@@ -44,6 +44,7 @@ type SiteConfig = {
   adminPath: string; status: string; hideFromCrawlers: boolean;
   speedInsightsEnabled: boolean;
   pageCacheEnabled: boolean; pageCacheTtl: number; pageCacheLongTtl: number; vercelEdgeTtl: number; behindCloudflare: boolean;
+  cloudflareImageResizing: boolean;
   trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: string;
   mediaProvider: MediaProviderType | null; lazyLoadImages: boolean;
@@ -2154,6 +2155,27 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               for a visitor&apos;s real location, which is what stops one person getting their password wrong from
               accidentally locking out everyone else in the same part of the country. Ticking it when it is not true is
               worse than leaving it alone, so if you are not sure, leave it alone.
+            </span>
+          </div>
+          <div id="speed-image-resizing" className="field admin-anchor">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.cloudflareImageResizing ?? false}
+                onChange={(e) => set('cloudflareImageResizing', e.target.checked)}
+              />
+              Send pictures at the size they are shown
+            </label>
+            <span className="field-hint">
+              A photograph uploaded at 2,000 pixels wide is often shown three centimetres across, and your visitors
+              download every one of those pixels. Tick this and Cloudflare shrinks each picture on its way out to the
+              size it is actually being shown at, and hands newer browsers a smaller modern format while it is at it.
+              On one real page a header photograph went from 46 KB to 15 KB, and the pictures further down the page do
+              rather better than that.
+              {' '}<strong>Only tick this if you have switched Transformations on in Cloudflare</strong> - it is under
+              Images, and on most plans it is a paid extra. We cannot check it for you, and if it is not on your
+              pictures will stop loading rather than simply being large. Turn it off again and everything goes straight
+              back to how it was.
             </span>
           </div>
           {(config.pageCacheEnabled ?? false) && (

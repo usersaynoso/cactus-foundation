@@ -144,22 +144,20 @@ export default async function RootLayout({
             pool the <img> requests would not reuse - the tag would look right
             and buy nothing. */}
         {mediaOrigin && <link rel="preconnect" href={mediaOrigin} />}
-        {/* The font host, named early for whichever layout below actually asks it
-            for a stylesheet - the public one for the site's own typefaces, the
-            admin one for the admin's. Cheap either way, and it is the difference
-            between the font arriving with the first paint or one round trip after
-            it.
+        {/* No font-host preconnects, and no hardcoded font request either.
+            Both used to be here and both were costing every page on every install.
 
-            What is NOT here any more: a hardcoded request for Instrument Sans and
-            JetBrains Mono. Those are the ADMIN's typefaces, and this layout wraps
-            every page on the site, so every public page on every install was
-            making a render-blocking round trip to a third party for two faces it
-            never draws a character in. They now load from the admin layout, which
-            is the only place that uses them. A public page loads exactly the fonts
-            the site's own design tokens ask for, and a site that asks for none
-            loads none at all. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            The hardcoded pair was Instrument Sans and JetBrains Mono - the ADMIN's
+            typefaces - on a layout that wraps the whole site, so a shopper paid a
+            render-blocking third-party round trip for two faces the storefront
+            never draws a character in. They load from the admin layout now.
+
+            The preconnects went with them because a public page no longer asks
+            Google for anything: its stylesheet and its font files both come from
+            this site's own origin (app/api/fonts/**, see lib/design/font-proxy.ts).
+            Naming a host nothing connects to only costs a speculative handshake.
+            The admin and setup layouts, which DO still ask Google directly, carry
+            their own preconnects. */}
       </head>
       <body>
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: flashPreventionScript }} />

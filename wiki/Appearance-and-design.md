@@ -6,6 +6,25 @@ Find these settings under **Appearance** in the admin sidebar.
 
 ---
 
+## Your fonts now come from your own domain
+
+If you pick a Google font in Appearance, your visitors used to fetch it from Google - which meant their browser stopping twice on every page, once for the list of fonts and once for the fonts themselves, before it could draw anything. Measured on a real site, that was about a second and a half of waiting for under 3 KB.
+
+Your site now serves those fonts itself, from your own address. Same fonts, same look, nothing to choose - it simply answers in a fraction of the time because it is your own site replying instead of somebody else's.
+
+Two things come with it that are worth knowing:
+
+- **Nobody's browser contacts Google to read your pages any more.** No addresses, no record of who visited what, nothing to mention in a privacy policy. If you have ever wondered whether webfonts were a consent question, they are not one here.
+- **If Google is ever unreachable**, your site quietly falls back to the old way rather than losing its typeface. You would never notice beyond a slightly slower page.
+
+### One font, asked for once
+
+There was also a plain duplication: if you set one block's font to the same one your site already uses, the page asked for it twice - once for the site, once for that block. It now asks once, and any block using a font your site already loads adds nothing at all.
+
+Pick a font nothing else on the site uses and it is still fetched, as you would expect.
+
+---
+
 ## Styles
 
 **Appearance → Styles** is where you set your site's global visual style. It's split into tabs, each covering a different area of design. The **first tab, Branding**, holds your logo and app identity (covered under [Branding](#branding) below); the rest cover colour, type, buttons, images, forms, and spacing.

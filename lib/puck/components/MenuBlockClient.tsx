@@ -547,6 +547,8 @@ type MinMaxPair = { min?: string; max?: string }
 
 type Props = {
   blockId?: string
+  /** The webfont families the page already loads, so this block can skip asking again. */
+  loadedFonts?: string[]
   resolvedItems?: MenuItem[]
   spacing?: ResponsiveValue<string> | 'tight' | 'normal' | 'wide'
   alignment?: ResponsiveValue<string> | 'flex-start' | 'center' | 'space-between' | 'space-around'
@@ -588,6 +590,7 @@ type Props = {
 
 export default function MenuBlockClient({
   blockId,
+  loadedFonts,
   resolvedItems,
   spacing = 'normal',
   alignment = 'flex-start',
@@ -761,7 +764,12 @@ export default function MenuBlockClient({
   // React hoists+dedupes precedence-tagged stylesheet links, so a Google font
   // picked on this block alone (outside the site-token fonts buildFontHref
   // loads) still arrives - live site and editor canvas alike.
-  const menuFontHref = googleFontHrefForFamily(itemFontFamily)
+  // `loadedFonts` is what the page's own stylesheet link already asks for. Passed
+  // down rather than read here, because this is a client component and the families
+  // come from the site's design tokens - see lib/puck/blockFont.ts for the pair of
+  // 750 ms requests this removes. Absent means "ask anyway", which is what it did
+  // before.
+  const menuFontHref = googleFontHrefForFamily(itemFontFamily, loadedFonts)
   // Three nav modes per breakpoint: 'show' (inline menu), 'collapse' (hamburger)
   // and 'dropdown' (current-page trigger). The inline menu hides at any width
   // that isn't 'show' - the collapse-modifier class does that hiding for both

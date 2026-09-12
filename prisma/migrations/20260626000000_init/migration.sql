@@ -149,6 +149,7 @@ CREATE TABLE "SiteConfig" (
     "pageCacheTtl" INTEGER NOT NULL DEFAULT 300,
     "pageCacheLongTtl" INTEGER NOT NULL DEFAULT 0,
     "vercelEdgeTtl" INTEGER NOT NULL DEFAULT 60,
+    "cloudflareImageResizing" BOOLEAN NOT NULL DEFAULT false,
     "behindCloudflare" BOOLEAN NOT NULL DEFAULT false,
     "privacyPolicyPageId" TEXT,
     "termsPageId" TEXT,

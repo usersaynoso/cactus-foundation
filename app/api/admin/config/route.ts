@@ -187,6 +187,7 @@ const Patch = z.object({
     .refine((n) => (VERCEL_EDGE_TTL_OPTIONS as readonly number[]).includes(n), 'Not one of the offered caching windows')
     .optional(),
   behindCloudflare: z.boolean().optional(),
+  cloudflareImageResizing: z.boolean().optional(),
   trustDeviceDays: z.number().int().min(1).max(365).optional(),
   emailFromName: z.string().max(100).optional().nullable(),
   emailFromAddress: z.string().email().optional().nullable(),
@@ -290,7 +291,7 @@ export async function PATCH(request: NextRequest) {
       await purgeCdnEverything()
     }
   }
-  if (rest.behindCloudflare !== undefined) invalidateSiteConfigCache()
+  if (rest.behindCloudflare !== undefined || rest.cloudflareImageResizing !== undefined) invalidateSiteConfigCache()
 
   // Moving the homepage moves a redirect with it: the page assigned to the root
   // sends its own /slug there permanently, and the page that used to hold the job
