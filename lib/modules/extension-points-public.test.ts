@@ -99,3 +99,69 @@ describe('core public-path files use the public map', () => {
     expect(src).not.toMatch(/from '@\/lib\/modules\/extension-points'/)
   })
 })
+
+// The other direction, which is the one that bites silently. Everything above
+// stops admin code reaching a public bundle; nothing stopped a consumer that
+// NEEDS a withheld entry from reading the public map, where it finds no
+// component, resolves no providers and renders nothing at all. No error, no
+// warning: tsc, eslint, the test suite and the build are all green, because an
+// empty map is a legal map.
+//
+// It shipped exactly that way: every field provider hands back an admin Cell, so
+// every one of them is withheld by the directory walk - and shop-variations read
+// the public map, which took the 3D and attribute columns off a live shop's
+// Variations tab with nothing anywhere saying why.
+//
+// A consumer that needs a withheld point wants the COMPLETE map, reached through
+// a dynamic import so it stays a chunk boundary.
+describe('no consumer reads the public map for a point withheld from it', () => {
+  const FULL_MAP = path.join(ROOT, 'lib', 'modules', 'extension-points.ts')
+
+  function pointKeys(file: string): string[] {
+    return [...readFileSync(file, 'utf8').matchAll(/^ {2}"([^"]+)": \{/gm)].map((m) => m[1]!)
+  }
+
+  function sourceFiles(dir: string, out: string[] = []): string[] {
+    if (!existsSync(dir)) return out
+    for (const name of readdirSync(dir, { withFileTypes: true })) {
+      if (name.name === 'node_modules' || name.name.startsWith('.')) continue
+      const full = path.join(dir, name.name)
+      if (name.isDirectory()) sourceFiles(full, out)
+      else if (/\.tsx?$/.test(name.name) && !/\.test\.tsx?$/.test(name.name)) out.push(full)
+    }
+    return out
+  }
+
+  // A point named in prose is not a point being read. Comments are where these
+  // files explain which map they use and why, so they would otherwise flag every
+  // one of them.
+  function stripComments(src: string): string {
+    return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  }
+
+  it('finds the maps (guard is worthless without them)', () => {
+    expect(existsSync(FULL_MAP) && existsSync(PUBLIC_MAP)).toBe(true)
+  })
+
+  it('has no consumer left reading a withheld point from the public map', () => {
+    if (!existsSync(FULL_MAP)) return
+    const published = new Set(pointKeys(PUBLIC_MAP))
+    const withheld = pointKeys(FULL_MAP).filter((k) => !published.has(k))
+    expect(withheld.length, 'nothing withheld - the directory walk has stopped working').toBeGreaterThan(0)
+
+    const offenders: string[] = []
+    for (const dir of ['lib', 'modules', 'app']) {
+      for (const file of sourceFiles(path.join(ROOT, dir))) {
+        if (file === PUBLIC_MAP || file === FULL_MAP) continue
+        const src = stripComments(readFileSync(file, 'utf8'))
+        if (!src.includes('@/lib/modules/extension-points.public')) continue
+        for (const point of withheld) {
+          if (src.includes(`'${point}'`) || src.includes(`"${point}"`)) {
+            offenders.push(`${path.relative(ROOT, file)} reads withheld '${point}'`)
+          }
+        }
+      }
+    }
+    expect(offenders, "use await import('@/lib/modules/extension-points') instead").toEqual([])
+  })
+})

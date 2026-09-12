@@ -1,8 +1,8 @@
-import { Render } from '@puckeditor/core/rsc'
 import { prisma } from '@/lib/db/prisma'
 import { moduleEmbedOptions } from '@/lib/puck/module-embed-options'
 import { moduleEmbedInjectors } from '@/lib/puck/module-embed-inject'
 import type { LayoutRef } from '@/lib/puck/LayoutPickerField'
+import { CactusRender } from '@/lib/puck/CactusRender'
 
 type LayoutEmbedProps = Record<string, unknown> & { layoutRef?: LayoutRef | null }
 
@@ -35,5 +35,5 @@ export async function LayoutEmbedRsc(props: LayoutEmbedProps) {
   const data = injector ? injector(layout.builderData, values) : layout.builderData
 
   const { getModuleLayoutPuckRscConfig } = await import('@/lib/puck/config.rsc')
-  return <Render config={getModuleLayoutPuckRscConfig(type) as any} data={data as any} />
+  return <CactusRender config={getModuleLayoutPuckRscConfig(type) as any} data={data as any} />
 }

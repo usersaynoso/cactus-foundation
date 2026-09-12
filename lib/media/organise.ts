@@ -308,7 +308,17 @@ async function resolveCollision(
  * plus the id-held foreign-key-style columns (branding icons, page OG images,
  * member avatars, data exports).
  */
-async function takeOverMediaReferences(victim: Media, replacement: Media): Promise<void> {
+/**
+ * Hand every reference the `victim` holds over to the `replacement`, so the
+ * victim can be deleted without stranding anything that pointed at it.
+ *
+ * Exported because two callers need it: the 'replace' collision below, and the
+ * duplicate-rendition collapse (lib/media/rendition-dedupe.ts), which is the same
+ * operation by a different name - two rows serve one picture and only one should
+ * survive. Anything that deletes a Media row a reference might name should come
+ * through here first, and always BEFORE the row and the blob go.
+ */
+export async function takeOverMediaReferences(victim: Media, replacement: Media): Promise<void> {
   // The victim's whole address - and its id - now belong to the replacement, so
   // anything written against them afterwards resolves to the survivor rather than
   // to a row that no longer exists.

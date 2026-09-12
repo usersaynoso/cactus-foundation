@@ -288,6 +288,16 @@ From 0.1.11 the feed links to the combination's published address instead: the s
 
 Nothing else about your listings changes - Merchant Center identifies them the same way it always has, so no listing is retired and re-created. Google re-reads the feed on its usual schedule and the reported count falls away over the following weeks rather than overnight. Where a combination has no published address of its own - one where an option was left unanswered, or a product with two options named so alike they cannot be told apart in an address - the feed keeps the old link, because a link that works beats a tidy one that doesn't.
 
+## Products we don't send, and why
+
+Google requires a picture on every listing and rejects anything without one - every destination, every country, no exceptions. So from 0.1.425 the feed doesn't send them. A product with no photograph is held back, and the Google Shopping settings tab tells you which ones and how many.
+
+That is a deliberate trade. Sending them would fill Merchant Center with rejections you then have to read and interpret; holding them back quietly would just move the puzzle to "why isn't this product on Google?". Saying it out loud, in the place you'd go looking, is the only version that helps.
+
+Add a photograph and the product goes along with the next fetch. Nothing to switch on and nothing to clear.
+
+The count only appears once Google has actually fetched your feed - working it out means building the whole thing, which is far too much for a settings page to do every time you open it, so the scheduled fetch writes down what it found. Until the first fetch after updating, the tab says nothing rather than showing you a reassuring zero it hasn't earned.
+
 ## If Merchant Center turns products down over their pictures
 
 The one to know about is **"Unsupported image type"**. It sounds like the picture is the wrong sort of file, and it almost never is - Google is perfectly happy with JPEG, PNG, GIF and WebP, which is everything the media library makes.
