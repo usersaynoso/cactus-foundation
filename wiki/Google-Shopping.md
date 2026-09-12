@@ -260,6 +260,26 @@ Two things ship in the Shop module itself to keep Google happy about all those v
 
 Neither needs any setting up; they are simply how the Shop behaves from 0.1.243.
 
+### When the address names one particular choice
+
+The price range above is the right answer for a listing somebody is browsing. It is the wrong answer when the address names one specific chair - which is exactly what your feed does, every time, for every combination.
+
+So from Shop 0.1.424 a product page that opens on a particular combination describes **that** combination and nothing else: its own price, its own barcode, its own part number, its own photograph and its own address. A listing nobody has chosen anything on still describes the range, exactly as before.
+
+Why it matters. Google decides which shops appear side by side on a product's page by matching barcodes. Your feed has always carried the right one. The page it sent shoppers to did not carry one at all - it described the whole range, with no barcode and a price span the feed's own figure sat outside. A shopping channel comparing the two found nothing it recognised, so your listings sat on their own instead of alongside everyone else selling the same thing.
+
+Nothing to switch on, and nothing changes for a shop without variations.
+
+### If your prices are shown without VAT
+
+A trade catalogue quite reasonably prints its prices net - "£126.00 ex. VAT" - because most of its customers reclaim it. Google, just as reasonably, insists that UK shoppers are quoted the price they actually pay. Your feed has always sent the VAT-inclusive figure, which is correct.
+
+The trouble was that the page behind it described itself with the net one. Google reads both, sees £126.00 against £151.20, and turns down a listing that was right all along - usually reported as a price mismatch, which reads like an error in your prices rather than a difference of opinion about VAT.
+
+From Shop 0.1.424 the two agree. **Your product pages still show whatever you have chosen** - net, with your own wording beside it, if that is how you sell. What changed is the hidden description underneath, which now quotes the VAT-inclusive figure to match the feed. Shoppers see no difference; Merchant Center stops objecting.
+
+If your prices already include VAT, nothing here applies and nothing about your site moves.
+
 ### Why the feed's links changed in 0.1.11
 
 The two above did their job a little too well. The feed used to send Google to each variation's own private address, the page quite correctly answered "the real page is the parent listing", and Google filed the lot under **"Alternative page with proper canonical tag"** in Search Console - technically the right answer to the wrong question, and a few thousand of them on a large catalogue.
