@@ -374,6 +374,17 @@ and until now it was on the page for people and nowhere a machine could read it.
 Nothing to switch on, and a shop without this module simply publishes nothing
 about delivery there. See [Shop](Shop#what-search-engines-and-ai-assistants-are-told-about-a-product).
 
+**A listing answers for its variations.** Where you scope delivery by range and
+the range sits on the variations rather than on the listing - which is how a
+catalogue imported by range usually ends up - the listing itself is in no range
+at all, and anything asking about it used to be told the shop does not deliver
+it. It now falls back to what its variations offer between them, exactly as the
+service picker on the page already did: every service any combination can be
+had with, each at the dearest price and the latest date among the ones carrying
+it. So nothing quoted against the listing gets dearer or later once a
+combination is chosen, and what a search engine reads matches what the page
+shows.
+
 ## Changed in 0.1.18
 
 Earlier versions kept **delivery rules** (base timing per range, category or

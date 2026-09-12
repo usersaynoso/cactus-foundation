@@ -34,6 +34,13 @@ describe('the Site Logo block reaches document layouts', () => {
     expect((config.categories as Record<string, { components: string[] }>).site?.components).toContain('SiteLogo')
   })
 
+  // Twenty seconds rather than the default five. Nearly all of this test is one
+  // dynamic import of config.rsc - the published render path for every block in
+  // every installed module - which measures 1.9s on an idle machine and several
+  // times that when the whole suite is running files in parallel around it. It
+  // was timing out on some full runs and passing on others, which is the worst
+  // kind of red: nothing wrong with the code, and no way to tell that from a
+  // glance at the result.
   it.each(DOCUMENT_LAYOUTS)('%s renders it with the site\'s own logo', async (layoutType) => {
     const { getModuleLayoutPuckRscConfig } = await import('@/lib/puck/config.rsc')
     const components = getModuleLayoutPuckRscConfig(layoutType).components as Record<string, { render: (p: unknown) => unknown } | undefined>
@@ -46,5 +53,5 @@ describe('the Site Logo block reaches document layouts', () => {
     const resolved = await element.type(element.props)
     const html = renderToStaticMarkup(resolved)
     expect(html).toContain('https://media.example.com/logo.svg')
-  })
+  }, 20_000)
 })

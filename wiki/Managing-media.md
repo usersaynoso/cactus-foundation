@@ -401,7 +401,9 @@ A product photograph is a big file because it has to be. Somebody on the product
 
 The same photograph then gets drawn about three centimetres wide on a category page, twelve of them at a time, and as a postage stamp in the strip of thumbnails under the main image. Sending the big one to do those jobs is like posting a poster to somebody who asked for a stamp.
 
-So Cactus keeps a **small copy** of each picture, 300 pixels on its longest side, filed in the same folder as the original with `-thumb` on the end of its name. Category pages, product cards and thumbnail strips are drawn from that copy; the product page's main image is still the original, because that's the one people look at properly.
+So Cactus keeps a **small copy** of each picture, 300 pixels on its longest side, filed in a folder called **thumb** tucked inside the original's own folder, with `-thumb` on the end of its name. Category pages, product cards and thumbnail strips are drawn from that copy; the product page's main image is still the original, because that's the one people look at properly.
+
+Keeping them one level down is worth a word. A shop's folder of product photographs used to hold every picture twice - the photograph and its small copy, side by side, all the way down - so finding the one you actually wanted meant reading past its double. Now the folder holds your pictures and a **thumb** folder you can happily ignore.
 
 On a real catalogue this is the difference between a category page pulling down five and a half megabytes of photography and pulling down a few hundred kilobytes.
 
@@ -417,6 +419,28 @@ In every one of those cases the original is used, exactly as it always was. Slig
 
 **These copies count as in use.** They'll show up in the media library like any other file, and they will *not* appear in the **Unused** tile - something is pointing at them. Don't go hunting them down to tidy up; deleting one takes a card picture with it.
 
+**Move a picture and its copy follows.** Drag a photograph into another folder, rename it, refile a product - the small copy goes along and keeps its matching name, so nothing is left stranded behind in the folder you just emptied.
+
+### Edit a picture and its small copy is remade
+
+Crop it, resize it, replace it, run the optimiser over it - whatever you do to a picture in the media library, its small copy is remade from the new version straight away, and everything pointing at the old one is moved across for you.
+
+This matters more than it sounds. Without it, you would crop a product photograph, look at the product page and see your crop, and every category page in the shop would go on showing the *uncropped* one indefinitely. Nothing would look broken, which is exactly why nobody would spot it.
+
+The remade copy gets a new address rather than overwriting the old one, which is the only way a change like that actually reaches somebody who has visited before - a file at the same address is one their browser has already been told it can keep.
+
+If the remake fails for any reason, the old copy is left exactly where it is. An out-of-date picture is a nuisance; a missing one is worse, so nothing is thrown away until its replacement is ready.
+
+One case behaves differently on purpose: replace a photograph with something that has no sensible small version - a drawing, an animation - and the copies are cleared rather than remade, and everything falls back to the picture itself.
+
+### If one gets missed
+
+Saving a product is what makes the copies for its photographs, and that covers nearly everything. Two cases slip through: a bulk import, which writes hundreds of products at once and is deliberately not allowed to sit there resizing them, and the occasional picture that simply cannot be read.
+
+So there's a nightly tidy-up that picks up whatever is outstanding. It works in small amounts - a few dozen pictures a night - because it is there to catch the trickle, not to work through a whole catalogue. Anything waiting its turn shows its full-size picture in the meantime, which is heavier but perfectly correct.
+
+If you have just switched this on over an existing shop, don't wait for the nightly job to grind through thousands of pictures. That's what the one-off sweep below is for.
+
 ### Catching up an existing shop
 
 A shop that has been running a while has thousands of photographs and no small copies of any of them, and they only get made when somebody saves the product. Rather than asking you to open and re-save every product you own, there's a one-off sweep that goes through the lot.
@@ -424,6 +448,14 @@ A shop that has been running a while has thousands of photographs and no small c
 It isn't a button, and deliberately so: it reads every photograph in the shop once, which on a decent-sized catalogue is several gigabytes and a couple of hours. That's a job for whoever looks after your site, run from their own machine, not something to set off from a web page and hope it survives. Ask them and point them at `modules/shop/scripts/backfill-thumbs.mts`.
 
 It picks up where it left off if it's interrupted, so there's no way to half-break it.
+
+### Tidying the copies of a library that predates the thumb folder
+
+Small copies used to sit beside their originals rather than in a **thumb** folder of their own. If your site has been running a while, most of yours still do - which is untidy and nothing more, because Cactus looks in both places and always has.
+
+There's a one-off sweep for it. Same shape as the one above: not a button, because every file it moves is a real move at your storage provider, and on a catalogue of any size that's tens of thousands of them. Ask whoever looks after your site and point them at `scripts/backfill-rendition-folders.mts`. It works folder by folder, says which one it finished on, and a folder it has already done costs it nothing - so an interrupted run just carries on.
+
+If you also run [variations](Shop-variations) and are tidying those into their own folder, do the variations sweep first. Otherwise this one dutifully tidies the copies, and then they all move again.
 
 ---
 

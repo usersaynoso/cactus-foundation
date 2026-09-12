@@ -1,7 +1,8 @@
-import type { Media } from '@prisma/client'
+import type { Media, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { relocateMediaBlob, rewriteMediaReferencesInContent, deleteMedia } from '@/lib/media/upload'
 import { recordFormerMediaAddress } from '@/lib/media/former-addresses'
+import { isRenditionFileName } from '@/lib/media/rendition-naming'
 
 // ---------------------------------------------------------------------------
 // Media library organisation: folders, moves, physical renames, cascade delete.
@@ -349,7 +350,18 @@ export async function moveOrRenameMedia(
   mediaId: string,
   // exactName: opt into deterministic, nanoid-free storage keys (the shop's
   // product images). The caller owns uniqueness within the target folder.
-  opts: { targetFolderId?: string | null; newName?: string; collision?: CollisionMode; exactName?: boolean },
+  //
+  // carryRenditions: false stops the item's shrunk copies being brought along
+  // (see below). Only the carry itself passes it, moving the copies - a copy has
+  // no copies, and leaving it to find that out for itself would be a query per
+  // file on a backfill moving tens of thousands of them.
+  opts: {
+    targetFolderId?: string | null
+    newName?: string
+    collision?: CollisionMode
+    exactName?: boolean
+    carryRenditions?: boolean
+  },
 ): Promise<Media | null> {
   const media = await prisma.media.findUnique({ where: { id: mediaId } })
   if (!media) throw new Error('Media item not found')
@@ -386,6 +398,9 @@ export async function moveOrRenameMedia(
       newName: `${resolved.name ?? victim.id} (superseded ${victim.id})`,
       exactName: true,
       collision: 'suffix',
+      // Nothing follows an item that is about to be superseded and deleted: its
+      // copies are handed over with the rest of its references below.
+      carryRenditions: false,
     })) ?? victim
   }
 
@@ -433,6 +448,30 @@ export async function moveOrRenameMedia(
       await deleteMedia(media.provider, media.key)
     } catch {
       /* orphaned original; harmless, still deletable later */
+    }
+  }
+
+  // The item's shrunk copies live in a `thumb` folder beside it and are found by
+  // a name derived from its key, so a move that leaves them behind strands them:
+  // the copy stays in the old folder under the old name, every lookup comes back
+  // empty, and the next render quietly mints a duplicate. That is not a corner
+  // case - the shop makes a product image's small copy on save and files the
+  // image immediately afterwards, so every picture added from the library moves
+  // after its copy exists.
+  //
+  // Done here rather than by each caller because this is the one place every move
+  // and rename passes through, so a caller added later cannot forget.
+  //
+  // Dynamically imported: the carry lives with the resizer, which pulls in sharp,
+  // and a static import would drag libvips into every bundle that can reach a
+  // media move. Never allowed to fail the move - a stranded copy is untidy, a
+  // failed move is a picture in the wrong place.
+  if (opts.carryRenditions !== false && !isRenditionFileName(media.originalName)) {
+    try {
+      const { carryRenditionsWithOriginal } = await import('@/lib/media/renditions')
+      await carryRenditionsWithOriginal(updated, media.folderId, media.key)
+    } catch (err) {
+      console.warn(`[media] could not carry the shrunk copies of ${updated.url}:`, err)
     }
   }
 
@@ -513,6 +552,74 @@ export async function getOrCreateFolderByPath(names: string[]): Promise<string |
     parentId = existing ? existing.id : (await prisma.folder.create({ data: { name: clean, parentId } })).id
   }
   return parentId
+}
+
+/**
+ * The child folder of `parentId` called `name`, created if it is not there yet.
+ *
+ * getOrCreateFolderByPath walks from the ROOT, which a caller already holding a
+ * folder id cannot use without resolving that folder's whole trail first. This is
+ * the same idempotent "reuse it or make it" step, one level deep, for the
+ * subfolders that get filed beside an item rather than under a known path - the
+ * `thumb` folder a shrunk copy goes in, and anything after it.
+ *
+ * The unique index on (parentId, name) is the real arbiter. Two requests can both
+ * find nothing and both try to create; the loser reads the winner's row back
+ * rather than throwing, which matters because this runs inside ordinary saves and
+ * inside backfills that have several pictures in flight at once.
+ */
+export async function getOrCreateChildFolder(parentId: string | null, name: string): Promise<string | null> {
+  const clean = cleanFolderName(name)
+  if (!clean) return null
+  const existing = await prisma.folder.findFirst({ where: { parentId, name: clean }, select: { id: true } })
+  if (existing) return existing.id
+  try {
+    const created = await prisma.folder.create({ data: { name: clean, parentId } })
+    return created.id
+  } catch {
+    const raced = await prisma.folder.findFirst({ where: { parentId, name: clean }, select: { id: true } })
+    return raced?.id ?? null
+  }
+}
+
+/** The child folder of `parentId` called `name`, or null. Creates nothing. */
+export async function findChildFolder(parentId: string | null, name: string): Promise<string | null> {
+  const clean = cleanFolderName(name)
+  if (!clean) return null
+  const existing = await prisma.folder.findFirst({ where: { parentId, name: clean }, select: { id: true } })
+  return existing?.id ?? null
+}
+
+/**
+ * The same look-up for a whole batch of parents at once, keyed by parent id (null
+ * for the library root). One query however many parents are asked about, because
+ * the caller is a page render resolving the small copy of every picture on it.
+ */
+export async function findChildFolders(
+  parentIds: Array<string | null>,
+  name: string,
+): Promise<Map<string | null, string>> {
+  const out = new Map<string | null, string>()
+  const clean = cleanFolderName(name)
+  if (!clean) return out
+
+  const unique = [...new Set(parentIds)]
+  const ids = unique.filter((id): id is string => id !== null)
+  const wantsRoot = unique.length !== ids.length
+  if (ids.length === 0 && !wantsRoot) return out
+
+  // Postgres treats a NULL parentId as its own thing, and `in` never matches it -
+  // so the root is asked for separately rather than smuggled into the list.
+  const or: Prisma.FolderWhereInput[] = []
+  if (ids.length > 0) or.push({ parentId: { in: ids } })
+  if (wantsRoot) or.push({ parentId: null })
+
+  const found = await prisma.folder.findMany({
+    where: { name: clean, OR: or },
+    select: { id: true, parentId: true },
+  })
+  for (const f of found) out.set(f.parentId, f.id)
+  return out
 }
 
 /**

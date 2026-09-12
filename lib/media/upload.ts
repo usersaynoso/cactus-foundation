@@ -1459,6 +1459,29 @@ async function repointMediaToBlob(
     }
   }
 
+  // The item's own bytes have just changed, so every shrunk copy of it is now a
+  // picture of what used to be there. Nothing else notices: a stale copy is a
+  // perfectly valid image file, and it would go on being drawn on every category
+  // page and in every thumbnail strip for as long as the item lives.
+  //
+  // Remade here rather than by each caller because this function is the one place
+  // every in-place rewrite passes through - optimise, resize, crop, replace and
+  // the video re-encode alike - so a caller added later cannot forget.
+  //
+  // Dynamically imported: renditions.ts pulls in sharp, and a static import here
+  // would drag it (and libvips) into every function that can reach upload.ts. It
+  // is already in this process for most callers; for the ones where it is not,
+  // this is the only path that needs it.
+  //
+  // Never allowed to fail the edit. An admin who crops a photograph has done the
+  // thing they asked for by the time we get here.
+  try {
+    const { refreshRenditions } = await import('@/lib/media/renditions')
+    await refreshRenditions(updated, oldKey)
+  } catch (err) {
+    console.warn(`[media] could not refresh the shrunk copies of ${updated.url}:`, err)
+  }
+
   return updated
 }
 

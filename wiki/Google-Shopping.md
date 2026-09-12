@@ -22,9 +22,10 @@ That is the whole job. Merchant Center takes a day or so to process a new feed t
 - Its own photos when it has them, the product's photos when it doesn't.
 - Its real availability: in stock, out of stock, back-order or pre-order, by the same rules the shop itself applies. Sale prices travel as sale prices.
 - Prices are always sent **VAT-inclusive**, whatever the storefront is set to display - that is what Google requires in the UK.
-- The shop's own category trail (for Google's "product type"), and the variation's options mapped onto Google's colour, size, material and pattern attributes by their names - a "Seat Colour" option lands on colour, a "Width" on size, a "Finish" on material. Options that fit none of them stay in the listing's title, which always carries the full variation name.
+- The shop's own category trail (for Google's "product type"), and - once you have filled them in - Google's own category for the same product. The two are different things and the feed carries both: yours is your wording, Google's is theirs. See [Getting your listings onto the same page as everyone else's](#getting-your-listings-onto-the-same-page-as-everyone-elses).
+- The variation's options mapped onto Google's colour, size, material and pattern attributes by their names - a "Seat Colour" option lands on colour, a "Width" on size, a "Finish" on material. Options that fit none of them stay in the listing's title, which always carries the full variation name.
 
-**What stays out:** draft and hidden products, products the shop is hiding for being out of stock (where that setting is on), non-physical products, anything ticked **Keep this product out of the feed**, and - deliberately - your buying codes. SKUs are never published in the feed.
+**What stays out:** draft and hidden products, products the shop is hiding for being out of stock (where that setting is on), non-physical products, and anything ticked **Keep this product out of the feed**. Your product codes stay out too unless you say otherwise - see the section below, which is about when you should.
 
 ## Per-product details
 
@@ -33,7 +34,7 @@ Each product's editor gains a **Google Shopping** tab (on the parent product - v
 - **Brand** - overrides everything else for this product.
 - **GTIN** - the product's barcode, where it has one. Variations don't need this: each variation's own **Barcode** field (on the Variations tab) is used automatically, whenever it holds a real 8, 12, 13 or 14 digit code.
 - **MPN** - the manufacturer's part number, if the maker publishes one.
-- **Google product category** - a value from Google's own category list, if you want to file it yourself. Optional; Google usually manages on its own.
+- **Google product category** - a value from Google's own category list, for this product alone. Optional, and usually unnecessary: it is far less work to answer once per category, which is what the settings tab is for. Filled in here, it beats whatever the category says.
 - **Condition** - New, Refurbished or Used, when it differs from the shop default.
 - **Keep this product out of the feed** - the product and all its variations sit Google Shopping out.
 
@@ -67,6 +68,52 @@ Most shops file everything under a supplier already, so in practice nobody types
 **These four now reach further than the feed.** The brand, the barcode, the part number and the condition are also published in the hidden description every product page carries for search engines and AI assistants - see [Shop](Shop#what-search-engines-and-ai-assistants-are-told-about-a-product). It is the same answer resolved the same way, so a shopping result and a Google listing can never name two different makers. Worth a look at rule 2 above if your suppliers are middlemen: switched on, the middleman's name is now the brand on your own product pages too, not only in the feed.
 
 Left entirely alone, the feed still works: products with no GTIN or MPN are marked for Google as having no standard identifiers, which is normal for made-to-order furniture and the like.
+
+## Getting your listings onto the same page as everyone else's
+
+If your products show up on Google on a page of their own, with your shop as the only seller, while half a dozen rivals sit together on another page for the very same thing, this section is the one you want.
+
+Google decides which of those pages a listing belongs on by asking three questions in order:
+
+1. Does the barcode match one Google already knows?
+2. Failing that, do the brand and the maker's part number match?
+3. Failing that, does the title and the photograph look enough like somebody else's?
+
+Miss all three and Google has no choice but to give you a page to yourself. That is not a penalty, but it does mean nobody comparing sellers ever sees you.
+
+The awkward truth is that a barcode only helps if somebody else is publishing the same one. In plenty of trades - office furniture very much included - nobody publishes barcodes at all. Everybody publishes the maker's part number instead.
+
+### Send your product codes as the maker's part number
+
+**Shop → Settings → Google Shopping → Defaults**, the tick box reading **Send your product codes as the maker's part number**.
+
+Off by default, and it stays off until you decide. Whether to switch it on comes down to one question: **whose codes are they?**
+
+- **Switch it on** if your product codes come off a manufacturer's price list - the codes printed on the box, the ones every other shop selling that thing quotes. Sending them is what puts you on the same page as those shops instead of a page of your own. Each variation sends its own code, which is the whole point: a code names one particular thing, not forty colours of it.
+- **Leave it off** if the codes are your own invention, or a private buying reference you would rather not publish. A part number nobody else uses matches nothing, so you would be giving away what you call your stock for no return whatsoever.
+
+If you have typed a part number on a product's own Google Shopping tab, that still wins. A variation never borrows its parent's typed-in part number - that would claim forty colourways are all the same item, which Google is quite right to object to.
+
+The same codes also appear in the hidden description your product pages carry for search engines and AI assistants, for the same reason the brand does: a page and a feed that name two different part numbers for one product are worse than neither.
+
+### Google's own categories
+
+**Shop → Settings → Google Shopping → Google's own categories.**
+
+Google keeps a list of every kind of thing anybody sells, and knowing which entry a product is decides where it can be shown and what Google expects to be told about it. Your own categories go along to Google as well, but those are your wording; this is theirs.
+
+It is filled in **once per category, not per product**. A shop with twelve thousand products usually has about forty categories, so this is a morning's work rather than a fortnight's. Paste either the number or the full wording from Google's product taxonomy, such as `Furniture > Chairs > Office Chairs`.
+
+- A category you leave blank uses whatever its **parent** says, so filling in the top of your tree does most of the work and a category added later is never left blank by accident.
+- A value typed on an individual product's Google Shopping tab beats both.
+- Nothing is checked against Google's list here. Google revises that list, and being refused a save because this module's copy of it had gone stale would be the more annoying failure by far. Merchant Center says plainly enough if a value is wrong.
+
+### What this cannot do for you
+
+Two things decide the same question and neither is a setting:
+
+- **Your brand has to be the one Google knows.** If your products are filed under a distributor rather than the name on the box, and **Use the supplier as the brand** is on, that distributor's name is what Google is told. Worth checking what the sellers you want to sit beside are calling it.
+- **Your titles have to resemble theirs.** Where there is no barcode and no part number to go on, the title is all Google has, and a product named your way is a product Google cannot place.
 
 ## The feed address and its key
 
@@ -186,7 +233,7 @@ Switch **Serve the review feed** on and copy the **review feed address**. It is 
 
 Google will not read it until they have let you into the product reviews programme, which is a form on their side. Ask for it from the Merchant Center account the feed is filed under.
 
-What travels: every review you have **published**, with its star rating, its wording, the reviewer's name as they gave it, when it went live, and the product it is about with whatever brand and barcode that product carries. Reviews still waiting in your queue, and reviews you turned down, stay here - as does anything about a product you have kept **out** of the product feed. Email addresses never travel, and neither do your buying codes.
+What travels: every review you have **published**, with its star rating, its wording, the reviewer's name as they gave it, when it went live, and the product it is about with whatever brand and barcode that product carries. Reviews still waiting in your queue, and reviews you turned down, stay here - as does anything about a product you have kept **out** of the product feed. Email addresses never travel. Your product codes travel only if you have switched on **Send your product codes as the maker's part number**, and then only as the part number they are.
 
 Reviews collected by the invitation emails the Reviews module sends are marked as such, because Google treats "we asked after delivery" and "somebody wrote in unprompted" differently. A review with no name on it goes as anonymous rather than under an invented one.
 

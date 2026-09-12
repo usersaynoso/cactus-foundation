@@ -1,9 +1,19 @@
 import sharp from 'sharp'
 import { prisma } from '@/lib/db/prisma'
-import { downloadMedia, uploadMedia, buildLibraryUploadKey, saveMediaRecord } from '@/lib/media/upload'
-import { resolveFolderPath } from '@/lib/media/organise'
+import type { MediaProviderType } from '@prisma/client'
+import { downloadMedia, uploadMedia, saveMediaRecord, deleteMedia, rewriteMediaReferencesInContent } from '@/lib/media/upload'
+import { findChildFolder, findChildFolders, getOrCreateChildFolder, moveOrRenameMedia, resolveFolderPath } from '@/lib/media/organise'
+import {
+  KNOWN_RENDITION_SPECS,
+  RENDITION_FOLDER_NAME,
+  renditionFileName,
+  type RenditionSpec,
+} from '@/lib/media/rendition-naming'
 
-// Shrunk copies of a media library picture, filed beside the original.
+export { renditionFileName, RENDITION_FOLDER_NAME, type RenditionSpec }
+
+// Shrunk copies of a media library picture, filed in a `thumb` folder beside the
+// original.
 //
 // Why a second FILE rather than resizing the original: some originals are load-
 // bearing at full size - a fabric photograph is painted onto a 3D model at true
@@ -20,44 +30,6 @@ import { resolveFolderPath } from '@/lib/media/organise'
 // animate - shrinking either buys little or breaks something, so both are left
 // alone and the caller simply keeps using the original.
 const RESIZABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
-
-// One writer at a time per folder, for the pick-a-free-name-then-write-it step.
-//
-// buildLibraryUploadKey chooses a name by looking for a taken one, which is a read
-// followed by a write with nothing holding the gap. Sequentially that is fine.
-// Twelve at a time in one folder is not: they all read "x-thumb.webp is free",
-// they all try to write it, one wins and eleven come back with a unique-key
-// violation. Retrying only reshuffles the same race - measured on a real backfill,
-// three rounds of it still left failures, because every round had eleven runners
-// picking the same "first free" name again.
-//
-// So the pick and the write are one critical section, keyed by folder because that
-// is the scope the name has to be unique in. Everything expensive - fetching the
-// original, decoding it, encoding the copy - stays outside it and stays parallel;
-// what is serialised is a lookup and an insert, and only against other writers into
-// the SAME folder.
-//
-// Process-local, deliberately. Two machines running the backfill at once would
-// still race, and the retry below is what covers that; one machine running it
-// twelve ways is the case that actually happens, and this removes it entirely.
-const folderWriteQueues = new Map<string, Promise<unknown>>()
-
-function withFolderLock<T>(folderId: string | null, work: () => Promise<T>): Promise<T> {
-  const key = folderId ?? '(root)'
-  const previous = folderWriteQueues.get(key) ?? Promise.resolve()
-  // Chained off the previous writer's SETTLEMENT, not its success - one failed
-  // write must not wedge the folder for everything behind it.
-  const next = previous.then(work, work)
-  folderWriteQueues.set(key, next.then(() => undefined, () => undefined))
-  return next
-}
-
-export type RenditionSpec = {
-  // The copy's longest edge.
-  maxPx: number
-  // The tail added to the file's name: "small" gives "oak-small.webp".
-  suffix: string
-}
 
 /**
  * Make (or decline to make) shrunk copies of the library picture at `sourceUrl`.
@@ -101,10 +73,19 @@ export async function generateImageRenditions(
     const meta = await sharp(original).metadata()
     const widest = Math.max(meta.width ?? 0, meta.height ?? 0)
 
-    // Named after the original with a `-<suffix>` tail, filed in the same folder,
-    // so the set reads as a set in the library. Resolved once for the batch.
-    const baseName = (media.key.split('/').pop() ?? 'image').replace(/\.[a-z0-9]+$/i, '')
+    // Named after the original with a `-<suffix>` tail and filed one level down,
+    // in the original's own `thumb` folder, so a product's folder reads as the
+    // product's pictures instead of as each picture twice over.
+    //
+    // Both folders are resolved once for the batch, and the `thumb` folder is
+    // only LOOKED for here - creating it is left until something is actually
+    // about to be written, so a folder of pictures that all decline to be shrunk
+    // does not gain an empty folder for its trouble.
     const folderPath = await resolveFolderPath(media.folderId)
+    // The folder's display name survives sanitizeFolderSegment unchanged, so the
+    // storage path is the parent's with the name appended - no second walk.
+    const renditionFolderPath = folderPath ? `${folderPath}/${RENDITION_FOLDER_NAME}` : RENDITION_FOLDER_NAME
+    let renditionFolderId = await findChildFolder(media.folderId, RENDITION_FOLDER_NAME)
 
     for (const spec of specs) {
       // Already small in both pixels and bytes: the original serves as well as a
@@ -119,76 +100,94 @@ export async function generateImageRenditions(
         .webp({ quality: 80 })
         .toBuffer()
 
-      const fileName = `${baseName}-${spec.suffix}.webp`
+      const fileName = renditionFileName(media.key, spec.suffix)
 
       // This rendition may already exist. The name is derived from the ORIGINAL's
-      // own key and it is filed in the original's own folder, so a webp of that
-      // name there is this rendition of this picture and nothing else - made by
-      // an earlier run, or by another module that shrank the same library item.
+      // own key and it is filed in the original's own `thumb` folder, so a webp of
+      // that name there is this rendition of this picture and nothing else - made
+      // by an earlier run, or by another module that shrank the same library item.
       //
       // Reusing it rather than minting one matters more than it sounds. Without
-      // this, `buildLibraryUploadKey` dedupes the collision with the usual "-2",
-      // so a backfill over a shop where several values share one fabric wrote a
-      // fresh identical file per value. On the catalogue this was written for
-      // that was 258 files nothing pointed at, 10 MB of them.
+      // this, a backfill over a shop where several values share one fabric wrote a
+      // fresh identical file per value. On the catalogue this was written for that
+      // was 258 files nothing pointed at, 10 MB of them.
       //
-      // Matched on `originalName` rather than `key`, because a duplicate minted
-      // before this existed carries the "-2" in its key and the plain name here;
-      // oldest first, so repeated runs converge on one file rather than drifting.
-      const existing = await prisma.media.findFirst({
+      // Matched on `originalName`, not `key`: the key carries a nanoid nobody can
+      // reconstruct, whereas the name is derived from the original's own key and
+      // is therefore the same on every run. Oldest first, so a folder that
+      // accumulated duplicates under an earlier version resolves to the same file
+      // every time rather than drifting between them.
+      //
+      // The original's OWN folder is asked second. That is where copies were filed
+      // before the `thumb` folder existed, and an install part-way through the
+      // refile (lib/media/rendition-refile.ts) has them in both places. Reusing
+      // the one already on file is the whole point of this lookup, and it would be
+      // a poor trade to mint a duplicate of every picture in the catalogue because
+      // a tidy-up had not been run yet.
+      const tidy = renditionFolderId
+        ? await prisma.media.findFirst({
+            where: { folderId: renditionFolderId, mimeType: 'image/webp', originalName: fileName },
+            select: { url: true },
+            orderBy: { createdAt: 'asc' },
+          })
+        : null
+      const found = tidy ?? await prisma.media.findFirst({
         where: { folderId: media.folderId, mimeType: 'image/webp', originalName: fileName },
         select: { url: true },
         orderBy: { createdAt: 'asc' },
       })
-      if (existing) {
-        out[spec.suffix] = existing.url
+      if (found) {
+        out[spec.suffix] = found.url
         continue
       }
 
-      // buildLibraryUploadKey picks a free name by LOOKING for a taken one, which
-      // is a read followed by a write with nothing holding the gap. One caller at
-      // a time never notices. A backfill running a dozen at once does: two
-      // originals in the same folder whose names differ only by extension
-      // ("chair.webp", "chair.jpeg") both want "chair-thumb.webp", both find it
-      // free, and the second `create` loses on the unique key.
+      // Something is going to be written now, so the folder may as well exist.
+      renditionFolderId ??= await getOrCreateChildFolder(media.folderId, RENDITION_FOLDER_NAME)
+
+      // A folder that could not be made at all (it cannot be, for a name this
+      // fixed) would leave the row saying one place and the blob sitting in
+      // another, which is the one state no lookup here can recover from. So the
+      // copy is filed beside its original instead - untidy, findable, and exactly
+      // what every install looked like before this folder existed.
+      const targetFolderId = renditionFolderId ?? media.folderId
+      const targetFolderPath = renditionFolderId ? renditionFolderPath : folderPath
+
+      // A nanoid key, like any other library upload, rather than the exact
+      // "<original>-thumb.webp" this used to mint. Three things fall out of that,
+      // and the third is the one that matters:
       //
-      // Retried rather than caught and ignored, and deliberately NOT "adopt
-      // whatever won the race": the winner is a copy of the OTHER picture, so
-      // taking its url would quietly put the wrong photograph on a product. Going
-      // round again re-asks for a free name and gets "chair-thumb-2.webp", which
-      // is what a sequential run would have produced. The re-upload that costs is
-      // worth it at roughly one collision in three thousand.
-      const record = await withFolderLock(media.folderId, async () => {
-        // The retry is the backstop for a racer this lock cannot see - a second
-        // process running the same backfill. Retried rather than "adopt whatever
-        // won": the winner is a copy of a DIFFERENT picture, so taking its url
-        // would quietly put the wrong photograph on a product. Going round again
-        // asks for a free name and gets "x-thumb-2.webp", which is what a
-        // sequential run would have produced.
-        for (let attempt = 1; ; attempt++) {
-          const key = await buildLibraryUploadKey(media.provider, 'image/webp', fileName, folderPath || undefined)
-          const uploaded = await uploadMedia(shrunk, 'image/webp', media.provider, fileName, folderPath || undefined, false, key)
-          try {
-            return await saveMediaRecord({
-              key: uploaded.key,
-              url: uploaded.url,
-              provider: media.provider,
-              mimeType: 'image/webp',
-              sizeBytes: shrunk.length,
-              uploadedById: userId ?? media.uploadedById ?? undefined,
-              originalName: fileName,
-              folderId: media.folderId,
-              // A derived resize of an already-served picture: the optimiser has
-              // nothing to add, and the lightning button would only re-compress
-              // the compression.
-              optimised: true,
-            })
-          } catch (err) {
-            const code = (err as { code?: string })?.code
-            if (code !== 'P2002' || attempt >= 5) throw err
-          }
-        }
-      })
+      //  - No collisions. The exact form is a read ("is this name free?") followed
+      //    by a write, with nothing holding the gap, so a backfill running a dozen
+      //    at a time had eleven of them lose the same name over and over. A nanoid
+      //    cannot collide, so there is nothing to retry and nothing to serialise.
+      //  - It is immutable in the media worker by the ordinary rule, without
+      //    needing the rendition-name exception at all.
+      //  - Crucially: a REGENERATED copy gets a brand-new address. When an admin
+      //    crops the original, its small copy has to be remade, and remaking it at
+      //    the same url would hand every browser and every edge cache a file they
+      //    have already been told to keep for a year. A new address is fetched; an
+      //    overwritten one is not. See refreshRenditions below.
+      //
+      // The copy is still FOUND by its `originalName`, which is derived from the
+      // original's key and is what every lookup here matches on - so nothing needs
+      // the key to be readable.
+      const record = await (async () => {
+        const uploaded = await uploadMedia(shrunk, 'image/webp', media.provider, fileName, targetFolderPath || undefined)
+        return saveMediaRecord({
+          key: uploaded.key,
+          url: uploaded.url,
+          provider: media.provider,
+          mimeType: 'image/webp',
+          sizeBytes: shrunk.length,
+          uploadedById: userId ?? media.uploadedById ?? undefined,
+          originalName: fileName,
+          folderId: targetFolderId,
+          // A derived resize of an already-served picture: the optimiser has
+          // nothing to add, and the lightning button would only re-compress the
+          // compression.
+          optimised: true,
+        })
+      })()
       out[spec.suffix] = record.url
     }
     return out
@@ -205,21 +204,6 @@ export async function generateImageRendition(
 ): Promise<string | null> {
   const made = await generateImageRenditions(sourceUrl, [{ maxPx, suffix }], { worthwhileBytes, userId })
   return made[suffix] ?? null
-}
-
-/**
- * The name `generateImageRenditions` files a rendition under, for one original.
- * Exported so callers can reason about a rendition without making one - the
- * backfill counts what is missing this way.
- *
- * Derived from the ORIGINAL's storage key, exactly as the writer above derives
- * it, so the two can never drift: whatever nanoid prefix `buildLibraryUploadKey`
- * gave the original is carried into its rendition's name, which is what makes
- * the name specific enough to look up again.
- */
-export function renditionFileName(key: string, suffix: string): string {
-  const baseName = (key.split('/').pop() ?? 'image').replace(/\.[a-z0-9]+$/i, '')
-  return `${baseName}-${suffix}.webp`
 }
 
 // A folder id is nullable (the library root), and null cannot be part of a string
@@ -243,10 +227,16 @@ function folderScopedName(folderId: string | null, fileName: string): string {
  * rendition is simply absent, and callers fall back to the original: always a
  * correct answer, if a heavy one.
  *
- * Matched on folder AND name rather than name alone. A rendition is filed beside
- * its original, and an original whose key carries no nanoid (an exact-form key -
- * see lib/media/keys.ts) can share a basename with an unrelated picture in
- * another folder. The name narrows it to a handful; the folder settles it.
+ * Matched on folder AND name rather than name alone. A rendition is filed in its
+ * original's `thumb` folder, and an original whose key carries no nanoid (an
+ * exact-form key - see lib/media/keys.ts) can share a basename with an unrelated
+ * picture elsewhere. The name narrows it to a handful; the folder settles it.
+ *
+ * Two folders are accepted for each original: its `thumb` folder, and the
+ * original's own folder, which is where copies were filed before that folder
+ * existed. An install part-way through the refile has them in both places, and
+ * the `thumb` one wins wherever both answer - so a picture whose copy has been
+ * tidied away resolves to the tidied one and never flips back.
  */
 export async function findRenditionUrls(
   originalUrls: string[],
@@ -262,9 +252,16 @@ export async function findRenditionUrls(
   })
   if (originals.length === 0) return out
 
+  // One query for every `thumb` folder in play, whatever the batch size.
+  const renditionFolders = await findChildFolders(originals.map((o) => o.folderId), RENDITION_FOLDER_NAME)
+
   const wanted = new Map<string, string>()
+  const wantedBeside = new Map<string, string>()
   for (const o of originals) {
-    wanted.set(folderScopedName(o.folderId, renditionFileName(o.key, suffix)), o.url)
+    const name = renditionFileName(o.key, suffix)
+    const renditionFolderId = renditionFolders.get(o.folderId)
+    if (renditionFolderId) wanted.set(folderScopedName(renditionFolderId, name), o.url)
+    wantedBeside.set(folderScopedName(o.folderId, name), o.url)
   }
 
   const names = [...new Set(originals.map((o) => renditionFileName(o.key, suffix)))]
@@ -277,11 +274,218 @@ export async function findRenditionUrls(
     orderBy: { createdAt: 'asc' },
   })
 
+  // Gathered in two passes rather than one, because the rows arrive in age order
+  // and the preference is by FOLDER: a copy sitting untidied beside its original
+  // is older than the tidied one and would otherwise win on age alone.
+  const beside = new Map<string, string>()
   for (const f of found) {
     if (!f.originalName) continue
-    const originalUrl = wanted.get(folderScopedName(f.folderId, f.originalName))
-    if (!originalUrl) continue
-    if (!out.has(originalUrl)) out.set(originalUrl, f.url)
+    const scoped = folderScopedName(f.folderId, f.originalName)
+    const tidy = wanted.get(scoped)
+    if (tidy) {
+      if (!out.has(tidy)) out.set(tidy, f.url)
+      continue
+    }
+    const untidy = wantedBeside.get(scoped)
+    if (untidy && !beside.has(untidy)) beside.set(untidy, f.url)
+  }
+  for (const [originalUrl, renditionUrl] of beside) {
+    if (!out.has(originalUrl)) out.set(originalUrl, renditionUrl)
   }
   return out
+}
+
+/**
+ * Every folder an item's shrunk copies could be sitting in: its `thumb` folder,
+ * and the item's own folder, which is where they were filed before that folder
+ * existed. Nothing is created - an item with no copies must not gain a folder.
+ */
+async function renditionFolderCandidates(folderId: string | null): Promise<Array<string | null>> {
+  const renditionFolderId = await findChildFolder(folderId, RENDITION_FOLDER_NAME)
+  return renditionFolderId ? [renditionFolderId, folderId] : [folderId]
+}
+
+/**
+ * Bring an item's shrunk copies with it when the item itself moves or is renamed.
+ *
+ * Left behind, a copy is stranded twice over: it sits in the old folder, and - if
+ * the move re-keyed the original, which an exact-name move does - it answers to a
+ * name derived from a key that no longer exists. Every lookup then comes back
+ * empty and the next render mints a duplicate, so the library accumulates one
+ * orphan per picture per move while the pages look perfectly well.
+ *
+ * So each copy is moved into the destination's `thumb` folder AND renamed to the
+ * name the item's new key gives it, which is the name every lookup will ask for
+ * from here on. Called from moveOrRenameMedia, which is the one place every move
+ * passes through.
+ *
+ * Never throws: a copy that could not be brought along leaves the original
+ * drawing at full size, which is heavier and right.
+ */
+export async function carryRenditionsWithOriginal(
+  media: { id: string; key: string; folderId: string | null },
+  previousFolderId: string | null,
+  previousKey: string,
+): Promise<void> {
+  const folderChanged = previousFolderId !== media.folderId
+  const rekeyed = previousKey !== media.key
+  if (!folderChanged && !rekeyed) return
+
+  const from = await renditionFolderCandidates(previousFolderId)
+  let destinationId: string | null | undefined
+
+  for (const spec of KNOWN_RENDITION_SPECS) {
+    try {
+      const wasCalled = renditionFileName(previousKey, spec.suffix)
+      const nowCalled = renditionFileName(media.key, spec.suffix)
+      const copies = await prisma.media.findMany({
+        where: {
+          mimeType: 'image/webp',
+          originalName: wasCalled,
+          OR: from.map((folderId) => ({ folderId })),
+        },
+        select: { id: true },
+        orderBy: { createdAt: 'asc' },
+      })
+      if (copies.length === 0) continue
+
+      // Resolved (and created) only once something is genuinely being moved into
+      // it, and only once for the whole set of sizes.
+      destinationId ??= await getOrCreateChildFolder(media.folderId, RENDITION_FOLDER_NAME)
+      if (!destinationId) continue
+
+      for (const copy of copies) {
+        // carryRenditions: false - a copy has no copies of its own, and asking
+        // would be three queries per file on a backfill moving tens of thousands.
+        // 'suffix' on a clash: two copies that meet in one folder are kept apart
+        // rather than one silently replacing the other.
+        await moveOrRenameMedia(copy.id, {
+          targetFolderId: destinationId,
+          newName: nowCalled,
+          collision: 'suffix',
+          carryRenditions: false,
+        })
+      }
+    } catch (err) {
+      console.warn(`[media] could not carry the ${spec.suffix} copy of ${media.id}:`, err)
+    }
+  }
+}
+
+/**
+ * Remake an item's shrunk copies after its own bytes have changed.
+ *
+ * The case this exists for: somebody crops, resizes, replaces or optimises a
+ * product photograph in the media library. The original is now a different
+ * picture, and every small copy of it is a picture of what used to be there - on
+ * every category page, in every thumbnail strip, indefinitely. Nothing else
+ * notices, because a stale copy is a perfectly valid image file.
+ *
+ * `oldKey` is the key the item had BEFORE the edit, and it is needed rather than
+ * nice to have: a copy is named after the original's key, and an optimise changes
+ * that key (a PNG becomes a WebP). So the copies are FOUND by the old name and
+ * REMADE under the new one.
+ *
+ * Each copy is remade at a fresh address, the references to the old one are
+ * repointed onto it through the same hook that follows any other blob move, and
+ * only then is the stale copy deleted. That order matters: a copy remade at its
+ * own address would be a file every browser and edge cache has already been told
+ * to keep for a year, so the new bytes would simply not be fetched.
+ *
+ * Never throws. A small copy that could not be remade leaves the item drawing its
+ * original - heavier, and right - which is a great deal better than failing an
+ * admin's crop.
+ */
+export async function refreshRenditions(
+  media: { id: string; key: string; url: string; provider: MediaProviderType; mimeType: string; folderId: string | null },
+  oldKey: string,
+): Promise<void> {
+  if (!RESIZABLE_TYPES.has(media.mimeType)) {
+    // The item is no longer a picture core can shrink - a photograph replaced with
+    // an SVG, say. Its old copies are now copies of something else entirely, so
+    // they are cleared rather than remade: every renderer falls back to the
+    // original, which is the only honest answer available.
+    await discardRenditions(media, oldKey)
+    return
+  }
+
+  for (const spec of KNOWN_RENDITION_SPECS) {
+    try {
+      const staleName = renditionFileName(oldKey, spec.suffix)
+      const stale = await prisma.media.findMany({
+        where: {
+          mimeType: 'image/webp',
+          originalName: staleName,
+          // The `thumb` folder, and the item's own folder for an install whose
+          // copies have not been tidied into it yet.
+          OR: (await renditionFolderCandidates(media.folderId)).map((folderId) => ({ folderId })),
+        },
+        select: { id: true, key: true, url: true },
+        orderBy: { createdAt: 'asc' },
+      })
+      if (stale.length === 0) continue
+
+      // Remade from the item's CURRENT bytes. worthwhileBytes is 0 here, unlike on
+      // the first pass: the copy already exists and something is pointing at it, so
+      // "this picture is small enough not to bother" is not a decision to re-take -
+      // taking it would leave the pointer aimed at the stale file for good.
+      const made = await generateImageRenditions(media.url, [spec], { worthwhileBytes: 0 })
+      const fresh = made[spec.suffix]
+
+      // No replacement means the copy could not be remade - storage had a moment,
+      // the encode failed. The stale one STAYS. Deleting it would leave every
+      // reference to it aimed at a file that is not there, and a broken picture is
+      // a good deal worse than an out-of-date one. The next edit tries again, and
+      // so does the nightly sweep.
+      if (!fresh) continue
+
+      for (const old of stale) {
+        // The same hook that follows any other blob move, so a url held in a
+        // module's own table - the shop keeps its cards' copies in
+        // shp_product_media.thumb_url - is repointed rather than left aimed at a
+        // file about to be deleted. Before the delete, never after.
+        await rewriteMediaReferencesInContent(old.url, fresh, old.key, fresh)
+        await prisma.media.delete({ where: { id: old.id } }).catch(() => {})
+        await deleteMedia(media.provider, old.key).catch(() => {})
+      }
+    } catch (err) {
+      console.warn(`[media] could not remake the ${spec.suffix} copy of ${media.url}:`, err)
+    }
+  }
+}
+
+/**
+ * Throw away an item's shrunk copies without making new ones, repointing anything
+ * that held them back onto the original first.
+ *
+ * For the case where a copy can no longer exist: the picture has been replaced
+ * with something core does not shrink. Leaving the old copies in place would show
+ * the previous picture on every card; deleting them without repointing would show
+ * a broken image, which is worse.
+ */
+async function discardRenditions(
+  media: { key: string; url: string; provider: MediaProviderType; folderId: string | null },
+  oldKey: string,
+): Promise<void> {
+  for (const spec of KNOWN_RENDITION_SPECS) {
+    try {
+      const stale = await prisma.media.findMany({
+        where: {
+          mimeType: 'image/webp',
+          originalName: renditionFileName(oldKey, spec.suffix),
+          OR: (await renditionFolderCandidates(media.folderId)).map((folderId) => ({ folderId })),
+        },
+        select: { id: true, key: true, url: true },
+      })
+      for (const old of stale) {
+        // Onto the ORIGINAL, which is the fallback every renderer already has a
+        // branch for.
+        await rewriteMediaReferencesInContent(old.url, media.url, old.key, media.key)
+        await prisma.media.delete({ where: { id: old.id } }).catch(() => {})
+        await deleteMedia(media.provider, old.key).catch(() => {})
+      }
+    } catch (err) {
+      console.warn(`[media] could not clear the ${spec.suffix} copy of ${media.url}:`, err)
+    }
+  }
 }

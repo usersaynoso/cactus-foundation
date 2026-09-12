@@ -2,21 +2,47 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import sharp from 'sharp'
 
 const findFirst = vi.fn()
+const findMany = vi.fn()
+const deleteRow = vi.fn()
 const downloadMedia = vi.fn()
 const uploadMedia = vi.fn()
 const saveMediaRecord = vi.fn()
-const buildLibraryUploadKey = vi.fn()
+const deleteMedia = vi.fn()
+const rewriteMediaReferencesInContent = vi.fn()
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: { media: { findFirst: (...a: unknown[]) => findFirst(...a) } } }))
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: {
+    media: {
+      findFirst: (...a: unknown[]) => findFirst(...a),
+      findMany: (...a: unknown[]) => findMany(...a),
+      delete: (...a: unknown[]) => deleteRow(...a),
+    },
+  },
+}))
 vi.mock('@/lib/media/upload', () => ({
   downloadMedia: (...a: unknown[]) => downloadMedia(...a),
   uploadMedia: (...a: unknown[]) => uploadMedia(...a),
   saveMediaRecord: (...a: unknown[]) => saveMediaRecord(...a),
-  buildLibraryUploadKey: (...a: unknown[]) => buildLibraryUploadKey(...a),
+  deleteMedia: (...a: unknown[]) => deleteMedia(...a),
+  rewriteMediaReferencesInContent: (...a: unknown[]) => rewriteMediaReferencesInContent(...a),
 }))
-vi.mock('@/lib/media/organise', () => ({ resolveFolderPath: async () => 'shop/attributes' }))
+// The `thumb` folder each copy is filed in. `findChildFolder` answers "is it
+// there yet?" and is the switch these tests flip: null means the folder has never
+// been made, which is every install before the tidy-up has run.
+const findChildFolder = vi.fn()
+const getOrCreateChildFolder = vi.fn()
+const findChildFolders = vi.fn()
+const moveOrRenameMedia = vi.fn()
+vi.mock('@/lib/media/organise', () => ({
+  resolveFolderPath: async () => 'shop/attributes',
+  findChildFolder: (...a: unknown[]) => findChildFolder(...a),
+  findChildFolders: (...a: unknown[]) => findChildFolders(...a),
+  getOrCreateChildFolder: (...a: unknown[]) => getOrCreateChildFolder(...a),
+  moveOrRenameMedia: (...a: unknown[]) => moveOrRenameMedia(...a),
+}))
 
-const { generateImageRenditions } = await import('@/lib/media/renditions')
+const { generateImageRenditions, refreshRenditions, carryRenditionsWithOriginal } =
+  await import('@/lib/media/renditions')
 
 const SOURCE = 'https://cdn.example/shop/attributes/oak.png'
 const SOURCE_ROW = {
@@ -39,13 +65,26 @@ function wireLibrary(renditions: Record<string, string> = {}) {
   })
 }
 
+// A nanoid-style prefix on every upload, the way the real key builder works - so a
+// remade copy can never land on the address the stale one had. The counter makes
+// each one distinct within a test.
+let uploadCount = 0
+
 beforeEach(async () => {
   vi.clearAllMocks()
+  uploadCount = 0
+  // The folder exists by default, which is the state every install ends up in.
+  findChildFolder.mockResolvedValue('f1-thumb')
+  getOrCreateChildFolder.mockResolvedValue('f1-thumb')
+  findChildFolders.mockResolvedValue(new Map())
+  moveOrRenameMedia.mockResolvedValue({})
   downloadMedia.mockResolvedValue(await big())
-  buildLibraryUploadKey.mockImplementation(async (_p: string, _m: string, name: string) => `shop/attributes/${name}`)
-  uploadMedia.mockImplementation(async (_b: Buffer, _m: string, _p: string, name: string) => ({
-    key: `shop/attributes/${name}`, url: `https://cdn.example/shop/attributes/${name}`,
-  }))
+  findMany.mockResolvedValue([])
+  deleteRow.mockResolvedValue({})
+  uploadMedia.mockImplementation(async (_b: Buffer, _m: string, _p: string, name: string) => {
+    const key = `shop/attributes/id${++uploadCount}-${name}`
+    return { key, url: `https://cdn.example/${key}` }
+  })
   saveMediaRecord.mockImplementation(async (rec: { url: string }) => ({ url: rec.url }))
 })
 
@@ -57,12 +96,47 @@ describe('generateImageRenditions', () => {
       { maxPx: 128, suffix: 'tiny' },
     ], { worthwhileBytes: 100_000 })
 
-    expect(made.small).toBe('https://cdn.example/shop/attributes/oak-small.webp')
-    expect(made.tiny).toBe('https://cdn.example/shop/attributes/oak-tiny.webp')
+    // A nanoid key, like any other library upload - the copy is found again by
+    // its `originalName`, never by a reconstructable key. That is what lets a
+    // remade copy take a fresh address rather than overwrite a file every cache
+    // has been told to keep for a year.
+    expect(made.small).toBe('https://cdn.example/shop/attributes/id1-oak-small.webp')
+    expect(made.tiny).toBe('https://cdn.example/shop/attributes/id2-oak-tiny.webp')
     // One download and decode for both encodes - the whole reason specs come as
     // a list rather than one call each.
     expect(downloadMedia).toHaveBeenCalledTimes(1)
     expect(uploadMedia).toHaveBeenCalledTimes(2)
+    // Filed one level down, in the original's `thumb` folder - both in storage
+    // (the path handed to the uploader) and in the library (the folder the row is
+    // saved against). A product's folder has to read as the product's pictures.
+    expect(uploadMedia).toHaveBeenCalledWith(
+      expect.anything(), 'image/webp', 'B2', 'oak-small.webp', 'shop/attributes/thumb',
+    )
+    expect(saveMediaRecord).toHaveBeenCalledWith(expect.objectContaining({ folderId: 'f1-thumb' }))
+  })
+
+  it('makes the thumb folder only when something is actually written', async () => {
+    wireLibrary()
+    findChildFolder.mockResolvedValue(null)
+    downloadMedia.mockResolvedValue(
+      await sharp({ create: { width: 100, height: 100, channels: 3, background: '#8a5a2b' } }).png().toBuffer(),
+    )
+    await generateImageRenditions(SOURCE, [{ maxPx: 128, suffix: 'tiny' }], { worthwhileBytes: 100_000 })
+    // The picture declined to be shrunk, so a folder of pictures that all decline
+    // must not gain an empty folder for its trouble.
+    expect(getOrCreateChildFolder).not.toHaveBeenCalled()
+  })
+
+  it('reuses a copy still sitting beside its original on an install that has not been tidied', async () => {
+    // Half-done is the normal state while the refile sweep runs. Minting a
+    // duplicate of every picture in the catalogue because the tidy-up had not
+    // reached it yet would be a poor trade.
+    findChildFolder.mockResolvedValue(null)
+    wireLibrary({ 'oak-tiny.webp': 'https://cdn.example/shop/attributes/oak-tiny.webp' })
+    const made = await generateImageRenditions(SOURCE, [{ maxPx: 128, suffix: 'tiny' }], { worthwhileBytes: 100_000 })
+
+    expect(made.tiny).toBe('https://cdn.example/shop/attributes/oak-tiny.webp')
+    expect(uploadMedia).not.toHaveBeenCalled()
   })
 
   it('reuses a rendition that already exists instead of minting a duplicate', async () => {
@@ -84,7 +158,7 @@ describe('generateImageRenditions', () => {
     ], { worthwhileBytes: 100_000 })
 
     expect(made.small).toBe('https://cdn.example/shop/attributes/oak-small.webp')
-    expect(made.tiny).toBe('https://cdn.example/shop/attributes/oak-tiny.webp')
+    expect(made.tiny).toBe('https://cdn.example/shop/attributes/id1-oak-tiny.webp')
     expect(uploadMedia).toHaveBeenCalledTimes(1)
   })
 
@@ -116,5 +190,131 @@ describe('generateImageRenditions', () => {
       .toEqual({ tiny: null })
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()
+  })
+})
+
+// Why these exist: a stale small copy is a perfectly valid image file. Nothing in
+// tsc, eslint or a build can tell that a card is showing the picture a product had
+// before somebody cropped it, and nobody would notice for months. The only place
+// that can be caught is here.
+describe('refreshRenditions, after an in-place edit of the original', () => {
+  const EDITED = {
+    id: 'm1',
+    key: 'shop/attributes/oak.webp',
+    url: 'https://cdn.example/shop/attributes/oak.webp',
+    provider: 'B2' as const,
+    mimeType: 'image/webp',
+    folderId: 'f1',
+  }
+  // What the copies were called before the edit. An optimise re-extensions the
+  // original (.png becomes .webp), so the copies have to be found by the name the
+  // OLD key gave them, not the new one.
+  const OLD_KEY = 'shop/attributes/oak.png'
+  const staleThumb = { id: 'r1', key: 'shop/attributes/oak-thumb.webp', url: 'https://cdn.example/shop/attributes/oak-thumb.webp' }
+
+  function wireStale(rows: Record<string, Array<{ id: string; key: string; url: string }>>) {
+    findFirst.mockImplementation(async (args: { where: Record<string, unknown> }) => {
+      if (args.where.url === EDITED.url) return { ...EDITED, sizeBytes: 900_000, uploadedById: 'u1' }
+      return null
+    })
+    findMany.mockImplementation(async (args: { where: { originalName: string } }) =>
+      rows[args.where.originalName] ?? [])
+  }
+
+  it('remakes the copy at a NEW address, repoints what held it, then deletes the old one', async () => {
+    wireStale({ 'oak-thumb.webp': [staleThumb] })
+    await refreshRenditions(EDITED, OLD_KEY)
+
+    const fresh = 'https://cdn.example/shop/attributes/id1-oak-thumb.webp'
+    // A new address, not the old one. Remaking it in place would hand every
+    // browser and edge cache bytes they have already been told to keep for a
+    // year, so the new picture would simply never be fetched.
+    expect(uploadMedia).toHaveBeenCalled()
+    expect(saveMediaRecord).toHaveBeenCalledWith(expect.objectContaining({ url: fresh }))
+    // Repointed through the same hook any other blob move uses, so a url held in
+    // a module's own table follows.
+    expect(rewriteMediaReferencesInContent).toHaveBeenCalledWith(staleThumb.url, fresh, staleThumb.key, fresh)
+    // And only THEN is the stale one thrown away.
+    expect(deleteRow).toHaveBeenCalledWith({ where: { id: 'r1' } })
+    expect(deleteMedia).toHaveBeenCalledWith('B2', staleThumb.key)
+
+    // `noUncheckedIndexedAccess` is on, so these are read rather than indexed
+    // blind - and a missing entry here would mean the call never happened, which
+    // the assertions above have already ruled out.
+    const [rewriteAt] = rewriteMediaReferencesInContent.mock.invocationCallOrder
+    const [deleteAt] = deleteMedia.mock.invocationCallOrder
+    expect(rewriteAt).toBeDefined()
+    expect(deleteAt).toBeDefined()
+    expect(rewriteAt as number).toBeLessThan(deleteAt as number)
+  })
+
+  it('does nothing at all for an item that had no copies', async () => {
+    wireStale({})
+    await refreshRenditions(EDITED, OLD_KEY)
+    expect(uploadMedia).not.toHaveBeenCalled()
+    expect(deleteMedia).not.toHaveBeenCalled()
+    expect(rewriteMediaReferencesInContent).not.toHaveBeenCalled()
+  })
+
+  it('points references back at the original when the item is no longer shrinkable', async () => {
+    // A photograph replaced with an SVG. There is no copy to remake, and leaving
+    // the old one would show the previous picture on every card - so what held it
+    // is sent back to the original, which every renderer already falls back to.
+    wireStale({ 'oak-thumb.webp': [staleThumb] })
+    await refreshRenditions({ ...EDITED, mimeType: 'image/svg+xml' }, OLD_KEY)
+
+    expect(uploadMedia).not.toHaveBeenCalled()
+    expect(rewriteMediaReferencesInContent).toHaveBeenCalledWith(staleThumb.url, EDITED.url, staleThumb.key, EDITED.key)
+    expect(deleteMedia).toHaveBeenCalledWith('B2', staleThumb.key)
+  })
+
+  it('never lets a failed copy take the edit down with it', async () => {
+    wireStale({ 'oak-thumb.webp': [staleThumb] })
+    downloadMedia.mockRejectedValueOnce(new Error('storage had a moment'))
+    await expect(refreshRenditions(EDITED, OLD_KEY)).resolves.toBeUndefined()
+    // The stale copy is left where it is rather than deleted: drawing the wrong
+    // picture is bad, drawing a broken one is worse.
+    expect(deleteMedia).not.toHaveBeenCalled()
+  })
+})
+
+// A copy left behind by a move is stranded twice over - wrong folder, and a name
+// derived from a key that no longer exists - so every lookup comes back empty and
+// the next render mints a duplicate. Nothing renders wrongly, which is exactly
+// why it would go unnoticed.
+describe('carryRenditionsWithOriginal, when the original moves', () => {
+  const MOVED = { id: 'm1', key: 'shop/tables/variations/oak.png', folderId: 'f2' }
+
+  it('moves each copy into the destination thumb folder under its new name', async () => {
+    findChildFolder.mockResolvedValue('f1-thumb')
+    getOrCreateChildFolder.mockResolvedValue('f2-thumb')
+    findMany.mockImplementation(async (args: { where: { originalName: string } }) =>
+      args.where.originalName === 'oak-thumb.webp' ? [{ id: 'r1' }] : [])
+
+    await carryRenditionsWithOriginal(MOVED, 'f1', 'shop/tables/oak.png')
+
+    expect(moveOrRenameMedia).toHaveBeenCalledWith('r1', {
+      targetFolderId: 'f2-thumb',
+      // Renamed to what the NEW key gives it, because that is the name every
+      // lookup will ask for from here on.
+      newName: 'oak-thumb.webp',
+      collision: 'suffix',
+      // A copy has no copies of its own, and asking would be three queries per
+      // file across a backfill moving tens of thousands.
+      carryRenditions: false,
+    })
+  })
+
+  it('does nothing when neither the folder nor the key changed', async () => {
+    await carryRenditionsWithOriginal(MOVED, 'f2', MOVED.key)
+    expect(findMany).not.toHaveBeenCalled()
+    expect(moveOrRenameMedia).not.toHaveBeenCalled()
+  })
+
+  it('never makes a destination folder for an item that has no copies', async () => {
+    findMany.mockResolvedValue([])
+    await carryRenditionsWithOriginal(MOVED, 'f1', 'shop/tables/oak.png')
+    expect(getOrCreateChildFolder).not.toHaveBeenCalled()
+    expect(moveOrRenameMedia).not.toHaveBeenCalled()
   })
 })
