@@ -57,6 +57,7 @@ coverage/
 /lib/modules/settings-tabs.ts
 /lib/modules/extension-points.ts
 /lib/modules/extension-points.public.ts
+/lib/modules/extension-points.server.ts
 /lib/modules/extension-points.meta.ts
 /lib/modules/sms-providers.ts
 /lib/modules/email-templates.ts

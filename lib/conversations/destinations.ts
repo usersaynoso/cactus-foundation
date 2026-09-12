@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/db/prisma'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+// The SERVER map, not the complete one. Both carry this point; the complete one
+// also carries every module's admin screens, and this file is reachable from a
+// public page - so importing it there put 160 admin components into the homepage's
+// bundle. See lib/modules/extension-points.server.ts.
+import { moduleServerExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.server'
 import {
   MESSAGE_DESTINATION_POINT,
   type MessageDestination,

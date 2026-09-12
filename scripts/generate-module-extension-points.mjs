@@ -9,6 +9,7 @@ const rootDir = join(__dirname, '..')
 const modulesDir = join(rootDir, 'modules')
 const outPath = join(rootDir, 'lib', 'modules', 'extension-points.ts')
 const publicOutPath = join(rootDir, 'lib', 'modules', 'extension-points.public.ts')
+const serverOutPath = join(rootDir, 'lib', 'modules', 'extension-points.server.ts')
 const metaOutPath = join(rootDir, 'lib', 'modules', 'extension-points.meta.ts')
 
 // An extension component living under components/admin/ only ever renders on an
@@ -34,8 +35,89 @@ const metaOutPath = join(rootDir, 'lib', 'modules', 'extension-points.meta.ts')
 // them dragging imapflow or a telephony SDK into a page's graph is exactly the
 // leak this file exists to prevent. So a manifest entry may also say
 // `serverOnly: true` and be withheld regardless of where its file sits.
+// A THIRD map exists for the gap between those two, and it is not a nicety: a
+// SERVER file needing a serverOnly point had nowhere to get it but the complete
+// map, and the complete map carries every module's admin screens. That is how a
+// homepage came to download 160 admin components - `lib/email/identity.ts` reads
+// `core.outbound-email-identity` (serverOnly, so absent from the public map), and
+// the homepage reaches it through a members block:
+//
+//   (public)/page -> renderInfoPage -> config.rsc -> MembersBlocksRsc
+//     -> members/admin-link -> members/registration -> email/templates
+//     -> email/index -> email/identity -> extension-points  (all 160 of them)
+//
+// So the server map is "everything except the admin COMPONENTS": serverOnly
+// entries are in it, because a server file is exactly where they belong, and
+// client admin screens are not, because nothing server-side renders one. Split by
+// what an entry IS rather than by where it is read, which is the only rule that
+// cannot regress when a module ships a new point.
 function isAdminOnly(importPath) {
   return importPath.includes('/components/admin/')
+}
+
+// The directory rule above only sees the entry's OWN path, and that is not where
+// this leak lives. A provider under the module's lib/ counts as "public" by that
+// rule and is emitted into the public map - and then IMPORTS an admin component.
+// Measured: `product-3d-views/lib/variant-field-provider.ts` reaches
+// `Product3dVariantColumn`, which reaches `Model3dPreviewModal`, which reaches the
+// whole 3D viewer, and a public search block reading the public map dragged the lot
+// onto a homepage.
+//
+// So the question is not "where does this entry live" but "can it reach an admin
+// screen". Answered by walking its imports, which is cheap here (a few hundred
+// files, memoised, build-time only) and cannot regress when a module ships a new
+// provider - unlike a manifest flag somebody has to remember to set.
+const reachCache = new Map()
+
+function resolveImport(spec, fromFile) {
+  let base
+  if (spec.startsWith('@/')) base = join(rootDir, spec.slice(2))
+  else if (spec.startsWith('.')) base = join(dirname(fromFile), spec)
+  else return null
+  for (const ext of ['', '.tsx', '.ts', '/index.tsx', '/index.ts']) {
+    if (existsSync(base + ext)) return base + ext
+  }
+  return null
+}
+
+function fileImports(file) {
+  let src
+  try { src = readFileSync(file, 'utf8') } catch { return [] }
+  const out = []
+  const re = /(?:^|[\s;}])(?:import|export)\s+(?:[^'"();]*?\sfrom\s+)?['"]([^'"]+)['"]/g
+  let m
+  while ((m = re.exec(src))) {
+    const stmt = src.slice(Math.max(0, m.index), m.index + m[0].length)
+    if (/\b(?:import|export)\s+type\b/.test(stmt)) continue
+    const r = resolveImport(m[1], file)
+    if (r) out.push(r)
+  }
+  const dyn = /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g
+  while ((m = dyn.exec(src))) {
+    // A dynamic import is a chunk boundary, so it does NOT drag the target into
+    // the importer's bundle. Deliberately not followed - that is the very shape a
+    // module should use to keep an admin component out of a public graph.
+  }
+  return out
+}
+
+/** Whether this file, or anything it statically imports, lives under components/admin/. */
+function reachesAdmin(file, seen = new Set()) {
+  if (reachCache.has(file)) return reachCache.get(file)
+  if (seen.has(file)) return false
+  seen.add(file)
+  if (isAdminOnly(file)) { reachCache.set(file, true); return true }
+  let hit = false
+  for (const next of fileImports(file)) {
+    if (reachesAdmin(next, seen)) { hit = true; break }
+  }
+  reachCache.set(file, hit)
+  return hit
+}
+
+function entryReachesAdmin(importPath) {
+  const file = resolveImport(importPath, join(rootDir, 'lib', 'modules', 'x.ts'))
+  return file ? reachesAdmin(file) : false
 }
 
 function isServerOnly(entry) {
@@ -98,7 +180,7 @@ for (const moduleName of moduleNames) {
       id: entry.id,
       ident,
       component: entry.component,
-      admin: isAdminOnly(importPath) || isServerOnly(entry),
+      admin: isAdminOnly(importPath) || isServerOnly(entry) || entryReachesAdmin(importPath),
       importPath,
       moduleName,
       label: typeof entry.label === 'string' ? entry.label : '',
@@ -169,6 +251,51 @@ for (const [point, entries] of publicByPoint) {
 }
 pub.push(`}`)
 writeFileSync(publicOutPath, pub.join('\n') + '\n')
+
+// ── the server half ────────────────────────────────────────────────────────
+// Same map, minus only the entries whose component lives under components/admin/.
+// serverOnly entries are KEPT: this map is for server code, which is where they
+// are meant to be read. See the note at the top of this file for the leak that
+// made a third map necessary.
+const serverImports = []
+const serverEmitted = new Set()
+const serverByPoint = new Map()
+for (const [point, entries] of byPoint) {
+  const keep = entries.filter((e) => !isAdminOnly(e.importPath) && !entryReachesAdmin(e.importPath))
+  if (keep.length === 0) continue
+  serverByPoint.set(point, keep)
+  for (const e of keep) {
+    if (serverEmitted.has(e.ident)) continue
+    serverEmitted.add(e.ident)
+    serverImports.push(`import { ${e.component} as ${e.ident} } from '${e.importPath}'`)
+  }
+}
+
+const srv = []
+srv.push(`// AUTO-GENERATED by scripts/generate-module-extension-points.mjs`)
+srv.push(`// DO NOT EDIT BY HAND. Rewritten on every build and dev start.`)
+srv.push(`//`)
+srv.push(`// The same map as extension-points.ts with every components/admin/ entry left`)
+srv.push(`// out - and, unlike extension-points.public.ts, with the serverOnly entries`)
+srv.push(`// KEPT. Import THIS one from server code that needs a serverOnly point.`)
+srv.push(`//`)
+srv.push(`// Why it exists: the full map is one flat object holding every module's admin`)
+srv.push(`// screens, and a server file reading one serverOnly point used to have nowhere`)
+srv.push(`// else to get it. lib/email/identity.ts did exactly that, and a members block on`)
+srv.push(`// a public page reaches the email stack - so a homepage downloaded 160 admin`)
+srv.push(`// components it could never render.`)
+srv.push(``)
+for (const imp of serverImports) srv.push(imp)
+if (serverImports.length > 0) srv.push(``)
+srv.push(`// eslint-disable-next-line @typescript-eslint/no-explicit-any`)
+srv.push(`export const moduleServerExtensionPointComponents: Record<string, Record<string, any>> = {`)
+for (const [point, entries] of serverByPoint) {
+  srv.push(`  ${JSON.stringify(point)}: {`)
+  for (const { id, ident } of entries) srv.push(`    ${JSON.stringify(id)}: ${ident},`)
+  srv.push(`  },`)
+}
+srv.push(`}`)
+writeFileSync(serverOutPath, srv.join('\n') + '\n')
 
 // ── the metadata half ──────────────────────────────────────────────────────
 // Point, id, label and owning module for every entry, and not one import.
