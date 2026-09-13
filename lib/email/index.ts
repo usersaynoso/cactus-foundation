@@ -60,12 +60,12 @@ export type EmailTransport =
   | { provider: 'brevo'; apiKey: string }
   | { provider: 'smtp'; host: string; port?: string; user?: string; pass?: string }
 
-// Brevo's API caps a whole message at 10MB including its attachments, and an
+// Brevo's API caps a whole message at 20MB including its attachments, and an
 // oversized one is refused outright - which would take the email down with it.
 // A document that will not fit is dropped and the email goes without it: the
 // link in the body still reaches it, and a customer with no email at all is a
 // worse outcome than a customer with no attachment.
-const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 
 function usableAttachments(attachments: EmailAttachment[] | undefined): EmailAttachment[] {
   if (!attachments?.length) return []

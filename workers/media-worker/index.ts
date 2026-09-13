@@ -127,10 +127,11 @@ const SERVABLE_IMAGE_TYPES = new Set([
 // header, so it is the un-forgeable claim - the same rule the upload path uses.
 const SERVABLE_VIDEO_TYPES = new Set(['video/mp4', 'video/webm'])
 
-// Content type for a key, from its extension. The app builds every key's
-// extension from a MIME type it has already validated (lib/media/upload.ts
-// buildKey), and the key is covered by the upload signature - so on the write
-// path this is the only type claim the client cannot forge.
+// Content type for a key, from its extension. The app builds ordinary media
+// extensions from MIME types it has already validated; a narrowly permissioned
+// feature may instead sign `.bin` for a deliberately opaque file. The key is
+// covered by the upload signature, so on the write path this is the only
+// storage/serving type claim the client cannot forge.
 //
 // The model entries mirror MODEL_EXTENSION_TYPES in lib/media/limits.ts - keep
 // the two in step. A Worker deployed before they were added rejects a model PUT
@@ -141,6 +142,9 @@ const EXTENSION_TYPES: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', svg: 'image/svg+xml',
   mp4: 'video/mp4', webm: 'video/webm',
+  // A signed .bin is an opaque private file, used by features that need the
+  // direct path without making a document renderable on the media origin.
+  bin: 'application/octet-stream',
   glb: 'model/gltf-binary', gltf: 'model/gltf+json', obj: 'model/obj',
   fbx: 'model/x-fbx', '3ds': 'model/x-3ds',
 }
@@ -553,16 +557,17 @@ async function handleUpload(request: Request, env: Env, url: URL): Promise<Respo
   }
 
   // The stored Content-Type comes from the KEY, never from the client's header.
-  // The key is covered by the signature and the app derives its extension from a
-  // validated type, so the extension is the one type claim here that can't be
-  // tampered with. Trusting the header instead let a holder of media.upload PUT
-  // `Content-Type: text/html` with a script body and have it served back as
-  // executable HTML from the media origin.
+  // The key is covered by the signature, so the extension is the one type claim
+  // here that cannot be tampered with. Trusting the header instead let a holder
+  // of media.upload PUT `Content-Type: text/html` with a script body and have it
+  // served back as executable HTML from the media origin. Opaque `.bin` objects
+  // deliberately remain application/octet-stream here; their owning feature
+  // keeps the useful filename and mail type away from this public origin.
   const contentType = contentTypeForKey(fullKey)
   if (!contentType || contentType === 'image/svg+xml') {
     // SVG is deliberately excluded: it's markup, and only the app's serverless
     // path sanitises it. The Worker never stores one.
-    return uploadError('Only raster image, video, and 3D model uploads are accepted here.', 415, env)
+    return uploadError('This kind of direct upload is not accepted here.', 415, env)
   }
 
   // Bound the body before reading it. The Worker buffers the whole payload into

@@ -104,7 +104,7 @@ describe('keeping a copy of a module email', () => {
       moduleName: 'purchase-orders',
       attachments: [
         { filename: 'PO-1042.pdf', content: Buffer.from('a small order'), contentType: 'application/pdf' },
-        { filename: 'huge.pdf', content: Buffer.alloc(9 * 1024 * 1024), contentType: 'application/pdf' },
+        { filename: 'huge.pdf', content: Buffer.alloc(21 * 1024 * 1024), contentType: 'application/pdf' },
       ],
     })
     const offered = recorder.recordOutboundModuleEmail.mock.calls[0]![0]

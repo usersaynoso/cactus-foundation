@@ -57,6 +57,12 @@ describe('model media types', () => {
     expect(contentTypeForKey('media/R2/abc123-chair.octet-stream')).toBeNull()
   })
 
+  it('types a signed opaque upload without admitting it to the media library', () => {
+    expect(contentTypeForKey('media/R2/unified-inbox/outbound/abc-quote.pdf.bin')).toBe('application/octet-stream')
+    expect(isModelDirectType('application/octet-stream')).toBe(false)
+    expect(workerSource).toContain("bin: 'application/octet-stream'")
+  })
+
   it('keeps models out of the raster path, so core /record stays image-only', () => {
     for (const mime of Object.values(MODEL_EXTENSION_TYPES)) {
       expect(isModelDirectType(mime), mime).toBe(true)

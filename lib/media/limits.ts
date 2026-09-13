@@ -201,10 +201,11 @@ export function isDirectUploadType(mimeType: string): boolean {
 }
 
 // The content type an object key claims, from its extension. buildKey() derives
-// every extension from an already-validated MIME type, and the key is what the
-// upload token signs - so on the direct-to-Worker path this is the only type
-// claim a client cannot forge, and both the Worker and /record read the type
-// from here rather than from a request header or body field.
+// ordinary media extensions from an already-validated MIME type; a narrowly
+// permissioned feature may instead sign `.bin` for a deliberately opaque file.
+// The key is what the upload token signs, so on the direct-to-Worker path this
+// is the only storage/serving type claim a client cannot forge, and both the
+// Worker and /record read it here rather than from a request header or body.
 //
 // Model extensions are in the table because the Worker accepts them, and a caller
 // that signs a model key needs the same round-trip. They stay out of
@@ -216,6 +217,10 @@ const EXTENSION_TYPES: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml',
   mp4: 'video/mp4', webm: 'video/webm',
+  // Opaque files use the direct path only when a more narrowly-permissioned
+  // caller signs a .bin key. They remain outside isDirectUploadType, so the
+  // media library does not grow a general-purpose executable upload door.
+  bin: 'application/octet-stream',
   ...MODEL_EXTENSION_TYPES,
 }
 
