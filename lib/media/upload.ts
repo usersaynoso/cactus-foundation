@@ -769,6 +769,114 @@ export async function listStoredMediaKeys(
   return null
 }
 
+export type StoredObjectSlice = {
+  /** Objects in key order, every one of them strictly after `after`. */
+  objects: StoredObject[]
+  /** True when the listing reached the end of the provider's media namespace. */
+  done: boolean
+}
+
+/**
+ * One slice of a provider's media namespace, in key order, starting strictly
+ * after `after` (or at the beginning when it is null). Stops at the end of the
+ * namespace, at `maxObjects`, or once `deadline` (epoch ms) has passed - whichever
+ * comes first - and says which.
+ *
+ * Only S3-compatible providers can do this, because only they list in a fixed
+ * order (UTF-8 byte order) and resume from an arbitrary key via StartAfter rather
+ * than an opaque token that dies with the request. That is what lets a scan of a
+ * bucket far bigger than one request's time limit be split into requests that
+ * each describe an exact key range. Returns null for every other provider: the
+ * caller lists those in one pass or not at all.
+ */
+export async function listStoredMediaKeysAfter(
+  provider: MediaProviderType,
+  after: string | null,
+  limits: { maxObjects: number; deadline: number },
+): Promise<StoredObjectSlice | null> {
+  if (!isS3Provider(provider)) return null
+  const { client, bucket } = getS3Config(provider)
+  const objects: StoredObject[] = []
+  let token: string | undefined
+  do {
+    const res = await client.send(new ListObjectsV2Command({
+      Bucket: bucket,
+      Prefix: mediaKeyPrefix(provider),
+      // StartAfter only seeds the first page; after that the continuation token
+      // carries the position and StartAfter is ignored by the protocol.
+      ContinuationToken: token,
+      StartAfter: token ? undefined : after ?? undefined,
+    }))
+    for (const o of res.Contents ?? []) {
+      if (typeof o.Key === 'string') objects.push({ key: o.Key, sizeBytes: o.Size ?? 0 })
+    }
+    token = res.IsTruncated ? res.NextContinuationToken : undefined
+  } while (token && objects.length < limits.maxObjects && Date.now() < limits.deadline)
+  return { objects, done: !token }
+}
+
+/**
+ * What storage holds at exactly this key right now: the object, or null when
+ * there is definitely nothing there.
+ *
+ * Unlike headMediaSize this THROWS when it cannot tell - a network failure, a
+ * refused credential, a provider that files under ids it mints itself. The
+ * callers are repairs that delete things on the strength of the answer, and a
+ * lookup that failed must never read as "the file has gone".
+ */
+export async function statStoredMediaObject(provider: MediaProviderType, key: string): Promise<StoredObject | null> {
+  if (isS3Provider(provider)) {
+    const { client, bucket } = getS3Config(provider)
+    // A one-key listing, NOT a HEAD. A HEAD response has no body, so a bucket
+    // that does not exist (a wrong name, a wrong endpoint) comes back as the same
+    // bare 404 as a missing object - and every file in the library would read as
+    // gone. A listing names NoSuchBucket and throws. The exact key, when present,
+    // is always the first result under its own prefix: anything longer that
+    // shares the prefix sorts after it.
+    const res = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: key, MaxKeys: 1 }))
+    const first = res.Contents?.[0]
+    return first?.Key === key ? { key, sizeBytes: first.Size ?? 0 } : null
+  }
+
+  if (provider === 'VERCEL_BLOB') {
+    const { head, BlobNotFoundError } = await import('@vercel/blob')
+    try {
+      const meta = await head(key, { token: process.env.BLOB_READ_WRITE_TOKEN })
+      return { key, sizeBytes: meta.size }
+    } catch (err) {
+      if (err instanceof BlobNotFoundError) return null
+      throw err
+    }
+  }
+
+  if (provider === 'SUPABASE_STORAGE') {
+    const { StorageClient } = await import('@supabase/storage-js')
+    const storage = new StorageClient(
+      `${(process.env.SUPABASE_STORAGE_PROJECT_URL ?? '').replace(/\/$/, '')}/storage/v1`,
+      {
+        apikey: process.env.SUPABASE_STORAGE_SERVICE_ROLE_KEY ?? '',
+        Authorization: `Bearer ${process.env.SUPABASE_STORAGE_SERVICE_ROLE_KEY ?? ''}`,
+      }
+    )
+    const bucket = process.env.SUPABASE_STORAGE_BUCKET_NAME ?? ''
+    // Supabase has no per-object HEAD in this client, so the parent folder is
+    // searched for the exact filename instead.
+    const slash = key.lastIndexOf('/')
+    const dir = slash === -1 ? '' : key.slice(0, slash)
+    const name = key.slice(slash + 1)
+    const { data, error } = await storage.from(bucket).list(dir, { limit: 100, search: name })
+    if (error) throw new Error(`Supabase list failed: ${error.message}`)
+    const entry = (data ?? []).find((e) => e.name === name)
+    // A full page with no exact match may simply have pushed it off the end, and
+    // "not there" is the one answer that must never be a guess.
+    if (!entry && (data ?? []).length >= 100) throw new Error('Supabase search matched too many files to be sure')
+    const size = (entry?.metadata as { size?: number } | null | undefined)?.size
+    return typeof size === 'number' ? { key, sizeBytes: size } : null
+  }
+
+  throw new Error('this provider stores files under ids it mints itself, so a file cannot be looked up by its key')
+}
+
 /** The key prefix every object this provider stores for us sits under. */
 export function mediaKeyPrefix(provider: MediaProviderType): string {
   return provider === 'B2' ? 'media/' : `media/${provider}/`

@@ -497,7 +497,7 @@ If any of your selection turns out to be in use somewhere, Cactus holds those ba
 
 Everything else on the media page is counted from Cactus's own records, so it can only ever agree with itself. The **Storage check** at the bottom of the page is the one thing that goes and asks your storage provider what is actually sitting there, and reports the difference. You'll only see it if you're allowed to manage settings.
 
-Press **Run check**. It can take a little while on a big library, because it genuinely reads through everything your provider holds. Then it tells you about up to five things:
+Press **Run check**. It can take a little while on a big library, because it genuinely reads through everything your provider holds - the button counts the files as it goes, so you can see it is getting somewhere. There is no upper limit on how many files it will check; a big library is simply read in several passes, one after another, and the results only appear once the last one is in. Then it tells you about up to five things:
 
 - **Leftover files** - files sitting in storage that no item in your library points to and nothing on your site is using, along with how much room they're taking up. These are the usual reason your provider's own dashboard reports more files than your library does. They build up in small ways: a file gets replaced or moved and the old copy doesn't quite get cleared away.
 - **In use, but with no entry here** - files your site is genuinely serving that never got an entry in the library. A 3D model or a product photograph added in bulk can land this way, and so can a file whose entry was deleted while a product page carried on using it. They look like leftovers and are anything but, so nothing here is ever offered for deletion.

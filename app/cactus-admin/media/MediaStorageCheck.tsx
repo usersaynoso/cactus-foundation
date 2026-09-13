@@ -2,9 +2,17 @@
 
 import { useState } from 'react'
 import { formatBytes } from './format'
+import { emptyReconcile, mergeReconcile } from '@/lib/media/reconcile-report'
 // Type-only - erased at build, so the server-only reconcile module (and its
 // prisma import) never reaches the client bundle.
-import type { StorageReconcile, PurgeMissingResult, AdoptClaimedResult } from '@/lib/media/reconcile'
+import type {
+  StorageReconcile,
+  StorageReconcileChunk,
+  StorageTarget,
+  PurgeMissingResult,
+  AdoptClaimedResult,
+  DeleteOrphansResult,
+} from '@/lib/media/reconcile'
 
 // Storage check. Every other figure on this page is counted from the library's
 // own records, so it can only ever agree with itself; this is the one thing that
@@ -14,11 +22,66 @@ import type { StorageReconcile, PurgeMissingResult, AdoptClaimedResult } from '@
 // object the storage holds, which is far too slow to sit in front of a page
 // render, and it is a maintenance job an admin reaches for rather than a number
 // they watch.
+
+const ENDPOINT = '/api/admin/media/storage-check'
+
+// Selections are sent in batches so no single request can outgrow the route's
+// time limit, whatever the size of the cleanup. Every repair looks each selected
+// file up in storage; deleting and adding then do real work per file on top, so
+// they go in smaller batches than the two that only touch the library's records.
+const BATCH_SIZE = { 'correct-sizes': 200, 'purge-missing': 200, 'delete-orphans': 25, 'adopt-claimed': 50 } as const
+
+// A run of slices is walked until the server says it is done. The ceiling only
+// exists so a server that kept handing back a cursor could not spin this forever.
+const MAX_SLICES = 500
+
+type RepairAction = keyof typeof BATCH_SIZE
+
+// One request with up to three attempts. A failed attempt is retried after a
+// short pause: a big bucket or a big cleanup can trip a gateway timeout mid-run,
+// a scan slice is read-only, and a repair looks its keys up afresh (already-handled
+// ones come back stale), so repeating either is safe. The response is parsed
+// defensively - a timeout page is not JSON, and the raw parse error ("The string
+// did not match the expected pattern") tells an admin nothing.
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+  let lastError: Error | null = null
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, init)
+      const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null
+      if (!res.ok || data === null) {
+        throw new Error(data?.error ?? `The server did not finish in time (status ${res.status}).`)
+      }
+      return data
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error('That did not work.')
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 2000))
+    }
+  }
+  throw lastError ?? new Error('That did not work.')
+}
+
+function requestRepair<T>(action: RepairAction, items: StorageTarget[], force?: boolean): Promise<T> {
+  return requestJson<T>(ENDPOINT, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action, items, force }),
+  })
+}
+
+/** The provider and key of each entry, which is all a repair needs to find it again. */
+function targetsOf(list: { provider: StorageTarget['provider']; key: string }[]): StorageTarget[] {
+  return list.map(({ provider, key }) => ({ provider, key }))
+}
+
 export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete: boolean; canUpload: boolean }) {
   const [state, setState] = useState<'idle' | 'scanning' | 'working'>('idle')
   const [result, setResult] = useState<StorageReconcile | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  // Files read so far on a scan that is still going, so a big bucket shows it is
+  // getting somewhere rather than sitting on "Checking…" for minutes.
+  const [progress, setProgress] = useState<number | null>(null)
 
   // Entries a purge left alone because something still points at them. Held so
   // the admin can see what they are before deciding to remove them anyway.
@@ -28,103 +91,87 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
 
   // `keepNote` is for the re-scan that follows a repair: that scan is part of
   // the repair, so it must not wipe the sentence saying what the repair did.
+  //
+  // The report is only shown once every slice is in. A half-finished one would
+  // offer its buttons over a list that is still being counted.
   async function scan(keepNote = false) {
-    setState('scanning'); setError(null); if (!keepNote) { setNote(null); setBlocked([]) }
+    setState('scanning'); setError(null); setProgress(0); if (!keepNote) { setNote(null); setBlocked([]) }
     try {
-      const res = await fetch('/api/admin/media/storage-check')
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error ?? 'The check could not be run.')
-      setResult(data as StorageReconcile)
+      let report = emptyReconcile()
+      let cursor: string | null = null
+      for (let slice = 0; ; slice++) {
+        if (slice >= MAX_SLICES) throw new Error('The check went on far longer than any storage should take, so it was stopped.')
+        const url: string = cursor === null ? ENDPOINT : `${ENDPOINT}?cursor=${encodeURIComponent(cursor)}`
+        const chunk: StorageReconcileChunk = await requestJson<StorageReconcileChunk>(url)
+        const { next, ...rest } = chunk
+        report = mergeReconcile(report, rest)
+        setProgress(report.providers.reduce((n, p) => n + p.storedObjects, 0))
+        if (next === null) break
+        cursor = next
+      }
+      setResult(report)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The check could not be run.')
     } finally {
+      setProgress(null)
       setState('idle')
     }
   }
 
-  // One POST with up to three attempts. A failed attempt is retried after a
-  // short pause: a big cleanup can trip a gateway timeout mid-run, and the
-  // server treats already-handled keys as stale, so repeating a batch is safe.
-  // The response is parsed defensively - a timeout page is not JSON, and the
-  // raw parse error ("The string did not match the expected pattern") tells an
-  // admin nothing.
-  async function requestRepair<T>(action: string, keys?: string[], force?: boolean): Promise<T> {
-    let lastError: Error | null = null
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const res = await fetch('/api/admin/media/storage-check', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ action, keys, force }),
-        })
-        const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null
-        if (!res.ok || data === null) {
-          throw new Error(data?.error ?? `The server did not finish in time (status ${res.status}).`)
-        }
-        return data
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error('That did not work.')
-        if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 2000))
-      }
+  // Runs one repair across the whole selection a batch at a time, with a running
+  // count once there is more than one batch, and hands each batch's answer back.
+  async function inBatches<T>(
+    action: RepairAction,
+    verb: string,
+    items: StorageTarget[],
+    onBatch: (data: T) => void,
+    force?: boolean,
+  ) {
+    const size = BATCH_SIZE[action]
+    for (let i = 0; i < items.length; i += size) {
+      if (items.length > size) setNote(`${verb}… ${i.toLocaleString('en-GB')} of ${items.length.toLocaleString('en-GB')} handled so far.`)
+      onBatch(await requestRepair<T>(action, items.slice(i, i + size), force))
     }
-    throw lastError ?? new Error('That did not work.')
   }
 
-  // Keys are sent in batches so no single request can outgrow the route's time
-  // limit, whatever the size of the cleanup. Purges are cheap per key (bulk row
-  // deletes); orphan deletes call storage once per file, so they go in smaller
-  // batches.
-  const BATCH_SIZE = { 'purge-missing': 200, 'delete-orphans': 25, 'adopt-claimed': 50 } as const
-
-  async function post(action: string, keys?: string[], force?: boolean) {
+  async function post(action: RepairAction, items: StorageTarget[], force?: boolean) {
     setState('working'); setError(null); setNote(null); setBlocked([])
     try {
       if (action === 'correct-sizes') {
-        const data = await requestRepair<{ corrected: number }>(action)
-        setNote(data.corrected === 0 ? 'Nothing needed correcting.' : `Corrected ${data.corrected} recorded size${data.corrected === 1 ? '' : 's'}.`)
+        let corrected = 0
+        await inBatches<{ corrected: number }>(action, 'Correcting', items, (data) => { corrected += data.corrected })
+        setNote(corrected === 0 ? 'Nothing needed correcting.' : `Corrected ${corrected} recorded size${corrected === 1 ? '' : 's'}.`)
       } else if (action === 'adopt-claimed') {
-        const all = keys ?? []
-        const size = BATCH_SIZE[action]
         let adopted = 0, adoptedBytes = 0
         const refused: AdoptClaimedResult['skipped'] = []
-        for (let i = 0; i < all.length; i += size) {
-          if (all.length > size) setNote(`Adding… ${Math.min(i, all.length)} of ${all.length} handled so far.`)
-          const data = await requestRepair<AdoptClaimedResult>(action, all.slice(i, i + size))
+        await inBatches<AdoptClaimedResult>(action, 'Adding', items, (data) => {
           adopted += data.adopted
           adoptedBytes += data.adoptedBytes
           refused.push(...(data.skipped ?? []))
-        }
+        })
         setNote(
           `Added ${adopted} file${adopted === 1 ? '' : 's'} to the library, ${formatBytes(adoptedBytes)} in all.` +
           (refused.length > 0 ? ` ${refused.length} could not be added: ${refused.map((r) => `${r.key} - ${r.reason}`).join('; ')}.` : '')
         )
       } else if (action === 'purge-missing') {
-        const all = keys ?? []
-        const size = BATCH_SIZE[action]
         let purged = 0
         const skipped: PurgeMissingResult['skipped'] = []
-        for (let i = 0; i < all.length; i += size) {
-          if (all.length > size) setNote(`Removing… ${Math.min(i, all.length)} of ${all.length} handled so far.`)
-          const data = await requestRepair<PurgeMissingResult>(action, all.slice(i, i + size), force)
+        await inBatches<PurgeMissingResult>(action, 'Removing', items, (data) => {
           purged += data.purged
           skipped.push(...(data.skipped ?? []))
-        }
+        }, force)
         setBlocked(skipped)
         setNote(
           `Removed ${purged} entr${purged === 1 ? 'y' : 'ies'}.` +
           (skipped.length > 0 ? ` ${skipped.length} left alone for now - still used elsewhere.` : '')
         )
       } else {
-        const all = keys ?? []
-        const size = BATCH_SIZE['delete-orphans']
         let deleted = 0, skippedCount = 0, reclaimedBytes = 0
-        for (let i = 0; i < all.length; i += size) {
-          if (all.length > size) setNote(`Deleting… ${Math.min(i, all.length)} of ${all.length} handled so far.`)
-          const data = await requestRepair<{ deleted: number; skipped: number; reclaimedBytes: number }>(action, all.slice(i, i + size), force)
+        await inBatches<DeleteOrphansResult>(action, 'Deleting', items, (data) => {
           deleted += data.deleted
           skippedCount += data.skipped
           reclaimedBytes += data.reclaimedBytes
-        }
+        })
         setNote(`Deleted ${deleted} file${deleted === 1 ? '' : 's'}, freeing ${formatBytes(reclaimedBytes)}.${skippedCount > 0 ? ` ${skippedCount} skipped.` : ''}`)
       }
     } catch (err) {
@@ -157,7 +204,9 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
           </p>
         </div>
         <button type="button" onClick={() => void scan()} disabled={busy} style={buttonStyle(false)}>
-          {state === 'scanning' ? 'Checking…' : result ? 'Check again' : 'Run check'}
+          {state === 'scanning'
+            ? progress ? `Checking… ${progress.toLocaleString('en-GB')} files so far` : 'Checking…'
+            : result ? 'Check again' : 'Run check'}
         </button>
       </div>
 
@@ -187,7 +236,7 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
                       const ok = window.confirm(
                         `Permanently delete ${result.orphaned.length} leftover file${result.orphaned.length === 1 ? '' : 's'} from storage, freeing ${formatBytes(result.orphanedBytes)}?\n\nNothing in this library points at them and nothing on the site is using them. This cannot be undone from here.`
                       )
-                      if (ok) void post('delete-orphans', result.orphaned.map((o) => o.key))
+                      if (ok) void post('delete-orphans', targetsOf(result.orphaned))
                     },
                   }
                 : undefined
@@ -212,7 +261,7 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
                       const ok = window.confirm(
                         `Add ${result.claimed.length} file${result.claimed.length === 1 ? '' : 's'} to this library?\n\nNothing is moved, copied or changed - each one gets the entry it should have had, filed where its address already says it lives. They will then show up in the library and count towards your storage total.`
                       )
-                      if (ok) void post('adopt-claimed', result.claimed.map((o) => o.key))
+                      if (ok) void post('adopt-claimed', targetsOf(result.claimed))
                     },
                   }
                 : undefined
@@ -246,7 +295,7 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
                       const ok = window.confirm(
                         `Remove ${result.missing.length} entr${result.missing.length === 1 ? 'y' : 'ies'} from this library?\n\nTheir files are already gone from storage, so nothing is deleted from storage here - this only clears the entries pointing at them. Anything still used on a page will be listed rather than removed.`
                       )
-                      if (ok) void post('purge-missing', result.missing.map((m) => m.key))
+                      if (ok) void post('purge-missing', targetsOf(result.missing))
                     },
                   }
                 : undefined
@@ -286,7 +335,7 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
                     const ok = window.confirm(
                       `Remove ${blocked.length} entr${blocked.length === 1 ? 'y' : 'ies'} anyway?\n\nWherever they are used will be left with nothing in that spot, so it is worth putting something else there afterwards.`
                     )
-                    if (ok) void post('purge-missing', blocked.map((b) => b.key), true)
+                    if (ok) void post('purge-missing', targetsOf(blocked), true)
                   }}
                 >
                   {state === 'working' ? 'Removing…' : 'Remove them anyway'}
@@ -305,7 +354,7 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
                 ? {
                     label: state === 'working' ? 'Correcting…' : 'Correct these',
                     danger: false,
-                    onClick: () => void post('correct-sizes'),
+                    onClick: () => void post('correct-sizes', targetsOf(result.mismatched)),
                   }
                 : undefined
             }

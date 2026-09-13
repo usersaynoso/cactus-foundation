@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { diffStorageAgainstRows, extractReferencedKeys, isOwnMediaKey, type ReconcileRow } from './reconcile'
+import {
+  classifyRowlessObject,
+  decodeScanCursor,
+  diffStorageAgainstRows,
+  encodeScanCursor,
+  extractReferencedKeys,
+  isOwnMediaKey,
+  type ReconcileRow,
+  type StorageReconcile,
+} from './reconcile'
+import { emptyReconcile, mergeReconcile, sortReconcile } from './reconcile-report'
 import type { StoredObject } from './upload'
 
 // The stakes here are one-sided. A missed orphan costs a little storage; a FALSE
@@ -178,5 +188,108 @@ describe('isOwnMediaKey', () => {
   it('namespaces every other provider by its own name', () => {
     expect(isOwnMediaKey('R2', 'media/R2/a.webp')).toBe(true)
     expect(isOwnMediaKey('R2', 'media/a.webp')).toBe(false)
+  })
+})
+
+describe('classifyRowlessObject', () => {
+  it('asks the private test before the claim test', () => {
+    expect(classifyRowlessObject('media/unified-inbox/a.pdf', () => true, () => true)).toBe('moduleOwned')
+  })
+
+  it('calls a claimed object claimed and an unclaimed one an orphan', () => {
+    expect(classifyRowlessObject('media/a.webp', () => true, () => false)).toBe('claimed')
+    expect(classifyRowlessObject('media/a.webp', () => false, () => false)).toBe('orphaned')
+  })
+
+  it('never calls a folder placeholder anything worth acting on', () => {
+    expect(classifyRowlessObject('media/shop/', () => false, () => false)).toBe('placeholder')
+  })
+})
+
+describe('scan cursor', () => {
+  it('survives the round trip to the page and back', () => {
+    const cursor = { provider: 'B2' as const, after: 'media/shop/a chair & desk/\u00e9.webp' }
+    expect(decodeScanCursor(encodeScanCursor(cursor))).toEqual(cursor)
+    expect(decodeScanCursor(encodeScanCursor({ provider: 'R2', after: null }))).toEqual({ provider: 'R2', after: null })
+  })
+
+  it('refuses a string it did not issue rather than guessing a position', () => {
+    expect(decodeScanCursor('not-a-cursor')).toBeNull()
+    expect(decodeScanCursor(Buffer.from(JSON.stringify({ provider: 'DROPBOX', after: null })).toString('base64url'))).toBeNull()
+    expect(decodeScanCursor(Buffer.from(JSON.stringify({ provider: 'B2', after: '' })).toString('base64url'))).toBeNull()
+  })
+})
+
+describe('a scan in slices', () => {
+  // Byte order, which is how an S3-compatible listing sorts and what the row
+  // query's COLLATE "C" range compares in. Upper case sorts before lower case.
+  const byteCompare = (a: string, b: string) => Buffer.compare(Buffer.from(a), Buffer.from(b))
+
+  const rows = [
+    row('media/B-upper.webp', 10),
+    row('media/a.webp', 100),
+    row('media/c-gone.webp', 5),
+    row('media/e.webp', 70),
+    row('media/zz-gone.webp', 1),
+    row('outside/legacy.webp', 3),
+  ]
+  const stored = [
+    obj('media/B-upper.webp', 10),
+    obj('media/a.webp', 90),
+    obj('media/b-left.webp', 4),
+    obj('media/d-used.glb', 400),
+    obj('media/e.webp', 70),
+    obj('media/unified-inbox/x.pdf', 20),
+  ].sort((x, y) => byteCompare(x.key, y.key))
+  const isClaimed = (key: string) => key === 'media/d-used.glb'
+  const isPrivate = (key: string) => key.startsWith('media/unified-inbox/')
+
+  function sliceReport(after: string | null, upTo: string | null): StorageReconcile {
+    const inRange = (key: string) =>
+      (after === null || byteCompare(key, after) > 0) && (upTo === null || byteCompare(key, upTo) <= 0)
+    const diff = diffStorageAgainstRows(
+      'B2',
+      rows.filter((r) => inRange(r.key)),
+      stored.filter((o) => inRange(o.key)),
+      isClaimed,
+      isPrivate,
+    )
+    return sortReconcile({
+      ...emptyReconcile(),
+      ...diff,
+      providers: [{ provider: 'B2', scanned: true, storedObjects: stored.filter((o) => inRange(o.key)).length, storedBytes: 0 }],
+    })
+  }
+
+  it('adds up to exactly the report a single pass gives, wherever the slices are cut', () => {
+    const whole = sliceReport(null, null)
+    for (let cut = 0; cut < stored.length - 1; cut++) {
+      const boundary = stored[cut]?.key ?? null
+      const merged = mergeReconcile(mergeReconcile(emptyReconcile(), sliceReport(null, boundary)), sliceReport(boundary, null))
+      expect(merged).toEqual(whole)
+    }
+  })
+
+  it('reports each drift once, including the rows filed before the first object and after the last', () => {
+    const whole = sliceReport(null, null)
+    expect(whole.missing.map((m) => m.key).sort()).toEqual(['media/c-gone.webp', 'media/zz-gone.webp', 'outside/legacy.webp'])
+    expect(whole.orphaned.map((o) => o.key)).toEqual(['media/b-left.webp'])
+    expect(whole.claimed.map((o) => o.key)).toEqual(['media/d-used.glb'])
+    expect(whole.moduleOwned.map((o) => o.key)).toEqual(['media/unified-inbox/x.pdf'])
+    expect(whole.mismatched.map((m) => m.key)).toEqual(['media/a.webp'])
+    expect(whole.providers).toEqual([{ provider: 'B2', scanned: true, storedObjects: stored.length, storedBytes: 0 }])
+  })
+
+  it('marks a provider unscanned when any one of its slices was skipped', () => {
+    const skipped: StorageReconcile = {
+      ...emptyReconcile(),
+      partial: true,
+      providers: [{ provider: 'B2', scanned: false, skippedReason: 'storage could not be listed (boom)', storedObjects: 0, storedBytes: 0 }],
+    }
+    const merged = mergeReconcile(sliceReport(null, 'media/a.webp'), skipped)
+    expect(merged.partial).toBe(true)
+    expect(merged.providers).toEqual([
+      { provider: 'B2', scanned: false, skippedReason: 'storage could not be listed (boom)', storedObjects: 2, storedBytes: 0 },
+    ])
   })
 })

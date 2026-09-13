@@ -1,11 +1,22 @@
+import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { Prisma, type MediaProviderType } from '@prisma/client'
+import { Prisma, MediaProviderType } from '@prisma/client'
 import { isMediaProviderConfigured } from '@/lib/config/env'
-import { getMediaReferencesBulk, listStoredMediaKeys, mediaKeyPrefix, saveMediaRecord, type StoredObject } from '@/lib/media/upload'
+import {
+  deleteMedia,
+  getMediaReferencesBulk,
+  listStoredMediaKeys,
+  listStoredMediaKeysAfter,
+  mediaKeyPrefix,
+  saveMediaRecord,
+  statStoredMediaObject,
+  type StoredObject,
+} from '@/lib/media/upload'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { getMediaPrivatePrefixes } from '@/lib/media/private-storage'
 import { contentTypeForKey } from '@/lib/media/limits'
 import { sanitizeFolderSegment } from '@/lib/media/organise'
+import { emptyReconcile, sortReconcile } from '@/lib/media/reconcile-report'
 
 // ---------------------------------------------------------------------------
 // Reconcile the Media table against what storage actually holds.
@@ -33,9 +44,18 @@ import { sanitizeFolderSegment } from '@/lib/media/organise'
 //   mismatched - a row whose recorded size isn't the object's. Harmless on its
 //               own, but it makes "storage used" a guess.
 //
-// Read-only: this reports, it never repairs. Repair is a separate, explicit act
-// (see the storage-check route) because deleting an orphan is destructive
+// The scan reports, it never repairs. Repair is a separate, explicit act (the
+// functions at the bottom of this file) because deleting an orphan is destructive
 // against an object no library row can vouch for.
+//
+// Size. A library of tens of thousands of files cannot be listed, cross-checked
+// and sent back inside one request's time limit, so the scan is a run of
+// requests (scanMediaStorageChunk), each covering an exact key range and handing
+// back a cursor for the next. And a repair never re-scans the bucket to check the
+// client's selection: it asks storage about the selected keys and nothing else,
+// and applies the same verdict the scan did (classifyRowlessObject). The old
+// shape re-listed every object in storage once per batch, which on a bucket of
+// sixty thousand made a cleanup of a thousand files forty full scans long.
 // ---------------------------------------------------------------------------
 
 export type OrphanedObject = StoredObject & { provider: MediaProviderType }
@@ -83,7 +103,29 @@ export type StorageReconcile = {
   partial: boolean
 }
 
-const KEYS_PER_PROVIDER_LIMIT = 50_000
+/** One slice of a scan, plus where the next one starts. `next` is null when the scan is complete. */
+export type StorageReconcileChunk = StorageReconcile & { next: string | null }
+
+/** One object a repair is asked to act on. The provider comes from the scan that listed it. */
+export type StorageTarget = { provider: MediaProviderType; key: string }
+
+// Per slice of a range-listable provider. The usage index is built alongside the
+// listing, not after it - on a site whose pages and module tables run to tens of
+// megabytes it takes as long as the listing does - so the listing budget plus
+// the row query and the diff sit well inside the route's 60 seconds. The object
+// cap bounds one request's memory whatever the provider's page size.
+const SLICE_MAX_OBJECTS = 50_000
+const SLICE_LISTING_BUDGET_MS = 15_000
+
+// A provider that cannot resume from a key (Vercel Blob, Supabase) is listed in
+// one pass or not at all. This guard is about one request's memory, not its
+// time - a listing that runs out of time fails the request loudly on its own.
+const SINGLE_PASS_LIMIT = 250_000
+
+// Storage lookups a repair makes at once. Enough to clear a batch of a couple of
+// hundred keys in a few seconds, few enough not to look like an attack to a
+// provider's rate limiter.
+const LOOKUP_CONCURRENCY = 16
 
 export type ReconcileRow = {
   id: string
@@ -120,11 +162,43 @@ export function extractReferencedKeys(haystack: string): Set<string> {
   return out
 }
 
+export type RowlessVerdict = 'placeholder' | 'moduleOwned' | 'claimed' | 'orphaned'
+
+/**
+ * What an object with no library row is. The one place that decides it, used by
+ * the scan and by every repair, so the pile an admin was shown and the check a
+ * repair makes before acting can never disagree.
+ *
+ * `isPrivate` is asked FIRST - before the claim test, not after. A module's
+ * private folder is off limits whether or not the usage index happened to mention
+ * the file: a mail attachment nobody has opened yet is referenced by nothing, and
+ * the wrong answer to that is a delete button over somebody's invoice.
+ */
+export function classifyRowlessObject(
+  key: string,
+  isClaimed: (key: string) => boolean,
+  isPrivate: (key: string) => boolean,
+): RowlessVerdict {
+  // Folder placeholders: some providers materialise a directory as a zero-byte
+  // object ending in "/". Not an orphan, just bookkeeping.
+  if (key.endsWith('/')) return 'placeholder'
+  if (isPrivate(key)) return 'moduleOwned'
+  // No row, but a live page or a module table names it. Deleting it would take a
+  // 3D model or a product photograph off the site, so it goes in its own pile and
+  // never into the one with a delete button over it.
+  if (isClaimed(key)) return 'claimed'
+  return 'orphaned'
+}
+
 /**
  * The comparison itself, kept pure so it can be tested without a bucket or a
  * database. Everything above it is fetching; this is the part that decides what
  * counts as a drift, and it is the part that has to be right - a false orphan
  * here becomes a deleted file downstream.
+ *
+ * `rows` and `stored` must describe the same stretch of storage - the whole
+ * provider, or one key range of it. A row outside the stretch the objects came
+ * from would read as missing.
  *
  * `isClaimed` answers "is the site using this object even though no row owns
  * it?". Omitted, nothing is claimed and every rowless object reads as an orphan,
@@ -132,11 +206,7 @@ export function extractReferencedKeys(haystack: string): Set<string> {
  * own tables without minting a library row.
  *
  * `isPrivate` answers "does a module keep this file outside the library on
- * purpose?", and it is checked FIRST - before the claim test, not after. A
- * module's private folder is off limits whether or not the usage index happened
- * to mention the file: a mail attachment nobody has opened yet is referenced by
- * nothing, and the wrong answer to that is a delete button over somebody's
- * invoice.
+ * purpose?" - see classifyRowlessObject for why it outranks the claim test.
  */
 export function diffStorageAgainstRows(
   provider: MediaProviderType,
@@ -165,27 +235,22 @@ export function diffStorageAgainstRows(
   let moduleOwnedBytes = 0
   for (const o of stored) {
     if (rowKeys.has(o.key)) continue
-    // Folder placeholders: some providers materialise a directory as a zero-byte
-    // object ending in "/". Not an orphan, just bookkeeping.
-    if (o.key.endsWith('/')) continue
-    // A module's own private folder. Never an orphan, never adoptable, and it is
-    // asked before the claim test so an unopened attachment is as safe as a
-    // referenced one.
-    if (isPrivate(o.key)) {
-      moduleOwned.push({ ...o, provider })
-      moduleOwnedBytes += o.sizeBytes
-      continue
+    switch (classifyRowlessObject(o.key, isClaimed, isPrivate)) {
+      case 'placeholder':
+        break
+      case 'moduleOwned':
+        moduleOwned.push({ ...o, provider })
+        moduleOwnedBytes += o.sizeBytes
+        break
+      case 'claimed':
+        claimed.push({ ...o, provider })
+        claimedBytes += o.sizeBytes
+        break
+      case 'orphaned':
+        orphaned.push({ ...o, provider })
+        orphanedBytes += o.sizeBytes
+        break
     }
-    // No row, but a live page or a module table names it. Deleting it would take
-    // a 3D model or a product photograph off the site, so it goes in its own
-    // pile and never into the one with a delete button over it.
-    if (isClaimed(o.key)) {
-      claimed.push({ ...o, provider })
-      claimedBytes += o.sizeBytes
-      continue
-    }
-    orphaned.push({ ...o, provider })
-    orphanedBytes += o.sizeBytes
   }
 
   const missing: MissingObject[] = []
@@ -212,7 +277,7 @@ export function diffStorageAgainstRows(
 }
 
 /**
- * The "is anything using this object?" test, built once per scan.
+ * The "is anything using this object?" test, built once per request.
  *
  * Fails safe in both directions it can fail: an index that a module's usage
  * provider could not complete, or one that could not be built at all, claims
@@ -233,7 +298,7 @@ async function buildClaimTest(): Promise<(key: string) => boolean> {
 
 /**
  * The "does a module keep this outside the library on purpose?" test, built once
- * per scan and applied per provider, since each provider namespaces its own keys.
+ * per request and applied per provider, since each provider namespaces its own keys.
  *
  * A registry that cannot be read claims nothing, which is the safe direction
  * here: a private file that falls through still meets the claim test (its module
@@ -259,137 +324,314 @@ async function buildPrivateTest(): Promise<(provider: MediaProviderType, key: st
   }
 }
 
-export async function reconcileMediaStorage(): Promise<StorageReconcile> {
-  const rows = await prisma.media.findMany({
-    select: { id: true, key: true, provider: true, originalName: true, sizeBytes: true },
-  })
+// ---------------------------------------------------------------------------
+// The scan, one slice at a time.
+// ---------------------------------------------------------------------------
 
-  const isClaimed = await buildClaimTest()
-  const isPrivate = await buildPrivateTest()
+/**
+ * Where a scan has got to: the provider being listed and the last key the
+ * previous slice covered (null at the start of a provider). Travels to the page
+ * and back as an opaque string, and is validated on the way in like any other
+ * input - it names a key range, and a mangled one must be refused, not guessed at.
+ */
+export type ScanCursor = { provider: MediaProviderType; after: string | null }
 
-  // Group rows by the provider each one actually lives on. A library that has
-  // been through a provider switch holds rows on more than one, and scanning
-  // only the active provider would report every other row as missing.
-  const byProvider = new Map<MediaProviderType, typeof rows>()
-  for (const r of rows) {
-    const list = byProvider.get(r.provider)
-    if (list) list.push(r)
-    else byProvider.set(r.provider, [r])
+const scanCursorSchema = z.object({
+  provider: z.nativeEnum(MediaProviderType),
+  after: z.string().min(1).max(2048).nullable(),
+})
+
+export function encodeScanCursor(cursor: ScanCursor): string {
+  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url')
+}
+
+/** The cursor, or null when the string is not one this code issued. */
+export function decodeScanCursor(raw: string): ScanCursor | null {
+  try {
+    const parsed = scanCursorSchema.safeParse(JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
   }
-
-  const result: StorageReconcile = {
-    providers: [],
-    orphaned: [],
-    claimed: [],
-    moduleOwned: [],
-    missing: [],
-    mismatched: [],
-    orphanedBytes: 0,
-    claimedBytes: 0,
-    moduleOwnedBytes: 0,
-    partial: false,
-  }
-
-  for (const [provider, providerRows] of byProvider) {
-    if (!isMediaProviderConfigured(provider)) {
-      result.providers.push({
-        provider,
-        scanned: false,
-        skippedReason: 'storage credentials are not configured',
-        storedObjects: 0,
-        storedBytes: 0,
-      })
-      result.partial = true
-      continue
-    }
-
-    let stored: StoredObject[] | null
-    try {
-      stored = await listStoredMediaKeys(provider)
-    } catch (err) {
-      result.providers.push({
-        provider,
-        scanned: false,
-        skippedReason: `storage could not be listed (${err instanceof Error ? err.message : 'unknown error'})`,
-        storedObjects: 0,
-        storedBytes: 0,
-      })
-      result.partial = true
-      continue
-    }
-
-    if (stored === null) {
-      result.providers.push({
-        provider,
-        scanned: false,
-        skippedReason: 'this provider stores files under ids it mints itself, so its contents cannot be listed',
-        storedObjects: 0,
-        storedBytes: 0,
-      })
-      result.partial = true
-      continue
-    }
-
-    // A pathological bucket shouldn't be able to exhaust the request's memory.
-    // Reporting a truncated scan as complete would be worse than saying so.
-    if (stored.length > KEYS_PER_PROVIDER_LIMIT) {
-      result.providers.push({
-        provider,
-        scanned: false,
-        skippedReason: `storage holds more than ${KEYS_PER_PROVIDER_LIMIT.toLocaleString('en-GB')} objects, too many to check in one pass`,
-        storedObjects: stored.length,
-        storedBytes: stored.reduce((n, o) => n + o.sizeBytes, 0),
-      })
-      result.partial = true
-      continue
-    }
-
-    const diff = diffStorageAgainstRows(
-      provider,
-      providerRows,
-      stored,
-      isClaimed,
-      (key) => isPrivate(provider, key),
-    )
-    result.orphaned.push(...diff.orphaned)
-    result.claimed.push(...diff.claimed)
-    result.moduleOwned.push(...diff.moduleOwned)
-    result.missing.push(...diff.missing)
-    result.mismatched.push(...diff.mismatched)
-    result.orphanedBytes += diff.orphanedBytes
-    result.claimedBytes += diff.claimedBytes
-    result.moduleOwnedBytes += diff.moduleOwnedBytes
-
-    result.providers.push({
-      provider,
-      scanned: true,
-      storedObjects: stored.length,
-      storedBytes: stored.reduce((n, o) => n + o.sizeBytes, 0),
-    })
-  }
-
-  // Deterministic order so a repeat scan reads the same way, biggest first
-  // because that's the order an admin wants to act in.
-  result.orphaned.sort((a, b) => b.sizeBytes - a.sizeBytes || a.key.localeCompare(b.key))
-  result.claimed.sort((a, b) => b.sizeBytes - a.sizeBytes || a.key.localeCompare(b.key))
-  result.moduleOwned.sort((a, b) => b.sizeBytes - a.sizeBytes || a.key.localeCompare(b.key))
-  result.missing.sort((a, b) => a.key.localeCompare(b.key))
-  result.mismatched.sort((a, b) => a.key.localeCompare(b.key))
-
-  return result
 }
 
 /**
- * Rewrite every mismatched row's `sizeBytes` to the size storage reports.
- * Non-destructive: it changes a number that was already wrong, touches no blob,
- * and re-derives the list itself rather than trusting a client-supplied set.
+ * Every provider holding at least one row, in a fixed order so a scan that spans
+ * several requests visits them in the same sequence each time. A library that
+ * has been through a provider switch holds rows on more than one, and scanning
+ * only the active provider would report every other row as missing.
  */
-export async function correctRecordedSizes(): Promise<{ corrected: number }> {
-  const { mismatched } = await reconcileMediaStorage()
-  for (const m of mismatched) {
-    await prisma.media.update({ where: { id: m.id }, data: { sizeBytes: m.storedBytes } })
+async function providersHoldingRows(): Promise<MediaProviderType[]> {
+  const groups = await prisma.media.groupBy({ by: ['provider'] })
+  return groups.map((g) => g.provider).sort()
+}
+
+/**
+ * The provider's rows whose key falls in (after, upTo], either end open when null.
+ *
+ * COLLATE "C" is load-bearing: it compares bytes, which is the order an
+ * S3-compatible listing comes back in. The database's own collation folds case
+ * and skips punctuation, so a range written in it would not line up with the
+ * slice of objects it is compared against - a row could land in no slice at all
+ * and never be checked, or in the wrong one and read as missing.
+ */
+async function rowsInKeyRange(
+  provider: MediaProviderType,
+  after: string | null,
+  upTo: string | null,
+): Promise<ReconcileRow[]> {
+  return prisma.$queryRaw<ReconcileRow[]>`
+    SELECT "id", "key", "originalName", "sizeBytes"
+    FROM "Media"
+    WHERE "provider" = ${provider}::"MediaProviderType"
+      AND (${after}::text IS NULL OR "key" COLLATE "C" > ${after}::text)
+      AND (${upTo}::text IS NULL OR "key" COLLATE "C" <= ${upTo}::text)
+  `
+}
+
+type ListedSlice = { stored: StoredObject[]; rows: ReconcileRow[]; done: boolean }
+
+/**
+ * The objects and rows for one slice of a provider, or a plain-English reason it
+ * could not be listed. Range-listable providers are sliced; the rest are listed
+ * whole, once, on the first request that reaches them.
+ */
+async function listSlice(provider: MediaProviderType, after: string | null): Promise<ListedSlice | { skippedReason: string; storedObjects: number; storedBytes: number }> {
+  let ranged: Awaited<ReturnType<typeof listStoredMediaKeysAfter>>
+  let whole: StoredObject[] | null = null
+  try {
+    ranged = await listStoredMediaKeysAfter(provider, after, {
+      maxObjects: SLICE_MAX_OBJECTS,
+      deadline: Date.now() + SLICE_LISTING_BUDGET_MS,
+    })
+    if (!ranged) whole = await listStoredMediaKeys(provider)
+  } catch (err) {
+    return {
+      skippedReason: `storage could not be listed (${err instanceof Error ? err.message : 'unknown error'})`,
+      storedObjects: 0,
+      storedBytes: 0,
+    }
   }
-  return { corrected: mismatched.length }
+
+  if (ranged) {
+    const last = ranged.objects.at(-1)
+    if (!ranged.done && !last) {
+      // A truncated listing that returned nothing leaves no key to resume from,
+      // and pretending the provider ended here would report the rest as missing.
+      return { skippedReason: 'storage stopped answering part-way through the list', storedObjects: 0, storedBytes: 0 }
+    }
+    // The final slice is open-ended, so rows filed after the last object (or
+    // outside the media folder altogether) are still compared - as missing.
+    const upTo = ranged.done ? null : last?.key ?? null
+    return { stored: ranged.objects, rows: await rowsInKeyRange(provider, after, upTo), done: ranged.done }
+  }
+
+  if (whole === null) {
+    return {
+      skippedReason: 'this provider stores files under ids it mints itself, so its contents cannot be listed',
+      storedObjects: 0,
+      storedBytes: 0,
+    }
+  }
+
+  // A pathological bucket shouldn't be able to exhaust the request's memory.
+  // Reporting a truncated scan as complete would be worse than saying so.
+  if (whole.length > SINGLE_PASS_LIMIT) {
+    return {
+      skippedReason: `storage holds more than ${SINGLE_PASS_LIMIT.toLocaleString('en-GB')} objects, too many for this provider to check in one pass`,
+      storedObjects: whole.length,
+      storedBytes: whole.reduce((n, o) => n + o.sizeBytes, 0),
+    }
+  }
+
+  const rows = await prisma.media.findMany({
+    where: { provider },
+    select: { id: true, key: true, originalName: true, sizeBytes: true },
+  })
+  return { stored: whole, rows, done: true }
+}
+
+/**
+ * One slice of the storage check. Pass null to start, then each `next` in turn
+ * until it comes back null; the slices summed (mergeReconcile) are the whole
+ * report. Each slice is complete for its own key range, so nothing is lost or
+ * double-counted at a boundary.
+ *
+ * Objects added or removed while a scan is under way may or may not be seen,
+ * depending on which side of the scan's position they land - the report is a
+ * walk through storage, not a photograph of it. That is safe because no repair
+ * trusts it: each one re-checks its own keys before acting.
+ */
+export async function scanMediaStorageChunk(cursor: ScanCursor | null): Promise<StorageReconcileChunk> {
+  const providers = await providersHoldingRows()
+  const provider = cursor?.provider ?? providers[0]
+  const report = emptyReconcile()
+  if (!provider) return { ...report, next: null }
+
+  // Providers are visited in sorted order, so the next one is simply the first
+  // name after this. Still correct if this provider's last row went mid-scan.
+  const nextProvider = providers.find((p) => p > provider)
+  const afterThisProvider = nextProvider ? encodeScanCursor({ provider: nextProvider, after: null }) : null
+
+  if (!isMediaProviderConfigured(provider)) {
+    report.providers.push({ provider, scanned: false, skippedReason: 'storage credentials are not configured', storedObjects: 0, storedBytes: 0 })
+    return { ...report, partial: true, next: afterThisProvider }
+  }
+
+  // Started before the listing so the two run side by side. Neither can reject -
+  // both fail safe internally - so abandoning it on a skipped slice is harmless.
+  const tests = Promise.all([buildClaimTest(), buildPrivateTest()])
+
+  const after = cursor?.after ?? null
+  const slice = await listSlice(provider, after)
+  if ('skippedReason' in slice) {
+    report.providers.push({ provider, scanned: false, ...slice })
+    return { ...report, partial: true, next: afterThisProvider }
+  }
+
+  const [isClaimed, isPrivate] = await tests
+  const diff = diffStorageAgainstRows(provider, slice.rows, slice.stored, isClaimed, (key) => isPrivate(provider, key))
+  const last = slice.stored.at(-1)
+
+  return {
+    ...sortReconcile({
+      ...report,
+      ...diff,
+      providers: [{
+        provider,
+        scanned: true,
+        storedObjects: slice.stored.length,
+        storedBytes: slice.stored.reduce((n, o) => n + o.sizeBytes, 0),
+      }],
+    }),
+    next: slice.done || !last ? afterThisProvider : encodeScanCursor({ provider, after: last.key }),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Repairs.
+//
+// The caller's list is a selection, never an authority. Each repair looks up
+// exactly the keys it was handed - their rows, their objects, the same claim and
+// private tests the scan used - and acts only on those that still qualify. That
+// is what stops a stale page (or a crafted request) deleting an object that has
+// since been claimed, and it costs one lookup per selected key rather than a
+// fresh listing of the whole bucket per batch.
+// ---------------------------------------------------------------------------
+
+type InspectedTarget = StorageTarget & {
+  /** The object at this key, null when storage says there is none, undefined when storage could not be asked. */
+  stored: StoredObject | null | undefined
+  row: (ReconcileRow & { provider: MediaProviderType }) | null
+}
+
+async function mapWithConcurrency<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array<R>(items.length)
+  let cursor = 0
+  const worker = async () => {
+    for (let i = cursor++; i < items.length; i = cursor++) {
+      out[i] = await fn(items[i] as T)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return out
+}
+
+/** Distinct targets, first occurrence kept, so a doubled key is acted on once. */
+function uniqueTargets(targets: StorageTarget[]): StorageTarget[] {
+  const seen = new Set<string>()
+  return targets.filter((t) => {
+    const id = `${t.provider}\u0000${t.key}`
+    if (seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+}
+
+async function inspectTargets(targets: StorageTarget[]): Promise<InspectedTarget[]> {
+  const rows = await prisma.media.findMany({
+    where: { key: { in: targets.map((t) => t.key) } },
+    select: { id: true, key: true, provider: true, originalName: true, sizeBytes: true },
+  })
+  // Media.key is unique across providers, so one key has at most one row.
+  const rowByKey = new Map(rows.map((r) => [r.key, r]))
+
+  return mapWithConcurrency(targets, LOOKUP_CONCURRENCY, async (target) => {
+    let stored: StoredObject | null | undefined
+    try {
+      stored = await statStoredMediaObject(target.provider, target.key)
+    } catch (err) {
+      console.error(`[media] storage check could not look up ${target.provider}:${target.key}`, err)
+      stored = undefined
+    }
+    return { ...target, stored, row: rowByKey.get(target.key) ?? null }
+  })
+}
+
+/** Rowless objects that are there right now, each with the verdict the scan would give it. */
+async function inspectRowless(targets: StorageTarget[]): Promise<(InspectedTarget & { stored: StoredObject; verdict: RowlessVerdict })[]> {
+  const [inspected, isClaimed, isPrivate] = await Promise.all([
+    inspectTargets(uniqueTargets(targets)),
+    buildClaimTest(),
+    buildPrivateTest(),
+  ])
+  const out: (InspectedTarget & { stored: StoredObject; verdict: RowlessVerdict })[] = []
+  for (const t of inspected) {
+    // A row for the key (on any provider) means the library owns it, and an
+    // object that is not there - or could not be looked up - is nothing to act on.
+    if (t.row || !t.stored) continue
+    out.push({ ...t, stored: t.stored, verdict: classifyRowlessObject(t.key, isClaimed, (key) => isPrivate(t.provider, key)) })
+  }
+  return out
+}
+
+export type DeleteOrphansResult = {
+  deleted: number
+  /** Selected keys left alone: no longer orphaned, not there, or the delete failed. */
+  skipped: number
+  reclaimedBytes: number
+}
+
+/**
+ * Delete the selected objects that are still leftovers: in storage, no row, not
+ * a module's private file, and nothing on the site naming them.
+ */
+export async function deleteOrphanedObjects(targets: StorageTarget[]): Promise<DeleteOrphansResult> {
+  const unique = uniqueTargets(targets)
+  const orphans = (await inspectRowless(unique)).filter((t) => t.verdict === 'orphaned')
+
+  const outcomes = await mapWithConcurrency(orphans, LOOKUP_CONCURRENCY, async (t) => {
+    try {
+      await deleteMedia(t.provider, t.key)
+      return t.stored.sizeBytes
+    } catch (err) {
+      console.error(`[media] storage check could not delete ${t.provider}:${t.key}`, err)
+      return null
+    }
+  })
+
+  const deleted = outcomes.filter((b): b is number => b !== null)
+  return {
+    deleted: deleted.length,
+    skipped: unique.length - deleted.length,
+    reclaimedBytes: deleted.reduce((n, b) => n + b, 0),
+  }
+}
+
+/**
+ * Rewrite the selected rows' `sizeBytes` to the size storage reports. Non-destructive:
+ * it changes a number that was already wrong and touches no blob.
+ */
+export async function correctRecordedSizes(targets: StorageTarget[]): Promise<{ corrected: number }> {
+  const inspected = await inspectTargets(uniqueTargets(targets))
+  let corrected = 0
+  for (const t of inspected) {
+    if (!t.row || t.row.provider !== t.provider || !t.stored) continue
+    if (t.row.sizeBytes === t.stored.sizeBytes) continue
+    await prisma.media.update({ where: { id: t.row.id }, data: { sizeBytes: t.stored.sizeBytes } })
+    corrected += 1
+  }
+  return { corrected }
 }
 
 export type AdoptClaimedResult = {
@@ -399,30 +641,10 @@ export type AdoptClaimedResult = {
   adoptedBytes: number
   /** Keys that could not be adopted, each with the reason in plain English. */
   skipped: { key: string; reason: string }[]
-  /** Keys the caller asked for that a fresh scan no longer calls claimed. */
+  /** Keys the caller asked for that are no longer claimed. */
   stale: number
 }
 
-/**
- * Give a library entry to objects the site is using but the library has never
- * heard of - the third pile in the storage check, and the only one that used to
- * have no way out of it.
- *
- * How a site gets there: a bulk import writes a 3D model's url straight into a
- * module's table without minting a row, or a library entry is deleted while a
- * module's own column still points at the file. Either way the object is live,
- * safe from the orphan sweep, and invisible to every figure on the media page.
- *
- * Nothing is copied, moved or re-encoded: this writes a row describing an object
- * that is already exactly where the row will say it is. The folder tree is walked
- * (and created) from the key's own path, so an adopted file lands in the library
- * where its url already says it lives - see folderIdForKeyPath for why that walk
- * cannot use the ordinary by-name one.
- *
- * The caller's key list is a selection, never an authority - a fresh scan decides
- * what actually qualifies, which is what stops a stale page adopting an object
- * that has since become a module's private file.
- */
 /**
  * The library folder an already-stored object belongs in, from its key's own path.
  *
@@ -450,18 +672,37 @@ async function folderIdForKeyPath(segments: string[]): Promise<string | null> {
   return parentId
 }
 
+/**
+ * Give a library entry to objects the site is using but the library has never
+ * heard of - the third pile in the storage check, and the only one that used to
+ * have no way out of it.
+ *
+ * How a site gets there: a bulk import writes a 3D model's url straight into a
+ * module's table without minting a row, or a library entry is deleted while a
+ * module's own column still points at the file. Either way the object is live,
+ * safe from the orphan sweep, and invisible to every figure on the media page.
+ *
+ * Nothing is copied, moved or re-encoded: this writes a row describing an object
+ * that is already exactly where the row will say it is. The folder tree is walked
+ * (and created) from the key's own path, so an adopted file lands in the library
+ * where its url already says it lives.
+ *
+ * Only keys still claimed qualify, which is what stops a stale page adopting an
+ * object that has since become a module's private file. Adoption itself runs one
+ * key at a time: two keys in the same new folder, adopted at once, would each
+ * create that folder.
+ */
 export async function adoptClaimedObjects(
-  keys: string[],
+  targets: StorageTarget[],
   uploadedById?: string,
 ): Promise<AdoptClaimedResult> {
-  const { claimed } = await reconcileMediaStorage()
-  const byKey = new Map(claimed.map((c) => [c.key, c]))
+  const unique = uniqueTargets(targets)
+  const claimed = (await inspectRowless(unique)).filter((t) => t.verdict === 'claimed')
 
-  const result: AdoptClaimedResult = { adopted: 0, adoptedBytes: 0, skipped: [], stale: 0 }
+  const result: AdoptClaimedResult = { adopted: 0, adoptedBytes: 0, skipped: [], stale: unique.length - claimed.length }
 
-  for (const key of keys) {
-    const object = byKey.get(key)
-    if (!object) { result.stale += 1; continue }
+  for (const object of claimed) {
+    const { key } = object
 
     // The type comes from the key's extension, which is the same claim the media
     // Worker serves the file under - so an adopted row cannot disagree with what
@@ -496,15 +737,15 @@ export async function adoptClaimedObjects(
         url: '',
         provider: object.provider,
         mimeType,
-        sizeBytes: object.sizeBytes,
+        sizeBytes: object.stored.sizeBytes,
         originalName: filename,
         folderId,
         uploadedById,
       })
       result.adopted += 1
-      result.adoptedBytes += object.sizeBytes
+      result.adoptedBytes += object.stored.sizeBytes
     } catch (err) {
-      // A row minted between the scan and now (two admins, one list) trips the
+      // A row minted between the lookup and now (two admins, one list) trips the
       // unique key. Nothing is wrong with that outcome - the object has an entry,
       // which is what was asked for - so it is counted as stale, not failed.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -521,8 +762,8 @@ export async function adoptClaimedObjects(
 export type PurgeMissingResult = {
   purged: number
   /** Rows left alone because something still points at them and force wasn't set. */
-  skipped: { key: string; originalName: string | null; references: string[] }[]
-  /** Keys the caller asked for that a fresh scan no longer calls missing. */
+  skipped: { key: string; provider: MediaProviderType; originalName: string | null; references: string[] }[]
+  /** Keys the caller asked for that are no longer missing, or whose file could not be looked up. */
   stale: number
 }
 
@@ -532,27 +773,26 @@ export type PurgeMissingResult = {
  *
  * No blob is touched: the object these rows name is already gone, so there is
  * nothing to delete and calling the provider would only raise a not-found. The
- * destructive part is the row, and the safeguard is the same one `delete-orphans`
- * uses - the caller's key list is a selection, never an authority, so a fresh
- * scan decides what actually qualifies.
+ * destructive part is the row, so a row only qualifies when storage positively
+ * says there is nothing at its key. A lookup that failed is not that answer, and
+ * the row is left alone and counted as stale.
  *
  * A row still referenced by a page or a setting is skipped unless `force`. That
  * reference is already broken (the picture cannot load either way), but the
  * skipped list is the only place an admin gets told which pages need attention,
  * so it is worth one deliberate second look.
  */
-export async function purgeMissingRows(keys: string[], force = false): Promise<PurgeMissingResult> {
-  const { missing } = await reconcileMediaStorage()
-  const byKey = new Map(missing.map((m) => [m.key, m]))
-
-  const result: PurgeMissingResult = { purged: 0, skipped: [], stale: 0 }
+export async function purgeMissingRows(targets: StorageTarget[], force = false): Promise<PurgeMissingResult> {
+  const unique = uniqueTargets(targets)
+  const inspected = await inspectTargets(unique)
 
   const candidates: MissingObject[] = []
-  for (const key of keys) {
-    const row = byKey.get(key)
-    if (!row) { result.stale += 1; continue }
-    candidates.push(row)
+  for (const t of inspected) {
+    if (!t.row || t.row.provider !== t.provider || t.stored !== null) continue
+    candidates.push({ id: t.row.id, key: t.row.key, provider: t.provider, originalName: t.row.originalName, sizeBytes: t.row.sizeBytes })
   }
+
+  const result: PurgeMissingResult = { purged: 0, skipped: [], stale: unique.length - candidates.length }
 
   // Reference-check and delete in bulk rather than per row: a large cleanup used
   // to run hundreds of sequential query round-trips and time the request out
@@ -564,7 +804,7 @@ export async function purgeMissingRows(keys: string[], force = false): Promise<P
     for (const row of candidates) {
       const refs = references.get(row.id) ?? []
       if (refs.length > 0) {
-        result.skipped.push({ key: row.key, originalName: row.originalName, references: refs })
+        result.skipped.push({ key: row.key, provider: row.provider, originalName: row.originalName, references: refs })
         continue
       }
       toDelete.push(row)
