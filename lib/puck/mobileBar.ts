@@ -100,6 +100,21 @@ export type ModuleMobileBarItemProps = {
 
 const BAR_Z = 900
 
+// The open "Menu" sheet is a MODAL, so - same call filters-for-shop's own sheet
+// makes (see SHEET_Z in modules/filters-for-shop/components/public/filter-css.ts)
+// - it has to outrank ordinary fixed page furniture, not just the bar it slid up
+// from. It was BAR_Z-1 (899) until a shop category page's floating Filter pill
+// (z-index 1200) painted straight over the sheet's last menu item: the pill sat
+// on the page underneath, at an everyday z-index, while the sheet thought it only
+// had the bar (900) to beat.
+//
+// Placed in the same two-billion band that band's own comment documents, above
+// the live-chat launcher (2147482000) so a chat bubble can never sit over the
+// sheet's items, and below filters-for-shop's SHEET_Z (2147482100) and
+// quote-for-shop's lightbox (2147483000) - both genuine modals of their own that
+// should still win if a shopper somehow reaches one from behind this sheet.
+const SHEET_Z = 2147482050
+
 /** The media query wrapping everything the bar paints, for the breakpoints it
  *  is switched on at. `all` needs no query at all. */
 function visibilityWrap(barOn: MobileBarVisibility, css: string): string {
@@ -214,7 +229,7 @@ body{padding-bottom:calc(${height}px + env(safe-area-inset-bottom,0px));}
   const sheet = `
 ${sel} .cmb-scrim{
   display:block;
-  position:fixed;inset:0;z-index:${BAR_Z - 2};
+  position:fixed;inset:0;z-index:${SHEET_Z - 1};
   background:rgba(0,0,0,0.4);
   border:0;padding:0;margin:0;width:100%;
   opacity:0;visibility:hidden;pointer-events:none;
@@ -228,7 +243,7 @@ ${sel} .cmb-sheet{
   display:block;
   position:fixed;left:0;right:0;
   bottom:calc(var(--cmb-h) + env(safe-area-inset-bottom,0px));
-  z-index:${BAR_Z - 1};
+  z-index:${SHEET_Z};
   max-height:70vh;overflow-y:auto;
   background:var(--cmb-bg);color:var(--color-text);
   border-top:1px solid var(--cmb-border);
