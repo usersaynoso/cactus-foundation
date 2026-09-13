@@ -4,6 +4,7 @@ import { fontFamiliesFromTokens } from '@/lib/design/tokens'
 import type { ImageResizing } from '@/lib/media/resize-url'
 import type { LazyImagesMetadata } from '@/lib/puck/imgLoading'
 import type { LoadedFontsMetadata } from '@/lib/puck/blockFont'
+import type { MediaDimensionsMetadata } from '@/lib/puck/imgDimensions'
 
 // Site-wide values that Puck blocks need at render time but can't fetch for
 // themselves. lib/puck/config.tsx is shared by the client editor and the RSC
@@ -21,7 +22,11 @@ import type { LoadedFontsMetadata } from '@/lib/puck/blockFont'
 // getSiteConfig is React cache()d, so the several Render calls a single page
 // makes (header, content, footer) share one query.
 
-export type PuckRenderMetadata = LazyImagesMetadata & LoadedFontsMetadata & {
+// mediaDimensions is the one per-RENDER value rather than a site-wide one: it depends
+// on which pictures the data being rendered holds, so it is added by
+// withMediaDimensions (lib/puck/mediaDimensions.ts) where the data is in hand, not
+// here.
+export type PuckRenderMetadata = LazyImagesMetadata & LoadedFontsMetadata & MediaDimensionsMetadata & {
   /**
    * Whether pictures may be asked for at the size they are drawn, and from which
    * host. Null origin - the default - means every <img> keeps the url it was given.

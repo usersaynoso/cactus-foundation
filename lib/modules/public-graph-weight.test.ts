@@ -32,6 +32,27 @@ import path from 'path'
 // modules/product-3d-views-for-shop/components/public/Gallery3dLazy.tsx. A
 // `dynamic()` cannot live in the provider itself when the provider is server-only
 // and hands the component across the RSC boundary as a prop.
+//
+// THE SECOND WAY IN, which this guard could not see for a month. On the SERVER
+// side of the graph a lazy `() => import(...)` is not lazy at all as far as the
+// client bundle is concerned: Next follows it when it collects the client
+// components a layout or page can render, exactly as lib/modules/router-split.test.ts
+// describes. So when app/(public)/layout.tsx imported lib/modules/router.public.ts
+// for one small head collector, it reached that file's loader for every module's
+// public page, and with them:
+//
+//   router.public.ts -> import() space-planner render page -> RenderFrame.tsx
+//     -> lib/three/planner-scene.ts -> `import { ... } from 'three'`
+//
+// A STATIC three import, inside a client component, reached through a server-side
+// loader. The walk below used to follow static edges only, so it passed while
+// three.js shipped on every page - measured on deskwell.co.uk in September 2026,
+// alongside the planner UI, the cart and checkout pages' clients and the purchase
+// order portal. It now follows `import()` wherever the importing file is server
+// code, stops following it once inside a client component (there, a dynamic import
+// really is a separate chunk), and flags a heavy library imported statically by
+// anything client-side it reaches. It also walks from the public page routes, not
+// just the layout, because the catch-all reaches every module page by design.
 
 const ROOT = path.join(__dirname, '..', '..')
 
@@ -87,8 +108,8 @@ function resolveSpec(spec: string, from: string): string | null {
 }
 
 /**
- * Static imports only. `import type` erases at compile time and `await import()`
- * is a lazy edge - both are fine, and both are exactly what the fix uses.
+ * Static imports and re-exports - the edges a bundler follows on either side of
+ * the client boundary. `import type` erases at compile time, so it is skipped.
  */
 function staticImports(source: string): string[] {
   const out: string[] = []
@@ -101,47 +122,130 @@ function staticImports(source: string): string[] {
     const spec = m[2]
     if (spec) out.push(spec)
   }
+  // `export { x } from` pulls the module in as surely as an import does, and a
+  // side-effect `import 'x'` has no clause to match above.
+  const reExport = /^export\s+(?!type\s)[^'";]*?from\s+['"]([^'"]+)['"]/gm
+  while ((m = reExport.exec(source))) if (m[1]) out.push(m[1])
+  const bare = /^import\s+['"]([^'"]+)['"]/gm
+  while ((m = bare.exec(source))) if (m[1]) out.push(m[1])
   return out
 }
 
-type Offence = { library: string; chain: string[] }
+/** `import('...')` specifiers - lazy in a client file, an ordinary edge in a server one. */
+function dynamicImports(source: string): string[] {
+  const out: string[] = []
+  const re = /import\(\s*['"]([^'"]+)['"]\s*\)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(source))) if (m[1]) out.push(m[1])
+  return out
+}
+
+/**
+ * Node built-ins a browser bundle can only satisfy with a polyfill, and a big one.
+ *
+ * Checked in CLIENT code only, and only as a static import. Server code imports
+ * these all the time, lazily or not, and that is fine - they are Node's own and
+ * cost nothing there. The trouble is purely a client component reaching one:
+ * quote-for-shop's Retrieve Quote button imported a helper file that also did
+ * `import { randomInt } from 'crypto'` for the code generator, and the browser
+ * got about 121 KB gzip of stream, buffer and hashing polyfill on every page of
+ * the shop (deskwell.co.uk, September 2026) for a button that only formats a code.
+ */
+const POLYFILLED_NODE_BUILTINS = ['crypto', 'node:crypto', 'stream', 'node:stream', 'buffer', 'node:buffer']
+
+/** Does this file import a heavy library statically, i.e. into its own chunk? */
+function staticallyImportsHeavy(specs: string[]): string | null {
+  for (const lib of HEAVY) {
+    if (specs.some((spec) => spec === lib || spec.startsWith(`${lib}/`))) return lib
+  }
+  for (const builtin of POLYFILLED_NODE_BUILTINS) {
+    if (specs.includes(builtin)) return builtin
+  }
+  return null
+}
+
+/**
+ * The routes every public visit renders through. The layout wraps them all; the
+ * catch-all pair carries every module's public pages by design, which is exactly
+ * why whatever those pages import matters as much as what the layout does.
+ */
+const PUBLIC_ENTRIES = [
+  path.join('app', '(public)', 'layout.tsx'),
+  path.join('app', '(public)', 'page.tsx'),
+  path.join('app', '(public)', '[slug]', 'page.tsx'),
+  path.join('app', '(public)', '[slug]', '[...path]', 'page.tsx'),
+]
+
+type Offence = { library: string; how: 'lazy import in an eager file' | 'static import in client code'; chain: string[] }
+
+/**
+ * One step of the walk. `client` is true once the path has passed through a
+ * 'use client' file: from there on everything is browser code, and a dynamic
+ * import is a genuine split rather than an edge into the same chunk group.
+ */
+type Visit = { file: string; client: boolean }
 
 function heavyLibrariesInThePublicGraph(): Offence[] {
-  const entry = path.join(ROOT, 'app', '(public)', 'layout.tsx')
-  if (!existsSync(entry)) return []
-
-  const seen = new Set<string>([entry])
-  const parent = new Map<string, string>()
-  const queue: string[] = [entry]
   const offences: Offence[] = []
+  const reported = new Set<string>()
 
-  while (queue.length) {
-    const file = queue.shift()!
-    let source: string
-    try {
-      source = withoutComments(readFileSync(file, 'utf8'))
-    } catch {
-      continue
-    }
-    // A file reached statically that loads a heavy library at runtime is the
-    // defect: the lazy edge is real, but the bundler can still fold it into the
-    // chunks this always-loaded graph needs.
-    const lazy = lazilyLoadsHeavy(source)
-    if (lazy && file !== entry) {
+  for (const entryRel of PUBLIC_ENTRIES) {
+    const entry = path.join(ROOT, entryRel)
+    if (!existsSync(entry)) continue
+
+    const key = (v: Visit) => `${v.client ? 'client' : 'server'}:${v.file}`
+    const start: Visit = { file: entry, client: false }
+    const seen = new Set<string>([key(start)])
+    const parent = new Map<string, Visit>()
+    const queue: Visit[] = [start]
+
+    const chainTo = (v: Visit): string[] => {
       const chain: string[] = []
-      let at: string | undefined = file
+      let at: Visit | undefined = v
       while (at) {
-        chain.unshift(path.relative(ROOT, at))
-        at = parent.get(at)
+        chain.unshift(path.relative(ROOT, at.file))
+        at = parent.get(key(at))
       }
-      offences.push({ library: lazy, chain })
+      return chain
     }
-    for (const spec of staticImports(source)) {
-      const next = resolveSpec(spec, file)
-      if (!next || seen.has(next)) continue
-      seen.add(next)
-      parent.set(next, file)
-      queue.push(next)
+    const report = (library: string, how: Offence['how'], v: Visit) => {
+      const id = `${library}|${how}|${v.file}`
+      if (reported.has(id)) return
+      reported.add(id)
+      offences.push({ library, how, chain: chainTo(v) })
+    }
+
+    while (queue.length) {
+      const visit = queue.shift()!
+      let source: string
+      try {
+        source = withoutComments(readFileSync(visit.file, 'utf8'))
+      } catch {
+        continue
+      }
+      const client = visit.client || /^\s*['"]use client['"]/.test(source)
+      const specs = staticImports(source)
+
+      // A file reached eagerly that loads a heavy library at runtime: the lazy
+      // edge is real, but the bundler can still fold it into chunks this
+      // always-loaded graph needs.
+      const lazy = lazilyLoadsHeavy(source)
+      if (lazy && visit.file !== entry) report(lazy, 'lazy import in an eager file', visit)
+
+      // Client code importing a heavy library outright puts it in the chunk group.
+      const eager = client ? staticallyImportsHeavy(specs) : null
+      if (eager) report(eager, 'static import in client code', visit)
+
+      const next = client ? specs : [...specs, ...dynamicImports(source)]
+      for (const spec of next) {
+        const file = resolveSpec(spec, visit.file)
+        if (!file) continue
+        const step: Visit = { file, client }
+        if (seen.has(key(step))) continue
+        seen.add(key(step))
+        parent.set(key(step), visit)
+        queue.push(step)
+      }
     }
   }
   return offences
@@ -151,17 +255,22 @@ describe('the public client graph carries no heavy library', () => {
   it('no page-global import chain reaches a 3D or charting engine', () => {
     const offences = heavyLibrariesInThePublicGraph()
     const report = offences
-      .map((o) => `${o.library} via\n    ${o.chain.join('\n    -> ')}`)
+      .map((o) => `${o.library} (${o.how}) via\n    ${o.chain.join('\n    -> ')}`)
       .join('\n\n  ')
     expect(
       offences,
-      `A heavy library is statically reachable from app/(public)/layout.tsx, so it\n` +
-        `lands in the client graph of EVERY public page - the contact page and the\n` +
-        `login page included - and the bundler is free to merge it into chunks those\n` +
-        `pages genuinely need. Register the component through a small 'use client'\n` +
-        `module that wraps it in next/dynamic instead:\n\n  ` +
+      `A heavy library is reachable from a public route's eager graph, so it lands\n` +
+        `in the client JavaScript of every page that route serves - the contact page\n` +
+        `and the login page included - whether or not the page renders it. Server-side\n` +
+        `\`import()\` counts as an edge here: Next follows it when collecting client\n` +
+        `components. Put the client component that pulls the library in behind\n` +
+        `next/dynamic in a small 'use client' module of its own, and import that:\n\n  ` +
         report +
         '\n',
     ).toEqual([])
+  })
+
+  it('walks from routes that exist (the guard is worthless if the paths break)', () => {
+    for (const entryRel of PUBLIC_ENTRIES) expect(existsSync(path.join(ROOT, entryRel)), entryRel).toBe(true)
   })
 })

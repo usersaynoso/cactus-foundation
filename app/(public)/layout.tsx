@@ -1,8 +1,10 @@
+import { after } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSiteConfig as getSharedSiteConfig } from '@/lib/config/site'
 import { Render } from '@puckeditor/core/rsc'
 import { headerPuckRscConfig, footerPuckRscConfig } from '@/lib/puck/config.rsc'
 import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
+import { withMediaDimensions } from '@/lib/puck/mediaDimensions'
 import type { Data } from '@puckeditor/core'
 import AosInit from '@/lib/puck/components/AosInit'
 import EmailDeobfuscator from '@/components/EmailDeobfuscator'
@@ -13,9 +15,10 @@ import { getMemberFromCookie } from '@/lib/members/session'
 import ConsentBanner from '@/components/consent/ConsentBanner'
 import type { ConsentBannerConfig } from '@/lib/consent/types'
 import { buildTokenStyles, buildFontHref } from '@/lib/design/tokens'
+import { readInlineFontFaces, refreshInlineFontFaces } from '@/lib/design/font-face-css'
 import type { DesignTokens } from '@/lib/design/tokens'
 import { ensureLayoutsCurrent } from '@/lib/setup/starterLayouts'
-import { collectModulePublicHead } from '@/lib/modules/router.public'
+import { collectModulePublicHead } from '@/lib/modules/public-head'
 import { resolveSiteUrl } from '@/lib/seo/site-url'
 import { jsonLdScript } from '@/lib/seo/json-ld'
 
@@ -46,6 +49,12 @@ export default async function PublicLayout({ children }: { children: React.React
   // return, so awaiting them separately would have added a serial round trip to
   // every public page render for a tag nobody can see. Best-effort by design -
   // a module having a bad day must not cost the visitor the page.
+  //
+  // Read from lib/modules/public-head, never from router.public. A layout's client
+  // components are collected by walking everything it imports, lazy loaders
+  // included, and the router holds a loader for every module's public page - so
+  // importing it from here put the space planner, three.js, the cart and checkout
+  // pages into the JavaScript of every page on the site.
   const siteUrl = resolveSiteUrl()
   const [, config, user, member, modulePublicHead] = await Promise.all([
     ensureLayoutsCurrent(),
@@ -100,11 +109,21 @@ export default async function PublicLayout({ children }: { children: React.React
   // Read through the shared cache()d helper rather than the narrow select above,
   // so the default for a missing config row is decided in exactly one place and
   // the page's own render (renderInfoPage) reuses the same query.
-  const puckMetadata = await getPuckRenderMetadata()
+  //
+  // With the recorded size of any image block's picture in the header or footer, so
+  // it holds its height before it loads (lib/puck/mediaDimensions.ts). No query
+  // unless one of them actually has an image block.
+  const puckMetadata = await withMediaDimensions(getPuckRenderMetadata(), [headerData, footerData])
 
   const tokens = config?.designTokens as DesignTokens | undefined
   const cssStyles = buildTokenStyles(tokens)
   const fontHref = buildFontHref(tokens)
+  // The font rules go into the page itself once this instance holds them, instead
+  // of a <link> the header has to wait for. Reading is memory only; a cold or stale
+  // copy is refreshed after the response has gone, never in front of it. See
+  // lib/design/font-face-css.ts.
+  const fontFaces = fontHref ? readInlineFontFaces(fontHref) : null
+  if (fontHref && fontFaces?.needsRefresh) after(() => refreshInlineFontFaces(fontHref))
   const consentBannerConfig = config?.consentBannerConfig as ConsentBannerConfig | null
   const privacyPolicyUrl = privacyPage?.slug ? `/${privacyPage.slug}` : undefined
 
@@ -134,7 +153,9 @@ export default async function PublicLayout({ children }: { children: React.React
           {...(link.hrefLang ? { hrefLang: link.hrefLang } : {})}
         />
       ))}
-      {fontHref && <link rel="stylesheet" href={fontHref} />}
+      {fontHref && (fontFaces?.css
+        ? <style dangerouslySetInnerHTML={{ __html: fontFaces.css }} />
+        : <link rel="stylesheet" href={fontHref} />)}
       {cssStyles && <style dangerouslySetInnerHTML={{ __html: cssStyles }} />}
       <AosInit />
       <EmailDeobfuscator />

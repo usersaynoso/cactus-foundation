@@ -2089,8 +2089,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <span className="field-hint">
                 How long an old copy may be handed out before a fresh one is built. Editing a page clears its copy
                 straight away, so this is really about how long anything you change somewhere else - a price, a menu, a
-                product - might take to show up. Five minutes suits most sites. Pick a longer window if your pages
-                rarely change and you want every last scrap of speed.
+                product - might take to show up. When the window closes, the next visitor is still handed the old
+                copy instantly while a fresh one is built behind them, so a quiet page can lag a touch longer than
+                the window says. Five minutes suits most sites. Pick a longer window if your pages rarely change and
+                you want every last scrap of speed.
               </span>
             </div>
           )}

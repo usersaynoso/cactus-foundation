@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { siteLogoImages } from '@/lib/puck/siteLogoAlign'
+import { SITE_LOGO_DARK_MEDIA, SITE_LOGO_LIGHT_MEDIA, siteLogoFetchPlan, siteLogoImages } from '@/lib/puck/siteLogoAlign'
 
 const SITE_LIGHT = 'https://media.example.com/lockup.svg'
 const SITE_DARK = 'https://media.example.com/lockup-dark.svg'
@@ -29,5 +29,35 @@ describe('siteLogoImages', () => {
 
   it('reports no image at all when neither the block nor the site has one', () => {
     expect(siteLogoImages('', '', null, null)).toEqual({ light: null, dark: null })
+  })
+})
+
+// The logo's fetch plan. What matters is that the hidden variant of a pair is never
+// downloaded in any theme state, and that a single logo is left exactly as it was.
+// Both render halves take their `loading` value and their preloads from here, so
+// this is the one place the behaviour can be pinned.
+describe('siteLogoFetchPlan', () => {
+  it('leaves a single logo eager with nothing extra preloaded - it is shown in both schemes', () => {
+    expect(siteLogoFetchPlan(SITE_LIGHT, null)).toEqual({ loading: undefined, preloads: [] })
+  })
+
+  it('makes a light/dark pair lazy, so whichever variant CSS hides is never requested', () => {
+    expect(siteLogoFetchPlan(SITE_LIGHT, SITE_DARK).loading).toBe('lazy')
+  })
+
+  it('preloads each half only under the colour scheme that shows it', () => {
+    expect(siteLogoFetchPlan(SITE_LIGHT, SITE_DARK).preloads).toEqual([
+      { href: SITE_LIGHT, media: SITE_LOGO_LIGHT_MEDIA },
+      { href: SITE_DARK, media: SITE_LOGO_DARK_MEDIA },
+    ])
+  })
+
+  it('uses conditions that cannot both miss, so the visible logo is always preloaded', () => {
+    // globals.css shows the dark image under a dark preference and the light one
+    // in every other case. The light condition is the exact negation, not a
+    // separate `(prefers-color-scheme: light)` that a browser could answer "no" to
+    // alongside the dark one.
+    expect(SITE_LOGO_DARK_MEDIA).toBe('(prefers-color-scheme: dark)')
+    expect(SITE_LOGO_LIGHT_MEDIA).toBe(`not all and ${SITE_LOGO_DARK_MEDIA}`)
   })
 })

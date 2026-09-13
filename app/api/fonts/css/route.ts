@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  GOOGLE_FONTS_CSS_ORIGIN,
-  rewriteFontFileUrls,
-  sanitiseFontQuery,
-} from '@/lib/design/font-proxy'
+import { GOOGLE_FONTS_CSS_ORIGIN, sanitiseFontQuery } from '@/lib/design/font-proxy'
+import { fetchProxiedFontCss, holdFontFaceCss } from '@/lib/design/font-face-css'
 
 // The site's own copy of a Google Fonts stylesheet. See lib/design/font-proxy.ts
 // for why this exists at all - the short version is 750 ms per third-party
 // stylesheet, twice, on every cold render of the page.
 
-// A fixed, modern User-Agent rather than the visitor's own. Google varies this
-// response by user agent, handing older browsers `woff` and newer ones `woff2`, so
-// forwarding the real one would mean a separate cached copy per browser build -
-// dozens of variants of a file that is otherwise identical. woff2 has been
-// supported everywhere that matters since 2015, so one answer serves everybody and
-// caches as one object.
-const UPSTREAM_UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+// The upstream request itself - the fixed User-Agent and the url rewrite - lives in
+// lib/design/font-face-css.ts, shared with the public layout, which writes the same
+// rules straight into the page once it holds them.
 
 // A year. The font-file urls inside carry Google's own revision hashes, so a
 // stylesheet that changes changes its contents rather than its meaning, and a
@@ -32,22 +24,17 @@ export async function GET(request: NextRequest) {
   const upstream = `${GOOGLE_FONTS_CSS_ORIGIN}/css2?${params.toString()}`
 
   try {
-    const res = await fetch(upstream, {
-      headers: { 'User-Agent': UPSTREAM_UA, Accept: 'text/css,*/*;q=0.1' },
-      // Next's own fetch cache would hold this too, but the response is already
-      // cached hard downstream and the upstream is the thing we are trying not to
-      // depend on - so no revalidation window is claimed here.
-      cache: 'no-store',
-    })
-    if (!res.ok) throw new Error(`upstream ${res.status}`)
-    const css = await res.text()
-    if (!css.includes('@font-face')) throw new Error('upstream returned no font faces')
+    const css = await fetchProxiedFontCss(params)
+    // Having paid for the request, keep the answer where a page render on this
+    // instance can inline it rather than link to it. Memory only, and a no-op for
+    // anything that fails the inline checks.
+    holdFontFaceCss(params, css)
 
-    return new NextResponse(rewriteFontFileUrls(css), {
+    return new NextResponse(css, {
       headers: {
         'Content-Type': 'text/css; charset=utf-8',
         'Cache-Control': CACHE,
-        // The stylesheet is the same for everybody (see UPSTREAM_UA), so say so
+        // The stylesheet is the same for everybody (see FONT_UPSTREAM_USER_AGENT), so say so
         // rather than letting a cache guess.
         Vary: 'Accept-Encoding',
       },

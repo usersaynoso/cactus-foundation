@@ -215,13 +215,38 @@ export function pageCacheControl(input: PageCacheDecisionInput): string | null {
  * The result is the split we wanted anyway: shared caches keep a copy, the
  * visitor's own browser is still told `no-store` by Next and keeps none.
  *
- * Deliberately plainer than the Cache-Control above: `public` and `s-maxage`
- * only. Cloudflare answers BYPASS rather than caching when it meets a directive
- * it will not honour in this position, and a header that silently disables the
- * feature is worse than one that carries no niceties.
+ * The window is spelled `max-age` here, not `s-maxage`, and that is not a
+ * slip. This header is only ever read by shared caches (browsers ignore it), so
+ * `max-age` already means "how long the CDN may keep it" - and `s-maxage`
+ * implies `proxy-revalidate`, which forbids a shared cache from handing out a
+ * stale copy at all. Cloudflare says so in as many words ("Do not use s-maxage
+ * with stale-while-revalidate"), and it is why the first version of this header,
+ * `public, s-maxage=<ttl>`, made every visitor who arrived after a window closed
+ * wait for a full re-render: one to three seconds on a product page, where a
+ * cached copy answers in under two hundred milliseconds.
+ *
+ * With `stale-while-revalidate` that visitor gets the old copy at once and the
+ * fresh one is built behind them. Cloudflare's revalidation is asynchronous
+ * (the response reads `cf-cache-status: UPDATING`), and Vercel's edge does the
+ * same when it is the cache reading this header.
+ *
+ * An earlier note here said Cloudflare answers BYPASS for any directive beyond
+ * `public` and `s-maxage`. That rule is Cloudflare's reading of RFC 7234 section
+ * 3.2 and applies to responses to requests carrying an `Authorization` header,
+ * which a public page request never does. If a live site ever shows
+ * `cf-cache-status: BYPASS` on a cacheable page after this change, that reading
+ * was wrong and this is the line to put back.
  */
 export function cdnCacheControl(ttl: number): string {
-  return `public, s-maxage=${normalisePageCacheTtl(ttl)}`
+  return sharedCacheDirectives(normalisePageCacheTtl(ttl))
+}
+
+/**
+ * The directives both CDN-Cache-Control spellings carry for a given number of
+ * seconds. One place, so the ordinary and long windows cannot drift apart.
+ */
+function sharedCacheDirectives(seconds: number): string {
+  return `public, max-age=${seconds}, stale-while-revalidate=${seconds}`
 }
 
 /**
@@ -234,7 +259,7 @@ export function cdnCacheControl(ttl: number): string {
  * a 24-hour window to five minutes.
  */
 export function cdnCacheControlForWindow(seconds: number): string {
-  return `public, s-maxage=${Math.max(0, Math.floor(seconds))}`
+  return sharedCacheDirectives(Math.max(0, Math.floor(seconds)))
 }
 
 /**
@@ -250,7 +275,7 @@ export function cdnCacheControlForWindow(seconds: number): string {
  *
  * Vercel-CDN-Cache-Control outranks CDN-Cache-Control at Vercel and is stripped
  * before the response leaves it, so the copy moves one hop down the chain to the
- * cache that can actually be emptied: Cloudflare still sees `s-maxage=<ttl>` and
+ * cache that can actually be emptied: Cloudflare still sees the owner's window and
  * still answers nearly every request, and the purge on publish now lands on the
  * only copy there is.
  *

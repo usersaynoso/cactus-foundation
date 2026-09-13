@@ -9,6 +9,8 @@ const rootDir = join(__dirname, '..')
 const modulesDir = join(rootDir, 'modules')
 const routerPath = join(rootDir, 'lib', 'modules', 'router.ts')
 const publicRouterPath = join(rootDir, 'lib', 'modules', 'router.public.ts')
+const publicHeadPath = join(rootDir, 'lib', 'modules', 'public-head.ts')
+const publicSlugRouterPath = join(rootDir, 'lib', 'modules', 'router.public-slug.ts')
 
 function scanDir(dir, suffix) {
   if (!existsSync(dir)) return []
@@ -373,6 +375,17 @@ const pub = banner([
 // shape belongs to the serialiser that consumes it, not to the generator.
 pub.push(`import type { RobotsGroup } from '@/lib/seo/robots-txt'`)
 pub.push(``)
+// Re-exported so anything that already reads the head collector from here keeps
+// working. The dependency only runs this way round: public-head.ts must never
+// import this file (see the note on that file below).
+pub.push(`export { collectModulePublicHead } from '@/lib/modules/public-head'`)
+pub.push(`export type { ModulePublicHead } from '@/lib/modules/public-head'`)
+pub.push(``)
+// The bare-slug claims live in router.public-slug.ts, which is what the single
+// segment page route imports instead of this file. Re-exported so anything that
+// reads them from here keeps working; the dependency only runs this way round.
+pub.push(`export { resolveModuleRootSlugPage } from '@/lib/modules/router.public-slug'`)
+pub.push(``)
 pub.push(...SHARED_TYPES)
 pub.push(``)
 
@@ -401,22 +414,6 @@ pub.push(``)
 pub.push(`const PUBLIC_BASES: string[] = ${JSON.stringify([...publicBases.keys()])}`)
 pub.push(``)
 
-pub.push(`// Modules that can claim a bare top-level slug for content of their own. Asked`)
-pub.push(`// in registry order, and only once core has ruled out an info page and a module`)
-pub.push(`// index at that slug, so core content always wins a collision. Both halves are`)
-pub.push(`// lazy for the same reason the loaders above are.`)
-pub.push(`type RootSlugClaimModule = Record<string, ((slug: string) => Promise<boolean>) | undefined>`)
-pub.push(`const PUBLIC_ROOT_SLUG_CLAIMS: Array<{`)
-pub.push(`  module: string`)
-pub.push(`  claimExport: string`)
-pub.push(`  loadClaim: () => Promise<RootSlugClaimModule>`)
-pub.push(`  loadPage: PageModule`)
-pub.push(`}> = [`)
-for (const { moduleName, pageImport, claimImport, claimExport } of rootSlugClaims) {
-  pub.push(`  { module: '${moduleName}', claimExport: '${claimExport}', loadClaim: () => import('${claimImport}'), loadPage: () => import('${pageImport}') },`)
-}
-pub.push(`]`)
-pub.push(``)
 pub.push(...MATCH_PATTERN)
 pub.push(``)
 pub.push(`export async function resolveModulePublicPage(`)
@@ -433,19 +430,6 @@ pub.push(`    if (extracted !== null) {`)
 pub.push(`      const mod = await loader()`)
 pub.push(`      return { Component: mod.default, generateMetadata: mod.generateMetadata, mappedParams: extracted }`)
 pub.push(`    }`)
-pub.push(`  }`)
-pub.push(`  return null`)
-pub.push(`}`)
-pub.push(``)
-pub.push(`export async function resolveModuleRootSlugPage(`)
-pub.push(`  slug: string`)
-pub.push(`): Promise<{ Component: React.ComponentType<any>; generateMetadata?: (...args: any[]) => any; mappedParams: Record<string, string> } | null> {`)
-pub.push(`  for (const entry of PUBLIC_ROOT_SLUG_CLAIMS) {`)
-pub.push(`    const claimModule = await entry.loadClaim()`)
-pub.push(`    const claim = claimModule[entry.claimExport]`)
-pub.push(`    if (!claim || !(await claim(slug))) continue`)
-pub.push(`    const page = await entry.loadPage()`)
-pub.push(`    return { Component: page.default, generateMetadata: page.generateMetadata, mappedParams: { slug } }`)
 pub.push(`  }`)
 pub.push(`  return null`)
 pub.push(`}`)
@@ -546,38 +530,141 @@ for (const { moduleName, importPath } of robotsModules) {
 pub.push(`  return lines`)
 pub.push(`}`)
 pub.push(``)
-pub.push(`export type ModulePublicHead = {`)
-pub.push(`  jsonLd: object[]`)
-pub.push(`  meta: Array<{ name?: string; property?: string; content: string }>`)
+// ---------------------------------------------------------------------------
+// lib/modules/public-head.ts - the site-wide head contributions, on their own.
+//
+// A file of its own, not a function in router.public.ts, because of who calls it:
+// app/(public)/layout.tsx, on every page. A layout that imports router.public.ts
+// reaches PUBLIC_PAGE_LOADERS, and Next walks those lazy loaders when it collects
+// the layout's client components - so every module's public PAGE (the space
+// planner and its three.js scene, the cart page, checkout, the purchase-order
+// portal, the quote request forms) became part of the chunk group the layout
+// hands to every page. Measured on deskwell.co.uk in September 2026: the home
+// page, a category and a product all carried the planner's two chunks and
+// three.js as eager <script async> tags, none of which any of them renders.
+//
+// The head collector needs none of that; it reads one small lib/head.ts per
+// module. Keep this file free of page loaders, and keep the layout off
+// router.public.ts - guarded by lib/modules/router-split.test.ts.
+// ---------------------------------------------------------------------------
+const head = banner([
+  `// Site-wide <head> contributions from modules: JSON-LD, meta and link tags that`,
+  `// belong on every public page. Imported by app/(public)/layout.tsx.`,
+  `//`,
+  `// Deliberately NOT part of router.public.ts. The layout is shared by every page,`,
+  `// and a lazy \`() => import(...)\` is still an edge Next follows when it collects`,
+  `// a layout's client components - importing the router from here put every`,
+  `// module's public page, and everything those pages import, on every page.`,
+  `// Nothing may be added to this file that loads a page.`,
+])
+head.push(`export type ModulePublicHead = {`)
+head.push(`  jsonLd: object[]`)
+head.push(`  meta: Array<{ name?: string; property?: string; content: string }>`)
 // A <link> is not a <meta>, and the difference matters for the one thing this
 // was added for: rel="alternate" type="text/markdown" is how a reader is told
 // the page has a Markdown twin, and there is no way to say that in a meta tag.
-pub.push(`  links: Array<{ rel: string; href: string; type?: string; title?: string; hrefLang?: string }>`)
-pub.push(`}`)
-pub.push(``)
-pub.push(`export async function collectModulePublicHead(siteUrl: string): Promise<ModulePublicHead> {`)
-pub.push(`  const jsonLd: object[] = []`)
-pub.push(`  const meta: ModulePublicHead['meta'] = []`)
-pub.push(`  const links: ModulePublicHead['links'] = []`)
+head.push(`  links: Array<{ rel: string; href: string; type?: string; title?: string; hrefLang?: string }>`)
+head.push(`}`)
+head.push(``)
+head.push(`export async function collectModulePublicHead(siteUrl: string): Promise<ModulePublicHead> {`)
+head.push(`  const jsonLd: object[] = []`)
+head.push(`  const meta: ModulePublicHead['meta'] = []`)
+head.push(`  const links: ModulePublicHead['links'] = []`)
 if (headModules.length === 0) {
-  pub.push(`  void siteUrl`)
+  head.push(`  void siteUrl`)
 }
 for (const { moduleName, importPath } of headModules) {
-  pub.push(`  try {`)
-  pub.push(`    const mod = await import('${importPath}')`)
-  pub.push(`    const part = await mod.getPublicHead(siteUrl)`)
-  pub.push(`    if (Array.isArray(part?.jsonLd)) jsonLd.push(...part.jsonLd)`)
-  pub.push(`    if (Array.isArray(part?.meta)) meta.push(...part.meta)`)
-  pub.push(`    if (Array.isArray(part?.links)) links.push(...part.links)`)
-  pub.push(`  } catch (err) {`)
-  pub.push(`    console.error('[collectModulePublicHead] ${moduleName} failed:', err)`)
-  pub.push(`  }`)
+  head.push(`  try {`)
+  head.push(`    const mod = await import('${importPath}')`)
+  head.push(`    const part = await mod.getPublicHead(siteUrl)`)
+  head.push(`    if (Array.isArray(part?.jsonLd)) jsonLd.push(...part.jsonLd)`)
+  head.push(`    if (Array.isArray(part?.meta)) meta.push(...part.meta)`)
+  head.push(`    if (Array.isArray(part?.links)) links.push(...part.links)`)
+  head.push(`  } catch (err) {`)
+  head.push(`    console.error('[collectModulePublicHead] ${moduleName} failed:', err)`)
+  head.push(`  }`)
 }
-pub.push(`  return { jsonLd, meta, links }`)
-pub.push(`}`)
+head.push(`  return { jsonLd, meta, links }`)
+head.push(`}`)
+
+// ---------------------------------------------------------------------------
+// lib/modules/router.public-slug.ts - what app/(public)/[slug]/page.tsx needs,
+// and nothing more: each module's INDEX page (the one at its bare base, /boards,
+// /gazette) and the modules that claim a bare top-level slug (a product, a filter
+// landing page, a guide).
+//
+// That route serves every product page and every filter landing page, and it
+// used to import router.public.ts for two lookups. router.public.ts holds a lazy
+// loader for EVERY module public page, and Next follows those loaders when it
+// collects the client components a route can render - so a product page's chunk
+// group carried the basket, checkout, the account area, the purchase-order
+// portal, the quote forms and the planner, none of which a single-segment address
+// can ever reach: they all live at /<base>/<something>, which is the catch-all's
+// job. Measured with scripts/analyse-public-bundle.mjs in September 2026 the
+// single-segment route reached 2.9 MB of client source that way.
+//
+// Keep this file free of any loader for a page deeper than a module's base.
+// Guarded by lib/modules/router-split.test.ts.
+// ---------------------------------------------------------------------------
+const slugRouter = banner([
+  `// The single-segment half of the public module routing. Imported by`,
+  `// app/(public)/[slug]/page.tsx only.`,
+  `//`,
+  `// Holds each module's index page loader and the bare-slug claims, and nothing`,
+  `// deeper. A lazy \`() => import(...)\` is an edge Next follows when it collects a`,
+  `// route's client components, so a loader for /shop/checkout in here would put`,
+  `// checkout's JavaScript on every product page. Deeper pages belong to`,
+  `// router.public.ts and the catch-all route. This file must never import it.`,
+])
+slugRouter.push(`type PageModule = () => Promise<{ default: React.ComponentType<any>; metadata?: unknown; generateMetadata?: (...args: any[]) => any }>`)
+slugRouter.push(`type ResolvedModulePage = { Component: React.ComponentType<any>; generateMetadata?: (...args: any[]) => any; mappedParams: Record<string, string> }`)
+slugRouter.push(``)
+slugRouter.push(`const PUBLIC_INDEX_PAGE_LOADERS: Record<string, PageModule> = {`)
+for (const [base, loaders] of Object.entries(publicPageLoaders)) {
+  if (loaders[''] === undefined) continue
+  slugRouter.push(`  '${base}': () => import('${loaders['']}'),`)
+}
+slugRouter.push(`}`)
+slugRouter.push(``)
+slugRouter.push(`// Modules that can claim a bare top-level slug for content of their own. Asked`)
+slugRouter.push(`// in registry order, and only once core has ruled out an info page and a module`)
+slugRouter.push(`// index at that slug, so core content always wins a collision. Both halves are`)
+slugRouter.push(`// lazy for the same reason the loaders above are.`)
+slugRouter.push(`type RootSlugClaimModule = Record<string, ((slug: string) => Promise<boolean>) | undefined>`)
+slugRouter.push(`const PUBLIC_ROOT_SLUG_CLAIMS: Array<{`)
+slugRouter.push(`  module: string`)
+slugRouter.push(`  claimExport: string`)
+slugRouter.push(`  loadClaim: () => Promise<RootSlugClaimModule>`)
+slugRouter.push(`  loadPage: PageModule`)
+slugRouter.push(`}> = [`)
+for (const { moduleName, pageImport, claimImport, claimExport } of rootSlugClaims) {
+  slugRouter.push(`  { module: '${moduleName}', claimExport: '${claimExport}', loadClaim: () => import('${claimImport}'), loadPage: () => import('${pageImport}') },`)
+}
+slugRouter.push(`]`)
+slugRouter.push(``)
+slugRouter.push(`/** The page a module serves at its bare base (/boards), or null when it has none. */`)
+slugRouter.push(`export async function resolveModuleIndexPage(base: string): Promise<ResolvedModulePage | null> {`)
+slugRouter.push(`  const loader = PUBLIC_INDEX_PAGE_LOADERS[base]`)
+slugRouter.push(`  if (!loader) return null`)
+slugRouter.push(`  const mod = await loader()`)
+slugRouter.push(`  return { Component: mod.default, generateMetadata: mod.generateMetadata, mappedParams: {} }`)
+slugRouter.push(`}`)
+slugRouter.push(``)
+slugRouter.push(`export async function resolveModuleRootSlugPage(slug: string): Promise<ResolvedModulePage | null> {`)
+slugRouter.push(`  for (const entry of PUBLIC_ROOT_SLUG_CLAIMS) {`)
+slugRouter.push(`    const claimModule = await entry.loadClaim()`)
+slugRouter.push(`    const claim = claimModule[entry.claimExport]`)
+slugRouter.push(`    if (!claim || !(await claim(slug))) continue`)
+slugRouter.push(`    const page = await entry.loadPage()`)
+slugRouter.push(`    return { Component: page.default, generateMetadata: page.generateMetadata, mappedParams: { slug } }`)
+slugRouter.push(`  }`)
+slugRouter.push(`  return null`)
+slugRouter.push(`}`)
 
 writeFileSync(routerPath, admin.join('\n') + '\n')
 writeFileSync(publicRouterPath, pub.join('\n') + '\n')
+writeFileSync(publicHeadPath, head.join('\n') + '\n')
+writeFileSync(publicSlugRouterPath, slugRouter.join('\n') + '\n')
 console.log(
-  `[generate-module-router] router.ts + router.public.ts written (${moduleNames.length} module(s): ${moduleNames.join(', ') || 'none'}; public bases: ${[...publicBases.keys()].join(', ') || 'none'}; root-slug claims: ${rootSlugClaims.map((c) => c.moduleName).join(', ') || 'none'})`
+  `[generate-module-router] router.ts + router.public.ts + router.public-slug.ts + public-head.ts written (${moduleNames.length} module(s): ${moduleNames.join(', ') || 'none'}; public bases: ${[...publicBases.keys()].join(', ') || 'none'}; root-slug claims: ${rootSlugClaims.map((c) => c.moduleName).join(', ') || 'none'})`
 )

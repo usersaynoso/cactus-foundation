@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { siteLogoAlign, siteLogoCellHeight, siteLogoImages, siteLogoNudge } from '@/lib/puck/siteLogoAlign'
+import { requestSiteLogoImages, siteLogoAlign, siteLogoCellHeight, siteLogoImages, siteLogoNudge } from '@/lib/puck/siteLogoAlign'
 import { sanitizeHref } from '@/lib/email-obfuscate'
 import type { ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { SharedStyle } from '@/components/SharedStyle'
@@ -107,6 +107,11 @@ export default function SiteLogoClient({
       maxWidth: '100%',
       objectFit: 'contain',
     } as React.CSSProperties
+    // Lazy for a light/dark pair, so the variant CSS hides is never downloaded,
+    // with each half preloaded under the colour scheme that shows it. Same helper
+    // as SiteLogoRsc - see requestSiteLogoImages for why this is right in all three
+    // theme states.
+    const logoLoading = requestSiteLogoImages(lightSrc, darkSrc)
     return (
       <a href={href} data-sitelogo-id={id} style={style} {...events}>
         {alignCss && <style>{alignCss}</style>}
@@ -119,10 +124,10 @@ export default function SiteLogoClient({
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={lightSrc} alt={siteName ?? 'Logo'} data-logo-variant={darkSrc ? 'light' : undefined} data-site-logo style={logoImgStyle} />
+        <img src={lightSrc} alt={siteName ?? 'Logo'} data-logo-variant={darkSrc ? 'light' : undefined} data-site-logo loading={logoLoading} style={logoImgStyle} />
         {darkSrc && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={darkSrc} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo style={logoImgStyle} />
+          <img src={darkSrc} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo loading={logoLoading} style={logoImgStyle} />
         )}
         {showTextBool && siteName && <span>{siteName}</span>}
       </a>

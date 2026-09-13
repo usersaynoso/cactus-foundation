@@ -19,6 +19,8 @@ import path from 'path'
 const ROOT = path.join(__dirname, '..', '..')
 const ADMIN_ROUTER = path.join(ROOT, 'lib', 'modules', 'router.ts')
 const PUBLIC_ROUTER = path.join(ROOT, 'lib', 'modules', 'router.public.ts')
+const PUBLIC_HEAD = path.join(ROOT, 'lib', 'modules', 'public-head.ts')
+const PUBLIC_SLUG_ROUTER = path.join(ROOT, 'lib', 'modules', 'router.public-slug.ts')
 
 function collect(dir: string, out: string[] = []): string[] {
   let entries
@@ -64,6 +66,32 @@ describe('the generated module router', () => {
   it('does not import the admin half back', () => {
     expect(importsAdminRouter(readFileSync(PUBLIC_ROUTER, 'utf8'))).toBe(false)
   })
+
+  // public-head.ts is what the public LAYOUT reads, so it has to stay as light as
+  // a layout's graph must: head contributors only, no page, no route, no router.
+  it('keeps the layout-facing head collector free of pages and routers', () => {
+    expect(existsSync(PUBLIC_HEAD)).toBe(true)
+    const src = readFileSync(PUBLIC_HEAD, 'utf8')
+    const loaded = [...src.matchAll(/import\('([^']+)'\)/g)].map((m) => m[1]!)
+    expect(loaded.filter((p) => !/^@\/modules\/[^/]+\/lib\/head$/.test(p))).toEqual([])
+    expect(src).not.toMatch(/from '@\/lib\/modules\/router(\.public)?'/)
+  })
+
+  // router.public-slug.ts is what the single-segment page route reads - every
+  // product page and filter landing page. A loader in it for anything deeper than
+  // a module's base page puts that page's client code on all of them.
+  it('keeps the single-segment router to index pages and bare-slug claims', () => {
+    expect(existsSync(PUBLIC_SLUG_ROUTER)).toBe(true)
+    const src = readFileSync(PUBLIC_SLUG_ROUTER, 'utf8')
+    const loaded = [...src.matchAll(/import\('([^']+)'\)/g)].map((m) => m[1]!)
+    const allowed = (p: string) =>
+      // A module's index page: app/public/<base>/page, one folder deep and no deeper.
+      /^@\/modules\/[^/]+\/app\/public\/[^/]+\/page$/.test(p) ||
+      /^@\/modules\/[^/]+\/app\/root\/\[slug\]\/page$/.test(p) ||
+      /^@\/modules\/[^/]+\/lib\/root-slug$/.test(p)
+    expect(loaded.filter((p) => !allowed(p))).toEqual([])
+    expect(src).not.toMatch(/from '@\/lib\/modules\/router(\.public)?'/)
+  })
 })
 
 describe('public render paths', () => {
@@ -93,6 +121,32 @@ describe('public render paths', () => {
       .filter((f) => importsAdminRouter(readFileSync(f, 'utf8')))
       .map((f) => path.relative(ROOT, f))
     expect(offenders, 'import from @/lib/modules/router.public instead').toEqual([])
+  })
+
+  // The same mechanism one level up. A LAYOUT's client components ship on every
+  // page beneath it, and router.public.ts holds a loader for every module's public
+  // page - so a layout importing it, even for one helper, carries the space
+  // planner, three.js and the checkout and cart pages to the home page and the
+  // login page. It happened: app/(public)/layout.tsx imported the head collector
+  // from there from August to September 2026. Pages under [slug] need the router;
+  // layouts never do.
+  it('never import the public router from a layout', () => {
+    const offenders = publicFiles
+      .filter((f) => path.basename(f).startsWith('layout.'))
+      .filter((f) => /from '@\/lib\/modules\/router\.public'/.test(readFileSync(f, 'utf8')))
+      .map((f) => path.relative(ROOT, f))
+    expect(offenders, 'import collectModulePublicHead from @/lib/modules/public-head instead').toEqual([])
+  })
+
+  // One level down from the layout rule above: the single-segment page route
+  // serves every product page and filter landing page, and only ever needs a
+  // module's index page or a bare-slug claim.
+  it('never import the full public router from the single-segment page', () => {
+    const slugPage = path.join(ROOT, 'app', '(public)', '[slug]', 'page.tsx')
+    expect(existsSync(slugPage)).toBe(true)
+    expect(readFileSync(slugPage, 'utf8'), 'import from @/lib/modules/router.public-slug instead').not.toMatch(
+      /from '@\/lib\/modules\/router\.public'/,
+    )
   })
 
   it('never import the full extension-point map', () => {

@@ -55,8 +55,9 @@ import { isHttpUrl } from '@/lib/utils'
 import { googleFontHrefForFamily } from '@/lib/design/tokens'
 import { menuScaleStyles } from '@/lib/puck/menuScale'
 import { imgLoading } from '@/lib/puck/imgLoading'
+import { imgDimensionAttrs } from '@/lib/puck/imgDimensions'
 import { BLOCK_HEIGHT_OPTIONS, BLOCK_HEIGHT_MAP, blockFillCssResponsive } from '@/lib/puck/blockHeight'
-import { LOGO_ALIGN_OPTIONS, siteLogoAlign, siteLogoCellHeight, siteLogoImages, siteLogoNudge } from '@/lib/puck/siteLogoAlign'
+import { LOGO_ALIGN_OPTIONS, requestSiteLogoImages, siteLogoAlign, siteLogoCellHeight, siteLogoImages, siteLogoNudge } from '@/lib/puck/siteLogoAlign'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, tabletMediaQuery, mobileMediaQuery, fluidClamp, type ResponsiveValue, type Device } from '@/lib/puck/responsiveValue'
 import type { MinMaxPair } from '@/lib/puck/MinMaxPairField'
 import { hasPattern, parsePatternRatio, patternCss, patternHostStyle, patternUrl, type PatternProps } from '@/lib/puck/patternBackground'
@@ -2182,9 +2183,11 @@ function ImageBlock(props: any) {
           default) a hero image is lazy, and lazy-loading the LCP element measurably delays it. That is
           the owner's call to make rather than ours to make for them - the setting's help text spells out
           the trade and says to turn it off if the top of the page feels slow. decoding="async" is free
-          either way. */}
+          either way. Width and height come from the media library when the render knows them, so the
+          figure holds its height before the file lands instead of shoving the page down - see
+          lib/puck/imgDimensions.ts. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img {...responsiveImg(mediaUrl, '(max-width: 700px) 100vw, 700px', FULL_WIDTH_LADDER, puck?.metadata?.imageResizing)} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
+      <img {...responsiveImg(mediaUrl, '(max-width: 700px) 100vw, 700px', FULL_WIDTH_LADDER, puck?.metadata?.imageResizing)} {...imgDimensionAttrs(puck, mediaUrl)} alt={alt ?? ''} loading={imgLoading(puck)} decoding="async" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 'var(--img-radius, 6px)', border: 'var(--img-border-width, 0) solid var(--img-border-color, transparent)' }} />
       {caption && <figcaption style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>{protectText(caption, obfuscate)}</figcaption>}
     </figure>
   )
@@ -2577,9 +2580,11 @@ function ImageChipPanel(props: any) {
       {/* Responsive: the picture spans the content column, so a phone is offered a
           narrow source instead of the desktop one. Measured on the live hero -
           45.8 KB of WebP at 800px became 15.1 KB of AVIF at the 460px it was drawn
-          at. Emits no srcset at all unless the owner has switched resizing on. */}
+          at. Emits no srcset at all unless the owner has switched resizing on. Width and
+          height reserve the panel's height before the file lands - usually the hero, so
+          usually the biggest shift on the page. See lib/puck/imgDimensions.ts. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- media URLs are external CDN addresses; next/image requires a configured domain for each provider which users add at setup time */}
-      <img {...responsiveImg(mediaUrl, '(max-width: 700px) 100vw, 700px', FULL_WIDTH_LADDER, puck?.metadata?.imageResizing)} alt={alt ?? ''} loading={imageLoading === 'eager' ? 'eager' : imgLoading(puck)} {...(imageLoading === 'eager' ? { fetchPriority: 'high' as const } : {})} decoding="async" style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
+      <img {...responsiveImg(mediaUrl, '(max-width: 700px) 100vw, 700px', FULL_WIDTH_LADDER, puck?.metadata?.imageResizing)} {...imgDimensionAttrs(puck, mediaUrl)} alt={alt ?? ''} loading={imageLoading === 'eager' ? 'eager' : imgLoading(puck)} {...(imageLoading === 'eager' ? { fetchPriority: 'high' as const } : {})} decoding="async" style={{ position: 'relative', width: '100%', height: 'auto', display: 'block', borderRadius: hasFrame ? `calc(${panelRadius} - 6px)` : undefined }} />
       {/* Chips are a plain data array, not a Puck slot — Puck doesn't insert its per-item
           drag-handle wrapper around array-field items, so each Chip's own position:absolute
           resolves against this same box in both the editor canvas and the live render. */}
@@ -3189,6 +3194,11 @@ export function SiteLogoRsc(props: any) {
       maxWidth: '100%',
       objectFit: 'contain',
     } as React.CSSProperties
+    // Lazy for a light/dark pair, so the variant CSS hides is never downloaded,
+    // with each half preloaded under the colour scheme that shows it. Same helper
+    // as SiteLogoClient - see requestSiteLogoImages for why this is right in all three
+    // theme states.
+    const logoLoading = requestSiteLogoImages(lightSrc, darkSrc)
     return (
       <a href={sanitizeHref(homeUrl) || '/'} data-sitelogo-id={id} style={style}>
         {alignCss && <style>{alignCss}</style>}
@@ -3199,10 +3209,10 @@ export function SiteLogoRsc(props: any) {
           <style>{`header[data-shrink-root][data-shrunk] img[data-site-logo]{--header-cell-height:${cellHShrunk}px !important;}`}</style>
         )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={lightSrc} alt={siteName ?? 'Logo'} data-logo-variant={darkSrc ? 'light' : undefined} data-site-logo style={logoImgStyle} />
+        <img src={lightSrc} alt={siteName ?? 'Logo'} data-logo-variant={darkSrc ? 'light' : undefined} data-site-logo loading={logoLoading} style={logoImgStyle} />
         {darkSrc && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={darkSrc} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo style={logoImgStyle} />
+          <img src={darkSrc} alt={siteName ?? 'Logo'} data-logo-variant="dark" data-site-logo loading={logoLoading} style={logoImgStyle} />
         )}
         {showTextBool && siteName && <span>{siteName}</span>}
       </a>

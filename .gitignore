@@ -54,6 +54,8 @@ coverage/
 # into the template. Never commit these.
 /lib/modules/router.ts
 /lib/modules/router.public.ts
+/lib/modules/router.public-slug.ts
+/lib/modules/public-head.ts
 /lib/modules/settings-tabs.ts
 /lib/modules/extension-points.ts
 /lib/modules/extension-points.public.ts

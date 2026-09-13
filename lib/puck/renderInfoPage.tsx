@@ -1,6 +1,7 @@
 import { Render } from '@puckeditor/core/rsc'
 import { puckRscConfig } from '@/lib/puck/config.rsc'
 import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
+import { withMediaDimensions } from '@/lib/puck/mediaDimensions'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { markdownToHtml } from '@/lib/sanitize'
@@ -61,10 +62,15 @@ export async function renderInfoPageContent(page: PageShape, options: RenderOpti
   // through Puck's metadata - config.tsx can't read them itself. Resolved once
   // here and handed to every Render this page makes; getSiteConfig is cache()d,
   // so the layout's own header/footer renders share the same query.
-  const metadata = await getPuckRenderMetadata()
+  //
+  // Plus the recorded size of every picture an image block on the page or in its
+  // layout draws, so those images hold their height before they load. Looked up
+  // alongside the settings rather than after them, and skipped entirely when the
+  // page has no image blocks.
+  const pageData = page.bodyFormat === 'builder' ? (resolveContentData(page) as Data | null) : null
+  const metadata = await withMediaDimensions(getPuckRenderMetadata(), [pageData, layout?.builderData])
 
   if (page.bodyFormat === 'builder') {
-    const pageData = resolveContentData(page) as Data | null
     if (!pageData) {
       return (
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>

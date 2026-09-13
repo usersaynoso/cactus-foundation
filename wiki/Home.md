@@ -41,6 +41,7 @@ If you manage a Cactus site and want to know how to use it, start here:
 | [Abandoned Carts](Abandoned-Carts) | The baskets nobody finished, with whatever the shopper typed into the checkout before they went, plus optional reminder emails - all behind your cookie banner |
 | [Quotes](Quotes) | Quoting instead of (or alongside) selling: save-a-basket codes, a quote-only shop with no checkout, a designable quote document and a PDF |
 | [Space Planner](Space-planner) | Customers draw their own room to scale, put your furniture in it in 2D and 3D, and find out what fits before they spend anything |
+| [Modular Configurator](Modular-Configurator) | Shoppers build a sofa or bench layout from a modular product's units in 3D - corners and all - and buy the whole arrangement in one go |
 | [Contact form](Contact-form) | A contact form for any page, with an admin inbox, replies and per-person signatures |
 | [Reply Catcher](Reply-catcher) | Threading real-mailbox replies back into the contact form inbox |
 | [Twilio](Twilio) | Call forwarding for your Twilio numbers and sign-in codes by text message |

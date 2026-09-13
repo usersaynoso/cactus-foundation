@@ -1,6 +1,7 @@
 import { Render } from '@puckeditor/core/rsc'
 import type { Data, Config } from '@puckeditor/core'
 import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
+import { withMediaDimensions } from '@/lib/puck/mediaDimensions'
 
 // Puck's `Render`, with the site-wide values every block expects already attached.
 //
@@ -44,5 +45,7 @@ export async function CactusRender({
   config: Config
   data: Data
 }) {
-  return <Render config={config} data={data} metadata={await getPuckRenderMetadata()} />
+  // The data is in hand here, so the one per-render value - the recorded size of
+  // each image block's picture - rides along too. No query when there are none.
+  return <Render config={config} data={data} metadata={await withMediaDimensions(getPuckRenderMetadata(), [data])} />
 }

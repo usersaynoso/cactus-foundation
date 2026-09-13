@@ -46,6 +46,12 @@ export const PUBLIC_ENTRIES = [
   'app/(public)/page.tsx',
   'app/(public)/[slug]/page.tsx',
   'app/(public)/[slug]/[...path]/page.tsx',
+  // The layout wraps all three, and what it reaches ships on every one of them -
+  // the home page and the account pages included, which the catch-all never
+  // touches. Left off this list, the report missed the layout importing the
+  // public router (and every module page with it) for a month. Last, so --why
+  // still defaults to the [slug] route.
+  'app/(public)/layout.tsx',
 ]
 
 function loadSource() {

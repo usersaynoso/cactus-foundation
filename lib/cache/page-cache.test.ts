@@ -77,20 +77,28 @@ describe('cacheBypassCookieNames', () => {
 // answering no-store, which is exactly what happened the first time.
 describe('cdnCacheControl', () => {
   it('carries the chosen window', () => {
-    expect(cdnCacheControl(300)).toBe('public, s-maxage=300')
-    expect(cdnCacheControl(3600)).toBe('public, s-maxage=3600')
+    expect(cdnCacheControl(300)).toBe('public, max-age=300, stale-while-revalidate=300')
+    expect(cdnCacheControl(3600)).toBe('public, max-age=3600, stale-while-revalidate=3600')
   })
 
   it('falls back to the default window rather than trusting a junk value', () => {
-    expect(cdnCacheControl(999999)).toBe(`public, s-maxage=${DEFAULT_PAGE_CACHE_TTL}`)
+    expect(cdnCacheControl(999999)).toBe(
+      `public, max-age=${DEFAULT_PAGE_CACHE_TTL}, stale-while-revalidate=${DEFAULT_PAGE_CACHE_TTL}`,
+    )
   })
 
-  // Cloudflare answers BYPASS rather than caching when it meets a directive it
-  // will not honour in this header, so a well-meant extra silently switches the
-  // whole feature off. Keep it to public + s-maxage.
-  it('carries no directive beyond public and s-maxage', () => {
+  // s-maxage implies proxy-revalidate, which forbids a shared cache from serving
+  // a stale copy, so pairing it with stale-while-revalidate quietly cancels the
+  // one thing the second directive is for. The window has to travel as max-age.
+  it('never pairs s-maxage with stale-while-revalidate', () => {
     const directives = cdnCacheControl(300).split(',').map((d) => d.trim().split('=')[0])
-    expect(directives.sort()).toEqual(['public', 's-maxage'])
+    expect(directives.sort()).toEqual(['max-age', 'public', 'stale-while-revalidate'])
+  })
+
+  // Nothing that would stop a shared cache keeping it, and nothing aimed at a
+  // browser: this header is for CDNs only.
+  it('carries nothing that switches shared caching off', () => {
+    expect(cdnCacheControl(300)).not.toMatch(/private|no-store|no-cache|must-revalidate|proxy-revalidate/)
   })
 })
 
@@ -108,7 +116,7 @@ describe('vercelCdnCacheControl', () => {
   it('carries no window of its own, whatever the site chose', () => {
     for (const ttl of PAGE_CACHE_TTL_OPTIONS) {
       expect(vercelCdnCacheControl()).not.toContain(`s-maxage=${ttl}`)
-      expect(cdnCacheControl(ttl)).toBe(`public, s-maxage=${ttl}`)
+      expect(cdnCacheControl(ttl)).toBe(`public, max-age=${ttl}, stale-while-revalidate=${ttl}`)
     }
   })
 
@@ -294,12 +302,14 @@ describe('pageCacheControl with a second window', () => {
 
 describe('cdnCacheControlForWindow', () => {
   it('carries a long window through untouched, where cdnCacheControl would reset it', () => {
-    expect(cdnCacheControlForWindow(86400)).toBe('public, s-maxage=86400')
-    expect(cdnCacheControl(86400)).toBe('public, s-maxage=86400')
+    expect(cdnCacheControlForWindow(86400)).toBe('public, max-age=86400, stale-while-revalidate=86400')
+    expect(cdnCacheControl(86400)).toBe('public, max-age=86400, stale-while-revalidate=86400')
     // 604800 is a valid SECOND window but not an ordinary one, so only the
     // window-aware spelling may be handed it.
-    expect(cdnCacheControlForWindow(604800)).toBe('public, s-maxage=604800')
-    expect(cdnCacheControl(604800)).toBe(`public, s-maxage=${DEFAULT_PAGE_CACHE_TTL}`)
+    expect(cdnCacheControlForWindow(604800)).toBe('public, max-age=604800, stale-while-revalidate=604800')
+    expect(cdnCacheControl(604800)).toBe(
+      `public, max-age=${DEFAULT_PAGE_CACHE_TTL}, stale-while-revalidate=${DEFAULT_PAGE_CACHE_TTL}`,
+    )
   })
 })
 

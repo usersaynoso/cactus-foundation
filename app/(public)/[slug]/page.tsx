@@ -4,7 +4,12 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { renderInfoPageContent } from '@/lib/puck/renderInfoPage'
-import { resolveModulePublicPage, resolveModuleRootSlugPage } from '@/lib/modules/router.public'
+// Not router.public.ts: that file holds a loader for every module page, and Next
+// follows lazy loaders when it collects a route's client components, so importing
+// it here put the basket, checkout and every other deep module page's JavaScript
+// on every product page. A single segment can only ever be a module's index page
+// or a bare-slug claim, and router.public-slug.ts holds exactly those.
+import { resolveModuleIndexPage, resolveModuleRootSlugPage } from '@/lib/modules/router.public-slug'
 import type { Metadata } from 'next'
 import { canonicalPath, withPublicSeo } from '@/lib/seo/public-metadata'
 import { resolveBranding } from '@/lib/config/branding'
@@ -71,7 +76,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     // searchParams must travel too (the search module titles the page from ?q=),
     // and the call must be awaited INSIDE the try: returning the bare promise let
     // a rejection escape the catch and kill the whole page render.
-    const resolved = (await resolveModulePublicPage(slug, [])) ?? (await resolveModuleRootSlugPage(slug))
+    const resolved = (await resolveModuleIndexPage(slug)) ?? (await resolveModuleRootSlugPage(slug))
     if (resolved?.generateMetadata) {
       // withPublicSeo only fills blanks, so a module that publishes a canonical
       // of its own - a paginated listing pointing back at page one, say - keeps it.
@@ -122,7 +127,7 @@ export default async function InfoPageRoute({ params, searchParams }: Props) {
     // a module claiming the bare slug for content of its own (a gazette post at
     // /my-post). InfoPage always wins on a collision (checked above); this only
     // runs on a miss, and a module index beats a claim for the same reason.
-    const resolved = (await resolveModulePublicPage(slug, [])) ?? (await resolveModuleRootSlugPage(slug))
+    const resolved = (await resolveModuleIndexPage(slug)) ?? (await resolveModuleRootSlugPage(slug))
     if (!resolved) notFound()
 
     // Calling a dynamic API before rendering forces this request to render dynamically

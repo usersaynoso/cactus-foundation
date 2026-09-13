@@ -4,6 +4,7 @@
 // comment on the RSC one), which makes them a standing drift hazard, so anything
 // that would otherwise be written twice lives here instead. Plain module, no
 // 'use client': the RSC half imports it from the server.
+import { preload } from 'react-dom'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 
 export const LOGO_ALIGN_OPTIONS = [
@@ -75,6 +76,77 @@ export function siteLogoImages(
   const light = (imageUrl ?? '').trim()
   if (light) return { light, dark: (imageUrlDark ?? '').trim() || null }
   return { light: logoUrl || null, dark: logoUrlDark || null }
+}
+
+/**
+ * The media condition under which each half of a light/dark pair is the one on
+ * screen before any script has run - which is when the browser decides what to
+ * fetch. They mirror the logo swap in app/globals.css exactly: the dark image is
+ * shown under a dark colour-scheme preference, the light one otherwise.
+ * `not all and (...)` rather than `(prefers-color-scheme: light)` so the two can
+ * never both be false.
+ */
+export const SITE_LOGO_DARK_MEDIA = '(prefers-color-scheme: dark)'
+export const SITE_LOGO_LIGHT_MEDIA = 'not all and (prefers-color-scheme: dark)'
+
+/** One image preload the logo asks for, and the condition that has to hold for it. */
+export type SiteLogoPreload = { href: string; media: string }
+
+/**
+ * How a logo's images are fetched: whether the <img>s are lazy, and what to preload.
+ *
+ * WHY. Both images of a pair are always in the markup and CSS shows one, which is
+ * what keeps the theme swap free of flicker - but an eager <img> is downloaded
+ * whether it is displayed or not, and React writes a preload into the document
+ * head for every eager <img> it renders. So every page fetched BOTH logos before
+ * anything else in the body, once per URL however many header cells (desktop,
+ * tablet, mobile) draw them. On deskwell.co.uk that is two 55 KB SVGs, one of
+ * which is never seen.
+ *
+ * `loading="lazy"` is the part that is right in every theme state at once. A lazy
+ * image with `display: none` has no box, never comes near the viewport, and is
+ * never requested - so whichever variant CSS hides stays unfetched, whether the
+ * visitor chose light, chose dark, or left it on auto, and flipping the toggle
+ * later fetches the other one then. No script decides anything.
+ *
+ * Lazy alone would lose the head start the preload gave the visible one, so each
+ * half is preloaded under the media condition that shows it. A preload whose media
+ * does not match is not fetched at all. That matches what is on screen for every
+ * visitor on "auto", and for anyone whose saved choice agrees with their device,
+ * which between them is nearly everybody. The saved theme is applied by an inline
+ * script in the document head before the body is parsed (app/layout.tsx), so a
+ * visitor whose saved choice DISAGREES with their device sees their own choice
+ * from the first frame; for them the preload fetches the device's variant, which
+ * goes unused, and their own variant is fetched as a lazy image as soon as layout
+ * shows it. That one case costs a wasted logo download, never a wrong logo.
+ *
+ * A single image (no dark variant) is unchanged: eager, and preloaded by React as
+ * before, since it is shown in both schemes.
+ */
+export function siteLogoFetchPlan(
+  light: string,
+  dark: string | null,
+): { loading: 'lazy' | undefined; preloads: SiteLogoPreload[] } {
+  if (!dark) return { loading: undefined, preloads: [] }
+  return {
+    loading: 'lazy',
+    preloads: [
+      { href: light, media: SITE_LOGO_LIGHT_MEDIA },
+      { href: dark, media: SITE_LOGO_DARK_MEDIA },
+    ],
+  }
+}
+
+/**
+ * Issue the plan's preloads and hand back the `loading` value for both <img>s.
+ * Called during render by both halves of the block, which is where React wants
+ * `preload` called; React de-duplicates by URL, so three logos on one page still
+ * ask once per image.
+ */
+export function requestSiteLogoImages(light: string, dark: string | null): 'lazy' | undefined {
+  const plan = siteLogoFetchPlan(light, dark)
+  for (const { href, media } of plan.preloads) preload(href, { as: 'image', media })
+  return plan.loading
 }
 
 // Fine vertical positioning. Alignment above handles the horizontal, and the

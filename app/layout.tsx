@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next'
-import Script from 'next/script'
 import { mediaPublicOrigin } from '@/lib/media/public-origin'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { resolveBranding, BRANDING_DEFAULTS } from '@/lib/config/branding'
@@ -139,6 +138,19 @@ export default async function RootLayout({
       style={{ '--cactus-theme-color': branding.themeColor } as React.CSSProperties}
     >
       <head>
+        {/* Plain inline scripts, first thing in the head, and deliberately not
+            next/script. In the App Router `strategy="beforeInteractive"` does not
+            run a script before anything: it queues it on self.__next_s for Next's
+            runtime to run once its main chunk has downloaded, measured on
+            deskwell.co.uk in September 2026. So data-theme was set after the page
+            had painted, and a visitor whose saved theme differed from their
+            device's setting saw the wrong one first. The CSS's own
+            prefers-color-scheme fallback hid that from everyone on "auto".
+            A parser-blocking inline script here costs a few hundred bytes and runs
+            before the body exists, which is the whole point of both of them. The
+            site's CSP already allows inline scripts. */}
+        <script id="theme-init" dangerouslySetInnerHTML={{ __html: flashPreventionScript }} />
+        <script id="consent-init" dangerouslySetInnerHTML={{ __html: consentInitScript }} />
         {/* No crossOrigin, unlike the font one below: pictures are fetched in
             no-cors mode, and a connection opened in CORS mode is a different
             pool the <img> requests would not reuse - the tag would look right
@@ -160,8 +172,6 @@ export default async function RootLayout({
             their own preconnects. */}
       </head>
       <body>
-        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: flashPreventionScript }} />
-        <Script id="consent-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: consentInitScript }} />
         {children}
         {speedInsights && <SpeedInsights />}
       </body>

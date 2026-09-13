@@ -39,7 +39,7 @@ describe('applyModuleApiCache', () => {
   it('adds a shared-cache window for a route that declared one', async () => {
     const res = await applyModuleApiCache(request(), ok(), { publicCacheTtl: 300 })
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=0, s-maxage=300, stale-while-revalidate=300')
-    expect(res.headers.get('CDN-Cache-Control')).toBe('public, s-maxage=300')
+    expect(res.headers.get('CDN-Cache-Control')).toBe('public, max-age=300, stale-while-revalidate=300')
   })
 
   it('keeps the body and status intact', async () => {
@@ -82,7 +82,7 @@ describe('applyModuleApiCache', () => {
 
   it('caches for a request carrying only ordinary cookies', async () => {
     const res = await applyModuleApiCache(request({ cookie: 'cactus_theme=dark; _ga=1' }), ok(), { publicCacheTtl: 300 })
-    expect(res.headers.get('CDN-Cache-Control')).toBe('public, s-maxage=300')
+    expect(res.headers.get('CDN-Cache-Control')).toBe('public, max-age=300, stale-while-revalidate=300')
   })
 
   it('moves the copy downstream when something there can be purged', async () => {
@@ -109,6 +109,6 @@ describe('applyModuleApiCache', () => {
       expect(res.headers.get('CDN-Cache-Control'), String(bad)).toBeNull()
     }
     const capped = await applyModuleApiCache(request(), ok(), { publicCacheTtl: 999999 })
-    expect(capped.headers.get('CDN-Cache-Control')).toBe('public, s-maxage=3600')
+    expect(capped.headers.get('CDN-Cache-Control')).toBe('public, max-age=3600, stale-while-revalidate=3600')
   })
 })
