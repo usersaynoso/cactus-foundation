@@ -86,3 +86,17 @@ export function nanoidLabel(originalFilename?: string): string {
   const safe = sanitize(stripExtension(originalFilename)).slice(0, 40)
   return safe ? `-${safe}` : ''
 }
+
+/**
+ * The directory every key built for `folderPath` sits in, with no trailing slash.
+ * B2 keeps the legacy bare `media/` prefix; every other proxied provider is
+ * namespaced so the Worker can tell from the path which one holds the blob.
+ *
+ * Split out of buildKey so a relocation can ask whether an item's key still
+ * matches the folder it is filed in, without building (and nanoid-stamping) a key
+ * it will not use. Proxied providers only: a direct provider mints its own key.
+ */
+export function keyDirectory(provider: string, folderPath?: string): string {
+  const prefix = provider === 'B2' ? 'media' : `media/${provider}`
+  return folderPath ? `${prefix}/${folderPath}` : prefix
+}

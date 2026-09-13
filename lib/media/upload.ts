@@ -9,7 +9,7 @@ import { loadMediaUsageIndex, isMediaInContent } from '@/lib/media/references'
 import { recordFormerMediaAddress, type MediaMoveReason } from '@/lib/media/former-addresses'
 import { sanitizeSvg } from '@/lib/sanitize'
 import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isVideoDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
-import { exactBaseName, nanoidLabel, isExactNameKey } from '@/lib/media/keys'
+import { exactBaseName, nanoidLabel, isExactNameKey, keyDirectory } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 import { workerUrl } from '@/lib/media/worker-url'
 import { planResize, sizeLabel, type ResizeBox } from '@/lib/media/resize-plan'
@@ -345,10 +345,9 @@ export function buildKey(
   const ext = extensionForMimeType(mimeType)
   const exactBase = exactName ? exactBaseName(originalFilename) : ''
   const id = exactBase ? `${exactBase}.${ext}` : `${nanoid()}${filenameLabel(originalFilename)}.${ext}`
-  const prefix = provider === 'B2' ? 'media' : `media/${provider}`
-  const dir = folderPath ? `${prefix}/${folderPath}` : prefix
-  return `${dir}/${id}`
+  return `${keyDirectory(provider, folderPath)}/${id}`
 }
+
 
 /** How many "name-2", "name-3" … variants to try before giving up on the name. */
 const MAX_NAME_SUFFIX = 50

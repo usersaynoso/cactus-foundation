@@ -1,9 +1,11 @@
 import type { Media, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
 import { detachMediaReferences } from '@/lib/media/detach'
-import { relocateMediaBlob, rewriteMediaReferencesInContent, deleteMedia } from '@/lib/media/upload'
+import { relocateMediaBlob, rewriteMediaReferencesInContent, deleteMedia, buildKey } from '@/lib/media/upload'
 import { recordFormerMediaAddress } from '@/lib/media/former-addresses'
 import { isRenditionFileName } from '@/lib/media/rendition-naming'
+import { isExactNameKey, keyDirectory } from '@/lib/media/keys'
+import { isProxied } from '@/lib/media/providers'
 
 // ---------------------------------------------------------------------------
 // Media library organisation: folders, moves, physical renames, cascade delete.
@@ -566,6 +568,27 @@ export async function getOrCreateFolderByPath(names: string[]): Promise<string |
 }
 
 /**
+ * The same walk as getOrCreateFolderByPath, looking only: the leaf folder's id
+ * when every folder on the path already exists, null the moment one does not.
+ * Nothing is created, so asking where something USED to be filed leaves no empty
+ * folders behind. An empty path is the library root, which is not a folder, so it
+ * is null too.
+ */
+export async function findFolderByPath(names: string[]): Promise<string | null> {
+  let parentId: string | null = null
+  let walked = false
+  for (const raw of names) {
+    const clean = cleanFolderName(raw)
+    if (!clean) continue
+    const existing: { id: string } | null = await prisma.folder.findFirst({ where: { parentId, name: clean }, select: { id: true } })
+    if (!existing) return null
+    parentId = existing.id
+    walked = true
+  }
+  return walked ? parentId : null
+}
+
+/**
  * The child folder of `parentId` called `name`, created if it is not there yet.
  *
  * getOrCreateFolderByPath walks from the ROOT, which a caller already holding a
@@ -644,46 +667,173 @@ export async function renameFolder(folderId: string, newName: string): Promise<v
 
   const folder = await prisma.folder.findUnique({ where: { id: folderId } })
   if (!folder) throw new Error('Folder not found')
-  if (clean === folder.name) return
 
-  const clash = await prisma.folder.findFirst({
-    where: { parentId: folder.parentId, name: clean, id: { not: folderId } },
-    select: { id: true },
-  })
-  if (clash) throw new Error(`A folder named "${clean}" already exists here`)
+  // Renaming a folder to the name it already has still finishes the job: a rename
+  // that was cut off part way (a timeout, a provider hiccup) left the folder
+  // renamed and some of its files on the old path, and asking again is the
+  // obvious way to put that right.
+  if (clean !== folder.name) {
+    const clash = await prisma.folder.findFirst({
+      where: { parentId: folder.parentId, name: clean, id: { not: folderId } },
+      select: { id: true },
+    })
+    if (clash) throw new Error(`A folder named "${clean}" already exists here`)
 
-  await prisma.folder.update({ where: { id: folderId }, data: { name: clean } })
+    await prisma.folder.update({ where: { id: folderId }, data: { name: clean } })
+  }
 
   // Relocate every item whose path includes this folder. Its own name change is
   // now reflected by resolveFolderPath, so moving each item "to its own folder"
   // rebuilds the key/url under the new path.
-  const subtreeIds = await collectFolderSubtree(folderId)
-  const items = await prisma.media.findMany({ where: { folderId: { in: subtreeIds } }, select: { id: true, folderId: true } })
-  for (const item of items) {
-    await relocateWithinSameFolder(item.id)
-  }
+  await rekeyFolderSubtree(folderId)
+}
+
+/**
+ * Where a proxied item's key says it is filed, as the directory buildKey would
+ * put it in. Null for a direct provider, whose key is an id it minted itself and
+ * says nothing about folders.
+ */
+function keyDirectoryOf(media: { provider: Media['provider']; key: string }): string | null {
+  if (!isProxied(media.provider)) return null
+  const slash = media.key.lastIndexOf('/')
+  return slash === -1 ? '' : media.key.slice(0, slash)
 }
 
 /**
  * Rebuild an item's key/url from its current folder path without changing which
- * folder it's in — used after a folder rename shifts the path underneath it.
+ * folder it's in — used after a folder rename or move shifts the path underneath
+ * it. Returns whether the item actually moved.
+ *
+ * Safe to run twice, and safe to run on an item that is already in place: the
+ * second pass of a rename that was cut off part way is exactly that, and it must
+ * neither copy a blob onto itself nor remint a key that was already right.
  */
-async function relocateWithinSameFolder(mediaId: string): Promise<void> {
+async function relocateWithinSameFolder(mediaId: string): Promise<boolean> {
   const media = await prisma.media.findUnique({ where: { id: mediaId } })
-  if (!media) return
+  if (!media) return false
   const folderPath = await resolveFolderPath(media.folderId)
-  const relocated = await relocateMediaBlob(media, folderPath || undefined)
-  await prisma.media.update({
-    where: { id: mediaId },
+
+  // Already on the path its folder implies. A direct provider cannot be read this
+  // way, so it is relocated as it always was.
+  const directory = keyDirectoryOf(media)
+  if (directory !== null && directory === keyDirectory(media.provider, folderPath || undefined)) return false
+
+  // Keep the key in the form it is in. An exact-name key is a name somebody files
+  // by - the shop keeps it in its own tables, and an image's small copies are
+  // named after it - so a folder move that reminted it into the nanoid form
+  // renamed every product picture under a renamed folder and orphaned their small
+  // copies. It falls back to the nanoid form only when the exact key it wants is
+  // already another item's, which is the collision the nanoid form exists for.
+  let exactName = isExactNameKey(media.key, media.originalName)
+  if (exactName) {
+    const wanted = buildKey(media.provider, media.mimeType, media.originalName ?? undefined, folderPath || undefined, true)
+    const holder = await prisma.media.findUnique({ where: { key: wanted }, select: { id: true } })
+    if (holder && holder.id !== media.id) exactName = false
+  }
+
+  const relocated = await relocateMediaBlob(media, folderPath || undefined, undefined, exactName)
+
+  // Only if nobody else moved it in the meantime. Two saves of the same product a
+  // few seconds apart can both set about the same file; the second must not
+  // point the row at its own copy while the first has already repointed every
+  // reference at another.
+  const { count } = await prisma.media.updateMany({
+    where: { id: mediaId, key: media.key },
     data: { key: relocated.key, url: relocated.url },
   })
+  if (count === 0) {
+    const now = await prisma.media.findUnique({ where: { id: mediaId }, select: { key: true } })
+    // The spare copy goes, unless it is the very key the other move landed on.
+    if (now?.key !== relocated.key) {
+      try {
+        await deleteMedia(media.provider, relocated.key)
+      } catch {
+        /* orphaned copy; harmless */
+      }
+    }
+    return false
+  }
+
   await recordFormerMediaAddress(media.id, media.url, media.key, 'move')
   await rewriteMediaReferencesInContent(media.url, relocated.url, media.key, relocated.key)
-  try {
-    await deleteMedia(media.provider, media.key)
-  } catch {
-    /* orphaned original; harmless */
+  if (relocated.key !== media.key) {
+    try {
+      await deleteMedia(media.provider, media.key)
+    } catch {
+      /* orphaned original; harmless */
+    }
   }
+  return true
+}
+
+/**
+ * Bring every file under `folderId` onto the storage path its folder now implies.
+ *
+ * A folder move or rename is a single row, and every file beneath it then carries
+ * the old path in its key until its blob is copied across. This does the copying,
+ * skipping anything already in place, so it can be run again to finish a job that
+ * was cut off and costs a couple of queries when there is nothing to do.
+ *
+ * `deadline` (a Date.now() timestamp) stops it starting another file once passed,
+ * for callers inside a request with a ceiling. `remaining` is what it did not get
+ * to - nothing is broken meanwhile, each unmoved file still serves from its old
+ * address, which its row and every reference to it still name.
+ */
+export async function rekeyFolderSubtree(
+  folderId: string,
+  opts: { deadline?: number } = {},
+): Promise<{ moved: number; remaining: number }> {
+  const subtreeIds = await collectFolderSubtree(folderId)
+  const stale = await findStaleKeys(folderId, subtreeIds)
+
+  let moved = 0
+  let done = 0
+  for (const id of stale) {
+    if (opts.deadline !== undefined && Date.now() >= opts.deadline) break
+    if (await relocateWithinSameFolder(id)) moved++
+    done++
+  }
+  return { moved, remaining: stale.length - done }
+}
+
+/**
+ * Ids of the items under `folderId` whose key is not on their folder's path. The
+ * paths are built in memory from one read of the subtree's folders, so checking a
+ * large product folder with nothing to do is a handful of queries, not one per
+ * file.
+ */
+async function findStaleKeys(folderId: string, subtreeIds: string[]): Promise<string[]> {
+  const folders = await prisma.folder.findMany({
+    where: { id: { in: subtreeIds } },
+    select: { id: true, name: true, parentId: true },
+  })
+  const byId = new Map(folders.map((f) => [f.id, f]))
+  const rootPath = await resolveFolderPath(folderId)
+  const paths = new Map<string, string>([[folderId, rootPath]])
+  const pathOf = (id: string, depth = 0): string => {
+    const known = paths.get(id)
+    if (known !== undefined) return known
+    const folder = byId.get(id)
+    if (!folder?.parentId || depth > MAX_FOLDER_DEPTH) return rootPath
+    const path = `${pathOf(folder.parentId, depth + 1)}/${sanitizeFolderSegment(folder.name) || 'folder'}`
+    paths.set(id, path)
+    return path
+  }
+
+  const items = await prisma.media.findMany({
+    where: { folderId: { in: subtreeIds } },
+    select: { id: true, key: true, provider: true, folderId: true },
+  })
+  return items
+    .filter((item) => {
+      const directory = keyDirectoryOf(item)
+      // A direct provider's key cannot be checked, and relocating it on every
+      // pass would copy it on every pass. Its files move with an explicit rename.
+      if (directory === null || !item.folderId) return false
+      const path = pathOf(item.folderId)
+      return directory !== keyDirectory(item.provider, path || undefined)
+    })
+    .map((item) => item.id)
 }
 
 /**
@@ -695,30 +845,125 @@ async function relocateWithinSameFolder(mediaId: string): Promise<void> {
 export async function moveFolder(folderId: string, newParentId: string | null): Promise<void> {
   const folder = await prisma.folder.findUnique({ where: { id: folderId } })
   if (!folder) throw new Error('Folder not found')
-  if (newParentId === folder.parentId) return
+
+  // Same parent: nothing to move, but anything a previous move did not finish
+  // copying is finished here (see renameFolder).
+  if (newParentId !== folder.parentId) {
+    if (await wouldCreateCycle(folderId, newParentId)) {
+      throw new Error("A folder can't be moved inside itself")
+    }
+    if (newParentId) {
+      const parent = await prisma.folder.findUnique({ where: { id: newParentId }, select: { id: true } })
+      if (!parent) throw new Error('Target folder not found')
+    }
+
+    const clash = await prisma.folder.findFirst({
+      where: { parentId: newParentId, name: folder.name, id: { not: folderId } },
+      select: { id: true },
+    })
+    if (clash) throw new Error(`A folder named "${folder.name}" already exists here`)
+
+    await prisma.folder.update({ where: { id: folderId }, data: { parentId: newParentId } })
+  }
+
+  // The path prefix for everything under this folder just changed; rebuild each
+  // descendant item's key/url from its (now-relocated) folder path.
+  await rekeyFolderSubtree(folderId)
+}
+
+/**
+ * File a folder under `newParentId` with the name `newName`, in one step, and
+ * hand back the id of the folder now holding its contents. The folder rows only:
+ * the files' storage paths follow when rekeyFolderSubtree is run on the result,
+ * which a caller with a request ceiling can spread over as many passes as it
+ * needs. Until then each file still serves from its old address.
+ *
+ * When the destination already has a folder of that name, the two are merged
+ * rather than refused: subfolders that exist on both sides are merged in turn,
+ * the rest are simply re-parented, and the emptied source folders are removed.
+ * That is the case this exists for - a listing renamed by a screen that filed its
+ * pictures under the new name and left its 3D models and downloads under the old
+ * one, so both folders exist and both hold half the listing.
+ *
+ * A file whose name is already taken in the destination is moved across under a
+ * suffixed name straight away (a real copy, but a rare one), so a merge never
+ * overwrites anything.
+ */
+export async function relocateFolderInto(
+  folderId: string,
+  newParentId: string | null,
+  newName: string,
+): Promise<string> {
+  const clean = cleanFolderName(newName)
+  if (!clean) throw new Error('Folder name is required')
+  const folder = await prisma.folder.findUnique({ where: { id: folderId } })
+  if (!folder) throw new Error('Folder not found')
+  if (folder.parentId === newParentId && folder.name === clean) return folderId
 
   if (await wouldCreateCycle(folderId, newParentId)) {
     throw new Error("A folder can't be moved inside itself")
   }
-  if (newParentId) {
-    const parent = await prisma.folder.findUnique({ where: { id: newParentId }, select: { id: true } })
-    if (!parent) throw new Error('Target folder not found')
-  }
 
-  const clash = await prisma.folder.findFirst({
-    where: { parentId: newParentId, name: folder.name, id: { not: folderId } },
+  const existing = await prisma.folder.findFirst({
+    where: { parentId: newParentId, name: clean, id: { not: folderId } },
     select: { id: true },
   })
-  if (clash) throw new Error(`A folder named "${folder.name}" already exists here`)
+  if (!existing) {
+    await prisma.folder.update({ where: { id: folderId }, data: { parentId: newParentId, name: clean } })
+    return folderId
+  }
 
-  await prisma.folder.update({ where: { id: folderId }, data: { parentId: newParentId } })
+  // Merging the destination into itself, or into something inside it, would
+  // loop: a folder can only be merged into one outside its own subtree.
+  if ((await collectFolderSubtree(folderId)).includes(existing.id)) {
+    throw new Error("A folder can't be merged into one inside itself")
+  }
+  await mergeFolderRows(folderId, existing.id, 0)
+  return existing.id
+}
 
-  // The path prefix for everything under this folder just changed; rebuild each
-  // descendant item's key/url from its (now-relocated) folder path.
-  const subtreeIds = await collectFolderSubtree(folderId)
-  const items = await prisma.media.findMany({ where: { folderId: { in: subtreeIds } }, select: { id: true } })
+async function mergeFolderRows(sourceId: string, targetId: string, depth: number): Promise<void> {
+  if (depth > MAX_FOLDER_DEPTH) return
+
+  const children = await prisma.folder.findMany({ where: { parentId: sourceId }, select: { id: true, name: true } })
+  for (const child of children) {
+    const twin = await prisma.folder.findFirst({ where: { parentId: targetId, name: child.name }, select: { id: true } })
+    if (twin) await mergeFolderRows(child.id, twin.id, depth + 1)
+    else await prisma.folder.update({ where: { id: child.id }, data: { parentId: targetId } })
+  }
+
+  const items = await prisma.media.findMany({ where: { folderId: sourceId }, select: { id: true, originalName: true, key: true } })
+  const taken = new Set(
+    (await prisma.media.findMany({ where: { folderId: targetId }, select: { originalName: true } }))
+      .map((m) => m.originalName)
+      .filter((n): n is string => !!n),
+  )
+  const free: string[] = []
   for (const item of items) {
-    await relocateWithinSameFolder(item.id)
+    if (item.originalName && taken.has(item.originalName)) {
+      // Both folders hold a file of this name. Move it across now under a
+      // suffixed name, keeping the form of key it has, rather than leave the
+      // source folder behind with one file in it.
+      await moveOrRenameMedia(item.id, {
+        targetFolderId: targetId,
+        collision: 'suffix',
+        exactName: isExactNameKey(item.key, item.originalName),
+      })
+    } else {
+      free.push(item.id)
+      if (item.originalName) taken.add(item.originalName)
+    }
+  }
+  if (free.length > 0) {
+    await prisma.media.updateMany({ where: { id: { in: free } }, data: { folderId: targetId } })
+  }
+
+  // Emptied, so the folder itself goes. deleteMany: a concurrent merge that got
+  // here first is not an error. Left alone if anything is somehow still inside.
+  const leftovers = await prisma.media.count({ where: { folderId: sourceId } })
+  const subfolders = await prisma.folder.count({ where: { parentId: sourceId } })
+  if (leftovers === 0 && subfolders === 0) {
+    await prisma.folder.deleteMany({ where: { id: sourceId } })
   }
 }
 
