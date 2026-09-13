@@ -167,6 +167,21 @@ describe('generateImageRenditions', () => {
     expect(uploadMedia).toHaveBeenCalledTimes(1)
   })
 
+  // The same day's other half: the product save asked for a thumbnail of the new
+  // `harlestone.jpeg`, found the `harlestone-thumb.webp` its neighbour
+  // `harlestone.webp` already had, and handed it over as though it were its own.
+  it('neither reuses nor writes a copy name another original in the folder answers to', async () => {
+    wireLibrary({ 'oak-thumb.webp': 'https://cdn.example/shop/attributes/thumb/ab1-oak-thumb.webp' })
+    findMany.mockImplementation(async (args: { where: { folderId?: string } }) =>
+      args.where.folderId === 'f1' ? [{ key: 'shop/attributes/oak.webp' }] : [])
+
+    const made = await generateImageRenditions(SOURCE, [{ maxPx: 300, suffix: 'thumb' }], { worthwhileBytes: 40_000 })
+
+    expect(made.thumb).toBeNull()
+    expect(uploadMedia).not.toHaveBeenCalled()
+    expect(saveMediaRecord).not.toHaveBeenCalled()
+  })
+
   it('declines a picture already inside the cap and under the weight', async () => {
     wireLibrary()
     downloadMedia.mockResolvedValue(
@@ -338,6 +353,32 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
     expect(deleteRow).not.toHaveBeenCalled()
     expect(deleteMedia).not.toHaveBeenCalled()
     expect(rewriteMediaReferencesInContent).not.toHaveBeenCalled()
+  })
+
+  // Deskwell, 2026-09-13. `harlestone.jpeg` was compressed in place beside
+  // `harlestone.webp`, so its key - and the copy name derived from it - did not
+  // change. The guard above only ran when the name changed, so the refresh remade
+  // the NEIGHBOUR's thumbnail from this picture's bytes, repointed both gallery
+  // rows at it and deleted the real one.
+  it('leaves a shared copy alone even when the edit kept the name', async () => {
+    const COMPRESSED = { ...EDITED, key: 'shop/attributes/iris.jpeg', url: 'https://cdn.example/shop/attributes/iris.jpeg', mimeType: 'image/jpeg' }
+    const neighboursThumb = { id: 'r9', key: 'shop/attributes/thumb/ab1-iris-thumb.webp', url: 'https://cdn.example/shop/attributes/thumb/ab1-iris-thumb.webp' }
+
+    findFirst.mockImplementation(async (args: { where: Record<string, unknown> }) => {
+      if (args.where.url === COMPRESSED.url) return { ...COMPRESSED, sizeBytes: 900_000, uploadedById: 'u1' }
+      return args.where.originalName === 'iris-thumb.webp' ? { url: neighboursThumb.url } : null
+    })
+    findMany.mockImplementation(async (args: { where: { originalName?: string } }) => {
+      if (args.where.originalName === undefined) return [{ key: 'shop/attributes/iris.webp' }]
+      return args.where.originalName === 'iris-thumb.webp' ? [neighboursThumb] : []
+    })
+
+    await refreshRenditions(COMPRESSED, COMPRESSED.key)
+
+    expect(uploadMedia).not.toHaveBeenCalled()
+    expect(rewriteMediaReferencesInContent).not.toHaveBeenCalled()
+    expect(deleteRow).not.toHaveBeenCalled()
+    expect(deleteMedia).not.toHaveBeenCalled()
   })
 })
 

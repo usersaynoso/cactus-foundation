@@ -57,9 +57,28 @@ export const KNOWN_RENDITION_SPECS: RenditionSpec[] = [
  * enough to look up again.
  */
 export function renditionFileName(key: string, suffix: string): string {
-  const baseName = (key.split('/').pop() ?? 'image').replace(/\.[a-z0-9]+$/i, '')
-  return `${baseName}-${suffix}.webp`
+  return `${renditionStem(key)}-${suffix}.webp`
 }
+
+/**
+ * The part of a key a rendition's name is built from: its basename with the
+ * extension taken off. `shop/oak.png` and `shop/oak.webp` share the stem `oak`,
+ * which is exactly why two originals can answer to one copy's name.
+ */
+export function renditionStem(key: string): string {
+  return (key.split('/').pop() ?? 'image').replace(/\.[a-z0-9]+$/i, '')
+}
+
+/**
+ * Formats sharp can be trusted to shrink well, and so the only originals that
+ * ever have copies. SVG scales by nature and GIF may animate - shrinking either
+ * buys little or breaks something, so both are left alone and the caller simply
+ * keeps using the original.
+ *
+ * Here rather than beside the resizer so the sharp-free lookup can ask which of a
+ * folder's items could be claiming a copy's name.
+ */
+export const RESIZABLE_RENDITION_TYPES: ReadonlySet<string> = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 /**
  * Is this the name of a shrunk copy rather than of a picture in its own right?

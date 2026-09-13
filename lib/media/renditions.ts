@@ -6,6 +6,7 @@ import { findChildFolder, findChildFolders, getOrCreateChildFolder, moveOrRename
 import {
   KNOWN_RENDITION_SPECS,
   RENDITION_FOLDER_NAME,
+  RESIZABLE_RENDITION_TYPES,
   isRenditionFileName,
   renditionFileName,
   type RenditionSpec,
@@ -31,10 +32,8 @@ export { renditionFileName, RENDITION_FOLDER_NAME, type RenditionSpec }
 // attributes module, the filters module and anything after them all want the
 // same thing, and a module may not import another module's code.
 
-// Formats sharp can be trusted to shrink well. SVG scales by nature and GIF may
-// animate - shrinking either buys little or breaks something, so both are left
-// alone and the caller simply keeps using the original.
-const RESIZABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+// Formats sharp can be trusted to shrink well - see rendition-naming.ts.
+const RESIZABLE_TYPES = RESIZABLE_RENDITION_TYPES
 
 /**
  * Make (or decline to make) shrunk copies of the library picture at `sourceUrl`.
@@ -91,11 +90,31 @@ export async function generateImageRenditions(
     // storage path is the parent's with the name appended - no second walk.
     const renditionFolderPath = folderPath ? `${folderPath}/${RENDITION_FOLDER_NAME}` : RENDITION_FOLDER_NAME
     let renditionFolderId = await findChildFolder(media.folderId, RENDITION_FOLDER_NAME)
+    // The folder's other originals, asked once for the batch and only if a copy
+    // is actually going to be looked for.
+    let siblingKeys: string[] | undefined
 
     for (const spec of specs) {
       // Already small in both pixels and bytes: the original serves as well as a
       // copy would, and every renderer falls back to it anyway.
       if (widest <= spec.maxPx && original.length <= worthwhileBytes) continue
+
+      const fileName = renditionFileName(media.key, spec.suffix)
+
+      // A name another original in this folder also answers to - `oak.jpeg`
+      // beside `oak.webp` - cannot be this picture's copy, whatever is filed under
+      // it. Reusing it hands this picture the other one's thumbnail; writing a
+      // fresh copy under it makes a second file every lookup would have to guess
+      // between. So neither: the original serves, heavier and right, and the
+      // lookup declines the shared name the same way.
+      //
+      // Deskwell, 2026-09-13: a second `harlestone.jpg` was uploaded beside the
+      // `harlestone.webp` a first one had become. The product save gave the new
+      // photograph the old one's thumbnail, the gallery strip showed a picture
+      // that was not the one it opened, and the product's main photograph had no
+      // thumbnail of its own left anywhere in the strip.
+      siblingKeys ??= await otherOriginalKeys(media)
+      if (siblingKeys.some((key) => renditionFileName(key, spec.suffix) === fileName)) continue
 
       // `rotate()` first so an EXIF-orientated photograph keeps pointing the way
       // it did in the picker rather than lying on its side in the copy.
@@ -104,8 +123,6 @@ export async function generateImageRenditions(
         .resize({ width: spec.maxPx, height: spec.maxPx, fit: 'inside', withoutEnlargement: true })
         .webp({ quality: 80 })
         .toBuffer()
-
-      const fileName = renditionFileName(media.key, spec.suffix)
 
       // This rendition may already exist. The name is derived from the ORIGINAL's
       // own key and it is filed in the original's own `thumb` folder, so a webp of
@@ -261,6 +278,12 @@ async function isAnotherOriginalsRendition(
   name: string,
   suffix: string,
 ): Promise<boolean> {
+  const siblingKeys = await otherOriginalKeys(media)
+  return siblingKeys.some((key) => renditionFileName(key, suffix) === name)
+}
+
+/** The keys of every other shrinkable original in this item's folder. */
+async function otherOriginalKeys(media: { id: string; folderId: string | null }): Promise<string[]> {
   const siblings = await prisma.media.findMany({
     where: {
       folderId: media.folderId,
@@ -269,7 +292,7 @@ async function isAnotherOriginalsRendition(
     },
     select: { key: true },
   })
-  return siblings.some((sibling) => renditionFileName(sibling.key, suffix) === name)
+  return siblings.map((sibling) => sibling.key)
 }
 
 /**
@@ -300,11 +323,18 @@ export async function carryRenditionsWithOriginal(
 
   const from = await renditionFolderCandidates(previousFolderId)
   let destinationId: string | null | undefined
+  let leftBehindKeys: string[] | undefined
 
   for (const spec of KNOWN_RENDITION_SPECS) {
     try {
       const wasCalled = renditionFileName(previousKey, spec.suffix)
       const nowCalled = renditionFileName(media.key, spec.suffix)
+
+      // A copy another original in the folder being left also answers to is not
+      // this item's to take with it - see isAnotherOriginalsRendition.
+      leftBehindKeys ??= await otherOriginalKeys({ id: media.id, folderId: previousFolderId })
+      if (leftBehindKeys.some((key) => renditionFileName(key, spec.suffix) === wasCalled)) continue
+
       const copies = await prisma.media.findMany({
         where: {
           mimeType: 'image/webp',
@@ -380,13 +410,19 @@ export async function refreshRenditions(
     try {
       const staleName = renditionFileName(oldKey, spec.suffix)
 
-      // The name this item's copy will be called from here on. When the edit did
-      // not change it (a crop, which keeps the key) the copies found below are
-      // this item's own and are remade as normal. When it DID change it, a copy
-      // still answering to the old name might belong to another picture in the
-      // folder - and then it is not this item's to remake or to delete.
-      const currentName = renditionFileName(media.key, spec.suffix)
-      if (staleName !== currentName && (await isAnotherOriginalsRendition(media, staleName, spec.suffix))) continue
+      // A copy answering to the old name might belong to another picture in the
+      // folder, and then it is not this item's to remake or to delete.
+      //
+      // Asked whether or not the edit changed the name. It used to be asked only
+      // when it did, on the reasoning that an unchanged name (a crop, an in-place
+      // compress) means the copies are this item's own. They are not when a
+      // sibling shares the stem: `harlestone.jpeg` was compressed in place beside
+      // `harlestone.webp`, its name never changed, and the refresh remade the
+      // OTHER picture's thumbnail from this one's bytes, repointed both gallery
+      // rows at it and deleted the real one (Deskwell, 2026-09-13). A shared
+      // name has no owner to remake it for, so it is left alone, and the lookup
+      // declines it.
+      if (await isAnotherOriginalsRendition(media, staleName, spec.suffix)) continue
 
       const stale = await prisma.media.findMany({
         where: {
