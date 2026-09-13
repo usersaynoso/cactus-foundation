@@ -382,7 +382,7 @@ All of this amounts to keeping a note of what somebody did with an email you sen
 
 ### Attachments
 
-You can attach anything from your media library. There is a ceiling of about nine megabytes for everything on one message, which is what the email services themselves allow, and **an attachment that will not fit is refused before you send** rather than quietly dropped on the way out.
+You can attach anything from your media library. There is a ceiling of 20 megabytes for the message and everything attached to it, which is what the email service itself allows, and **an attachment that will not fit is refused before you send** rather than quietly dropped on the way out.
 
 A file you drag onto the message is put on your media page once it has gone, under **Inbox**, the address you sent it to, and **Sent**. A file you picked out of the media library is left exactly where it already lives: it is one file, not two, and hauling a product photograph out of its shop folder because somebody emailed it would break the page pointing at it.
 
@@ -394,9 +394,9 @@ Pressing it opens a box of its own, and the box is mostly one big rectangle: **d
 
 You can also **drag a file straight onto the message** without opening anything - onto the reply box under a conversation, or anywhere on the box where you are writing a new one. Drag several at once and they all go on. The box says "Drop to attach" while the file is over it, and either way the files appear as tags on their own line just above the buttons as they arrive, with a cross to take one back off. Nothing is sent until you press Send, as ever.
 
-Files brought in this way - dropped, or chosen off your computer - have to be **under four megabytes each**, which is the hosting platform's limit on what one upload may carry rather than ours. Something bigger has to go into your media library first, which has a route for large files this one does not, and then onto the message with the search box.
+Files brought in this way - dropped, or chosen off your computer - can be **up to 20 megabytes each**. A small file travels through the site in the ordinary way; a larger one goes straight into the site's file storage first, neatly stepping around the hosting platform's four-megabyte request limit. On a storage provider that cannot take a direct browser upload, the box says so and keeps the four-megabyte limit rather than pretending otherwise.
 
-There is no sensible limit on **how many** files one message may carry. The nine megabytes above is the real ceiling and it is the one you will meet: forty delivery notes are fine, four photographs straight off a phone are not, and either way you are told before anything is sent rather than after.
+There is no sensible limit on **how many** files one message may carry. The 20 megabytes above is the real ceiling and it is the one you will meet: forty delivery notes may be fine, four photographs straight off a phone may not, and either way you are told before anything is sent rather than after.
 
 A few things are refused, and each says why: a folder (drop the files inside it instead), and anything that is a program or a script rather than a document, because the email services will not deliver one of those anyway and finding that out at Send is finding it out too late. If you need to send one, put it in a zip.
 
