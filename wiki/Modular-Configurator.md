@@ -10,12 +10,17 @@ It needs the Shop, Shop Variations and Product 3D Views modules. It works on the
 2. **Switch it on for the product.** On the product's edit screen, open the **Layout builder** panel and tick **Show the layout builder on this product**.
 3. **Say which option holds the units.** Every other option - fabric, frame and so on - is chosen once for the whole layout, and can be changed unit by unit.
 4. **Describe each unit**, always as you see it standing in front of it - the way the product photographs and the 3D view show it:
-   - **How it joins**: no arms (joins on both sides), arm on the left (starts a row), arm on the right (finishes a row), arms both sides (stands alone), or a corner. A corner's "second back" is the backrest down one side - say which side it is on.
-   - **Width and depth** in millimetres - the footprint. Where the unit's specification has an Overall Width and Overall Depth, they are filled in for you and a button offers them again if you change them.
-   - **3D model**: whether the unit's model needs a quarter turn to face forwards. Most do not.
-5. **Ready-made layouts are optional.** Write your own - a name and the units in the order they join, drawn beside it so a layout that cannot be built says so before you save. Write none and shoppers are offered a pair, a row of three, an L-shape and a U-shape, made from your units wherever the range can make them.
+   - **How it joins**:
+     - no arms (joins on both sides), with a back or without one;
+     - arm on the left (starts a row), arm on the right (finishes a row), or arms both sides (stands alone);
+     - a corner. A corner's "second back" is the backrest down one side - say which side it is on;
+     - a **curve** - a quarter of a circle. Say where its back is: on the **outside** (the seats face in, and three make a booth), on the **inside** (the seats face out, and four make a round island), or **no back** (it bends whichever way the layout needs, and the shopper can turn it round);
+     - a **rounded end** (a "D end") - joins the end of one row to the end of the row sat back to back with it. Two rounded ends and two rows make a capsule island.
+   - **Sizes** in millimetres. For most units, the width and depth of the footprint. For a curve, its size from the outside (the width and depth of the whole quarter circle) and its seat depth, which should match the units it joins. For a rounded end, the flat side is the width and how far the rounded part sticks out is the depth. Where the unit's specification has an Overall Width and Overall Depth, they are filled in for you and a button offers them again if you change them.
+   - **3D model**: leave it on **Work it out from each model**. Supplier model files face all sorts of ways - often differently between a unit's own variations, a high back one way and a low back another - so the builder looks at each file as it loads and turns it to match the shape you described. Pick a turn yourself only if a unit still arrives the wrong way round.
+5. **Ready-made layouts are optional.** Write your own - a name and the units in the order they join, drawn beside it so a layout that cannot be built says so before you save. Write none and shoppers are offered a pair, a row of three, an L-shape, a U-shape, a booth, a round island and a capsule island, made from your units wherever the range can make them.
 
-**Getting a corner the right way round.** If a corner in the 3D view has its backs on the inside of the L, the second-back side is set the wrong way: change it on the Layout builder panel.
+**Getting a corner the right way round.** If a corner in the 3D view has its backs on the inside of the L, the second-back side is set the wrong way: change it on the Layout builder panel. The same goes for a curve with its back on the wrong side - it is set as the other kind of curve.
 
 ## What the shopper sees
 
@@ -28,7 +33,8 @@ It needs the Shop, Shop Variations and Product 3D Views modules. It works on the
   - **Adding a unit** lists every unit type with its price. Ones that cannot go at that end stay in the list, greyed out, saying why ("Its arm would face into the layout", "No room - it would overlap").
   - **Growing a finished shape.** A ready-made sofa ends in arms at both ends, and still has a dashed space at each: a unit added there goes just inside the arm unit, and the arm unit slides out to stay at the end.
   - **Design your own** opens straight onto **Choose your first unit**.
-  - **A selected unit** can be swapped for another type that still fits, given a fabric (or any other option) of its own, or taken out - the units either side close up.
+  - **A selected unit** can be swapped for another type that still fits, given a fabric (or any other option) of its own, or taken out - the units either side close up. A curve with no back can also be **curved the other way**.
+  - **Units that are not made in every option.** The layout's options apply to every unit that is made in them. A unit that is not - a backless unit that only comes in a standard back, in a layout chosen in a high back - is matched to the nearest combination it is made in, and its row in the list says what it is in. The option then reads "High Back wherever a unit comes in it" rather than "every unit", and the unit's own panel offers "Closest it comes in" in place of "Same as the layout".
   - **Undo** and **Reset layout** (empties the layout and offers the first unit again), and the layout's own options (fabric, frame) with swatches.
   - **The price**, set exactly like the individual tab's - the layout's total, the RRP where every unit has one, the tax wording - with **Reset options** beside it, which goes back to the ready-made shapes - the only place they are offered once a layout is started.
   - **Delivery**, in the same box and "Switch to" chips as the individual tab. The services on offer are the ones every unit in the layout can have; each is dated by the unit that arrives last, and priced **per item** ("+£25.95 per item"), with the total for the layout written underneath. The choice goes onto every unit in the basket, where it is charged per item exactly as the basket always does. It is worked out by asking the basket itself, so it can never quote something the basket will not charge.
@@ -39,6 +45,10 @@ It needs the Shop, Shop Variations and Product 3D Views modules. It works on the
 ### How units go together
 
 Walking a layout from its first unit to its last is walking each straight run from its left end to its right end, as seen standing in front of the seats. So a unit with an arm on its left can only start a layout, and one with an arm on its right can only finish it. A corner always turns towards the seats' front, and the unit added after it lands against the corner's open side with its back in line with the corner's second back - never off the end of the row, never behind it.
+
+A curve with its back outside turns towards the seats' front like a rounded corner; one with its back inside turns away from it. A curve with no back goes in the usual way (towards the front) where it fits and the other way round where only that fits. A rounded end turns the row right round, so the next unit sits back to back with the one before it. When the last unit meets the first all the way round - a round island, a capsule - the layout has no ends left, and the builder stops offering spaces to add to. Units are checked for overlap by their real outlines, so a unit can sit in the empty corner of a curve's square without being refused.
+
+The link code marks a curve laid the other way round with `~flip` after its name; older links without it open exactly as before.
 
 ## The basket, checkout and orders
 
@@ -65,7 +75,9 @@ The add-ons box carries on exactly as it does on any product.
 ## For developers
 
 - **Table** `mcf_product_configs` (`product_id` → `shp_products`, cascade; `enabled`; `config` jsonb, validated by `lib/config-schema.ts`).
-- **Placement** is one pure function, `placeChain` in `lib/chain-geometry.ts`, and every edit goes through `lib/chain-editing.ts`. The 3D view, plan, price and basket all read its output.
+- **Placement** is one pure function, `placeChain` in `lib/chain-geometry.ts`, and every edit goes through `lib/chain-editing.ts`. The 3D view, plan, price and basket all read its output. Shapes: `straight` (optional `backless`), `corner`, `curve` (`back: outside | inside | none`, `seatDepthMm`; `widthMm` = `depthMm` = the quarter circle's outer radius) and `round-end`. A `ChainEntry` may carry `flipped` for a reversible piece (a backless curve). `layoutIsClosed` spots a layout that joins up; `piecesOverlap` tests real outlines (convex pieces, separating axis) after the rectangle check.
+- **Model turning**: `modelTurnDegrees` is `'auto'` (the default for a unit saved without one) or 0/90/180/270. `'auto'` rasterises the loaded model's top surface onto a grid and scores each quarter turn against the declared shape - footprint proportions, covered area, backrests and arms where the shape says (`lib/model-orientation.ts`), cached per file and shape.
+- **Pricing**: a unit whose exact selection has no switched-on variation takes the nearest one that keeps its own choices - fewest options changed, then nearest value position, then in stock - and lists them in `PricedUnit.adjustedOptionIds` (`lib/layout-pricing.ts`).
 - **Extension points**: `shop.product-editor-sections` (the panel), `shop.gallery-media` (the layout on the gallery stage, fed by a per-page store the builder publishes to - `components/public/layout-stage-store.ts`), `shop.cart-line-resolver` and `shop.cart-line-resolver-prefetch` (grouping). Puck block `ShopModularConfigurator` on `shopProductDetail`, with a slot field `individual`; without an enabled set-up its RSC half renders the slot alone. Opening tab: `lib/opening-tab.ts`.
 - **Line meta** `meta.modularLayout` (`lib/line-meta.ts`). The prefetch plans each layout's group; when a layout line already heads a Product Add-ons group (`meta.productAddons.role === 'main'`), the layout adopts that group key so the two sets share one head regardless of resolver order.
 - **Adding** calls shop-variations' `collectPurchaseCompanions` for each unit, so companion stamps land exactly as they would on an ordinary add.
