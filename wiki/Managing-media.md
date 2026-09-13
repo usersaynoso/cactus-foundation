@@ -160,7 +160,7 @@ Hover over a thumbnail and a couple of quick buttons appear in its corner: **Opt
 
 **Copy link** pops the file's web address onto your clipboard, ready to paste wherever you need it; **Download** saves the original back to your computer. Both are also on the right-click menu.
 
-**Drag files straight in from your computer** - drop them anywhere on the library and they upload into whichever folder you're viewing, no need to click Upload first. You can also drop them straight onto a folder in the tree on the left to upload into it without opening it first.
+**Drag files straight in from your computer** - drop them anywhere on the library and they upload into whichever folder you're viewing, no need to click Upload first. You can also drop them straight onto a folder in the tree on the left to upload into it without opening it first. It has to be a file, mind: a picture dragged straight off another website (a supplier's page in the next tab, say) is only a link to that picture, so the library tells you as much instead of pretending to upload it. Save it to your computer first, then drag the saved file in.
 
 **Right-click an empty patch** of the library (not on a file) for a handy menu to **paste**, **upload**, make a **new folder** or **select all** - so pasting no longer needs a file to aim at.
 

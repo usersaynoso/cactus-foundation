@@ -132,6 +132,20 @@ const DELETE_BATCH = 40
 // offer" doesn't make a new array every render.
 const EMPTY_FOLDER_OPTIONS: UnusedFolderOption[] = []
 const MOVE_BATCH = 40
+// How long the "Drop to upload" overlay outlives the last dragover. Browsers
+// repeat dragover every few hundred milliseconds at most while a drag is held
+// still, so this is comfortably past one gap without lingering once it's over.
+const FILE_DRAG_IDLE_MS = 800
+
+// A picture dragged straight off another web page (a supplier's site in the next
+// tab, say) arrives as a link to it, not as a file - there is nothing to upload,
+// and the browser would otherwise quietly ignore it or wander off to the link.
+function isWebPageDrop(dt: DataTransfer): boolean {
+  if (dt.files.length > 0) return false
+  const types = Array.from(dt.types)
+  return types.includes('text/uri-list') || types.includes('text/html')
+}
+const WEB_PAGE_DROP_MESSAGE = 'That came from a web page rather than your computer, so there is no file to upload. Save the picture to your computer first, then drag the saved file in.'
 
 // Resolves the un-awaited stat scan (see the statsPromise prop) and renders the
 // real bar. Kept out of MediaLibrary's body so only this subtree suspends - the
@@ -288,6 +302,23 @@ export default function MediaLibrary({
   const [savingTags, setSavingTags] = useState(false)
   const [savingMeta, setSavingMeta] = useState(false)
   const [fileDragOver, setFileDragOver] = useState(false)
+  // The "Drop to upload" overlay is switched off by dragleave and drop, and both
+  // can go missing: Safari leaves relatedTarget empty on dragleave, a cancelled
+  // drag sends no drop at all, and a drop a folder row has already taken used to
+  // skip the page's clear-up. Any of those left the overlay over the grid until a
+  // refresh. So dragover keeps it alive on a short fuse instead - dragover keeps
+  // firing for as long as something is held over the page, and once it stops the
+  // overlay goes of its own accord, whichever event did or didn't arrive.
+  const fileDragTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showFileDrag = useCallback(() => {
+    setFileDragOver(true)
+    if (fileDragTimer.current !== null) clearTimeout(fileDragTimer.current)
+    fileDragTimer.current = setTimeout(() => { fileDragTimer.current = null; setFileDragOver(false) }, FILE_DRAG_IDLE_MS)
+  }, [])
+  const hideFileDrag = useCallback(() => {
+    if (fileDragTimer.current !== null) { clearTimeout(fileDragTimer.current); fileDragTimer.current = null }
+    setFileDragOver(false)
+  }, [])
   const uploadSeq = useRef(0)
   // Upload batches run strictly one after another. Two live at once was broken
   // twice over: a second drop's clash dialog overwrote the first batch's pending
@@ -733,13 +764,27 @@ export default function MediaLibrary({
   // onDragEnd fires - the flag could stick "on", which would then make onDragOver
   // bail and silently block every subsequent file drop. A window-level reset on
   // any drag end or drop guarantees it clears.
+  // The same net clears the upload overlay: a drop anywhere, whoever handled it,
+  // means the drag is over.
   useEffect(() => {
-    const reset = () => { draggingInternal.current = false }
+    const reset = () => { draggingInternal.current = false; hideFileDrag() }
     window.addEventListener('dragend', reset)
     window.addEventListener('drop', reset)
-    return () => { window.removeEventListener('dragend', reset); window.removeEventListener('drop', reset) }
-  }, [])
+    return () => {
+      window.removeEventListener('dragend', reset)
+      window.removeEventListener('drop', reset)
+      if (fileDragTimer.current !== null) clearTimeout(fileDragTimer.current)
+    }
+  }, [hideFileDrag])
   async function onDropToFolder(targetFolderId: string | null, raw: string) {
+    // Folder rows and breadcrumbs read text/plain, which is also where a link
+    // dragged in from another page puts its address - without this check that
+    // address was sent off as a list of media ids to move. React's handlers run
+    // before the window-level reset above, so the flag is still accurate here.
+    if (!draggingInternal.current) {
+      if (raw) pushToast('error', WEB_PAGE_DROP_MESSAGE)
+      return
+    }
     const ids = raw.split(',').filter(Boolean)
     if (ids.length === 0) return
     await performMove(ids, targetFolderId, 'error')
@@ -1364,15 +1409,19 @@ export default function MediaLibrary({
       onDragOver={canUpload ? (e) => {
         if (draggingInternal.current) return
         e.preventDefault()
-        setFileDragOver(true)
+        showFileDrag()
       } : undefined}
-      onDragLeave={canUpload ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileDragOver(false) } : undefined}
+      onDragLeave={canUpload ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) hideFileDrag() } : undefined}
       onDrop={canUpload ? (e) => {
+        // The overlay goes whatever happens next - this used to return first when
+        // a folder row had taken the drop, leaving it stuck over the grid.
+        hideFileDrag()
         // A drop the grid panel or a folder row already took has had
         // preventDefault called on it on the way up - uploading it again here
         // would file every dropped model twice.
         if (draggingInternal.current || e.defaultPrevented) return
-        if (e.dataTransfer.files.length > 0) { e.preventDefault(); setFileDragOver(false); enqueueFiles(e.dataTransfer.files) }
+        if (e.dataTransfer.files.length > 0) { e.preventDefault(); enqueueFiles(e.dataTransfer.files) }
+        else if (isWebPageDrop(e.dataTransfer)) { e.preventDefault(); pushToast('error', WEB_PAGE_DROP_MESSAGE) }
       } : undefined}
     >
       <div className="page-header">
@@ -1428,12 +1477,15 @@ export default function MediaLibrary({
             // only on the internal flag keeps this working in Safari, which
             // doesn't expose dataTransfer.types during dragover.
             if (draggingInternal.current) return
-            e.preventDefault(); setFileDragOver(true)
+            e.preventDefault(); showFileDrag()
           } : undefined}
-          onDragLeave={canUpload ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileDragOver(false) } : undefined}
+          onDragLeave={canUpload ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) hideFileDrag() } : undefined}
           onDrop={canUpload ? (e) => {
-            setFileDragOver(false)
+            hideFileDrag()
             if (e.dataTransfer.files.length > 0) { e.preventDefault(); enqueueFiles(e.dataTransfer.files) }
+            // A breadcrumb in this panel always calls preventDefault and has already
+            // said its piece about a web-page drop, so only speak if nothing has.
+            else if (!draggingInternal.current && !e.defaultPrevented && isWebPageDrop(e.dataTransfer)) { e.preventDefault(); pushToast('error', WEB_PAGE_DROP_MESSAGE) }
           } : undefined}
         >
           {fileDragOver && (
