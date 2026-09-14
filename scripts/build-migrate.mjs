@@ -12,7 +12,7 @@
  * direct endpoint. Fixes applied:
  *   1. Use DIRECT_URL if set, else strip "-pooler" from the hostname.
  *   2. Set PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 so Prisma skips the advisory
- *      lock entirely — safe here because Vercel runs only one build at a time.
+ *      lock entirely. The tracking connection now serialises the whole chain.
  *   3. Retry up to 3 times with a 15 s back-off for any remaining transient
  *      connectivity issues. A cold-start disconnect mid-apply leaves the
  *      migration marked "failed" in _prisma_migrations, which blocks every
@@ -24,6 +24,8 @@ import { spawnSync } from 'child_process'
 import { existsSync, readdirSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import pg from 'pg'
+import { beginPlanFlush, finishPlanFlush, sweepPlans } from './lib/plan-flush.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -62,9 +64,8 @@ const env = {
   // this script gets the same behaviour.
   CHECKPOINT_DISABLE: '1',
   PRISMA_HIDE_UPDATE_MESSAGE: 'true',
-  // Skip the Postgres advisory lock: Vercel runs one build at a time so there
-  // is no concurrent-migration risk, and Neon cold-starts frequently exceed
-  // Prisma's 10 s advisory lock timeout.
+  // The tracking connection holds the advisory lock for the whole migration
+  // chain, avoiding Prisma's separate 10 s advisory lock timeout.
   PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK: '1',
 }
 
@@ -138,26 +139,36 @@ function runMigrateDeployWithRetry(retries = 3, backoffMs = 10_000) {
   }
 }
 
-runMigrateDeployWithRetry()
-// Reconcile additive core-schema drift on installs whose init migration predates
-// later additive changes (migrate deploy never re-applies the edited-in-place
-// core migration). Idempotent — a no-op on fresh or up-to-date installs.
-runWithRetry('Core schema reconcile', 'node', ['scripts/reconcile-core-schema.mjs'])
-runWithRetry('Module migrations', 'node', ['scripts/run-module-migrations.mjs'])
-// Every step above changes the schema on the direct endpoint, which leaves the
-// pooler's own long-lived connections holding query plans built against the old
-// table shapes ("cached plan must not change result type"). Clear them now rather
-// than waiting for pgBouncer to recycle. Best-effort by design: the script never
-// exits non-zero, so it can't fail a deploy.
-//
-// It gets the site's real DATABASE_URL, not the rewritten one every other step
-// runs with. `env` above replaces DATABASE_URL with the direct endpoint, so the
-// flusher's "is this pooled?" test was reading a URL from which "-pooler" had
-// just been stripped: on every pooled install it decided there was no pooler and
-// exited without clearing anything. The one guard written for this failure mode
-// had therefore never run on the installs that need it - which is how shop's
-// 006_supplier took the live storefront down on 2026-07-19, months after the
-// flusher was added for the identical failure in v0.5.578.
-runWithRetry('Flush pooled query plans', 'node', ['scripts/flush-pooled-plans.mjs'], {
-  childEnv: { ...env, DATABASE_URL: process.env.DATABASE_URL },
+// The tracker uses the direct endpoint and owns the advisory lock until every
+// migration and cleanup step has finished. A durable pending marker is written
+// before running any DDL. Failure to establish that guard aborts before changes.
+const trackingUrl = new URL(migrateUrl)
+if (trackingUrl.searchParams.get('sslmode') === 'require') {
+  trackingUrl.searchParams.set('sslmode', 'verify-full')
+}
+const tracker = new pg.Client({
+  connectionString: trackingUrl.toString(),
+  connectionTimeoutMillis: 10_000,
+  query_timeout: 60_000,
 })
+try {
+  await tracker.connect()
+  const state = await beginPlanFlush(tracker)
+  runMigrateDeployWithRetry()
+  runWithRetry('Core schema reconcile', 'node', ['scripts/reconcile-core-schema.mjs'])
+  runWithRetry('Module migrations', 'node', ['scripts/run-module-migrations.mjs'])
+  try {
+    await finishPlanFlush(tracker, state, {
+      log: (line) => console.log(`[flush-plans] ${line}`),
+    })
+  } catch (err) {
+    // A failed fingerprint/read/write must not remove the old unconditional
+    // safety net. Leave the pending marker for the next deployment to recover.
+    console.warn(`[flush-plans] Could not confirm completed cleanup: ${err.message}; sweeping conservatively.`)
+    try { await sweepPlans(tracker) } catch (sweepError) {
+      console.warn(`[flush-plans] Could not clear pooled connections (continuing): ${sweepError.message}`)
+    }
+  }
+} finally {
+  await tracker.end().catch(() => {})
+}

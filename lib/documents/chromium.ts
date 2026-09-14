@@ -47,7 +47,9 @@ async function localChromePath(): Promise<string | null> {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH
   const { existsSync } = await import('fs')
   for (const candidate of [MAC_CHROME, MAC_CHROMIUM, LINUX_CHROME, LINUX_CHROMIUM]) {
-    if (existsSync(candidate)) return candidate
+    // These are external executables on a developer's machine, never project
+    // assets. Tracing this variable otherwise copies the whole project into server output.
+    if (existsSync(/* turbopackIgnore: true */ candidate)) return candidate
   }
   return null
 }

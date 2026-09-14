@@ -35,6 +35,7 @@ import { spawn } from 'child_process'
 import { existsSync, rmSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { restoreBuildCache, discardBuildCache } from './lib/build-cache.mjs'
 
 const rootDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -171,7 +172,8 @@ function runBuild(env, attempt) {
 
 // Everything Turbopack may have cached, including a snapshot a killed build could
 // have left half-written. Removed before the retry so it starts genuinely cold.
-function clearTurbopackCache() {
+async function clearTurbopackCache() {
+  await discardBuildCache(rootDir)
   for (const dir of ['cache/turbopack', 'dev/cache/turbopack']) {
     const full = path.join(rootDir, '.next', dir)
     try {
@@ -213,6 +215,10 @@ function pruneBuildCache() {
 }
 
 async function main() {
+  await restoreBuildCache(rootDir, {
+    enabled: process.env.CACTUS_TURBOPACK_BUILD_CACHE !== '0',
+    log: (line) => console.log(`[next-build] ${line}`),
+  }).catch((err) => console.warn(`[next-build] Could not restore the compilation cache: ${err.message}`))
   const first = await runBuild(process.env, 1)
 
   if (first.status === 0) {
@@ -231,7 +237,7 @@ async function main() {
     + 'that variable in the project\'s environment variables so the next build skips '
     + 'straight to it, and see next.config.ts.'
   )
-  clearTurbopackCache()
+  await clearTurbopackCache()
 
   const second = await runBuild({ ...process.env, CACTUS_TURBOPACK_BUILD_CACHE: '0' }, 2)
 

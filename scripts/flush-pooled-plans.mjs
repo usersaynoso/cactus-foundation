@@ -33,7 +33,8 @@
  * idle pooled backend is exactly where a stale plan sits waiting. Two passes a
  * few seconds apart catch the ones that were mid-query on the first pass.
  *
- * Runs last in build-migrate.mjs, after every DDL step, and is given the site's
+ * Standalone unconditional cleanup. build-migrate.mjs uses the same sweep helper
+ * with durable migration tracking to skip unchanged deployments. This CLI uses the site's
  * real (pooled) DATABASE_URL rather than the direct one the migration steps run
  * with. Skipped only when there is no DATABASE_URL at all (initial deploy before
  * the setup wizard).
@@ -45,6 +46,7 @@
  */
 
 import pg from 'pg'
+import { sweepPlans } from './lib/plan-flush.mjs'
 
 const { Client } = pg
 
@@ -83,34 +85,12 @@ if (parsedUrl.searchParams.get('sslmode') === 'require') {
   parsedUrl.searchParams.set('sslmode', 'verify-full')
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-// One sweep: end every idle backend on this database except our own. Returns how
-// many were ended. `pg_terminate_backend` needs no superuser for connections
-// belonging to the same role, which is what every application connection is.
-async function sweep(client) {
-  const { rows } = await client.query(`
-    SELECT pg_terminate_backend(pid) AS ended
-    FROM pg_stat_activity
-    WHERE datname = current_database()
-      AND pid <> pg_backend_pid()
-      AND state = 'idle'
-  `)
-  return rows.filter((r) => r.ended).length
-}
-
 const client = new Client({ connectionString: parsedUrl.toString() })
 
 try {
   await client.connect()
-  const first = await sweep(client)
-  // A backend that was mid-query a moment ago still holds its stale plan once it
-  // goes idle, so give the short ones time to finish and sweep again.
-  await sleep(3000)
-  const second = await sweep(client)
-  console.log(`[flush-plans] Cleared ${first + second} idle pooled connection(s) so plans are rebuilt against the new schema`)
+  const count = await sweepPlans(client)
+  console.log(`[flush-plans] Cleared ${count} idle pooled connection(s) so plans are rebuilt against the new schema`)
 } catch (err) {
   // Never fail a deploy over this. The worst case without it is the old
   // behaviour: stale plans that clear themselves when pgBouncer recycles.

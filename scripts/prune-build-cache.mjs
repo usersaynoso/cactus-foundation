@@ -1,68 +1,22 @@
 #!/usr/bin/env node
 /**
- * Keeps what Vercel saves as the build cache under Vercel's size limit.
+ * Keep Vercel's cached dependencies and compilation work within a measured budget.
+ * Leave both alone if they fit. Otherwise pack the complete compiler database,
+ * then remove only enough untraced packages to fit, tooling first. Drop the whole
+ * compiler cache only as a last resort. Never trim its internal database files.
  *
- * Vercel caches `node_modules` and `.next/cache` between deployments, and refuses
- * to keep the result once it goes over 1.5 GB:
- *
- *     Build cache size 2.04 GB exceeds limit of 1.50 GB. Invalidating cache.
- *     Cache invalidated
- *
- * That is not a warning about the next build being slightly slower. The WHOLE
- * cache goes, so the deploy after it pays a cold `npm install` (~30s), a cold
- * Turbopack compile (~180s instead of ~35s) and a full re-upload of every output
- * chunk, because none of them dedupe against a previous deployment. On this site
- * it was costing about two and a half minutes on roughly every other deploy.
- *
- * The cycle is self-sustaining and easy to read in the deployment logs: a cold
- * build writes ~1.33 GB and fits; the warm build after it merges the restored
- * Turbopack cache with its own new entries, lands somewhere between 1.7 and
- * 2.1 GB, and is thrown away; the next one is cold again.
- *
- * So this runs after a successful `next build` and gives the cache a haircut, in
- * the order that costs the least. What each stage is worth to the next deploy is
- * the whole basis of the order: a warm node_modules saves an `npm install`, about
- * 30 seconds, and a warm Turbopack cache saves up to 145 seconds of compile. So
- * node_modules is spent first and the compile cache is spent last.
- *
- *   1. Build-only packages out of node_modules. The Prisma CLI and its engines,
- *      TypeScript, ESLint, Vitest and the toolchain they drag in are needed to
- *      PRODUCE the build and never appear in it. About 200 MB, and it costs the
- *      next build only the seconds npm takes to fetch them again.
- *   2. If that is not enough: everything else in node_modules that no trace
- *      mentions. Nothing here can affect the deployed site - a package no trace
- *      names is not copied into any function, so it was never going to run - and
- *      the next build reinstalls it. This is most of an `npm install`, ~30s, paid
- *      to keep something worth five times that.
- *   3. If it is STILL over: the Turbopack cache, the last thing left and the
- *      dearest. A build that starts with node_modules warm and compiles cold
- *      still beats one that starts cold twice over.
- *
- * No stage guesses. `next build` has already written the file traces
- * (`.next/**\/*.nft.json`) that say exactly which files Vercel will copy into the
- * deployed functions, so a package is only removed when it appears in none of
- * them. Anything traced is left alone, whatever the lists below say - see draco3d
- * and @sparticuz/chromium in next.config.ts for what happens when a runtime file
- * is not where the function expects it.
- *
- * Timing matters and is the reason this is here rather than earlier: the traces
- * are only written when the build finishes, and Vercel assembles
- * `.vercel/output` from node_modules AFTER `npm run build` returns. Nothing
- * traced may be removed, and nothing may be removed before `next build` is done.
- *
- * Armed on Vercel only - a developer's node_modules is not a build cache and
- * deleting their TypeScript would be its own bug. CACTUS_PRUNE_BUILD_CACHE=1
- * arms it anywhere, =0 disarms it, and CACTUS_BUILD_CACHE_BUDGET_MB moves the
- * budget. Both are env-var-only changes, so if this ever needs taking out of the
- * picture on a live site it ships through a redeploy rather than a code change.
- *
- * Nothing in here is allowed to fail a build that has already succeeded.
+ * Runs after a successful Next build, before Vercel assembles functions from the
+ * file traces. Traced packages and Next's adapter dependencies must survive.
+ * Armed on Vercel only, or CACTUS_PRUNE_BUILD_CACHE=1; =0 disables pruning.
+ * CACTUS_BUILD_CACHE_BUDGET_MB overrides the 1400 MB safety budget. Cleanup cannot
+ * fail a successful build. Packed caches are restored by next-build.mjs.
  */
 
 import { existsSync, readdirSync, readFileSync, rmSync } from 'fs'
 import { spawnSync } from 'child_process'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { PACKED_CACHE, packBuildCache, discardBuildCache } from './lib/build-cache.mjs'
 
 const rootDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const nodeModules = path.join(rootDir, 'node_modules')
@@ -74,7 +28,7 @@ const armed = process.env.CACTUS_PRUNE_BUILD_CACHE === '1'
 // Vercel's limit is 1.5 GB and it is measured on everything cached together, so
 // aim under it rather than at it: the measurement here is of the directories as
 // they sit on disk, and what Vercel weighs is its own archive of them.
-const BUDGET_MB = Number(process.env.CACTUS_BUILD_CACHE_BUDGET_MB) > 0
+const BUDGET_MB = Number.isFinite(Number(process.env.CACTUS_BUILD_CACHE_BUDGET_MB)) && Number(process.env.CACTUS_BUILD_CACHE_BUDGET_MB) > 0
   ? Number(process.env.CACTUS_BUILD_CACHE_BUDGET_MB)
   : 1400
 
@@ -145,7 +99,7 @@ function sizeMb(dir) {
  * Every package named by a file trace, as `name` or `@scope/name`.
  *
  * Trace entries are paths relative to the .nft.json that holds them, so they
- * arrive as `../../../node_modules/foo/index.js`. The last `node_modules/` in the
+ * arrive as `../../../node_modules/foo/index.js`. The first `node_modules/` in the
  * path is the one that matters - a nested copy belongs to whatever package
  * contains it, and that outer package is what gets kept.
  */
@@ -157,8 +111,8 @@ function tracedPackages() {
     let entries
     try {
       entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
-      return
+    } catch (err) {
+      throw new Error(`Cannot inspect file traces: ${err.message}`)
     }
     for (const entry of entries) {
       const full = path.join(dir, entry.name)
@@ -172,10 +126,13 @@ function tracedPackages() {
         try {
           parsed = JSON.parse(readFileSync(full, 'utf8'))
         } catch {
-          continue
+          throw new Error(`Unreadable file trace: ${full}`)
         }
-        for (const file of parsed.files ?? []) {
-          const at = file.lastIndexOf('node_modules/')
+        if (!Array.isArray(parsed.files) || parsed.files.some((file) => typeof file !== 'string')) {
+          throw new Error(`Invalid file trace: ${full}`)
+        }
+        for (const file of parsed.files) {
+          const at = file.indexOf('node_modules/')
           if (at < 0) continue
           const rest = file.slice(at + 'node_modules/'.length).split('/')
           traced.add(rest[0].startsWith('@') ? `${rest[0]}/${rest[1]}` : rest[0])
@@ -240,13 +197,33 @@ function candidates() {
   return found
 }
 
-function prune() {
+async function prune() {
   if (!existsSync(nodeModules)) {
     log('No node_modules - nothing to do.')
     return
   }
 
   const before = sizeMb(nodeModules) + sizeMb(path.join(nextDir, 'cache'))
+  if (!Number.isFinite(before)) {
+    log('Could not measure the cache - leaving it alone.')
+    return
+  }
+  if (before <= BUDGET_MB) {
+    log(`Footprint ${before.toFixed(0)} MB is under budget ${BUDGET_MB} MB - keeping dependencies and compilation cache.`)
+    return
+  }
+  // Preserve the WHOLE compiler database. Compression is reversible and can
+  // avoid both a cold compile and the dependency reinstall the old policy caused.
+  try {
+    await packBuildCache(rootDir, log)
+  } catch (err) {
+    log(`Could not pack compilation cache: ${err.message}; continuing with the measured cleanup policy.`)
+  }
+  let after = sizeMb(nodeModules) + sizeMb(path.join(nextDir, 'cache'))
+  if (!Number.isFinite(after) || after <= BUDGET_MB) {
+    log(`Keeping dependencies; footprint after packing ${after.toFixed(0)} MB.`)
+    return
+  }
   const { traced, traceFiles } = tracedPackages()
 
   // No traces means the build produced no file traces to check against, which is
@@ -262,15 +239,34 @@ function prune() {
   const turbopackDir = path.join(cacheDir, 'turbopack')
   const footprint = () => sizeMb(nodeModules) + sizeMb(cacheDir)
 
+  // If even removing every eligible dependency cannot retain the compiler,
+  // discard it BEFORE sacrificing the dependencies as well. This is the old
+  // policy's worst case: a cold install followed by a cold compile, every time.
+  const removable = installedPackages().filter((name) =>
+    !traced.has(name) && !NEVER_PRUNE.some((pattern) => pattern.test(name)))
+  const reclaimable = removable.reduce((total, name) => total + sizeMb(path.join(nodeModules, name)), 0)
+  const compilerMb = sizeMb(turbopackDir) + sizeMb(path.join(cacheDir, PACKED_CACHE))
+  if (Number.isFinite(reclaimable) && after - reclaimable > BUDGET_MB && compilerMb > 0) {
+    await discardBuildCache(rootDir)
+    after = footprint()
+    log(`Even the packed compiler cannot fit beside required packages - discarded it before pruning dependencies. Footprint ${after.toFixed(0)} MB.`)
+    if (!Number.isFinite(after) || after <= BUDGET_MB) return
+  }
+
   /** Remove these packages, skipping anything traced or protected. Returns how
    *  many went. */
   const remove = (names) => {
     let gone = 0
+    let remaining = footprint()
     for (const name of names) {
+      if (!Number.isFinite(remaining) || remaining <= BUDGET_MB) break
       if (traced.has(name)) continue
       if (NEVER_PRUNE.some((pattern) => pattern.test(name))) continue
       try {
+        const mb = sizeMb(path.join(nodeModules, name))
+        if (!Number.isFinite(mb)) break
         rmSync(path.join(nodeModules, name), { recursive: true, force: true })
+        remaining -= mb
         gone++
       } catch (err) {
         log(`Could not remove ${name}: ${err.message}`)
@@ -279,10 +275,9 @@ function prune() {
     return gone
   }
 
-  // Stage 1: the build's own toolchain, always, whether it is needed to fit or
-  // not - it is nearly free to reinstall and there is no reason to carry it.
+  // Stages 1 and 2 stop as soon as the budget is met.
   const stage1 = remove(candidates())
-  let after = footprint()
+  after = footprint()
   if (!Number.isFinite(after)) {
     log('Could not measure the cache - stopping after the build-only packages.')
     return
@@ -292,18 +287,16 @@ function prune() {
     + `Footprint ${before.toFixed(0)} MB → ${after.toFixed(0)} MB (budget ${BUDGET_MB} MB).`
   )
   if (after <= BUDGET_MB) {
-    log('Under budget - Vercel will keep this cache, node_modules and compile cache both.')
+    log('Under budget - keeping the remaining dependencies and compilation cache.')
     return
   }
 
-  // Stage 2: everything else no function will ever load. Costs the next build an
-  // install; saves it a compile, which is worth several times more.
+  // Stage 2: other untraced packages, stopping as soon as the budget is met.
   const stage2 = remove(installedPackages())
   after = footprint()
   log(
     `Stage 2: over budget, so removed ${stage2} more packages that no trace mentions. `
-    + `Footprint now ${after.toFixed(0)} MB. The next build reinstalls them (~30s) and `
-    + 'keeps its compile cache, which is the better half of the trade.'
+    + `Footprint now ${after.toFixed(0)} MB. The next build reinstalls the removed packages.`
   )
   if (after <= BUDGET_MB) {
     log('Under budget.')
@@ -311,13 +304,13 @@ function prune() {
   }
 
   // Stage 3: the compile cache, the dearest thing here and so the last to go.
-  if (!existsSync(turbopackDir)) {
+  if (!existsSync(turbopackDir) && !existsSync(path.join(cacheDir, PACKED_CACHE))) {
     log('Still over budget and there is no Turbopack cache to drop. Vercel may invalidate this cache.')
     return
   }
-  const turbopackMb = sizeMb(turbopackDir)
+  const turbopackMb = sizeMb(turbopackDir) + sizeMb(path.join(cacheDir, PACKED_CACHE))
   try {
-    rmSync(turbopackDir, { recursive: true, force: true })
+    await discardBuildCache(rootDir)
   } catch (err) {
     log(`Still over budget and could not drop the Turbopack cache: ${err.message}`)
     return
@@ -333,7 +326,7 @@ if (!armed) {
   log('Not armed (not Vercel) - leaving node_modules and .next/cache alone.')
 } else {
   try {
-    prune()
+    await prune()
   } catch (err) {
     // A build that has already succeeded must not be failed by its own cleanup.
     log(`Skipped: ${err.message}`)

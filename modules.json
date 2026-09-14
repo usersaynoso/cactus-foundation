@@ -13,7 +13,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.189"
+      "version": "v0.1.190"
     },
     {
       "name": "product-addons-for-shop",
@@ -98,7 +98,7 @@
     {
       "name": "modular-configurator-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/modular-configurator-for-shop",
-      "version": "v0.1.8"
+      "version": "v0.1.9"
     },
     {
       "name": "reviews-for-shop",
