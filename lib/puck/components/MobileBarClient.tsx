@@ -147,7 +147,7 @@ export default function MobileBarClient({ barId, ariaLabel, items, slots, forceV
   const openItem = visible.find((i) => i.key === openKey) ?? null
 
   return (
-    <nav data-cmb-id={barId} aria-label={ariaLabel || 'Quick links'}>
+    <nav data-cmb-id={barId} data-cmb-menu-open={openItem ? 'true' : undefined} aria-label={ariaLabel || 'Quick links'}>
       <style>{css}</style>
       <ul className="cmb-list">
         {visible.map((item) => {

@@ -78,4 +78,24 @@ describe('mobileBarCss', () => {
     expect(css).toContain('--cmb-active:var(--color-primary)')
     expect(MOBILE_BAR_DEFAULTS.bgColour).toBe('')
   })
+
+  it('raises the whole bar stacking context while its menu sheet is open', () => {
+    const css = mobileBarCss('abc', { barOn: 'all' })
+    const zIndexOf = (selector: string) => {
+      const start = css.indexOf(selector)
+      expect(start).toBeGreaterThanOrEqual(0)
+      const block = css.slice(start, css.indexOf('}', start))
+      const match = /z-index:(\d+)/.exec(block)
+      expect(match).not.toBeNull()
+      return Number(match?.[1])
+    }
+    const fixedBarStart = css.indexOf('position:fixed;left:0;right:0;bottom:0;z-index:')
+    expect(fixedBarStart).toBeGreaterThanOrEqual(0)
+    const rootZ = Number(/z-index:(\d+)/.exec(css.slice(fixedBarStart))?.[1])
+    const openZ = zIndexOf('[data-cmb-id="abc"][data-cmb-menu-open="true"]{')
+    const sheetZ = zIndexOf('[data-cmb-id="abc"] .cmb-sheet{')
+    expect(rootZ).toBeLessThan(1200)
+    expect(openZ).toBeGreaterThan(1200)
+    expect(openZ).toBe(sheetZ)
+  })
 })

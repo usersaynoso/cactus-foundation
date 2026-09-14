@@ -178,6 +178,7 @@ ${sel}{
   padding-bottom:env(safe-area-inset-bottom,0px);
   box-sizing:border-box;
 }
+${sel}[data-cmb-menu-open="true"]{z-index:${SHEET_Z};}
 ${sel} .cmb-list{
   list-style:none;margin:0;padding:0;
   display:grid;grid-auto-flow:column;grid-auto-columns:1fr;
