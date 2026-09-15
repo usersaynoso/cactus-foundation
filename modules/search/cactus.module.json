@@ -1,0 +1,83 @@
+{
+  "name": "search",
+  "version": "0.1.47",
+  "tablePrefix": "srch_",
+  "requiresCoreVersion": "0.5.1593",
+  "description": "Site-wide search across pages, shop, articles, directory, forum and members, with a configurable search box and results page.",
+  "publicBasePath": "search",
+  "permissions": [
+    "search.view",
+    "search.manage"
+  ],
+  "navGroupLabel": "Search",
+  "settingsTabs": [
+    {
+      "id": "search",
+      "label": "Search",
+      "permission": "search.manage",
+      "import": "./components/admin/SearchSettingsTab",
+      "component": "SearchSettingsTab"
+    }
+  ],
+  "requiredEnvVars": [],
+  "cookieCategories": [],
+  "teardown": [
+    "srch_queries",
+    "srch_documents",
+    "srch_settings"
+  ],
+  "cronJobs": [
+    {
+      "path": "/api/m/search/cron/reindex",
+      "schedule": "0 4 * * *"
+    }
+  ],
+  "layoutTypes": {
+    "groupLabel": "Search",
+    "types": [
+      {
+        "key": "searchResults",
+        "label": "Results page",
+        "starterImport": "./lib/starterLayouts",
+        "starterExport": "searchResultsStarters"
+      }
+    ]
+  },
+  "puckBlocks": [
+    {
+      "type": "SiteSearch",
+      "import": "./components/puck/SiteSearchBlock",
+      "rscImport": "./components/puck/SiteSearchBlock.rsc",
+      "component": "siteSearchPuckComponent",
+      "rscComponent": "siteSearchPuckRscComponent",
+      "layoutTypes": [
+        "header",
+        "searchResults"
+      ]
+    },
+    {
+      "type": "SiteSearchResults",
+      "import": "./components/puck/SiteSearchResultsBlock",
+      "rscImport": "./components/puck/SiteSearchResultsBlock.rsc",
+      "component": "siteSearchResultsPuckComponent",
+      "rscComponent": "siteSearchResultsPuckRscComponent",
+      "layoutTypes": [
+        "searchResults"
+      ]
+    }
+  ],
+  "extensionPoints": [
+    {
+      "point": "core.media-reference-rewriters",
+      "id": "search",
+      "import": "./lib/media-reference-rewriter",
+      "component": "searchMediaReferenceRewriter"
+    },
+    {
+      "point": "core.media-usage-providers",
+      "id": "search",
+      "import": "./lib/media-usage-provider",
+      "component": "searchMediaUsageProvider"
+    }
+  ]
+}

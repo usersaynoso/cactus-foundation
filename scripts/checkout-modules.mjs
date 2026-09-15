@@ -154,6 +154,15 @@ async function cloneModule(log, name, repoUrl, moduleDir, version) {
 // Returns { fatal } - fatal is true only when a PINNED entry could not be cloned
 // at its pin on Vercel, which must fail the whole build (see cloneModule). Every
 // other clone failure stays a non-fatal warning, as before.
+// True when this module's source ships inside the install repo (cloud agents
+// vend module changes through core when they cannot push to the module remote).
+// Checked against core git, not the nested .git a local clone may carry.
+async function isModuleVendoredInCore(name) {
+  const marker = join('modules', name, 'cactus.module.json')
+  const listed = await git(['-C', rootDir, 'ls-files', '--error-unmatch', marker])
+  return listed.status === 0
+}
+
 async function checkoutModule({ name, repoUrl, version }) {
   if (!name || !repoUrl) {
     console.warn('[checkout-modules] Skipping entry with missing name or repoUrl:', { name, repoUrl })
@@ -167,6 +176,11 @@ async function checkoutModule({ name, repoUrl, version }) {
   let fatal = false
 
   try {
+    if (await isModuleVendoredInCore(name) && existsSync(join(moduleDir, 'cactus.module.json'))) {
+      log(`${name}: using source vendored in the install repo (skipping clone)`)
+      return { fatal: false }
+    }
+
     if (!isVercel && existsSync(moduleDir)) {
       // Local fast path: restore tracked files to HEAD without a network call. This
       // doesn't check the recorded version against what's on disk - it's a no-network

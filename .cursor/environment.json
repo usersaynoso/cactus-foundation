@@ -1,0 +1,6 @@
+{
+  "install": "npm install",
+  "repositoryDependencies": [
+    "github.com/cactus-foundation-modules/search"
+  ]
+}
