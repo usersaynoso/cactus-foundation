@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { detachMediaReferences } from '@/lib/media/detach'
 import { relocateMediaBlob, rewriteMediaReferencesInContent, deleteMedia, buildKey } from '@/lib/media/upload'
 import { recordFormerMediaAddress } from '@/lib/media/former-addresses'
+import { retireMediaBlob } from '@/lib/media/retired-blobs'
 import { isRenditionFileName } from '@/lib/media/rendition-naming'
 import { isExactNameKey, keyDirectory } from '@/lib/media/keys'
 import { isProxied } from '@/lib/media/providers'
@@ -443,25 +444,20 @@ export async function moveOrRenameMedia(
     // delete take out the image that had just replaced it. (Parking above means
     // the two keys normally differ by now; the guard stays for the paths that
     // don't park, and because a provider is free to hand back any key it likes.)
+    //
+    // Queued, not deleted: the victim's old address is still in any page a CDN
+    // saved before now (see lib/media/retired-blobs.ts).
     if (victim.key !== relocated.key) {
-      try {
-        await deleteMedia(victim.provider, victim.key)
-      } catch {
-        /* orphaned victim blob; harmless, still deletable later */
-      }
+      await retireMediaBlob(victim.provider, victim.key, renaming ? 'rename' : 'move')
     }
     await prisma.media.delete({ where: { id: victim.id } })
   }
 
   // Same rule for the original: a relocate that resolves to the key it started
   // on has already written the bytes there, so deleting "the old one" would
-  // delete the item itself.
+  // delete the item itself. Queued rather than deleted, for the same cached pages.
   if (relocated.key !== media.key) {
-    try {
-      await deleteMedia(media.provider, media.key)
-    } catch {
-      /* orphaned original; harmless, still deletable later */
-    }
+    await retireMediaBlob(media.provider, media.key, renaming ? 'rename' : 'move')
   }
 
   // The item's shrunk copies live in a `thumb` folder beside it and are found by
@@ -756,12 +752,9 @@ async function relocateWithinSameFolder(mediaId: string): Promise<boolean> {
 
   await recordFormerMediaAddress(media.id, media.url, media.key, 'move')
   await rewriteMediaReferencesInContent(media.url, relocated.url, media.key, relocated.key)
+  // Queued rather than deleted - see lib/media/retired-blobs.ts.
   if (relocated.key !== media.key) {
-    try {
-      await deleteMedia(media.provider, media.key)
-    } catch {
-      /* orphaned original; harmless */
-    }
+    await retireMediaBlob(media.provider, media.key, 'move')
   }
   return true
 }

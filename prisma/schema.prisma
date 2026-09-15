@@ -556,6 +556,36 @@ model MediaFormerAddress {
   @@index([key])
 }
 
+// A superseded blob waiting to be deleted. See lib/media/retired-blobs.ts.
+//
+// When an item moves (optimise, resize, crop, replace, rename, move, dedupe, a
+// remade shrunk copy) every reference core and the modules can reach is
+// repointed at once - but a page a CDN saved a minute earlier still names the old
+// address, and goes on serving that copy for the whole cache window. Deleting the
+// old blob there and then turned every such page into a set of broken pictures.
+// So the blob is queued here instead, and the hourly sweep deletes it once every
+// cache that could still be holding a page naming it has let go.
+//
+// Keyed by the blob itself, not the item: the item may be deleted in the
+// meantime (a dedupe loser is), and the bytes still need tidying up after it.
+model MediaRetiredBlob {
+  provider    MediaProviderType
+  key         String
+  // What superseded it. Display and logs only; nothing branches on it.
+  reason      String
+  // Not deleted before this. Worked out when the blob is retired, from the page
+  // cache windows in force at that moment - see retirementHoldSeconds.
+  deleteAfter DateTime
+  // Failed deletes so far. A blob that keeps failing is given up on after a few
+  // tries and left as an ordinary storage-check leftover.
+  attempts    Int      @default(0)
+  lastError   String?
+  createdAt   DateTime @default(now())
+
+  @@id([provider, key])
+  @@index([deleteAfter])
+}
+
 // A media migration job moves every Media row not already on `toProvider`
 // onto it. Exactly one job runs at a time (guarded by the global DeployLock-style
 // pattern). Processed in small batches triggered by repeated client-side calls

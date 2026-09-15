@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { takeOverMediaReferences } from '@/lib/media/organise'
-import { deleteMedia } from '@/lib/media/upload'
+import { retireMediaBlob } from '@/lib/media/retired-blobs'
 import { KNOWN_RENDITION_SPECS } from '@/lib/media/rendition-naming'
 
 // Collapsing duplicate shrunk copies onto one file.
@@ -36,7 +36,7 @@ export type RenditionDedupeProgress = {
   groups: number
   /** Rows deleted (the losers). */
   deleted: number
-  /** Blobs removed from the provider. */
+  /** Blobs handed to the deletion queue (lib/media/retired-blobs.ts), gone once no cached page can name them. */
   blobsDeleted: number
   /** Rows left alone because deleting them was not obviously safe. */
   kept: number
@@ -172,7 +172,9 @@ export async function dedupeRenditions(opts?: {
           progress.kept += 1
           continue
         }
-        await deleteMedia(loser.provider, loser.key)
+        // Queued rather than deleted: its references now name the keeper, but a
+        // page a CDN saved beforehand still names the loser (retired-blobs.ts).
+        await retireMediaBlob(loser.provider, loser.key, 'dedupe')
         progress.blobsDeleted += 1
       } catch (err) {
         // One group failing must not end the pass: the rows stay, still serving,

@@ -399,6 +399,14 @@ You don't have to do anything for this. It's worth knowing about mainly so that 
 
 One limit, and it's an honest one: this only covers moves from this version onwards. Anything that shifted before it has no note against it.
 
+### The old copy hangs about for a bit
+
+There's one more place an old address can linger: a page somebody's browser, or a speed service like Cloudflare, saved *before* the move. If you've switched on page caching under **Settings > General > Speed**, a product page can be handed out from that saved copy for a while, old picture addresses and all. Cactus used to bin the old file the moment it moved, so for the rest of that window the page drew a broken picture in place of every colour swatch - not a look anybody was going for.
+
+So the old file now stays where it is until no saved page could still be asking for it, and an hourly clean-up deletes it after that. How long that is depends on your cache settings: twice the longer of your two cache times (a saved page can be served for its full time, then again while a fresh one is fetched), plus an hour to be safe. With the usual settings that's a few hours; with a week-long cache on option pages it's a fortnight. The files are small and it's only the previous copy, so the extra storage is pocket change.
+
+Pages you build in the page builder are refreshed straight away when a picture on them moves, so they never hold onto an old address in the first place. You don't have to do anything for any of this.
+
 ---
 
 ## Small copies, for where a picture is drawn small
@@ -503,11 +511,12 @@ If any of your selection turns out to be in use somewhere, Cactus holds those ba
 
 Everything else on the media page is counted from Cactus's own records, so it can only ever agree with itself. The **Storage check** at the bottom of the page is the one thing that goes and asks your storage provider what is actually sitting there, and reports the difference. You'll only see it if you're allowed to manage settings.
 
-Press **Run check**. It can take a little while on a big library, because it genuinely reads through everything your provider holds - the button counts the files as it goes, so you can see it is getting somewhere. There is no upper limit on how many files it will check; a big library is simply read in several passes, one after another, and the results only appear once the last one is in. Then it tells you about up to five things:
+Press **Run check**. It can take a little while on a big library, because it genuinely reads through everything your provider holds - the button counts the files as it goes, so you can see it is getting somewhere. There is no upper limit on how many files it will check; a big library is simply read in several passes, one after another, and the results only appear once the last one is in. Then it tells you about up to six things:
 
 - **Leftover files** - files sitting in storage that no item in your library points to and nothing on your site is using, along with how much room they're taking up. These are the usual reason your provider's own dashboard reports more files than your library does. They build up in small ways: a file gets replaced or moved and the old copy doesn't quite get cleared away.
 - **In use, but with no entry here** - files your site is genuinely serving that never got an entry in the library. A 3D model or a product photograph added in bulk can land this way, and so can a file whose entry was deleted while a product page carried on using it. They look like leftovers and are anything but, so nothing here is ever offered for deletion.
 - **Kept outside the library on purpose** - files an add-on holds that were never meant to be library items in the first place: a picture that is part of an email rather than attached to it, say, or a file dropped onto a reply that has not been sent yet. Those stay out of the media picker deliberately, so this is a count for the sake of the arithmetic and nothing more. There is no button, and there won't be one. You'll only see this heading at all if something on your site keeps files that way.
+- **Old copies waiting to be cleared** - the previous copies of pictures you've recently optimised, resized, replaced or moved. They're kept for a while so a page saved before the change doesn't show a broken picture (see **The old copy hangs about for a bit** above), and the hourly clean-up deletes them on its own. No button, deliberately: clearing them early is exactly the thing that breaks those pages.
 - **Files that have gone** - the opposite problem. An item shows in your library but its actual file is no longer in storage, which is why it appears as a broken picture. Usually because someone tidied up in the provider's own dashboard: deleting a file there tells Cactus nothing, so the entry stays behind.
 - **Sizes recorded wrongly** - where Cactus has the wrong size written down for a file. Harmless in itself, but it makes the "Storage used" figure on this page slightly out.
 

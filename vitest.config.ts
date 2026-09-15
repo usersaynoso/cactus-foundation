@@ -9,7 +9,7 @@ export default defineConfig({
     // in there, whose copies of the suite resolve `@/...` back to THIS root and
     // then fail on files their own branch has since renamed. They are somebody
     // else's checkout, not this one's source.
-    exclude: ['**/node_modules/**', '**/dist/**', '.claude/**', 'wiki/**', 'modules/*/node_modules/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '.claude/**', 'cactus-foundation/**', 'wiki/**', 'modules/*/node_modules/**'],
   },
   resolve: {
     alias: {

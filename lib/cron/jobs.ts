@@ -51,6 +51,7 @@ export const CORE_CRON_JOBS: CronJob[] = [
   { path: '/api/cron/members/digest?mode=daily', schedule: '0 7 * * *', module: null },
   { path: '/api/cron/members/digest?mode=weekly', schedule: '0 7 * * 1', module: null },
   { path: '/api/cron/email-log/purge', schedule: '0 5 * * *', module: null },
+  { path: '/api/cron/media/retired-blobs', schedule: '15 * * * *', module: null },
 ]
 
 type ManifestCronJob = { path?: unknown; schedule?: unknown }

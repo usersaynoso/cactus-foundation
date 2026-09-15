@@ -129,6 +129,18 @@ describe('diffStorageAgainstRows', () => {
     expect(d.moduleOwned.map((o) => o.key)).toEqual([key])
   })
 
+  it('files a superseded blob as retiring, never as an orphan or a claim', () => {
+    // An old copy of an optimised swatch: no row, and a former-address row may still
+    // name it. Offered for deletion it would break a cached page early; offered for
+    // adoption it would keep the stale copy for ever.
+    const key = 'media/shop/attributes/verge-green.jpeg'
+    const d = diffStorageAgainstRows('B2', [], [obj(key, 4_000), obj('media/spare.webp', 10)], () => true, () => false, (k) => k === key)
+    expect(d.retiring.map((o) => o.key)).toEqual([key])
+    expect(d.retiringBytes).toBe(4_000)
+    expect(d.claimed.map((o) => o.key)).toEqual(['media/spare.webp'])
+    expect(d.orphaned).toEqual([])
+  })
+
   it('leaves every pile but the orphans alone when no private test is given', () => {
     const d = diffStorageAgainstRows('B2', [], [obj('media/a.webp', 500)])
     expect(d.moduleOwned).toEqual([])
@@ -199,6 +211,12 @@ describe('classifyRowlessObject', () => {
   it('calls a claimed object claimed and an unclaimed one an orphan', () => {
     expect(classifyRowlessObject('media/a.webp', () => true, () => false)).toBe('claimed')
     expect(classifyRowlessObject('media/a.webp', () => false, () => false)).toBe('orphaned')
+  })
+
+  it('asks the retiring test after the private test and before the claim test', () => {
+    expect(classifyRowlessObject('media/unified-inbox/a.pdf', () => true, () => true, () => true)).toBe('moduleOwned')
+    expect(classifyRowlessObject('media/a.jpeg', () => true, () => false, () => true)).toBe('retiring')
+    expect(classifyRowlessObject('media/a.jpeg', () => false, () => false, () => false)).toBe('orphaned')
   })
 
   it('never calls a folder placeholder anything worth acting on', () => {

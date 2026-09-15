@@ -14,6 +14,7 @@ import {
 } from '@/lib/media/upload'
 import { loadMediaUsageIndex } from '@/lib/media/references'
 import { getMediaPrivatePrefixes } from '@/lib/media/private-storage'
+import { listRetiringKeys } from '@/lib/media/retired-blobs'
 import { contentTypeForKey } from '@/lib/media/limits'
 import { sanitizeFolderSegment } from '@/lib/media/organise'
 import { emptyReconcile, sortReconcile } from '@/lib/media/reconcile-report'
@@ -34,6 +35,12 @@ import { emptyReconcile, sortReconcile } from '@/lib/media/reconcile-report'
 //               library row leaves the object looking unowned while a live page
 //               serves it. Reported so it can be put right, never offered for
 //               deletion.
+//   retiring  - a superseded blob waiting out the cache windows before it is
+//               deleted (lib/media/retired-blobs.ts). No row, and nothing in the
+//               database names it any more - but a page a CDN saved before the
+//               move still does. Counted, never offered for deletion or adoption:
+//               deleting one early is the broken picture the queue exists to stop,
+//               and adopting one would keep a stale copy for ever.
 //   moduleOwned - an object a module keeps on purpose without a library row: an
 //               email attachment, a filed receipt. Not a drift at all, and the
 //               one pile that must never be adopted into the library - the whole
@@ -94,11 +101,14 @@ export type StorageReconcile = {
   claimed: OrphanedObject[]
   /** Objects a module keeps outside the library on purpose. Reported, never touched. */
   moduleOwned: OrphanedObject[]
+  /** Superseded blobs queued for deletion once no cached page can name them. Reported, never touched. */
+  retiring: OrphanedObject[]
   missing: MissingObject[]
   mismatched: SizeMismatch[]
   orphanedBytes: number
   claimedBytes: number
   moduleOwnedBytes: number
+  retiringBytes: number
   /** True when at least one provider holding rows could not be listed. */
   partial: boolean
 }
@@ -162,7 +172,7 @@ export function extractReferencedKeys(haystack: string): Set<string> {
   return out
 }
 
-export type RowlessVerdict = 'placeholder' | 'moduleOwned' | 'claimed' | 'orphaned'
+export type RowlessVerdict = 'placeholder' | 'moduleOwned' | 'retiring' | 'claimed' | 'orphaned'
 
 /**
  * What an object with no library row is. The one place that decides it, used by
@@ -173,16 +183,22 @@ export type RowlessVerdict = 'placeholder' | 'moduleOwned' | 'claimed' | 'orphan
  * private folder is off limits whether or not the usage index happened to mention
  * the file: a mail attachment nobody has opened yet is referenced by nothing, and
  * the wrong answer to that is a delete button over somebody's invoice.
+ *
+ * `isRetiring` is asked before the claim test too: a superseded blob can still be
+ * named by a former-address row, and "claimed" carries an "add to the library"
+ * button that would keep the stale copy for ever.
  */
 export function classifyRowlessObject(
   key: string,
   isClaimed: (key: string) => boolean,
   isPrivate: (key: string) => boolean,
+  isRetiring: (key: string) => boolean = () => false,
 ): RowlessVerdict {
   // Folder placeholders: some providers materialise a directory as a zero-byte
   // object ending in "/". Not an orphan, just bookkeeping.
   if (key.endsWith('/')) return 'placeholder'
   if (isPrivate(key)) return 'moduleOwned'
+  if (isRetiring(key)) return 'retiring'
   // No row, but a live page or a module table names it. Deleting it would take a
   // 3D model or a product photograph off the site, so it goes in its own pile and
   // never into the one with a delete button over it.
@@ -207,6 +223,8 @@ export function classifyRowlessObject(
  *
  * `isPrivate` answers "does a module keep this file outside the library on
  * purpose?" - see classifyRowlessObject for why it outranks the claim test.
+ *
+ * `isRetiring` answers "is this a superseded blob queued for deletion?".
  */
 export function diffStorageAgainstRows(
   provider: MediaProviderType,
@@ -214,15 +232,18 @@ export function diffStorageAgainstRows(
   stored: StoredObject[],
   isClaimed: (key: string) => boolean = () => false,
   isPrivate: (key: string) => boolean = () => false,
+  isRetiring: (key: string) => boolean = () => false,
 ): {
   orphaned: OrphanedObject[]
   claimed: OrphanedObject[]
   moduleOwned: OrphanedObject[]
+  retiring: OrphanedObject[]
   missing: MissingObject[]
   mismatched: SizeMismatch[]
   orphanedBytes: number
   claimedBytes: number
   moduleOwnedBytes: number
+  retiringBytes: number
 } {
   const storedByKey = new Map(stored.map((o) => [o.key, o]))
   const rowKeys = new Set(rows.map((r) => r.key))
@@ -230,17 +251,23 @@ export function diffStorageAgainstRows(
   const orphaned: OrphanedObject[] = []
   const claimed: OrphanedObject[] = []
   const moduleOwned: OrphanedObject[] = []
+  const retiring: OrphanedObject[] = []
   let orphanedBytes = 0
   let claimedBytes = 0
   let moduleOwnedBytes = 0
+  let retiringBytes = 0
   for (const o of stored) {
     if (rowKeys.has(o.key)) continue
-    switch (classifyRowlessObject(o.key, isClaimed, isPrivate)) {
+    switch (classifyRowlessObject(o.key, isClaimed, isPrivate, isRetiring)) {
       case 'placeholder':
         break
       case 'moduleOwned':
         moduleOwned.push({ ...o, provider })
         moduleOwnedBytes += o.sizeBytes
+        break
+      case 'retiring':
+        retiring.push({ ...o, provider })
+        retiringBytes += o.sizeBytes
         break
       case 'claimed':
         claimed.push({ ...o, provider })
@@ -273,7 +300,7 @@ export function diffStorageAgainstRows(
     }
   }
 
-  return { orphaned, claimed, moduleOwned, missing, mismatched, orphanedBytes, claimedBytes, moduleOwnedBytes }
+  return { orphaned, claimed, moduleOwned, retiring, missing, mismatched, orphanedBytes, claimedBytes, moduleOwnedBytes, retiringBytes }
 }
 
 /**
@@ -321,6 +348,23 @@ async function buildPrivateTest(): Promise<(provider: MediaProviderType, key: st
       cache.set(provider, prefixes)
     }
     return prefixes.some((prefix) => key.startsWith(prefix))
+  }
+}
+
+/**
+ * The "is this a superseded blob waiting to be deleted?" test, built once per
+ * request.
+ *
+ * Fails safe the same way the claim test does: a queue that cannot be read counts
+ * everything as retiring, so the check reports no leftovers rather than offering
+ * up files that may be the only thing a cached page can still draw.
+ */
+async function buildRetiringTest(): Promise<(provider: MediaProviderType, key: string) => boolean> {
+  try {
+    return await listRetiringKeys()
+  } catch (err) {
+    console.error('[media] superseded-blob queue could not be read; reporting no leftovers', err)
+    return () => true
   }
 }
 
@@ -480,7 +524,7 @@ export async function scanMediaStorageChunk(cursor: ScanCursor | null): Promise<
 
   // Started before the listing so the two run side by side. Neither can reject -
   // both fail safe internally - so abandoning it on a skipped slice is harmless.
-  const tests = Promise.all([buildClaimTest(), buildPrivateTest()])
+  const tests = Promise.all([buildClaimTest(), buildPrivateTest(), buildRetiringTest()])
 
   const after = cursor?.after ?? null
   const slice = await listSlice(provider, after)
@@ -489,8 +533,15 @@ export async function scanMediaStorageChunk(cursor: ScanCursor | null): Promise<
     return { ...report, partial: true, next: afterThisProvider }
   }
 
-  const [isClaimed, isPrivate] = await tests
-  const diff = diffStorageAgainstRows(provider, slice.rows, slice.stored, isClaimed, (key) => isPrivate(provider, key))
+  const [isClaimed, isPrivate, isRetiring] = await tests
+  const diff = diffStorageAgainstRows(
+    provider,
+    slice.rows,
+    slice.stored,
+    isClaimed,
+    (key) => isPrivate(provider, key),
+    (key) => isRetiring(provider, key),
+  )
   const last = slice.stored.at(-1)
 
   return {
@@ -570,17 +621,18 @@ async function inspectTargets(targets: StorageTarget[]): Promise<InspectedTarget
 
 /** Rowless objects that are there right now, each with the verdict the scan would give it. */
 async function inspectRowless(targets: StorageTarget[]): Promise<(InspectedTarget & { stored: StoredObject; verdict: RowlessVerdict })[]> {
-  const [inspected, isClaimed, isPrivate] = await Promise.all([
+  const [inspected, isClaimed, isPrivate, isRetiring] = await Promise.all([
     inspectTargets(uniqueTargets(targets)),
     buildClaimTest(),
     buildPrivateTest(),
+    buildRetiringTest(),
   ])
   const out: (InspectedTarget & { stored: StoredObject; verdict: RowlessVerdict })[] = []
   for (const t of inspected) {
     // A row for the key (on any provider) means the library owns it, and an
     // object that is not there - or could not be looked up - is nothing to act on.
     if (t.row || !t.stored) continue
-    out.push({ ...t, stored: t.stored, verdict: classifyRowlessObject(t.key, isClaimed, (key) => isPrivate(t.provider, key)) })
+    out.push({ ...t, stored: t.stored, verdict: classifyRowlessObject(t.key, isClaimed, (key) => isPrivate(t.provider, key), (key) => isRetiring(t.provider, key)) })
   }
   return out
 }

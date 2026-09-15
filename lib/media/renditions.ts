@@ -2,6 +2,7 @@ import sharp from 'sharp'
 import { prisma } from '@/lib/db/prisma'
 import type { MediaProviderType } from '@prisma/client'
 import { downloadMedia, uploadMedia, saveMediaRecord, deleteMedia, rewriteMediaReferencesInContent } from '@/lib/media/upload'
+import { retireMediaBlob } from '@/lib/media/retired-blobs'
 import { findChildFolder, findChildFolders, getOrCreateChildFolder, moveOrRenameMedia, resolveFolderPath } from '@/lib/media/organise'
 import {
   KNOWN_RENDITION_SPECS,
@@ -469,7 +470,9 @@ export async function refreshRenditions(
         // file about to be deleted. Before the delete, never after.
         await rewriteMediaReferencesInContent(old.url, fresh, old.key, fresh)
         await prisma.media.delete({ where: { id: old.id } }).catch(() => {})
-        await deleteMedia(media.provider, old.key).catch(() => {})
+        // Queued, not deleted: a cached page still draws the old copy's address
+        // until its window passes (lib/media/retired-blobs.ts).
+        await retireMediaBlob(media.provider, old.key, 'rendition')
       }
     } catch (err) {
       console.warn(`[media] could not remake the ${spec.suffix} copy of ${media.url}:`, err)
@@ -578,7 +581,7 @@ async function discardRenditions(
         // branch for.
         await rewriteMediaReferencesInContent(old.url, media.url, old.key, media.key)
         await prisma.media.delete({ where: { id: old.id } }).catch(() => {})
-        await deleteMedia(media.provider, old.key).catch(() => {})
+        await retireMediaBlob(media.provider, old.key, 'rendition')
       }
     } catch (err) {
       console.warn(`[media] could not clear the ${spec.suffix} copy of ${media.url}:`, err)

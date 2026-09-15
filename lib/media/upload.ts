@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { nanoid } from 'nanoid'
+import { revalidatePath } from 'next/cache'
 import sharp from 'sharp'
 import { dimensionFields, dimensionsFromBuffer, isMeasurableImageType, probeDimensionsByUrl, type Dimensions } from '@/lib/media/dimensions'
 import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
@@ -7,6 +8,7 @@ import { prisma } from '@/lib/db/prisma'
 import { isProxied, ALL_PROVIDERS } from '@/lib/media/providers'
 import { loadMediaUsageIndex, isMediaInContent } from '@/lib/media/references'
 import { recordFormerMediaAddress, type MediaMoveReason } from '@/lib/media/former-addresses'
+import { retireMediaBlob } from '@/lib/media/retired-blobs'
 import { sanitizeSvg } from '@/lib/sanitize'
 import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isVideoDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey, keyDirectory } from '@/lib/media/keys'
@@ -1558,12 +1560,11 @@ async function repointMediaToBlob(
   // The same rule moveOrRenameMedia learnt: a write that resolves to the key it
   // started on has just put the new bytes there, so "deleting the old blob"
   // would delete the image itself.
+  //
+  // Queued rather than deleted: a page a CDN saved before this still names the
+  // old address and serves it for the whole cache window - see retired-blobs.ts.
   if (result.key !== oldKey) {
-    try {
-      await deleteMedia(media.provider, oldKey)
-    } catch {
-      // Orphaned superseded blob left in storage; harmless, still deletable later.
-    }
+    await retireMediaBlob(media.provider, oldKey, data.reason)
   }
 
   // The item's own bytes have just changed, so every shrunk copy of it is now a
@@ -1990,13 +1991,15 @@ function fileKindLabel(mimeType: string): string {
 // A needle of '' means that pair didn't move: replace() with an empty needle
 // returns the string untouched, and the guards in WHERE keep it from matching
 // every row on the way past.
+//
+// Returns how many rows it changed.
 async function swapInBuilderJson(
   table: 'InfoPage' | 'Layout',
   urlFrom: string,
   urlTo: string,
   keyFrom: string,
   keyTo: string,
-): Promise<void> {
+): Promise<number> {
   // replace() on NULL yields NULL, so a page with no published version needs no
   // case of its own - it comes back out as NULL.
   const swap = (column: string) => Prisma.sql`
@@ -2008,12 +2011,36 @@ async function swapInBuilderJson(
     (${urlFrom} <> '' AND strpos(${Prisma.raw(`"${column}"`)}::text, ${urlFrom}) > 0)
     OR (${keyFrom} <> '' AND strpos(${Prisma.raw(`"${column}"`)}::text, ${keyFrom}) > 0)
   `
-  await prisma.$executeRaw`
+  return prisma.$executeRaw`
     UPDATE ${Prisma.raw(`"${table}"`)}
     SET "builderData" = ${swap('builderData')},
         "publishedData" = ${swap('publishedData')}
     WHERE ${mentions('builderData')} OR ${mentions('publishedData')}
   `
+}
+
+// Let go of Next's own saved copy of every page, after page or layout content has
+// just been rewritten.
+//
+// A published page renders with `revalidate = false` (app/(public)/[slug]/page.tsx),
+// so Next keeps its HTML until told otherwise - and a rewrite straight in the
+// database tells it nothing. Left alone, the page goes on naming the old address
+// indefinitely, long after the superseded blob's hold (lib/media/retired-blobs.ts)
+// has run out and it has been deleted. A layout is drawn on every page, which is why
+// this is the whole site rather than a list of slugs; pages rebuild on their next
+// visit, and a picture move that lands in builder content is a rare, deliberate act.
+//
+// CDN copies are not purged here: the hold on the old blob already outlasts them.
+//
+// Never throws. revalidatePath needs a request to belong to, and a rewrite run from
+// a script or a test has none; a missed revalidation there costs a stale page, not
+// a failed optimise.
+function revalidateRenderedPages(): void {
+  try {
+    revalidatePath('/', 'layout')
+  } catch (err) {
+    console.warn('[media] could not revalidate pages after rewriting builder content:', err)
+  }
 }
 
 // Rewrite every occurrence of a media item's old url/key to its new url/key
@@ -2033,8 +2060,9 @@ export async function rewriteMediaReferencesInContent(
   const urlFrom = oldUrl && oldUrl !== newUrl ? oldUrl : ''
   const keyFrom = oldKey && oldKey !== newKey ? oldKey : ''
   if (urlFrom || keyFrom) {
-    await swapInBuilderJson('InfoPage', urlFrom, newUrl, keyFrom, newKey)
-    await swapInBuilderJson('Layout', urlFrom, newUrl, keyFrom, newKey)
+    const pages = await swapInBuilderJson('InfoPage', urlFrom, newUrl, keyFrom, newKey)
+    const layouts = await swapInBuilderJson('Layout', urlFrom, newUrl, keyFrom, newKey)
+    if (pages > 0 || layouts > 0) revalidateRenderedPages()
   }
 
   // Puck content is core's own. A module may also hold this media's url in its own

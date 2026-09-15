@@ -275,6 +275,17 @@ CREATE TABLE "MediaFormerAddress" (
     CONSTRAINT "MediaFormerAddress_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "MediaRetiredBlob" (
+    "provider" "MediaProviderType" NOT NULL,
+    "key" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "deleteAfter" TIMESTAMP(3) NOT NULL,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "lastError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MediaRetiredBlob_pkey" PRIMARY KEY ("provider", "key")
+);
+
 CREATE TABLE "MediaMigrationJob" (
     "id" TEXT NOT NULL,
     "toProvider" "MediaProviderType" NOT NULL,
@@ -524,6 +535,7 @@ CREATE INDEX "MediaTag_tagId_idx" ON "MediaTag"("tagId");
 CREATE INDEX "MediaFormerAddress_mediaId_idx" ON "MediaFormerAddress"("mediaId");
 CREATE INDEX "MediaFormerAddress_url_idx" ON "MediaFormerAddress"("url");
 CREATE INDEX "MediaFormerAddress_key_idx" ON "MediaFormerAddress"("key");
+CREATE INDEX "MediaRetiredBlob_deleteAfter_idx" ON "MediaRetiredBlob"("deleteAfter");
 
 CREATE INDEX "MediaMigrationJob_status_idx" ON "MediaMigrationJob"("status");
 CREATE INDEX "MediaMigrationJob_startedAt_idx" ON "MediaMigrationJob"("startedAt");

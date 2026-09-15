@@ -5,7 +5,7 @@ const findMany = vi.fn()
 const deleteRow = vi.fn()
 const count = vi.fn()
 const takeOverMediaReferences = vi.fn()
-const deleteMedia = vi.fn()
+const retireMediaBlob = vi.fn()
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -20,7 +20,7 @@ vi.mock('@/lib/db/prisma', () => ({
 vi.mock('@/lib/media/organise', () => ({
   takeOverMediaReferences: (...a: unknown[]) => takeOverMediaReferences(...a),
 }))
-vi.mock('@/lib/media/upload', () => ({ deleteMedia: (...a: unknown[]) => deleteMedia(...a) }))
+vi.mock('@/lib/media/retired-blobs', () => ({ retireMediaBlob: (...a: unknown[]) => retireMediaBlob(...a) }))
 
 const { dedupeRenditions } = await import('@/lib/media/rendition-dedupe')
 
@@ -47,7 +47,7 @@ beforeEach(() => {
   findMany.mockResolvedValue([OLDEST, MIDDLE, NEWEST])
   deleteRow.mockResolvedValue({})
   count.mockResolvedValue(0)
-  deleteMedia.mockResolvedValue(undefined)
+  retireMediaBlob.mockResolvedValue(undefined)
   takeOverMediaReferences.mockResolvedValue(undefined)
 })
 
@@ -72,7 +72,7 @@ describe('dedupeRenditions', () => {
     )
     const [takeoverAt] = takeOverMediaReferences.mock.invocationCallOrder
     const [rowDeleteAt] = deleteRow.mock.invocationCallOrder
-    const [blobDeleteAt] = deleteMedia.mock.invocationCallOrder
+    const [blobDeleteAt] = retireMediaBlob.mock.invocationCallOrder
     expect(takeoverAt).toBeDefined()
     expect(rowDeleteAt).toBeDefined()
     expect(blobDeleteAt).toBeDefined()
@@ -88,7 +88,7 @@ describe('dedupeRenditions', () => {
     count.mockResolvedValue(1)
     const result = await dedupeRenditions()
 
-    expect(deleteMedia).not.toHaveBeenCalled()
+    expect(retireMediaBlob).not.toHaveBeenCalled()
     expect(result.blobsDeleted).toBe(0)
     expect(result.kept).toBe(2)
   })
@@ -99,7 +99,7 @@ describe('dedupeRenditions', () => {
     expect(result.deleted).toBe(2)
     expect(takeOverMediaReferences).not.toHaveBeenCalled()
     expect(deleteRow).not.toHaveBeenCalled()
-    expect(deleteMedia).not.toHaveBeenCalled()
+    expect(retireMediaBlob).not.toHaveBeenCalled()
   })
 
   it('leaves the whole group alone when a takeover fails', async () => {
@@ -109,7 +109,7 @@ describe('dedupeRenditions', () => {
 
     // Nothing deleted: the rows stay, still serving, and the next run tries again.
     expect(deleteRow).not.toHaveBeenCalled()
-    expect(deleteMedia).not.toHaveBeenCalled()
+    expect(retireMediaBlob).not.toHaveBeenCalled()
     expect(result.kept).toBe(2)
     warn.mockRestore()
   })

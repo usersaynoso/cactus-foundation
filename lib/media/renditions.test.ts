@@ -8,6 +8,7 @@ const downloadMedia = vi.fn()
 const uploadMedia = vi.fn()
 const saveMediaRecord = vi.fn()
 const deleteMedia = vi.fn()
+const retireMediaBlob = vi.fn()
 const rewriteMediaReferencesInContent = vi.fn()
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -18,6 +19,9 @@ vi.mock('@/lib/db/prisma', () => ({
       delete: (...a: unknown[]) => deleteRow(...a),
     },
   },
+}))
+vi.mock('@/lib/media/retired-blobs', () => ({
+  retireMediaBlob: (...a: unknown[]) => retireMediaBlob(...a),
 }))
 vi.mock('@/lib/media/upload', () => ({
   downloadMedia: (...a: unknown[]) => downloadMedia(...a),
@@ -256,13 +260,13 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
     expect(rewriteMediaReferencesInContent).toHaveBeenCalledWith(staleThumb.url, fresh, staleThumb.key, fresh)
     // And only THEN is the stale one thrown away.
     expect(deleteRow).toHaveBeenCalledWith({ where: { id: 'r1' } })
-    expect(deleteMedia).toHaveBeenCalledWith('B2', staleThumb.key)
+    expect(retireMediaBlob).toHaveBeenCalledWith('B2', staleThumb.key, 'rendition')
 
     // `noUncheckedIndexedAccess` is on, so these are read rather than indexed
     // blind - and a missing entry here would mean the call never happened, which
     // the assertions above have already ruled out.
     const [rewriteAt] = rewriteMediaReferencesInContent.mock.invocationCallOrder
-    const [deleteAt] = deleteMedia.mock.invocationCallOrder
+    const [deleteAt] = retireMediaBlob.mock.invocationCallOrder
     expect(rewriteAt).toBeDefined()
     expect(deleteAt).toBeDefined()
     expect(rewriteAt as number).toBeLessThan(deleteAt as number)
@@ -272,7 +276,7 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
     wireStale({})
     await refreshRenditions(EDITED, OLD_KEY)
     expect(uploadMedia).not.toHaveBeenCalled()
-    expect(deleteMedia).not.toHaveBeenCalled()
+    expect(retireMediaBlob).not.toHaveBeenCalled()
     expect(rewriteMediaReferencesInContent).not.toHaveBeenCalled()
   })
 
@@ -285,7 +289,7 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
 
     expect(uploadMedia).not.toHaveBeenCalled()
     expect(rewriteMediaReferencesInContent).toHaveBeenCalledWith(staleThumb.url, EDITED.url, staleThumb.key, EDITED.key)
-    expect(deleteMedia).toHaveBeenCalledWith('B2', staleThumb.key)
+    expect(retireMediaBlob).toHaveBeenCalledWith('B2', staleThumb.key, 'rendition')
   })
 
   it('never lets a failed copy take the edit down with it', async () => {
@@ -294,7 +298,7 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
     await expect(refreshRenditions(EDITED, OLD_KEY)).resolves.toBeUndefined()
     // The stale copy is left where it is rather than deleted: drawing the wrong
     // picture is bad, drawing a broken one is worse.
-    expect(deleteMedia).not.toHaveBeenCalled()
+    expect(retireMediaBlob).not.toHaveBeenCalled()
   })
 
   // Both of the following took a live product's thumbnail off the site (Deskwell,
@@ -326,7 +330,7 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
     expect(saveMediaRecord).toHaveBeenCalledWith(expect.objectContaining({ url: fresh }))
     // References follow it, and only then does the stale one go.
     expect(rewriteMediaReferencesInContent).toHaveBeenCalledWith(staleThumb.url, fresh, staleThumb.key, fresh)
-    expect(deleteMedia).toHaveBeenCalledWith('B2', staleThumb.key)
+    expect(retireMediaBlob).toHaveBeenCalledWith('B2', staleThumb.key, 'rendition')
   })
 
   it('leaves alone a copy that belongs to another picture in the same folder', async () => {
@@ -351,7 +355,7 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
     await refreshRenditions(OPTIMISED, 'shop/attributes/iris.jpeg')
 
     expect(deleteRow).not.toHaveBeenCalled()
-    expect(deleteMedia).not.toHaveBeenCalled()
+    expect(retireMediaBlob).not.toHaveBeenCalled()
     expect(rewriteMediaReferencesInContent).not.toHaveBeenCalled()
   })
 
@@ -378,7 +382,7 @@ describe('refreshRenditions, after an in-place edit of the original', () => {
     expect(uploadMedia).not.toHaveBeenCalled()
     expect(rewriteMediaReferencesInContent).not.toHaveBeenCalled()
     expect(deleteRow).not.toHaveBeenCalled()
-    expect(deleteMedia).not.toHaveBeenCalled()
+    expect(retireMediaBlob).not.toHaveBeenCalled()
   })
 })
 

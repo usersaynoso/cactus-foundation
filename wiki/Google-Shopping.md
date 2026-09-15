@@ -49,6 +49,18 @@ To switch it on, fill in two boxes under **Shop → Settings → Google Shopping
 
 Neither has any effect on the feed itself, and nothing breaks if you never fill them in - the tab simply says so instead of offering links.
 
+The same card can also store **Merchant API access** for the product workbench. This is only for the workbench's match snapshot and benchmark prices: the product feed still works without it, because Merchant Center reads the feed address itself.
+
+To get the JSON key:
+
+1. In Google Cloud, open the project connected to Merchant Center, then go to **IAM & Admin → Service Accounts**.
+2. Create a service account, or open the one you already use for Merchant Center work.
+3. Open **Keys**, choose **Add key → Create new key → JSON**, and download the file.
+4. In Merchant Center, add the service account's email address as a user with permission to view product and report data.
+5. Paste the whole JSON file into **Shop → Settings → Google Shopping → Your Merchant Center account → Merchant API access** and save it.
+
+The JSON is stored as an environment variable, so a deployment is needed before the workbench can use the new key. That is mildly annoying, but still better than asking a spreadsheet to remember a private key. The old-fashioned way lies madness and a surprising number of quotation marks.
+
 A few things the list is honest about:
 
 - A **brand new product** takes a day or so to show up, because Google reads the feed on its own schedule. Until then the link arrives before the listing does.

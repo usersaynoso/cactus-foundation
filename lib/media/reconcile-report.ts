@@ -20,11 +20,13 @@ export function emptyReconcile(): StorageReconcile {
     orphaned: [],
     claimed: [],
     moduleOwned: [],
+    retiring: [],
     missing: [],
     mismatched: [],
     orphanedBytes: 0,
     claimedBytes: 0,
     moduleOwnedBytes: 0,
+    retiringBytes: 0,
     partial: false,
   }
 }
@@ -61,6 +63,7 @@ export function sortReconcile(report: StorageReconcile): StorageReconcile {
     orphaned: bySizeThenKey(report.orphaned),
     claimed: bySizeThenKey(report.claimed),
     moduleOwned: bySizeThenKey(report.moduleOwned),
+    retiring: bySizeThenKey(report.retiring),
     missing: [...report.missing].sort((x, y) => x.key.localeCompare(y.key)),
     mismatched: [...report.mismatched].sort((x, y) => x.key.localeCompare(y.key)),
   }
@@ -73,11 +76,13 @@ export function mergeReconcile(a: StorageReconcile, b: StorageReconcile): Storag
     orphaned: [...a.orphaned, ...b.orphaned],
     claimed: [...a.claimed, ...b.claimed],
     moduleOwned: [...a.moduleOwned, ...b.moduleOwned],
+    retiring: [...a.retiring, ...b.retiring],
     missing: [...a.missing, ...b.missing],
     mismatched: [...a.mismatched, ...b.mismatched],
     orphanedBytes: a.orphanedBytes + b.orphanedBytes,
     claimedBytes: a.claimedBytes + b.claimedBytes,
     moduleOwnedBytes: a.moduleOwnedBytes + b.moduleOwnedBytes,
+    retiringBytes: a.retiringBytes + b.retiringBytes,
     partial: a.partial || b.partial,
   })
 }

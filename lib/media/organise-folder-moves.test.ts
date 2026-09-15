@@ -83,6 +83,11 @@ vi.mock('@/lib/media/upload', async () => {
     deleteMedia: async (_provider: string, key: string) => { deleted.push(key) },
   }
 })
+// Superseded blobs are queued rather than deleted; for these tests "let go of" is
+// what matters, so a queued one is recorded the same way as a deleted one.
+vi.mock('@/lib/media/retired-blobs', () => ({
+  retireMediaBlob: async (_provider: string, key: string) => { deleted.push(key) },
+}))
 vi.mock('@/lib/media/former-addresses', () => ({ recordFormerMediaAddress: vi.fn(async () => {}) }))
 vi.mock('@/lib/media/detach', () => ({ detachMediaReferences: vi.fn() }))
 

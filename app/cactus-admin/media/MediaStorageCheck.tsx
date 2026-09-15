@@ -281,6 +281,19 @@ export default function MediaStorageCheck({ canDelete, canUpload }: { canDelete:
             />
           )}
 
+          {/* Same rule: no button. Each is an old copy of a picture that has since
+              been optimised, resized or moved, kept for a day or so because a page
+              saved before the change may still be showing it. The hourly clean-up
+              deletes them on its own. */}
+          {result.retiring.length > 0 && (
+            <Group
+              title="Old copies waiting to be cleared"
+              count={result.retiring.length}
+              summary={`${formatBytes(result.retiringBytes)}, replaced recently and removed automatically once no saved page can still be showing them`}
+              rows={result.retiring.map((o) => ({ key: o.key, label: o.key, detail: formatBytes(o.sizeBytes) }))}
+            />
+          )}
+
           <Group
             title="Files that have gone"
             empty="Every item here has its file."
