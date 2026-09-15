@@ -180,11 +180,26 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
     [pathname, base]
   )
 
+  const pendingArrived = useCallback(
+    (pending: string) => isActive(`${base}${pending}`),
+    [base, isActive]
+  )
+
   // Clear the click spinner once the route commits.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sync with the router: drop the pending marker when the navigation lands
-    setPendingPath((p) => (p === null ? p : null))
+    setPendingPath(null)
   }, [pathname])
+
+  // Prefetched routes can land before React applies pendingPath from the click
+  // handler, so the pathname effect above never sees a transition. If we are
+  // already on the destination when pending is set, clear it here instead.
+  useEffect(() => {
+    if (pendingPath !== null && pendingArrived(pendingPath)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync with the router: pending was set after we had already arrived
+      setPendingPath(null)
+    }
+  }, [pendingPath, pendingArrived])
 
   // The pinned toolbar/favourites block overlays the top of the scroller, so keep
   // the scroller's padding matched to its height - otherwise scrolling the active

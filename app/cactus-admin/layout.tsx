@@ -6,6 +6,7 @@ import { buildModuleNavGroups, CORE_NAV_PERMISSION_KEYS, parseAdminMenuConfig, r
 import { getInstalledModules } from '@/lib/modules/live-status'
 import { MODULES_IN_BUILD } from '@/lib/modules/router'
 import AdminShell from '@/components/admin/AdminShell'
+import AdminBackgroundServices from '@/components/admin/AdminBackgroundServices'
 import { getUnreadCount } from '@/lib/notifications/deployment'
 import { buildAdminThemeStyles, buildFontHref } from '@/lib/design/tokens'
 import { sanitizeSvgFragment } from '@/lib/sanitize'
@@ -170,6 +171,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       />
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       {adminThemeStyles && <style dangerouslySetInnerHTML={{ __html: adminThemeStyles }} />}
+      <AdminBackgroundServices user={user} />
       <AdminShell
         adminPath={adminPath}
         siteName={config?.siteName ?? 'Cactus Foundation'}
