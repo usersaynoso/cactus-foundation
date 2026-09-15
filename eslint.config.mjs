@@ -16,6 +16,7 @@ const config = [
       '.vercel/**',
       'node_modules/**',
       '.claude/**',
+      'cactus-foundation/**',
       // Python virtualenvs in the dated scratch folders agents leave in the repo
       // root. Untracked, not project code, and site-packages ships bundled JS.
       '**/.venv/**',
