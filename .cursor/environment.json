@@ -1,5 +1,13 @@
 {
-  "install": "npm install",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "dev-server",
+      "command": "npm run dev",
+      "description": "Cactus Next.js dev server (webpack) on http://localhost:3000"
+    }
+  ],
   "repositoryDependencies": [
     "github.com/cactus-foundation-modules/search"
   ]
