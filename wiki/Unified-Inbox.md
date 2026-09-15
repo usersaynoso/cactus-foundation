@@ -512,7 +512,7 @@ The inbox is laid out the way a mail program is: one box the height of the windo
 | --- | --- |
 | **Yours** | Your own address if you have been given one, then **All**, **Mentioned**, **Drafts**, **Scheduled** and **Sent**. The handful of places one person opens all day, in whatever order you drag them into. **Drafts** and **Scheduled** are only there while there is something in them. Underneath is a **More** button holding the two nobody opens on purpose - **Spam** and **Bin**. |
 | **Shared inboxes** | The addresses the business owns, each with a coloured dot and the number of open conversations beside it. Press one and its **Sent** folder appears underneath - everything that has left that address, whoever wrote it. |
-| **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Press one and their folders open out underneath - **Drafts**, **Sent**, **Mentioned**, **Spam** and **Bin**. Only there if somebody has shared one with you. |
+| **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Press one and their folders open out underneath - **Drafts**, **Scheduled**, **Sent**, **Mentioned**, **Spam** and **Bin**. Only there if somebody has shared one with you. |
 | **Channels** | The chat, form and phone conversations, where another part of the site owns them. Each wears a small picture of what it is - a handset for the phone, a handset with a screen for WhatsApp, a speech bubble for a live chat, a sheet of paper for a contact form. |
 | **Everything else** | **Contacts** (the address book), **Campaigns** if you are allowed them, and, for whoever looks after the site, **Not filed**. |
 
@@ -553,6 +553,7 @@ Once somebody is on it, that address appears in their rail under **Team inboxes*
 | Folder | What is in it |
 | --- | --- |
 | **Drafts** | What **they** have started on that address and not sent. You cannot change one; you can send one out as it stands if you may send from the address - see below. |
+| **Scheduled** | What **they** have set to go out on its own from that address. You cannot change one or cancel its time; you can read it so you know not to answer the same customer twice. |
 | **Sent** | Everything that has left that address. |
 | **Mentioned** | Conversations on that address that its owner has been tagged in. |
 | **Spam** | What has been marked as junk out of their post, including anything you marked while covering. |
