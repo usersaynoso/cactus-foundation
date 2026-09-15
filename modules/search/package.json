@@ -1,6 +1,6 @@
 {
   "name": "cactus-module-search",
-  "version": "0.1.47",
+  "version": "0.1.48",
   "private": true,
   "description": "Site-wide search module for the Cactus platform."
 }

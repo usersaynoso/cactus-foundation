@@ -1,6 +1,6 @@
 {
   "name": "search",
-  "version": "0.1.47",
+  "version": "0.1.48",
   "tablePrefix": "srch_",
   "requiresCoreVersion": "0.5.1593",
   "description": "Site-wide search across pages, shop, articles, directory, forum and members, with a configurable search box and results page.",

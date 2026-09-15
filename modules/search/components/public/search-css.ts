@@ -36,6 +36,7 @@ export function searchCss(): string {
   const mobileBp = `${mobile}px`
   const tabletBp = `${tablet}px`
   const aboveMobileBp = `${mobile + 0.02}px`
+  const aboveTabletBp = `${tablet + 0.02}px`
   return `
 .srch-box{position:relative;font-family:inherit}
 .srch-box.srch-align-centre{margin-left:auto;margin-right:auto}
@@ -205,6 +206,10 @@ mark.srch-mark{background:color-mix(in srgb,var(--srch-accent,var(--color-primar
 .srch-overlay-head{padding:.75rem .75rem 0}
 .srch-overlay-results{overflow-y:auto;padding:.375rem}
 
+@media (min-width:${aboveTabletBp}){
+.srch-cardgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.srch-shopcards .shop-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
 @media (max-width:${tabletBp}) and (min-width:${aboveMobileBp}){
 .srch-cardgrid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .srch-shopcards .shop-grid{grid-template-columns:repeat(3,minmax(0,1fr))}

@@ -38,6 +38,8 @@ describe('search dropdown grid columns', () => {
 
   it('defaults the live dropdown card grid to four columns on desktop', () => {
     expect(css).toContain('.srch-cardgrid{display:grid;grid-template-columns:repeat(var(--srch-cols,4),minmax(0,1fr))')
+    expect(css).toMatch(/@media \(min-width:\d+\.02px\)\{\s*\.srch-cardgrid\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)\}/)
+    expect(css).toContain('.srch-shopcards .shop-grid{grid-template-columns:repeat(4,minmax(0,1fr))}')
   })
 
   it('steps the dropdown card grid down to three on tablet and two on phones', () => {
