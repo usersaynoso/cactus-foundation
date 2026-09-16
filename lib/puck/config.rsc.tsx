@@ -32,6 +32,7 @@ import {
 // split exists to stop. Nothing here needs them: every module block's RSC half
 // is spread over the core config below. Guarded by config.core.test.ts.
 import { sanitizeRichText, sanitizeAndObfuscateRichText } from '@/lib/sanitize'
+import { openRichTextLinksInNewTab } from '@/lib/puck/richtext-links'
 import { getSiteConfig } from '@/lib/config/site'
 import { prisma } from '@/lib/db/prisma'
 import { moduleRscComponents, moduleRscComponentsByLayoutType } from '@/lib/puck/module-rsc-components'
@@ -77,8 +78,8 @@ function wrapModuleRsc(components: Record<string, any>): Record<string, any> {
 // and nothing upstream escapes them. config.tsx is imported by the client Puck
 // editors, so it cannot import the sanitiser (jsdom would follow it into the
 // browser bundle) - but every published render path goes through this file.
-function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any; textColor?: string; linkColor?: string; linkHoverColor?: string; bulletIcon?: string; bulletColor?: string; fontSize?: string; spaceAbove?: string; spaceBelow?: string; spaceAbovePx?: string; spaceBelowPx?: string; paraSpace?: string; sticky?: string; stickyOffset?: string; animationType?: string; animationDuration?: string; animationDelay?: string; puck?: { isEditing?: boolean } }) {
-  const { id, content, padding, textColor, linkColor, linkHoverColor, bulletIcon, bulletColor, fontSize, sticky, stickyOffset, animationType, animationDuration, animationDelay, puck } = props
+function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any; textColor?: string; linkColor?: string; linkHoverColor?: string; bulletIcon?: string; bulletColor?: string; fontSize?: string; openLinksInNewTab?: string; spaceAbove?: string; spaceBelow?: string; spaceAbovePx?: string; spaceBelowPx?: string; paraSpace?: string; sticky?: string; stickyOffset?: string; animationType?: string; animationDuration?: string; animationDelay?: string; puck?: { isEditing?: boolean } }) {
+  const { id, content, padding, textColor, linkColor, linkHoverColor, bulletIcon, bulletColor, fontSize, openLinksInNewTab = 'no', sticky, stickyOffset, animationType, animationDuration, animationDelay, puck } = props
   if (!content) {
     return (
       <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>
@@ -91,7 +92,8 @@ function RichTextBlockRsc(props: { id?: string; content?: unknown; padding?: any
   // re-serialisation decoded the obfuscator's entity-encoded addresses, so the
   // plain address was served in view-source on every published RichText.
   const raw = richTextContentToHtml(content, false)
-  const html = puck?.isEditing ? sanitizeRichText(raw) : sanitizeAndObfuscateRichText(raw)
+  let html = puck?.isEditing ? sanitizeRichText(raw) : sanitizeAndObfuscateRichText(raw)
+  if (openLinksInNewTab === 'yes') html = openRichTextLinksInNewTab(html)
   // Mirrors the editor render in config.tsx: the block's "Text colour" is a
   // scoped stylesheet rule (richTextColourCss), not an inline style, because the
   // globals.css `.puck-richtext …` rules set explicit colours a wrapper style

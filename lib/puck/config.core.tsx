@@ -103,6 +103,7 @@ import HeadingFitText from '@/lib/puck/components/HeadingFitText'
 import { isHeaderShrinkEnabled, HEADER_SHRUNK_SELECTOR } from '@/lib/puck/headerShrink'
 import { blockFontHref } from '@/lib/puck/blockFont'
 import { responsiveImg, FULL_WIDTH_LADDER, HALF_WIDTH_LADDER, CARD_WIDTH_LADDER } from '@/lib/media/resize-url'
+import { openRichTextLinksInNewTab } from '@/lib/puck/richtext-links'
 
  
 
@@ -1693,7 +1694,7 @@ export function richTextColourCss(
 }
 
 function RichTextBlock(props: any) {
-  const { id, content, padding, textColor, linkColor, linkHoverColor, bulletIcon = 'default', bulletColor, fontSize = '', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
+  const { id, content, padding, textColor, linkColor, linkHoverColor, bulletIcon = 'default', bulletColor, fontSize = '', openLinksInNewTab = 'no', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   const obfuscate = !puck?.isEditing
   if (!content) {
     return <div className={getPaddingClasses(padding)} style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Rich text — edit in the panel</div>
@@ -1719,10 +1720,12 @@ function RichTextBlock(props: any) {
   // Editor-canvas fallback for a raw string / TipTap JSON value. The published
   // page never renders through here: config.rsc.tsx swaps in a version that runs
   // this same HTML through DOMPurify first.
+  let html = richTextContentToHtml(content, obfuscate)
+  if (openLinksInNewTab === 'yes') html = openRichTextLinksInNewTab(html)
   return (
     <div className={`puck-richtext ${getPaddingClasses(padding)}`} data-richtext-id={id} {...aosAttrs} style={stickyStyle}>
       {colourCss && <style>{colourCss}</style>}
-      <div dangerouslySetInnerHTML={{ __html: richTextContentToHtml(content, obfuscate) }} />
+      <div dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   )
 }
@@ -3641,10 +3644,11 @@ export const puckConfig = {
         spaceBelow: { type: 'select' as const, label: 'Space below', options: BLOCK_SPACE_OPTIONS },
         spaceBelowPx: { type: 'custom' as const, label: '…or exactly this much below', units: ['px', 'rem', 'em'], render: UnitValueField },
         paraSpace: { type: 'custom' as const, label: 'Space between paragraphs', units: ['em', 'px', 'rem'], render: UnitValueField },
+        openLinksInNewTab: { type: 'select' as const, label: 'Open links in a new tab', options: yesNoOptions },
         ...STICKY_FIELDS,
         ...aosFields,
       },
-      defaultProps: { content: '', textColor: '', linkColor: '', linkHoverColor: '', bulletIcon: 'default', bulletColor: '', fontSize: '', padding: 'default', spaceAbove: 'none' as const, spaceBelow: 'none' as const, spaceAbovePx: '', spaceBelowPx: '', paraSpace: '', ...STICKY_DEFAULTS, ...aosDefaults },
+      defaultProps: { content: '', textColor: '', linkColor: '', linkHoverColor: '', bulletIcon: 'default', bulletColor: '', fontSize: '', padding: 'default', spaceAbove: 'none' as const, spaceBelow: 'none' as const, spaceAbovePx: '', spaceBelowPx: '', paraSpace: '', openLinksInNewTab: 'no' as const, ...STICKY_DEFAULTS, ...aosDefaults },
       render: RichTextBlock,
     },
     Quote: {
@@ -5268,4 +5272,3 @@ export function moduleLayoutEditorRoot(layoutType: string, before?: (props: any)
     return <>{chrome}{body}</>
   }
 }
-
