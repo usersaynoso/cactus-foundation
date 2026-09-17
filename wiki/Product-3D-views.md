@@ -113,6 +113,10 @@ Scrolling down a product page and having it stop dead because the pointer happen
 
 The viewer leaves the wheel alone until the shopper clicks or taps in it, and says so with a small **Click to interact** label in the bottom-left corner. One click and the label goes, the wheel is the model's, and **Reset view** takes its usual place in the corner once there's a view worth resetting. Dragging to turn the model has never needed asking for and still doesn't - nobody arrives at a drag by scrolling past. Tabbing onto the model with the keyboard counts as asking too, so the zoom keys work for someone with no mouse to click with. A shopper who changes an option after all that keeps the wheel they've already earned rather than being asked again.
 
+### Full screen on the product page
+
+Once the model is loaded, a **full screen** control sits in the top-right corner of the viewer. Tap it and the same model fills the browser window - not the phone's own full-screen mode, just the page - with the angle and zoom you already had. A **close** control in the top-right corner, or **Esc** on a keyboard, hands the gallery back. The listing-page **3D** overlay on a product card has the same control if you open the model there.
+
 ---
 
 ## The material configurator
