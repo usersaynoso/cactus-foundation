@@ -298,6 +298,9 @@ new grid starts at twelve, which is four rows of three, on the reasoning that th
 screenful is the thing every shopper waits for. Leave it blank and it follows **Number of
 products** instead.
 
+When the next page of products arrives the page stays where the shopper left it, so they
+see the new products rather than the footer the browser used to insist on keeping in view.
+
 Underneath that sits **Where the later pages come from**, and on a big collection it is
 the setting that matters most:
 

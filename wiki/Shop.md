@@ -449,7 +449,9 @@ Pick the one that matches the tracking links you get: **Multidrop tracking pages
 
 You tell it what the stages mean, in two boxes, using the courier's own wording: which stages mean **it is out on a van** (so the customer's order changes from *Delivery scheduled* to *Out for delivery*), and which mean **it has arrived**. They are settings rather than something baked in, because only the courier really knows whether "Assigned to Crew" means a van is out this morning or that tomorrow's round has been planned - and when you find out, you change a box rather than wait for an update.
 
-When every parcel on an order reaches an arrived stage, and nothing is still owed, the order marks itself **Complete** and the customer gets your completion message, exactly as though you had pressed the button. Leave the arrived box empty and nothing is ever finished off automatically. An order with two parcels waits for both.
+When every parcel on an order reaches an arrived stage, and nothing is still owed, the order marks itself **Complete** and the customer gets your completion message, exactly as though you had pressed the button. That happens the moment the shop finds out, whether it was the hourly check that noticed or the customer watching their own order page when the van pulled up - and the customer is told once, even if both notice at the same moment. Leave the arrived box empty and nothing is ever finished off automatically. An order with two parcels waits for both.
+
+On your own order screen, each item says so too: **1 delivered** once the courier reports its parcel has arrived, and **1 sent** only for what is still on its way.
 
 The checking is deliberately unhurried: twenty-five parcels an hour, longest-unchecked first, a few at a time. A courier whose site is down simply teaches us nothing that hour - silence is never read as "not delivered" - and a shop with nothing out costs one quick look at its own database and no more. You can change how often it runs, or turn it off, under **Settings → Schedules**.
 
@@ -469,7 +471,7 @@ So each courier now carries **what that button says** and **the line underneath 
 
 That last line is never dropped. A van drawn confidently on a map is worth nothing without it: five minutes old is a van two streets away, an hour old is a guess. Past five minutes the line changes colour to say so, which is the same point the courier's own page stops trusting it.
 
-The map only asks the courier anything while somebody is actually looking at it. Watching the page checks every five minutes; once the crew's own sentence says you are next it checks every minute; a tab in the background asks nothing at all, and after an hour it stops and asks you to refresh. Everyone watching the same round shares one check, so a delivery to an office where four people have the page open is still one question to the courier, not four. The hourly checking above carries on regardless and is what finishes orders off.
+The map only asks the courier anything while somebody is actually looking at it. Watching the page checks every five minutes; once the crew's own sentence says you are next it checks every minute; a tab in the background asks nothing at all, and after an hour it stops and asks you to refresh. Everyone watching the same round shares one check, so a delivery to an office where four people have the page open is still one question to the courier, not four. The hourly checking above carries on regardless. If the courier says the parcel has arrived while somebody is watching, the order is finished off there and then rather than waiting for the hour.
 
 Positions come from the courier as their crew drives, so they lag, pause and occasionally jump - the page says as much underneath, in those words. The map is drawn with open map data rather than the courier's own maps.
 
@@ -1256,6 +1258,10 @@ are more products than fit** offers a **Show more** button, **numbered pages**, 
 **load more as the shopper scrolls**, with **Products per page** deciding how many are on
 screen at a time. Leave it off and the grid shows the number you set and stops, exactly as
 it always did.
+
+However the next products turn up, the page stays where the shopper left it: they appear
+under the shopper's nose, rather than the browser politely scrolling on to keep the footer
+in view, which is what it used to do and nobody asked for.
 
 Beneath that, **Where the later pages come from** decides how the extra products get to
 the shopper:
