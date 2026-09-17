@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.442"
+      "version": "v0.1.443"
     },
     {
       "name": "address-lookup-for-shop",
@@ -48,12 +48,12 @@
     {
       "name": "filters-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/filters-for-shop",
-      "version": "v0.1.57"
+      "version": "v0.1.58"
     },
     {
       "name": "product-attributes-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-attributes-for-shop",
-      "version": "v0.1.78"
+      "version": "v0.1.79"
     },
     {
       "name": "product-discovery-tool",
