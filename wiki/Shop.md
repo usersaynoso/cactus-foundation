@@ -900,6 +900,19 @@ Whichever you choose applies everywhere a shopper meets a price: product cards, 
 
 **None of this changes what anyone is charged.** The till works from the stored figure and the real zone, exactly as before. This setting decides what is printed, and nothing else. If you switch a public shop over to tax-included prices, do check your minimum order value in Settings → Shop → Checkout, since that is still measured against the stored figures.
 
+#### Letting shoppers switch for themselves
+
+A shop selling to both businesses and the public can't please both with one answer, so the same box has a second switch: **Let shoppers switch between prices with and without VAT**. Turn it on and a link appears straight after the tax wording beside the price on every product page - "Show prices including VAT" while prices are shown without it, "Show prices excluding VAT" once they've swapped.
+
+One click turns every price on the site over: product cards on category, collection, tag, supplier and search pages, the product page's own price, was price and RRP, the "from" prices under each option, personalisation surcharges, add-ons and the add-on showcase, a modular layout's total, unit and preset prices, the delivery upgrade chips, and the order-size deduction line. The wording beside the price changes with it. The choice is remembered in that shopper's browser, so their next visit opens the way they left it, and it applies from the first moment a page appears rather than a blink after.
+
+Pages still open on whichever side you chose above until a shopper picks otherwise. Once the switch is on, three more boxes appear:
+
+- **Wording after prices with (or without) VAT** - the note for the other side. The existing wording box above stays the note for the side pages open on.
+- **Link offering prices with VAT** and **Link offering prices without VAT** - the link's two wordings. Clear either one and it goes back to the default.
+
+The basket and checkout are left as they are: they already show VAT on a line of its own, and they are where the real total is worked out. The switched figure is worked out from the one on the page at each product's own rate. On a shop that shows the same side it stores it is exact; on one that stores prices with tax and shows them without (or the other way round), the switched side can land a penny away from the stored figure. The till charges from the stored figure either way.
+
 ### Charging postage by weight
 
 At the top of **Shop → Tax & shipping** there's a single switch, **Charge postage by weight**, which is on to begin with. Plenty of shops post everything for the same money and have no use for weights at all, so turning it off tidies them away:

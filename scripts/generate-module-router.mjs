@@ -549,7 +549,8 @@ pub.push(``)
 // ---------------------------------------------------------------------------
 const head = banner([
   `// Site-wide <head> contributions from modules: JSON-LD, meta and link tags that`,
-  `// belong on every public page. Imported by app/(public)/layout.tsx.`,
+  `// belong on every public page, and inline scripts that must run before it`,
+  `// paints. Imported by app/(public)/layout.tsx.`,
   `//`,
   `// Deliberately NOT part of router.public.ts. The layout is shared by every page,`,
   `// and a lazy \`() => import(...)\` is still an edge Next follows when it collects`,
@@ -564,27 +565,44 @@ head.push(`  meta: Array<{ name?: string; property?: string; content: string }>`
 // was added for: rel="alternate" type="text/markdown" is how a reader is told
 // the page has a Markdown twin, and there is no way to say that in a meta tag.
 head.push(`  links: Array<{ rel: string; href: string; type?: string; title?: string; hrefLang?: string }>`)
+// An inline script that has to run before the page paints - putting a shopper's
+// saved preference on <html> before the figures it governs are drawn, the same
+// job core's own theme-init does for dark mode. Rendered first in the body, so it
+// runs parser-blocking ahead of the header and every block. Optional on the
+// module side: a contributor written before this existed simply returns none.
+head.push(`  scripts: Array<{ id: string; content: string }>`)
 head.push(`}`)
+head.push(``)
+// What one contributor hands back. Every field optional, so a module written
+// before a field existed (ultimate-seo returns no scripts) still type-checks
+// against the collector rather than failing the build on a property it never had.
+if (headModules.length > 0) head.push(`type ModulePublicHeadPart = Partial<ModulePublicHead> | null | undefined`)
 head.push(``)
 head.push(`export async function collectModulePublicHead(siteUrl: string): Promise<ModulePublicHead> {`)
 head.push(`  const jsonLd: object[] = []`)
 head.push(`  const meta: ModulePublicHead['meta'] = []`)
 head.push(`  const links: ModulePublicHead['links'] = []`)
+head.push(`  const scripts: ModulePublicHead['scripts'] = []`)
 if (headModules.length === 0) {
   head.push(`  void siteUrl`)
 }
 for (const { moduleName, importPath } of headModules) {
   head.push(`  try {`)
   head.push(`    const mod = await import('${importPath}')`)
-  head.push(`    const part = await mod.getPublicHead(siteUrl)`)
+  head.push(`    const part: ModulePublicHeadPart = await mod.getPublicHead(siteUrl)`)
   head.push(`    if (Array.isArray(part?.jsonLd)) jsonLd.push(...part.jsonLd)`)
   head.push(`    if (Array.isArray(part?.meta)) meta.push(...part.meta)`)
   head.push(`    if (Array.isArray(part?.links)) links.push(...part.links)`)
+  head.push(`    if (Array.isArray(part?.scripts)) {`)
+  head.push(`      for (const script of part.scripts) {`)
+  head.push(`        if (typeof script?.id === 'string' && script.id && typeof script?.content === 'string' && script.content) scripts.push({ id: script.id, content: script.content })`)
+  head.push(`      }`)
+  head.push(`    }`)
   head.push(`  } catch (err) {`)
   head.push(`    console.error('[collectModulePublicHead] ${moduleName} failed:', err)`)
   head.push(`  }`)
 }
-head.push(`  return { jsonLd, meta, links }`)
+head.push(`  return { jsonLd, meta, links, scripts }`)
 head.push(`}`)
 
 // ---------------------------------------------------------------------------

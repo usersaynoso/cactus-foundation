@@ -1471,12 +1471,16 @@ If your module has something that belongs on **every** public page - structured 
 export async function getPublicHead(siteUrl: string): Promise<{
   jsonLd?: object[]
   meta?: Array<{ name?: string; property?: string; content: string }>
+  links?: Array<{ rel: string; href: string; type?: string; title?: string; hrefLang?: string }>
+  scripts?: Array<{ id: string; content: string }>
 }> {
-  // return the JSON-LD blocks and meta tags for this site
+  // return the JSON-LD blocks, meta tags, link tags and boot scripts for this site
 }
 ```
 
-The generator wires this into `collectModulePublicHead()`, which core's `app/(public)/layout.tsx` calls once per public page render. JSON-LD objects are serialised with `<` escaped and rendered as `<script type="application/ld+json">` in the body - search engines read JSON-LD from the body as happily as from the head, which is what makes a layout contribution possible at all. Errors are swallowed per-module.
+The generator wires this into `collectModulePublicHead()`, which core's `app/(public)/layout.tsx` calls once per public page render. JSON-LD objects are serialised with `<` escaped and rendered as `<script type="application/ld+json">` in the body - search engines read JSON-LD from the body as happily as from the head, which is what makes a layout contribution possible at all. Errors are swallowed per-module. Every field is optional: a contributor that returns none of one is simply skipped for it.
+
+`scripts` are plain inline scripts rendered **first in the body**, ahead of the header and every block, so they run parser-blocking before anything paints - the same job core's own `theme-init` does for dark mode. They exist for one kind of work: putting a visitor's saved preference onto `<html>` before the content it governs is drawn, because a cached public page cannot know the visitor on the server. Shop uses it for the shopper's with/without VAT switch (`modules/shop/lib/head.ts`, `lib/tax-view-shared.ts`). Keep them tiny, ES5, self-contained and wrapped against a storage exception; give each a unique `id`; never interpolate anything a user typed. An entry missing its `id` or `content` is dropped. An older core ignores the field entirely, so set `requiresCoreVersion` to the core release that renders it before relying on it.
 
 Two rules, both of which cost a real site if you get them wrong:
 

@@ -129,6 +129,13 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <>
+      {/* Module scripts that must run before anything paints (a shopper's saved
+          preference going onto <html>, say). First in the body, ahead of the
+          header, and plain inline rather than next/script for the reason given
+          beside theme-init in app/layout.tsx. Module code, never user content. */}
+      {modulePublicHead?.scripts.map((script) => (
+        <script key={`module-script-${script.id}`} id={script.id} dangerouslySetInnerHTML={{ __html: script.content }} />
+      ))}
       {modulePublicHead?.meta.map((tag, i) => (
         <meta key={`module-meta-${tag.name ?? tag.property ?? i}`} {...(tag.name ? { name: tag.name } : {})} {...(tag.property ? { property: tag.property } : {})} content={tag.content} />
       ))}
