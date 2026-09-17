@@ -492,6 +492,11 @@ customer's address, priced the same way. It makes no difference how they paid:
 card, PayPal, Square, bank transfer you cleared by hand yourself, or an order
 that came to nothing and needed no payment at all.
 
+Replacement orders are deliberately left alone. They are there to put something
+right, not to send the buying team round the loop again, so they do not show the
+customer-order buying panel, make drafts by themselves, or appear in the
+overnight "paid but not bought" sweep.
+
 **It drafts and it stops.** Nothing is approved, nothing is sent, no supplier
 hears a word. What is being automated is the typing, not the buying - a draft
 sitting on the Orders tab commits you to nothing, and somebody still reads it and

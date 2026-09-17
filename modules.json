@@ -98,7 +98,7 @@
     {
       "name": "modular-configurator-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/modular-configurator-for-shop",
-      "version": "v0.1.12"
+      "version": "v0.1.13"
     },
     {
       "name": "reviews-for-shop",
@@ -163,7 +163,7 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.35"
+      "version": "v0.1.36"
     },
     {
       "name": "unified-inbox",
