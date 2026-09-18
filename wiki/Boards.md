@@ -16,6 +16,8 @@ Moderating Boards is just another permission on your core roles, set from **User
 - `boards.manage` - get at structure, tags, templates and the settings/import tab.
 - `boards.moderate` - the full moderator toolkit everywhere: hide, delete, lock, pin, archive, move and split threads and posts, resolve reports, and hand out bans.
 
+Hiding or deleting a post from the thread page asks first, and if the site refuses (a role that lost the permission, a dropped connection) the post stays put and the reason is shown, rather than vanishing until the next page load.
+
 There's no separate moderator list to maintain and no "just this one board" option any more - tick the box on a role and everyone with that role can moderate every board on the site. Anyone with a login can read public boards, start threads and reply; a board can also be restricted to logged-in members only, or to moderators only (handy for a staff-only area).
 
 Core admins always have full run of Boards, permissions or no permissions.

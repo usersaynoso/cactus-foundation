@@ -67,7 +67,7 @@ Everything autosaves a second or two after you stop typing, and you can also jus
 
 A **Private** toggle in the sidebar hides a post from the public site, feeds and search entirely, useful for something you're not ready to announce. **Pinned** keeps a post at the top of the front page regardless of date.
 
-**Duplicate** and **Save as Template** (also in the sidebar) are the fastest way to reuse a post's structure without starting from a blank page each time.
+**Duplicate** and **Save as Template** (also in the sidebar) are the fastest way to reuse a post's structure without starting from a blank page each time. Templates are shared by every writer, so **Save as Template** is an editor's button - authors and contributors can start from a template but not add one.
 
 ---
 

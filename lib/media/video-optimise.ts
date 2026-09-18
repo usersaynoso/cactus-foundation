@@ -23,6 +23,11 @@ export type VideoJobContext = {
   machineId?: string | null
   /** Display name, for the notification the admin walks away to. */
   name: string
+  /** Where the worker was told to write the result. The callback's own `key` is
+   *  only accepted if it matches, so a callback cannot re-point the row at some
+   *  other object in the bucket. Optional only so a job queued before this was
+   *  signed in still settles - the webhook derives it for those. */
+  destKey?: string
 }
 
 function contextKey(): string {
@@ -53,6 +58,7 @@ export function verifyVideoContext(token: string): VideoJobContext | null {
       mediaId: rec.mediaId,
       machineId: typeof rec.machineId === 'string' ? rec.machineId : null,
       name: typeof rec.name === 'string' ? rec.name : '',
+      destKey: typeof rec.destKey === 'string' && rec.destKey ? rec.destKey : undefined,
     }
   } catch {
     return null

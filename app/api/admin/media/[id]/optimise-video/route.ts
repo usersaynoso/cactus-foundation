@@ -92,7 +92,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     }
   }
 
-  const callbackToken = signVideoContext({ mediaId: media.id, machineId, name })
+  const callbackToken = signVideoContext({ mediaId: media.id, machineId, name, destKey })
 
   try {
     const { jobId } = await enqueueVideoJob(

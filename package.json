@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1653",
+  "version": "0.5.1654",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -88,7 +88,7 @@
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.4",
     "shiki": "^3.23.0",
     "stripe": "^22.3.0",
     "three": "^0.180.0",
@@ -113,7 +113,7 @@
     "eslint-config-next": "^16.3.4",
     "prisma": "^6.0.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.0.0"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": "24.x"

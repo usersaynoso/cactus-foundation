@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma'
 import { isBehindCloudflare } from '@/lib/config/site'
 import { headers } from 'next/headers'
 import { randomUUID } from 'crypto'
+import { isCloudflareEdge } from '@/lib/auth/cloudflare-ips'
 import type { NextRequest } from 'next/server'
 
 type RateLimitAction =
@@ -69,21 +70,27 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
 // through Cloudflare (Settings > General > Speed). Off by default; a site that
 // is not behind Cloudflare and trusted this header would be handing out a
 // forgeable client IP, which is the exact hole the last-hop rule above closed.
+//
+// Even with the setting on, the header is only believed when the hop that
+// actually connected is one of Cloudflare's own edge addresses. A site behind
+// Cloudflare is usually still reachable at its platform address too (the
+// project's own *.vercel.app name, say), and a request sent there directly can
+// carry any CF-Connecting-IP it likes. Checking the connecting hop against
+// Cloudflare's published ranges closes that, whatever the hosting setup.
 export function clientIpFromHeaders(
   get: (name: string) => string | null,
   opts?: { trustCloudflare?: boolean }
 ): string {
-  if (opts?.trustCloudflare) {
-    const cf = get('cf-connecting-ip')?.trim()
-    if (cf) return cf
-  }
   const hops = (get('x-forwarded-for') ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
-  const lastHop = hops[hops.length - 1]
-  if (lastHop) return lastHop
-  return get('x-real-ip')?.trim() || 'unknown'
+  const connecting = hops[hops.length - 1] || get('x-real-ip')?.trim() || ''
+  if (opts?.trustCloudflare && connecting && isCloudflareEdge(connecting)) {
+    const cf = get('cf-connecting-ip')?.trim()
+    if (cf) return cf
+  }
+  return connecting || 'unknown'
 }
 
 // Accepts an optional NextRequest for use in API route handlers.

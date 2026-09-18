@@ -96,5 +96,7 @@ describe('this repository', () => {
     const { violations } = findFrozenMigrationViolations()
     // Named in the failure so the fix is obvious without re-running the script.
     expect(violations.map((v) => `${v.module}/${v.file} (released in ${v.tag})`)).toEqual([])
-  })
+    // Runs git in every module checkout: a few seconds on a quiet machine, well
+    // past vitest's 5s default on a busy one, which failed it for no reason.
+  }, 60_000)
 })

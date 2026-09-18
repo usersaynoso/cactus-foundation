@@ -1,5 +1,5 @@
 import { prisma, type ExtendedPrismaClient } from '@/lib/db/prisma'
-import { clearUnreadableSecrets, type SecretsReconcileResult } from '@/lib/backup/secrets'
+import { clearUnreadableSecrets, type SecretsDb, type SecretsReconcileResult } from '@/lib/backup/secrets'
 import { checkRestoredMediaStorage } from '@/lib/backup/media-check'
 
 // Restore a database from a Cactus SQL backup produced by
@@ -41,6 +41,24 @@ import { checkRestoredMediaStorage } from '@/lib/backup/media-check'
 // dwoffice.furniture lost its contact-form and twilio tables). Keeping the target's
 // own ledger means the runner recreates whatever this database is actually missing.
 const PRESERVED_TABLES = new Set(['_prisma_migrations', 'ModuleMigration'])
+
+/** The slice of the transaction client a restore guard gets to read with. */
+export type RestoreGuardDb = Pick<SecretsDb, '$queryRawUnsafe'>
+
+export type RestoreOptions = {
+  /** Runs inside the restore's transaction, after the restore lock is held and
+   *  before anything is wiped. Throw to refuse: nothing has changed at that
+   *  point, and the transaction rolls back. The unauthenticated setup restore
+   *  uses it to re-check "is setup still open?" under the lock, so two uploads
+   *  racing each other cannot both slip through a check made before either ran. */
+  guard?: (tx: RestoreGuardDb) => Promise<void>
+}
+
+// Key for the transaction-scoped advisory lock every restore takes first. Any
+// fixed bigint will do - it only has to be the same for every restore. Being
+// transaction-scoped it is released on commit or rollback, and it works through
+// PgBouncer's transaction pooling, which a session-level lock would not.
+const RESTORE_LOCK_KEY = 7_401_120_260_918
 
 export type RestoreResult = {
   tablesRestored: string[]
@@ -246,6 +264,7 @@ function assertSchemasMatch(
  *
  * @param db  defaults to the app's Prisma singleton; the round-trip test passes
  *            its own client pointed at a throwaway database.
+ * @param options.guard  see RestoreOptions - an in-transaction veto.
  * @throws if the file contains no recognisable INSERT statements (guards against
  *         wiping the database on the strength of an empty or wrong file), or if
  *         the backup and this site disagree about any table's columns.
@@ -253,6 +272,7 @@ function assertSchemasMatch(
 export async function restoreDatabaseFromSql(
   sql: string,
   db: ExtendedPrismaClient = prisma,
+  options: RestoreOptions = {},
 ): Promise<RestoreResult> {
   const allStatements = splitSqlStatements(sql)
   const inserts = allStatements.filter((s) => /^INSERT\s+INTO/i.test(s))
@@ -315,6 +335,10 @@ export async function restoreDatabaseFromSql(
   let secrets: SecretsReconcileResult = { checked: false, cleared: [] }
   await db.$transaction(
     async (tx) => {
+      // One restore at a time. Two at once would each TRUNCATE and replay into
+      // the same tables, and the loser's rows would land on top of the winner's.
+      await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${RESTORE_LOCK_KEY})`)
+      if (options.guard) await options.guard(tx)
       if (tablesToTruncate.length > 0) {
         const list = tablesToTruncate.map(quoteIdent).join(', ')
         await tx.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`)

@@ -6,6 +6,7 @@ import { joinJobRef } from '@/lib/media/video-optimise'
 import { upsertVideoJobNotification } from '@/lib/notifications/alerts'
 import { resolveMediaWorkerFly } from '@/lib/media/media-worker-config'
 import { destroyJobMachine } from '@/lib/media/fly-machines'
+import { optimisedVideoKey } from '@/lib/media/video-quality'
 
 // The job's Fly machine has done its work the moment this callback arrives -
 // destroy it so it stops billing. Best-effort: the machine also destroys itself
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
   const sizeAfter = readNumber(body.sizeAfter)
   const optimised = body.optimised === true
 
-  const media = await prisma.media.findUnique({ where: { id: ctx.mediaId }, select: { id: true, folderId: true } })
+  const media = await prisma.media.findUnique({ where: { id: ctx.mediaId }, select: { id: true, folderId: true, key: true } })
   if (!media) {
     // The row was deleted while the encode ran. Nothing to point anywhere; say
     // so on the notification rather than leaving it stuck at 90%.
@@ -106,6 +107,22 @@ export async function POST(request: NextRequest) {
     }).catch(() => {})
     if (machineId) await destroyMachine(machineId)
     return NextResponse.json({ ok: true, recorded: false })
+  }
+
+  // The worker writes where it was told to, so the key it reports must be that
+  // one. Signed into the context at enqueue time; for a job queued before that,
+  // the same derivation the enqueue used, from the row's key (idempotent on a
+  // retry, since an already-moved .mp4 derives to itself).
+  const expectedKey = ctx.destKey ?? optimisedVideoKey(media.key)
+  if (key !== expectedKey) {
+    await upsertVideoJobNotification({
+      jobId: jobRef,
+      name,
+      state: 'error',
+      detail: 'The optimised file came back under an unexpected name, so it was not used.',
+    }).catch(() => {})
+    if (machineId) await destroyMachine(machineId)
+    return NextResponse.json({ error: 'unexpected key' }, { status: 400 })
   }
 
   const updated = await applyOptimisedVideo(ctx.mediaId, { key, sizeBytes: sizeAfter })

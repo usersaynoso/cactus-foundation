@@ -23,7 +23,7 @@ The backup covers the database only. It does **not** contain your media files - 
 A `.sql` file from the Download Backup button can be restored in two places:
 
 - **admin > Settings > General** on a running site.
-- **The setup wizard**, on a brand-new install that hasn't been set up yet - useful for moving a site to a new host, or rebuilding after losing the database.
+- **The setup wizard**, on a brand-new install that hasn't been set up yet - useful for moving a site to a new host, or rebuilding after losing the database. The wizard's restore needs no sign-in, so it closes the moment an admin account exists, not only once setup is finished: restore **before** you create the admin, or finish setup and restore from Settings instead. Two uploads at once can't both run - restores take turns.
 
 Restoring is **destructive and complete**: every existing row is wiped and replaced with the backup's contents, so the result is a faithful point-in-time copy rather than a merge. It runs in a single transaction - if anything fails partway, nothing is changed at all.
 

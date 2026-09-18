@@ -1,7 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { nanoid } from 'nanoid'
 import { revalidatePath } from 'next/cache'
-import sharp from 'sharp'
+import sharp, { type Sharp } from 'sharp'
 import { dimensionFields, dimensionsFromBuffer, isMeasurableImageType, probeDimensionsByUrl, type Dimensions } from '@/lib/media/dimensions'
 import { Prisma, type Media, type MediaProviderType } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
@@ -1390,7 +1390,7 @@ export type CropRect = { left: number; top: number; width: number; height: numbe
 // (etc.) and the stored extension keeps matching the bytes. Anything sharp can't
 // write back in kind falls to WebP. These paths read the first frame only, so an
 // animated source becomes a still — acceptable for a crop or a reshape.
-function encodeToMime(s: sharp.Sharp, mimeType: string): Promise<Buffer> {
+function encodeToMime(s: Sharp, mimeType: string): Promise<Buffer> {
   switch (mimeType) {
     case 'image/jpeg':
       return s.jpeg({ quality: 90 }).toBuffer()
@@ -1872,7 +1872,7 @@ export async function changeMediaAspectRatio(
   const left = Math.max(0, Math.floor((plan.canvasWidth - dw) / 2))
   const top = Math.max(0, Math.floor((plan.canvasHeight - dh) / 2))
 
-  let pipeline: sharp.Sharp
+  let pipeline: Sharp
   if (opts.fill.kind === 'blur') {
     // Cover-crop a copy of the image to fill the canvas, blur it hard, and lay
     // the untouched original over the top. The *backdrop* gets cropped; the

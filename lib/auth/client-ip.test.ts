@@ -45,6 +45,25 @@ describe('clientIpFromHeaders', () => {
       expect(clientIpFromHeaders(noCf, { trustCloudflare: true })).toBe('203.0.113.7')
     })
 
+    it('ignores cf-connecting-ip when the request did not come through Cloudflare', () => {
+      // Sent straight to the platform address (a *.vercel.app name), bypassing
+      // Cloudflare: the connecting hop is the caller, and the header is theirs.
+      const direct = headersFrom({ 'cf-connecting-ip': '198.51.100.42', 'x-forwarded-for': '203.0.113.7' })
+      expect(clientIpFromHeaders(direct, { trustCloudflare: true })).toBe('203.0.113.7')
+    })
+
+    it('believes it from an IPv6 Cloudflare edge too', () => {
+      const v6 = headersFrom({ 'cf-connecting-ip': '198.51.100.42', 'x-forwarded-for': '2a06:98c1:3120::1' })
+      expect(clientIpFromHeaders(v6, { trustCloudflare: true })).toBe('198.51.100.42')
+    })
+
+    it('checks x-real-ip as the connecting hop when there is no forwarded chain', () => {
+      const real = headersFrom({ 'cf-connecting-ip': '198.51.100.42', 'x-real-ip': '104.23.1.1' })
+      expect(clientIpFromHeaders(real, { trustCloudflare: true })).toBe('198.51.100.42')
+      const notCf = headersFrom({ 'cf-connecting-ip': '198.51.100.42', 'x-real-ip': '203.0.113.9' })
+      expect(clientIpFromHeaders(notCf, { trustCloudflare: true })).toBe('203.0.113.9')
+    })
+
     it('does not treat a blank cf-connecting-ip as an address', () => {
       const blank = headersFrom({ 'cf-connecting-ip': '   ', 'x-forwarded-for': '9.9.9.9, 203.0.113.7' })
       expect(clientIpFromHeaders(blank, { trustCloudflare: true })).toBe('203.0.113.7')
