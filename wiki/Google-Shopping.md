@@ -67,6 +67,43 @@ A few things the list is honest about:
 - Variations that are **switched off**, or whose hidden variation product is not active, get no link - they are not in the feed, so there would be nothing at the other end.
 - A product ticked **Keep this product out of the feed** gets no links at all, and says why.
 
+### The product workbench: matches, prices and history
+
+**Shop → Products → Google Shopping** lists every item in the feed, how Google sees it, and the title Google is sent. It is built for catalogues in the tens of thousands.
+
+**Finding things**
+
+- **Search** looks at the titles (the site's, the one Google is sent and the one Google holds), SKU, MPN, GTIN, brand, category, template and item id. Every word has to appear somewhere; put a phrase in "quotes" to keep it together. Press **/** anywhere on the page to jump to the box, **Esc** to clear it.
+- The **tiles** across the top (Matched, Not matched, Not reported yet, Own Google titles, Need attention) are counts and filters at once: click one to list those items, click again to let go.
+- **Problems** narrows to items with something wrong: a template token the item does not have, a title over Google's 150 characters, a title Google holds that no longer matches what the feed sends, no barcode, no brand, or an item sent to Google as having no identifiers at all.
+- **Price against typical**, **brand**, **category** (either of the top two levels) and **sort** do what they say. Sorting by *dearest against typical* is the quick way to find where you are being undercut.
+- **One of 24 variations - show them all** on a row narrows the list to that one listing.
+- The filters live in the address bar, so a list can be bookmarked or sent to a colleague and opens exactly as you left it.
+
+While it works, the list says so: a bar moves across the top of the results, the search box shows a spinner, and the line above the table says what is happening and for how long. The very first look after a quiet spell reads the whole shop, which takes a few seconds on a big catalogue and says as much; searches and filters after that come back in a fraction of a second. **Re-read the shop** fetches fresh prices and names on demand; otherwise the shop is re-read quietly every few minutes.
+
+**Matches and prices**
+
+**Matched** means Google has grouped your listing with other sellers of the same product; **Not matched** means it sits on a page of its own; **Not reported yet** means Google has not said.
+
+- **Typical price** - on a matched item, Google's typical price from other sellers sits next to yours, with how much cheaper or dearer you are. Yours is today's price; theirs is from the last match check.
+- **Find on Google / Search on Google** - opens Google Shopping in a new tab, searching for the title Google holds for the item. Google does not say *which* product it matched you to, by name or by link, so this is a search, not a direct link. A matched item can still be hard to find this way - matching is Google comparing prices behind the scenes, not a promise of a product page.
+- **Google still holds** - shown when the title Google last reported differs from what the feed sends now. Usually a template change the next fetch has not picked up yet; if it lingers for days, Merchant Center is the place to look.
+- **History** - expand a row to see when its match state or the title Google holds last changed. A line is only added when something changes, so an item that has sat matched for months shows one line, not ninety. **Title changed** on a line is usually your own doing - a renamed product or a new title template reaching Google - and is the first place to look when a match goes missing.
+
+Match status is checked automatically every morning, and **Check matches with Google** checks it there and then (it can take up to a minute on a big catalogue, and counts the seconds while it does). Either way it needs the Merchant API access above. History starts from the first check after the update; nothing before that was kept, so it cannot be conjured up retrospectively, much as we would like to.
+
+**Titles for Google**
+
+A title template changes only what Google is sent; product names on the site are left alone. Tokens in angle brackets fill in from the item: `<brand> <parent_title> <colour> <size>` and so on. **Insert a token** on any row lists that item's tokens with their values.
+
+- As you type, the box shows the finished title, its length against Google's 150 characters (anything past the cut is struck through), and any token the item does not have.
+- Edits are kept while you page and search. A bar above the list counts them, with **Save all** and **Discard all**; leaving the page with edits unsaved asks first. **Ctrl/⌘ + Enter** saves the row you are in.
+- **Tick rows** to set or clear one template across all of them. Tick the whole page and it offers **Select all that match** - every item the current filters find, thousands of them if need be. Before anything is written it shows how many titles would change, how many hand-written templates it would replace, how many come out too long or missing a token, and a few real before-and-after titles. If the list has moved in the meantime (a colleague's edit, say), it refuses and asks you to look again rather than acting on a list you have not seen.
+- **Recent title changes**, below the list, shows the latest saves with who made them and when, each with **Undo**. The log keeps up to fifty saves (fewer if they are whole-catalogue sized). Undo puts back only the titles still as that save left them; anything edited since is left alone and counted. An undo is itself a change, so it can be undone too, should you enjoy that sort of thing.
+
+**Download as CSV** exports whatever the current filters find, every page of it: titles, template, match, prices, codes, problems and link.
+
 ### Where the brand comes from
 
 Three places, in this order, first one that has an answer wins:
