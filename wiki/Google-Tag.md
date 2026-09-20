@@ -36,6 +36,7 @@ You can paste the whole thing Google gives you into either box - the two halves 
 | **Google Analytics measurement ID** | Your `G-…` ID. Leave empty if you only want to measure adverts. |
 | **Google Ads conversion ID** | Your `AW-…` ID. Leave empty if you only want visitor numbers. |
 | **Google Ads conversion label** | The other half of the pair. Without it, Google Ads will not count your orders. |
+| **What a sale is worth to Google Ads** | Whether a sale is reported to Google Ads at the full order total, the total without VAT, or the total without VAT or delivery. See [What a sale is worth](#what-a-sale-is-worth) below. Affects Google Ads only. |
 | **Count page views as well as orders** | On, Analytics gets every page a visitor looks at. Off, only orders are reported. |
 | **Let Google estimate the visitors who said no** | See [Consent](#consent) below. Off by default, which is the cautious setting. |
 
@@ -75,11 +76,35 @@ Google's consent system has two honest readings, and this switch picks between t
 
 **Page views** (if you have left that on): the page someone landed on, and each page they move to afterwards.
 
-**Orders.** When an order reaches the confirmation page, Google is told the order number, the total, the tax, the delivery, any discount code, and every line on the order.
+**Orders.** When an order reaches the confirmation page, Google is told the order number, the total, the tax, the delivery, any discount code, and every line on the order. What Google *Ads* counts the sale as worth can be the total or the total less VAT - see [What a sale is worth](#what-a-sale-is-worth).
 
 An order counts when it is **paid**, or when it has been **placed on a manual payment method** - a bank transfer or cash - and is waiting for the money. That second case is deliberate: a good deal of trade ordering works that way, and leaving those out would make your shop look half the size it is. A payment that is still going through, or one that failed, is nobody's sale and is not counted.
 
 An order is only ever counted **once**, however many times the confirmation page is refreshed, revisited or bookmarked and come back to next week.
+
+---
+
+## What a sale is worth
+
+When an order is placed, Google Ads is told what it was worth, and that one figure is what every return-on-spend number in your account is built on.
+
+By default it is the **full order total, as the customer paid it**. For most shops that is right and there is nothing to think about.
+
+**If you quote your prices without VAT, it is not right.** The total on the order still has the VAT on top, but the VAT was never yours - it goes to HMRC. Report it to Google and every return-on-spend figure in the account reads high by the VAT rate. On a thin margin that matters rather a lot: a shop working on 6% needs to take about 18 pounds for every pound of advertising to break even, but an account measuring VAT-inclusive sales thinks it is already taking 21. Worse, if you have given Google a target to bid towards, it is quietly bidding 20% looser than you told it to, for ever, and nothing anywhere says so.
+
+So there are three choices:
+
+| Choice | What Google Ads is told a sale was worth |
+|--------|------------------------------------------|
+| **The full order total, as the customer paid it** | Everything on the order, VAT and delivery included. The default, and what this module always did before the setting existed. |
+| **The order total without VAT** | What a shop quoting prices without VAT usually wants: the money it actually books. |
+| **The order total without VAT or delivery** | The same again, less the delivery charge, for owners who treat delivery as a cost passed on rather than as sales. |
+
+Three things worth knowing:
+
+- **It only affects Google Ads.** Google Analytics is left exactly as it is. Its reports expect the whole total and show you the tax and delivery separately, so taking them off there would break the sales reports rather than fix them.
+- **Changing it is a fresh start, not a correction.** Orders already counted keep the figure they were counted at. Your reports will have a step in them on the day you switch, and any target you have set was worked out from the old figures, so it wants revisiting at the same time.
+- **Nothing changes when you take an update.** A shop that has never touched this setting carries on reporting exactly what it reported yesterday. That is deliberate: an update does not get to rewrite what your account has been told for the past year.
 
 ---
 
