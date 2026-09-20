@@ -251,7 +251,7 @@ The address is your feed address with `&content=promotions` on the end, and ther
 ### What it works out for you
 
 - **One offer per supplier and amount.** Two products from the same supplier, one taking £6 off and one taking £40, make two offers - because Google's offers carry one figure each. Every product is told which offer it belongs to, so you never have to match them up by hand and there is no limit worth worrying about on how many products an offer covers.
-- **Only products currently on offer take part**, because only they carry the money. A product whose sale ends drops out of the next fetch on its own.
+- **Only products carrying an amount take part**, because only they have money to give back. Whether the item is on offer makes no difference - the amount can sit inside an ordinary price just as well as a sale one. Clear the amount and the product drops out of the next fetch on its own.
 - **Every figure includes VAT**, whichever way round you keep your prices, because that is what Google quotes a shopper.
 - **A product stamped with more than it sells for is left out.** The basket would only ever take it down to nothing, so advertising the full amount would be a promise nobody could keep. Shop's own mis-stamp report already flags those.
 

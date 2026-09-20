@@ -1570,7 +1570,7 @@ It's off to begin with, and it stays entirely inert until you've set both halves
 
 Some things worth knowing before you set it up:
 
-- **It only ever comes off things that are on offer.** A sale that has ended leaves the amount sitting on the product, and it would be quite wrong to take money off a price nobody built it into. Full-price items from the same supplier still *count towards* the threshold - they just don't lose anything themselves.
+- **It comes off whatever that item is charged at.** Sale price or ordinary price, it makes no odds: the box says how much of today's price was put there for this, and that is what comes back off. It used to insist the item was on sale, which meant a supplier whose amount sits inside the ordinary price could only be set up by inventing a sale price - and the shop then went and advertised that invention as a genuine reduction on every card and page. It no longer asks. The flip side is that the amount is yours to keep honest: reprice something and the box wants looking at, because nothing else knows you have.
 - **Each supplier is counted separately.** £200 from one and £200 from another is not £400 towards either threshold.
 - **Delivery doesn't count.** If you charge for delivery inside the item price, that part is left out of the sum. A basket only reaches the threshold on the goods themselves.
 - **Once you're over it, you're over it.** Reaching the threshold and then dropping under it because money has come off doesn't take the money back.
@@ -1578,7 +1578,7 @@ Some things worth knowing before you set it up:
 
 **On the product page** there's a **Product: Order-size deduction** block to drop in under the price. New sites get it placed for you; an existing site needs it dragging in once, on **Appearance → Editing pages → Product**, as updates never rearrange a design you've already made. On a product with options it follows whichever combination the shopper picks, so the line says what *that* one costs rather than a figure from somewhere else in the range.
 
-**Two lists worth checking** live on **Shop → Reports → Order-size deduction**, and the tab only appears once you've switched the feature on. The first finds anything stamped with more than it actually sells for, which is almost always a typo and would otherwise sell for nothing. The second finds things that are on offer, from a supplier who has a threshold, with no amount on them - either you meant that, or it's money a customer will never get back. Neither is an error exactly, which is why they're a list to look at rather than something that stops you saving.
+**Two lists worth checking** live on **Shop → Reports → Order-size deduction**, and the tab only appears once you've switched the feature on. The first finds anything stamped with more than it actually sells for, which is almost always a typo and would otherwise sell for nothing. The second finds things that are on offer, from a supplier who has a threshold, with no amount on them - either you meant that, or it's money a customer will never get back. It sticks to things on offer purely to keep the list short enough to read; something priced with an amount inside its ordinary price and never stamped won't appear on it. Neither is an error exactly, which is why they're a list to look at rather than something that stops you saving.
 
 The amount travels with your product spreadsheet too, in an **order_size_deduction** column, so a few hundred of them is a paste rather than an afternoon.
 
