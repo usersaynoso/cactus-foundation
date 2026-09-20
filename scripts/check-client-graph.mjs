@@ -42,6 +42,12 @@ const SERVER_ONLY = [
   'cloudinary',
   'next/headers',
   'server-only',
+  // DOMPurify needs a document, and on a server that document is jsdom's. Any
+  // client file that can reach @/lib/sanitize drags the whole of jsdom into the
+  // browser bundle - which is why there is a separate window-backed renderer
+  // (lib/markdown-client.ts) for anything that has to sanitise IN the browser.
+  'jsdom',
+  '@/lib/sanitize',
 ]
 
 const IMPORT_RE =
