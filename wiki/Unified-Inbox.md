@@ -203,6 +203,8 @@ It is the same internal note the inbox has always had, with one thing added: som
 
 The same goes for **Reply to all** and **Forward** on that message's own dots, and for the copy filed alongside: the reply is threaded against the message you answered, so it lands in the right place in the customer's own mail program rather than at the end.
 
+**The subject follows the message too.** A conversation keeps the subject it started with, but the messages in it often do not: a supplier answers "Quote" with "PO 1234 - revised delivery date". Any message whose subject is not the conversation's now shows it, on a **Subject:** line under who it is from and to ("Re:" and "Fwd:" are ignored for the comparison, so ordinary replies do not repeat the heading). Reply to that message and your reply is "Re: PO 1234 - revised delivery date", not "Re: Quote" - whether you leave the Subject line shut or open it to look. It used to be right when you left it shut and wrong when you opened it, which is the sort of thing nobody should have to know.
+
 **Nothing changes for the ordinary case.** A reply started from the conversation itself, rather than from a particular message, still answers the newest one - which is what you want nine times out of ten and what the box has always done.
 
 **You can see what will be quoted before you send it.** Under the writing box there is a **Show the earlier messages** line - the same words the conversation above uses. Open it and the message you are answering is there in full, earlier messages and all, exactly as it will appear beneath your reply. On a forward it says **Show what you are forwarding** and shows the From, Date, Subject and To lines that go with it. It is there to be read rather than edited: what gets quoted is decided by the arrow you pressed, so changing your mind means pressing a different one. Nothing is fetched until you open it.
@@ -275,7 +277,7 @@ The phone goes halfway through a reply, and until now that cost you the reply. N
 
 **It is only there while there is something in it.** Nothing half-written, no Drafts row: an empty folder is a place you can only ever go and be disappointed by, and being able to write from an address is not a reason to be shown one. It appears the moment a box puts itself down and goes again once the last one has been sent or thrown away - except while you are standing in it, so emptying the folder does not pull the list out from under you.
 
-**Your drafts are yours on a shared address.** Sharing accounts@ shares what has been sent from it and what has arrived at it; it does not share the sentence somebody is halfway through typing. A price you have not checked yet, or an apology you have not decided to make, is not something the rest of the team finds in a list.
+**Your drafts are filed under you, not under the mailbox.** A shared mailbox has no Drafts folder. A reply you begin to something in accounts@ lives in **your** Drafts, and - for colleagues who cover your post - in the Drafts folder under your name. Anybody who can open the conversation itself can also see that you have an answer on the go, and read it (see below); nobody but you can change it or send it.
 
 **The one exception is somebody's own address, and only for the people covering it.** If Sam's address has been shared with you by name, Sam's unfinished replies show under **Sam Blake → Drafts** on the rail. That is a deliberate choice and worth being plain about: you are already reading every message that arrives at Sam's address and every message that leaves it, and the one thing you could not see was the answer Sam started on Tuesday and did not finish - which is exactly how the same customer ends up written to twice, once by Sam on Friday and once by you this morning. Nobody who has not been put on that address sees any of it.
 
@@ -289,7 +291,7 @@ That is deliberately the only thing on offer. Editing somebody's half-written se
 
 **Opening one shows the message rather than a writing box**: who it is to, what it is about, what is attached, when it is set to go out if it is, and the words. If it is an answer to a conversation, there is a link across to that conversation. At the foot it says whose writing it is, that only they can change it, and - where you may - offers to send it for them.
 
-Opening a conversation shows your own draft on it, if you left one. There is one draft per conversation per person, which is the box, put down; saving again writes over it rather than leaving you to choose between two halves of the same sentence. Two people can each have one on the same conversation, and each sees only their own.
+Opening a conversation shows your own draft on it, if you left one. There is one draft per conversation per person, which is the box, put down; saving again writes over it rather than leaving you to choose between two halves of the same sentence. Two people can each have one on the same conversation. **You can see that a colleague has one, and read it**: open the conversation and a dashed line above the messages says *Sam Blake has started a reply and not sent it*, with when it was last touched; press it and the words are there, along with who it is to. It is the thing most worth knowing before you write your own answer - two replies to one customer is what happens otherwise. It is still Sam's: there is nothing on it that changes or sends it.
 
 Picking one back up depends on what it is. A saved reply lives under its conversation, so clicking it opens the conversation with your words still in the box, the customer's message above them, and set to whichever of Reply, Reply to all and Forward you had chosen. A message you had not finished starting opens the writing box again exactly as you left it - recipients, subject, attachments and all.
 
@@ -552,14 +554,14 @@ Once somebody is on it, that address appears in their rail under **Team inboxes*
 
 | Folder | What is in it |
 | --- | --- |
-| **Drafts** | What **they** have started on that address and not sent. You cannot change one; you can send one out as it stands if you may send from the address - see below. |
-| **Scheduled** | What **they** have set to go out on its own from that address. You cannot change one or cancel its time; you can read it so you know not to answer the same customer twice. |
-| **Sent** | Everything that has left that address. |
+| **Drafts** | What **they** have started and not sent - from their own address, or as a reply to something in a shared mailbox you can also open. Only there while there is something in it. You cannot change one; you can send one out as it stands if you may send from the address - see below. |
+| **Scheduled** | What **they** have set to go out on its own, from their own address or a shared one you can also open. Only there while there is something in it. You cannot change one or cancel its time; you can read it so you know not to answer the same customer twice. |
+| **Sent** | Everything that has left that address, **and everything they have sent from a shared mailbox you can also open.** A reply Sam sends from purchasing@ is in Purchasing's Sent folder because it left that address, and in Sam's because Sam wrote it. |
 | **Mentioned** | Conversations on that address that its owner has been tagged in. |
 | **Spam** | What has been marked as junk out of their post, including anything you marked while covering. |
 | **Bin** | What has been deleted out of their post, including anything you deleted while covering. Nothing in it is destroyed until somebody empties it. |
 
-**All five are theirs, and Drafts is the one worth pausing on.** Covering somebody's post means knowing what they have half-answered as well as what they have answered; not knowing is how a customer gets two replies from two people. So the folder holds Sam's unfinished writing, and it is there whether or not there is anything in it, exactly like the three beside it. Opening one shows the message rather than a writing box: only Sam can change, finish or throw away one of Sam's drafts. If you may send from Sam's address, the foot of the page offers to **send it for Sam** exactly as it stands - see [Drafts](#drafts). Your own half-written writing, wherever you left it, stays under **Drafts** in **Yours**.
+**All five are theirs, and Drafts is the one worth pausing on.** Covering somebody's post means knowing what they have half-answered as well as what they have answered; not knowing is how a customer gets two replies from two people. So the folder holds Sam's unfinished writing - all of it that you could otherwise read, including the reply Sam began to something in a shared mailbox. A draft belongs to whoever is writing it, not to the mailbox the conversation happens to live in: shared mailboxes have no Drafts folder, and a reply started in one used to be filed somewhere nobody else could look. **Drafts and Scheduled only appear under a colleague's name while there is something in them** (and while you are standing in one, so emptying it does not pull the row out from under you) - nine colleagues with nothing half-written used to mean eighteen empty folders. Opening one shows the message rather than a writing box: only Sam can change, finish or throw away one of Sam's drafts. If the draft is on Sam's own address and you may send from it, the foot of the page offers to **send it for Sam** exactly as it stands - see [Drafts](#drafts). A reply Sam began on a shared mailbox has no such button: you can simply answer that conversation yourself. Your own half-written writing, wherever you left it, stays under **Drafts** in **Yours**.
 
 The list is headed with the colleague's name in front of the folder - **Sam Blake · Drafts** - the same way their Sent, Spam, Mentioned and Bin lists are.
 
@@ -715,6 +717,21 @@ The address in your browser holds the lot, so a search can be sent to a colleagu
 
 Search covers subjects, senders and the text of messages, and it only ever searches the inboxes you are allowed to read.
 
+### Moving a conversation to another mailbox
+
+Mail turns up at the wrong address all the time - a delivery question sent to sales@, an invoice query sent to whoever answered last. **Drag the conversation from the list and drop it on the mailbox it belongs in.** The mailbox lights up as you hover over it; the one it is already in does not, and will not take the drop.
+
+- **Tick several first and drag any one of them**, and the whole pile goes. Drag a row that is not ticked and only that row moves, whatever else is ticked - the same rule as files in a folder.
+- **Replies then go from the new mailbox.** Its address, its name, its signature, its way of sending. That is rather the point: a customer who wrote to sales@ about a late delivery gets their answer from support@, and their next reply lands in support@ with the rest of the conversation.
+- **Half-written replies come too.** A draft on the conversation moves with it, and a reply you had scheduled goes out from the new address rather than the one the conversation has just left.
+- **What was already sent stays as it was sent.** The Sent folder under the old mailbox still shows what left from it. That is history, and moving a conversation does not rewrite it.
+- **It stays moved.** The next collection does not put it back, even when more mail for it arrives at the old address.
+- A five-second **Undo** appears, as it does for everything else on this screen, and the move is written into the conversation's history with where it came from and where it went.
+
+You can move a conversation you can open into any mailbox you can see. Somebody else's own inbox is not on your rail unless they have given it to you, so you cannot drop mail into it. A **discussion** cannot be moved: it belongs to the people in it, not to an address. A conversation that has been merged into another moves with the one it was merged into.
+
+One thing worth knowing: a brand-new email that arrives at the *old* address and does not say which conversation it is answering starts a new conversation there. It is, after all, new mail to that address. Anything that is genuinely a reply finds the moved conversation wherever it now lives.
+
 ### Merging conversations into one
 
 Sometimes one conversation arrives as two. Somebody writes from their work address on Monday and their phone on Thursday. A supplier changes the subject line and their mail program forgets what it was replying to. A colleague forwards something in and now there are three of it. And an email between two of your own addresses is deliberately kept as two conversations - one for each of you, each with its own unread mark and its own snooze - which is right until the day you decide that this particular back and forth is one story with four people in it.
@@ -731,6 +748,7 @@ A few things worth knowing before you press it:
 - **A merged conversation is still unanswered if any half of it was.** Merging something you had marked done into something you had not does not quietly mark the lot done, and an unread half stays unread. Better to be shown something twice than to lose it off the list.
 - **Merging across two of your addresses lets both of them read it.** This is the point of merging marcus@ and hi@ together, and it is also the thing to think about first: everybody who can read either address can then read the whole of the merged conversation, including the half that arrived on the other one. The confirmation says so, and names the addresses, before anything happens. See [Who can see what](#who-can-see-what).
 - **It shows in both addresses' tabs afterwards**, with the second address named in the line under the subject, and it stays merged when somebody replies. Without that last part the two sides would come apart again on the very next email.
+- **Merging something out of your own inbox with something in a shared one moves it to the shared one.** A supplier writes to chris@ first and to purchasing@ second; merge the two and the conversation now *lives* in Purchasing, so the team can see it and the next reply goes from purchasing@ rather than from one person's address. It used to stay wherever the older half was, which was very often somebody's own post. It is still listed in your own inbox as well, so nothing vanishes; the message that confirms the merge says where it has gone; and undoing the merge puts it back where it lived. Two shared mailboxes have no such pecking order - there the older conversation keeps its place, as before.
 - **You cannot merge into something that has itself been merged away.** Undo that one first, or merge into the conversation it became.
 
 Merging *conversations* and merging *people* are two different jobs. If the same human has turned up twice in the address book, that is a merge on their card - see [People, and how conversations collapse](#people-and-how-conversations-collapse).

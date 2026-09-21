@@ -322,7 +322,7 @@ The tab opens with the figure that matters: how much is sitting on invoices nobo
 
 Two ways in, because businesses buy things both ways:
 
-- **Against an order.** Open the purchase order and press **Enter a bill**. Every line of the order comes across as a tick list, with the ones that have been delivered and not yet invoiced already ticked, at the price on the order.
+- **Against an order.** Open the purchase order and press **Enter a bill**. The button appears once the supplier has confirmed the order (or goods have turned up) - before that, what you are waiting for is their proforma or their acknowledgement, not their invoice. Every line of the order comes across as a tick list, with the ones that have been delivered and not yet invoiced already ticked, at the price on the order.
 - **On its own.** Press **Enter a bill** on the Bills tab and pick the supplier. The electricity does not arrive on a purchase order, and a module that refuses to record it is a module you keep a spreadsheet alongside.
 
 **Start by picking their invoice.** Drop their PDF in the box at the top of the screen and the invoice number, the invoice date and the total are read off it and put in the boxes for you. It is a guess and it is treated as one: everything it fills in stays editable, a number you have already typed is never overtyped, and a photographed invoice with no text in it simply answers nothing and leaves the boxes as empty as they were. The file itself is filed against the bill the moment you save it.
