@@ -350,6 +350,20 @@ short-lived copy of your services and prices (about ten seconds). An edit in the
 admin can therefore take up to ten seconds to show on product pages and in the
 basket - blink and you'll miss it, but it is not a bug.
 
+## Your orders list knows when things are due
+
+Each order line keeps the date the customer was promised at the checkout, and
+the shop's orders list reads it back: an order nobody has dispatched yet shows
+**Delivery due Wed 23 Sep** in its Dispatch column, the soonest of its lines'
+"Arrives by" dates. Once a parcel is on its way with a delivery day booked, the
+courier's day takes over for whatever is in it. Nothing to switch on, and it
+covers every order already placed, not just new ones.
+
+An order waiting on its payment shows no date, for the reason above: until the
+money lands the promise is a number of working days. When it lands and the line
+is re-dated, the new date is the one the list shows. See
+[Shop](Shop) for how the list picks the day.
+
 ## Other modules can read your delivery times
 
 From 0.1.42 the module publishes each product's delivery time - working days to
