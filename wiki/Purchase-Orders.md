@@ -72,6 +72,16 @@ For each one you can record the contact details, the account number you buy unde
 
 Deleting a supplier is refused while there are orders against them. That is deliberate - the alternative is a purchase order that no longer says who it went to.
 
+### Suppliers who drop-ship
+
+Tick **This supplier drop-ships** on a supplier whose goods go straight to your customer and never come to you. On their orders:
+
+- **Book goods in** and **Record a despatch** are not offered, and the Deliveries card and the Received / Still due columns stay away. Nothing is going to arrive, so nothing asks you to count it. (Anything that *was* booked in before you ticked the box stays on the record.)
+- **Their invoice is checked against what you ordered**, not against what was delivered. Without this every invoice from a drop-shipper was flagged "nothing has been booked in yet" - true, permanent, and therefore noise. Price and total are checked exactly as before, and an invoice for more than you ordered is still flagged.
+- The order's status line stops saying it is waiting for the goods.
+
+It is a switch on the supplier rather than the order, and it applies to their open orders as well as new ones. The supplier's own link still lets *them* tell you when something has left, and anything they report still shows on the order.
+
 ### Linking to a catalogue supplier
 
 If you have the Shop module, each purchasing supplier can be **linked** to the supplier name your products are filed under. That is what lets the line editor offer their products first when you are raising an order.
@@ -167,6 +177,13 @@ Files are stored and checked for being what they claim to be. **They are not sca
 Open an order and everything you can **do** to it is in one bar across the top, and that bar stays put however far down the page you scroll.
 
 - The **solid button** is the one thing an order in this state is waiting for: email it, approve it, book the goods in, close it. There is only ever one.
+  - Once an order has gone out, that one thing is usually **the next piece of paperwork**, and the button opens a small window for it rather than sending you down the page to find the right card:
+    1. **Upload their proforma** - for a supplier who invoices before they confirm. The file, their invoice number (left empty, it is read off the file) and what they are invoicing.
+    2. **Upload proof of payment** - the screenshot or remittance, your payment reference, and a tick to send the proof with the "we have paid" email. This is what marks the proforma as paid.
+    3. **Upload their acknowledgement** - the file and their sales order number, and a tick (on by default) that marks the order as confirmed by the supplier in the same go.
+    4. **Enter their invoice** - choose the file and their number, date and total are read off it where they can be. Everything still to be invoiced is proposed at the prices you ordered at, with the carriage; change what their invoice says differently and save. It is checked against the order the moment it is saved, and you are told whether it agrees. Anything stranger - a charge that was never on the order - belongs on the full bill form, which is one link away.
+  - A supplier on a credit account simply starts at step 3. If goods are still on their way to you, **Book goods in** stays the solid button and the invoice sits beside it - the lorry usually beats the invoice. When there is no paperwork left and nothing left to arrive, the solid button is **Close the order**.
+  - Anything that goes wrong in one of those windows is said inside it, not behind it.
 - Beside it are the everyday ones - **Edit** (or **Amend**, once the supplier has it), **View document**, **Email it again**, **Book goods in**, **Enter a bill**.
 - **More** holds the rest: the PDF, recording a despatch, sending something back, making a link for the supplier, putting it on hold, marking it as sent without emailing, cancelling it, deleting a draft. Cancelling and deleting ask first.
 - **Add a note** opens a box in the bar. Whatever is in it goes in the email if you send the order, and into the history against whatever you do next.

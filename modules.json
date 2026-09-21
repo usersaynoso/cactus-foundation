@@ -18,7 +18,7 @@
     {
       "name": "product-addons-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/product-addons-for-shop",
-      "version": "v0.1.37"
+      "version": "v0.1.38"
     },
     {
       "name": "google-sheet-products-for-shop",
@@ -163,7 +163,7 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.37"
+      "version": "v0.1.38"
     },
     {
       "name": "unified-inbox",
