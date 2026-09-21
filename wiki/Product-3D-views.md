@@ -310,6 +310,8 @@ On a product with variations, a row of dropdowns sits above the preview - the sa
 
 **Handling.** How the model behaves when a shopper takes hold of it - whether it moves on its own, how far, whether they can slide it about, and how near or far they can zoom.
 
+One thing the zoom limits do quietly for you: on a product that opens (see [Models that move](#models-that-move)), the viewer lets a shopper pull back further than your setting would normally allow, and only as far as the open product actually needs. It works out the difference from the model itself, so a cupboard whose doors swing wide gets more room than a drawer that slides out an inch. Your setting still decides how far back a shut model goes; this just stops an open one from having its doors cropped off with nothing left to scroll.
+
 **How it moves** decides what "on its own" means. The default is the familiar one: the model turns gently until a shopper takes hold of it, with its own speed dial. The alternative is a single turn - the model swings through about forty degrees the moment it comes into view, and then holds still - which is enough for anyone to see it has a back to it, and is worth switching to if shoppers on older phones tell you the page runs warm. You can set how far that single turn goes. Either way the motion stops for good the moment a shopper takes hold, and **Reset view** brings it back.
 
 Whichever you pick, the model only moves while somebody is actually looking at it. Scroll the gallery off the screen and it stops until it comes back; switch to another tab and it stops there too. So the endless turn costs nothing while a shopper is reading the description further down the page, which is where most of that time was going.
