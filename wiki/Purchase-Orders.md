@@ -162,6 +162,30 @@ Files are stored and checked for being what they claim to be. **They are not sca
 
 ---
 
+## The order screen
+
+Open an order and everything you can **do** to it is in one bar across the top, and that bar stays put however far down the page you scroll.
+
+- The **solid button** is the one thing an order in this state is waiting for: email it, approve it, book the goods in, close it. There is only ever one.
+- Beside it are the everyday ones - **Edit** (or **Amend**, once the supplier has it), **View document**, **Email it again**, **Book goods in**, **Enter a bill**.
+- **More** holds the rest: the PDF, recording a despatch, sending something back, making a link for the supplier, putting it on hold, marking it as sent without emailing, cancelling it, deleting a draft. Cancelling and deleting ask first.
+- **Add a note** opens a box in the bar. Whatever is in it goes in the email if you send the order, and into the history against whatever you do next.
+- If something goes wrong - or right - the message appears in the bar too, so it is in front of you wherever on the page you were.
+
+On a phone the everyday buttons fold into **More**, so the bar stays one row deep rather than half the screen.
+
+Under the bar is **one sentence saying where the order stands**: a draft nobody has sent, sent on Tuesday and waiting for their proforma, part delivered, on hold. It is worked out from the order every time you open it, which is rather the point - see the note below.
+
+Then the order itself, in two columns where there is room. The wide one runs in the order things happen: the **lines**, then **Getting it here** (what the supplier says they have sent, what has actually been booked in, what has gone back), then **Paying for it** (their proforma and paperwork, and their bills), then **The supplier's side** (their link, and what they have told you through it). The narrow one is what you glance at: the details, the full delivery address with its contact and instructions, the notes, past revisions and the history. Cards with nothing to say - deliveries on a draft, returns on an order nothing has arrived for - stay out of the way until they have.
+
+What is left on the cards is only what cannot leave them: the file picker beside the document it files, the reference box beside its **Save**, **Stop it** on the row of the link it stops.
+
+**Editing** uses the same bar, with two buttons in it: **Save** and **Cancel**. The form runs in the order you fill it in - supplier and dates, lines, what it comes to, where it is going, notes - with currency and tax last, because on nearly every order they are already right. The exchange rate only appears when the order is in a foreign currency. On an amendment the bar also asks **what has changed**, and Save stays greyed out, saying why, until you have told it.
+
+> **Why the status sentence is worked out, not written down.** Orders drafted automatically from a paid customer order used to be given an internal note ending "Nobody has read it and nothing has been sent to the supplier." That was true when it was written and a note is only written once - so an order that had since been emailed, confirmed and delivered went on announcing that nothing had been sent. The note now only says where the order came from, which stays true for ever (and keeps the customer order number searchable from the orders list). Anything about where an order has *got to* comes from the order itself. Existing orders have the stale sentence taken off them the next time the module updates; anything you typed into the note yourself is left exactly as it was.
+
+---
+
 ## The life of an order
 
 | Status | What it means |
@@ -233,7 +257,7 @@ Deliveries need the `purchase-orders.receive` permission. Everybody with `purcha
 
 ### Raising one
 
-Open the purchase order and press **Send something back**. You only get the option once something has actually been delivered - nothing can go back that never arrived.
+Open the purchase order and press **Send something back**, under **More**. You only get the option once something has actually been delivered - nothing can go back that never arrived.
 
 You get every line that has turned up, with what was delivered and what has already gone back. Nothing is filled in for you: the common case is one line out of eight, and a form that starts by proposing to send everything back is a form somebody will one day save by accident.
 
@@ -711,19 +735,23 @@ With nothing selected in the editor, the left panel shows the **page settings**:
 
 ## Sending it
 
-Open an order and there is a **The document** card:
+Open an order and the bar at the top has all three:
 
 - **View document** opens the order exactly as it prints.
-- **Download PDF** saves it.
+- **Download PDF**, under **More**, saves it.
 - **Email it to the supplier** sends it, with the PDF attached, to the address on the supplier record - copying in whatever else that record lists.
 
 The email goes first and the order is only marked as sent once it actually has. If it will not go you are told why, in the words the mail service gave, and the order stays where it was. An order marked "Sent" that nobody ever received is how a business ends up waiting six weeks for goods it never ordered.
 
-Anything typed into the **Note** box travels with it, and is recorded against the order either way.
+Anything typed into the note box - **Add a note**, in the bar - travels with it, and is recorded against the order either way.
 
-If your site has no email set up, or the supplier has no email address on file, you are told so plainly - and the PDF is still there to attach to your own email by hand. Marking an order as sent without emailing it is still there too, under **What next**: plenty of orders go by phone or over a trade counter.
+Once an order has gone, the button becomes **Email it again** and stops being the solid one. A prominent "send" on an order sent ten minutes ago is how a supplier gets the same order twice.
+
+If your site has no email set up, or the supplier has no email address on file, you are told so plainly - and the PDF is still there to attach to your own email by hand. Marking an order as sent without emailing it is still there too, under **More**: plenty of orders go by phone or over a trade counter.
 
 **An order over your approval threshold cannot be emailed until it has been approved.** That holds whichever button you press.
+
+**Sending an order is what approves it, where nobody already has.** An order under your threshold never waits for approval, so nobody ever presses Approve on it - but somebody read it and sent it, which is the same decision made with a different button. Whoever sends it (by email, or by marking it as sent) is recorded as its approver, with the date, and their name prints under **Authorised by** on the copy the supplier receives. The history gets a line of its own saying so. An order that did go through approval keeps the name of whoever approved it. Orders sent before this existed are given their sender as approver the next time the module updates.
 
 ---
 
@@ -733,7 +761,7 @@ Edit an order that has gone out and Cactus asks one question: **what has changed
 
 - The version the supplier is holding is filed as a **revision**, exactly as it was printed, and never changes again.
 - The live order moves on to Rev 2, Rev 3 and so on, and the document prints that revision number where nobody can miss it.
-- The **Send the amended order** button emails them the replacement, on the amendment wording rather than the original.
+- **Email it again** emails them the replacement, on the amendment wording rather than the original.
 
 Past revisions are listed on the order with who made each change, when, and why.
 
@@ -806,7 +834,7 @@ You are emailed each time a supplier says something, so nothing waits for somebo
 
 The **The supplier's link** card on each order lists every link ever made for it: when, by whom, how long it lasts, and how many times it has been opened.
 
-- **Make a link** makes another one, for the day somebody at the supplier cannot find the email. An order has to have been sent first - a link to a draft is a link to prices nobody has agreed yet.
+- **Make a link for the supplier**, under **More** at the top of the order, makes another one and takes you straight to it, for the day somebody at the supplier cannot find the email. An order has to have been sent first - a link to a draft is a link to prices nobody has agreed yet.
 - **Stop it** ends one link. **Stop every link** ends the lot, for the day one is forwarded to the wrong supplier.
 - Links expire on their own after however many days you set, sixty by default.
 
@@ -849,7 +877,7 @@ The tracking link is for your side of the desk only. It never prints on the pack
 
 Plenty of them will not. They email, or they ring, and somebody here writes it down.
 
-**Record a despatch** on that same card opens a form with what is still to send, a box per line, the date it left them, the carrier, the tracking number and a tracking link. Save it and you get the same row, the same number and the same packing slip - the table simply says *Entered here* rather than *Told to us by the supplier*, so you can always tell which is which.
+**Record a despatch**, under **More** at the top of the order, opens a form on that same card with what is still to send, a box per line, the date it left them, the carrier, the tracking number and a tracking link. Save it and you get the same row, the same number and the same packing slip - the table simply says *Entered here* rather than *Told to us by the supplier*, so you can always tell which is which.
 
 Two things it does differently from the supplier's own page, both on purpose:
 
