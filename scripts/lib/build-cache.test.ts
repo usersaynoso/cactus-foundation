@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm, stat, symlink, cp, chmod } fro
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { PACKED_CACHE, packBuildCache, restoreBuildCache, discardBuildCache } from './build-cache.mjs'
 
@@ -16,6 +16,9 @@ async function put(relative: string, content: string | Buffer) {
   await mkdir(path.dirname(target), { recursive: true })
   await writeFile(target, content)
 }
+// Byte-for-byte, by digest: toEqual walks a Buffer one index at a time, and on
+// the 1 MiB fixture that alone took four seconds - seven under a full suite.
+const digest = async (file: string) => createHash('sha256').update(await readFile(file)).digest('hex')
 async function snapshot() {
   await put('.next/cache/turbopack/v16/CURRENT', '00000001.sst\n')
   await put('.next/cache/turbopack/v16/00000001.sst', Buffer.alloc(1024 * 1024, 37))
@@ -30,12 +33,12 @@ describe('complete compilation cache snapshots', () => {
   it('round-trips every byte and timestamp, then removes the packed copy', async () => {
     await snapshot()
     const file = path.join(raw(), 'v16/00000001.sst')
-    const before = await readFile(file)
+    const before = await digest(file)
     const modified = (await stat(file)).mtimeMs
     expect(await packBuildCache(root, quiet)).toBe(true)
     expect(existsSync(raw())).toBe(false)
     expect(await restoreBuildCache(root, { log: quiet })).toBe(true)
-    expect(await readFile(file)).toEqual(before)
+    expect(await digest(file)).toBe(before)
     expect(Math.abs((await stat(file)).mtimeMs - modified)).toBeLessThan(1)
     expect(await readFile(path.join(raw(), 'v16/CURRENT'), 'utf8')).toBe('00000001.sst\n')
     expect(existsSync(packed())).toBe(false)

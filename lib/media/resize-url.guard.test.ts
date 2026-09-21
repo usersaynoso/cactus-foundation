@@ -81,18 +81,24 @@ function isSatisfied(tag: string): boolean {
 }
 
 function unpassedRenderings(): string[] {
+  const components = componentsTakingResizing()
+  if (components.length === 0) return []
+  // One sweep for every component at once. A pass of grep over lib + modules
+  // costs about a second, and a pass per component pushed this past vitest's
+  // five-second limit whenever the full suite had the disk busy.
+  let listed = ''
+  try {
+    const patterns = components.flatMap(({ name }) => ['-e', `<${name}`])
+    listed = execFileSync('grep', [...GREP_SCOPE, '-l', ...patterns, 'lib', 'modules'], { cwd: ROOT, encoding: 'utf8' })
+  } catch {
+    // grep exits non-zero with no matches, which means nothing renders any of
+    // them in JSX - components registered as a `Panel` or a slot, say. A pass.
+    return []
+  }
   const offenders: string[] = []
-  for (const { name } of componentsTakingResizing()) {
-    let listed = ''
-    try {
-      listed = execFileSync('grep', [...GREP_SCOPE, '-l', `<${name}`, 'lib', 'modules'], { cwd: ROOT, encoding: 'utf8' })
-    } catch {
-      // grep exits non-zero with no matches, which means nothing renders it in
-      // JSX - a component registered as a `Panel` or a slot, say. A pass.
-      continue
-    }
-    for (const rel of listed.split('\n').filter(Boolean)) {
-      const source = readFileSync(path.join(ROOT, rel), 'utf8')
+  for (const rel of listed.split('\n').filter(Boolean)) {
+    const source = readFileSync(path.join(ROOT, rel), 'utf8')
+    for (const { name } of components) {
       // Bounded so a tag whose closing bracket is far away cannot swallow an
       // unrelated `resizing` further down the file.
       for (const tag of source.match(new RegExp(`<${name}\\b[\\s\\S]{0,700}?/?>`, 'g')) ?? []) {
@@ -115,5 +121,5 @@ describe('the picture-resizing setting is handed on wherever it is accepted', ()
         offenders.join('\n  ') +
         '\n',
     ).toEqual([])
-  })
+  }, 20_000) // Two real grep passes over every source file, slower when the full suite has the disk busy.
 })
