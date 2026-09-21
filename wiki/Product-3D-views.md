@@ -67,15 +67,20 @@ If you would rather do the compressing yourself with your own tools, that works 
 
 ### Models that move
 
-If your GLB has an animation saved inside it, the viewer plays it, on a loop, as soon as the shopper opens the model. A desk with a pop-up power socket rising out of the top, a drawer sliding open, a chair arm folding down - if the file does it, the viewer does it.
+If your GLB has an animation saved inside it, the viewer puts a button on the picture. Press it and the product does the thing - the doors swing open, the drawer slides out, the power socket rises out of the desk top - and stays that way. Press it again and it goes back. A desk with a lifting column, a chair arm folding down, a cupboard that opens: if the file does it, the button does it.
 
-There is nothing to switch on and nothing to configure. The movement is part of the file, so it is your 3D person's decision rather than a setting here, and a product that should move differently needs a new file rather than a new tick box.
+There is nothing to switch on and nothing to configure. The movement is part of the file, so it is your 3D person's decision rather than a setting here, and a product that should move differently needs a new file rather than a new tick box. A product whose file has no animation in it simply has no button, and nothing else about it changes.
 
-Three things worth knowing:
+The button says what it will do next - "Open the doors" before, "Close the doors" after - so a shopper using a screen reader is told as much as one looking at it.
 
-- **Only the full viewer plays it.** Thumbnails stay still, which is rather the point of a thumbnail.
-- **A shopper who has asked their device for less on-screen movement gets a still model.** That is their setting to make, not yours to override, and it is the same rule the gentle turning motion already follows.
-- **Turning the model with your finger does not stop the animation.** The turning motion stops when touched, because it fights someone trying to look at one corner. An animation is usually the thing they opened the model to watch, so it keeps going.
+Four things worth knowing:
+
+- **It is one movement, run both ways.** Your 3D person saves one animation of the product opening; closing is that same animation played backwards. There is no second "closing" file to author, and no way for the two to drift apart.
+- **Pressing it halfway through turns it round on the spot.** Nothing queues up and nothing jumps, so a shopper prodding the button repeatedly out of curiosity gets exactly what they asked for and the button never lies about what the model is doing.
+- **Only the full viewer has the button.** Thumbnails stay still, which is rather the point of a thumbnail.
+- **A shopper who has asked their device for less on-screen movement still gets the button.** Pressing it shows them the open cupboard straight away rather than a performance of it opening. Their setting is about motion, not about being shut out of seeing inside the product.
+
+One thing to weigh up with your 3D person: a model that opens usually has to carry the bits that only matter once it is open - hinges, runners, the inside of the lock - so it is a bigger file than the same product modelled shut. Worth it for a cupboard whose selling point is what fits inside. Less obviously worth it for something whose doors are the least interesting thing about it.
 
 ### DWG and USDZ are not accepted
 
