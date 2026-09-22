@@ -69,9 +69,13 @@ function zoneOffsetMs(timezone: string, at: Date): number {
 }
 
 // The instant a wall-clock "HH:MM" on calendar date `dateStr` ("YYYY-MM-DD")
-// falls at in a timezone. Interprets the wall time as UTC, then corrects by the
-// zone's offset at that instant - exact outside the one ambiguous hour of a DST
-// change, which nothing here deliberately schedules into. Use it whenever a
+// falls at in a timezone. Interprets the wall time as UTC, corrects by the
+// zone's offset there, then checks the offset again at the instant that gave -
+// because the first reading is taken hours away from the real instant, and a
+// clock change inside those hours made it an hour out: midnight on the day
+// Sydney or Auckland go forward came back as 11pm the night before. Exact
+// outside the one ambiguous hour of a DST change, which nothing here
+// deliberately schedules into. Use it whenever a
 // time of day has to mean the same thing to a reader as it does in the data:
 // `setHours(9, 0, 0, 0)` on the server means 9am UTC, which is 10am in London
 // for two thirds of the year.
@@ -80,7 +84,9 @@ export function instantAtWallClock(dateStr: string, hhmm: string, timezone: stri
   const [hh, mm] = hhmm.split(':').map(Number)
   const guess = Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0)
   const zone = normaliseTimezone(timezone)
-  return new Date(guess - zoneOffsetMs(zone, new Date(guess)))
+  const first = guess - zoneOffsetMs(zone, new Date(guess))
+  const settled = zoneOffsetMs(zone, new Date(first))
+  return new Date(guess - settled)
 }
 
 // Same instant, `days` whole calendar days later in the zone, at `hhmm`.

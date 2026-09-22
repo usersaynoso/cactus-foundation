@@ -56,6 +56,26 @@ describe('instantAtWallClock', () => {
     expect(instantAtWallClock('2026-01-15', '09:00', 'Europe/London').toISOString()).toBe('2026-01-15T09:00:00.000Z')
     expect(instantAtWallClock('2026-07-01', '09:00', 'UTC').toISOString()).toBe('2026-07-01T09:00:00.000Z')
   })
+
+  // The day the clocks go forward in the southern hemisphere, where the first
+  // offset reading - taken at the wall time read as UTC, hours away from the
+  // real instant - lands on the far side of the change. Midnight came back an
+  // hour early, as 11pm the night before.
+  it('gets midnight right on the day Sydney and Auckland go forward', () => {
+    const sydney = instantAtWallClock('2026-10-04', '00:00', 'Australia/Sydney')
+    expect(sydney.toISOString()).toBe('2026-10-03T14:00:00.000Z')
+    expect(calendarDateIn(sydney, 'Australia/Sydney')).toBe('2026-10-04')
+    const auckland = instantAtWallClock('2026-09-27', '00:00', 'Pacific/Auckland')
+    expect(auckland.toISOString()).toBe('2026-09-26T12:00:00.000Z')
+    expect(calendarDateIn(auckland, 'Pacific/Auckland')).toBe('2026-09-27')
+  })
+
+  it('still gets midnight right either side of the change in London and New York', () => {
+    expect(instantAtWallClock('2026-03-29', '00:00', 'Europe/London').toISOString()).toBe('2026-03-29T00:00:00.000Z')
+    expect(instantAtWallClock('2026-03-30', '00:00', 'Europe/London').toISOString()).toBe('2026-03-29T23:00:00.000Z')
+    expect(instantAtWallClock('2026-10-25', '00:00', 'Europe/London').toISOString()).toBe('2026-10-24T23:00:00.000Z')
+    expect(instantAtWallClock('2026-11-01', '00:00', 'America/New_York').toISOString()).toBe('2026-11-01T04:00:00.000Z')
+  })
 })
 
 describe('wallClockDaysAhead', () => {
