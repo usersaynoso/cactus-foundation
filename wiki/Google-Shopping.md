@@ -462,15 +462,19 @@ Once those are in, Cactus can do two things:
 
 Both are switched **off** to begin with. The first only reads; the second writes to your advertising account, and neither is something an update to this site should start doing on your behalf.
 
-### Connecting it
+### Connecting Google Ads
 
-On the Google Shopping settings tab, under **Google Ads**, there are four things to fill in and two optional ones:
+The details go in on the **Health** tab, in the Google Ads panel, under **How to connect Google Ads**. That is the only place they are typed. Only an administrator can enter them - anybody else with access to that tab sees the instructions and a line saying so, which is deliberate: these are the keys to your advertising account.
+
+**Whatever you save only takes effect the next time the site is rebuilt.** Saving them raises a notice on your dashboard to remind you; until that rebuild happens the panel will go on saying Google Ads is not connected, and that is not a fault. Leave a box empty and that detail is left exactly as it is, so one of them can be replaced without retyping the rest. Nothing already saved is ever shown again - each box only says whether something is there.
+
+There are four things to fill in and two optional ones:
 
 - **Google Ads sign-in ID** and **Google Ads sign-in secret** - from the sign-in client you set up in the Google Cloud console.
 - **Google Ads permission token** - granted once, when you let that sign-in read your Google Ads account. It does not expire on its own.
 - **Google Ads account number** - the ten-digit number at the top right of Google Ads. Dashes are fine.
 - **Manager account number** - only if your account sits underneath a manager account. Leave it empty otherwise.
-- **Developer token** - **no longer needed.** Google retired these on 9 September 2026 and ignores the ones still being sent; what your connection is allowed to do is now decided by the Google Cloud project behind the sign-in above. If you have one it does no harm, and if you are waiting on an application for one you can stop.
+- **Developer token** - **no longer needed, and the Health tab no longer offers a box for it.** Google retired these on 9 September 2026 and ignores the ones still being sent; what your connection is allowed to do is now decided by the Google Cloud project behind the sign-in above. If you already have one it does no harm, and if you are waiting on an application for one you can stop.
 
 Cactus stores all of these the same way it stores your Merchant Center key - as settings on the site, never shown again. The screen only ever tells you whether each one is saved.
 
@@ -590,6 +594,10 @@ The original way, and still the right one where the groups you want are not the 
 
 Whatever the label says is what you type into the delivery rate in Merchant Center. It is your own wording travelling across unchanged, not a code.
 
+**If that attribute is the one your delivery rules group by, the two sources below are the same thing.** A delivery rule written against a range is written against a value of one of your attributes, and the Delivery tab names its rate groups with that same value's wording - so labelling by that attribute puts precisely those names on your products, character for character. The site works this out for itself: where it holds, it stops asking you to switch the setting over and says on the Delivery screen why it is not asking. If that is your arrangement, leave the setting where it is. It was already right, and changing it would be swapping one correct answer for another.
+
+It only holds while **every** delivery rule you have is written against a range. Add one for a category, for a supplier, or a rule covering everything, and those groups cannot be said with a value of a single attribute - so the two lists really do drift apart, and the warning comes back. That is the warning doing its job rather than a fault.
+
 ### Your own delivery rules
 
 The other source, and the tidier one if you have a delivery module set up. Instead of an attribute, each product is labelled with the **delivery group its own price is written against** - the range, the category or the supplier the rule is on, whichever is the most specific one that reaches it. Exactly the group the basket uses to work out what to charge, so the label is never a second opinion about the same product.
@@ -609,6 +617,8 @@ Under **Products -> Google Shopping -> Delivery** is the other half of that: a s
 Nothing on it rings Google when you open it. The preview is worked out here on the site; the comparison is the last one that was made, with the date it was taken sitting on it. The two buttons are the only things that pick up the telephone, and only one of them changes anything.
 
 **Switch the labelling over first.** This screen and the feed are two halves of one thing: Google matches these prices to a product by the delivery group the product carries in your feed. So before any of it can work, set **Where the group comes from** to **Your own delivery rules** on the Google Shopping settings tab. Until you do, the Send button is held and the screen says so - sending as things stand would name groups no product carries, and every product in the shop would be charged whatever the last rule says.
+
+**Unless you are already labelling by the delivery rules' own attribute.** If **Where the group comes from** is set to a product attribute, and that attribute is the very one your delivery rules write their ranges against, and every delivery rule you have is written against a range - then your labels and these rate groups are the same words already, because they are the same values read twice. The Send button is not held, the counts below mean what they say, and the screen prints a line explaining why you are not being told off. Do not change the setting to make the message go away: there is no message, and the setting was right to begin with. Anything less than all three of those conditions and the hold comes back, which is the point of it.
 
 **Not at the same time as per-product delivery charges.** If you have also switched on "Send your delivery charges with each product", Google uses the per-product figure ahead of these account-wide ones, so for anything in your feed these rates become a fallback rather than the price - and this screen would still show them as matching, because it compares what is here with what is at Google, not with what the feed says. Use one or the other unless you have a reason for both. The screen warns when both are on.
 
