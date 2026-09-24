@@ -230,5 +230,7 @@ describe('the real tree', () => {
     }
     const errors = findings.filter((f) => f.severity === 'error')
     expect(errors.map((f) => formatFinding(f, process.cwd())), 'server code reading a use-client module').toEqual([])
-  })
+    // Parses every source file in the tree - about three seconds alone, past the
+    // default five once the rest of `npm test` is running beside it.
+  }, 60_000)
 })

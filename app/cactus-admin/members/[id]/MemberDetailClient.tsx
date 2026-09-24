@@ -13,6 +13,9 @@ type Member = {
   websiteUrl: string | null
   status: string
   trusted: boolean
+  // Kept in step with their most recent order. Null means nobody has asked,
+  // which is not the same as a no.
+  marketingConsent: boolean | null
   suspensionReason: string | null
   suspendedUntil: string | null
   deletionScheduledAt: string | null
@@ -173,6 +176,12 @@ export default function MemberDetailClient({
         <div>
           <h1 className="page-title">{member.displayName || member.username}</h1>
           <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>@{member.username} · {member.email}</p>
+          <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>
+            Marketing emails:{' '}
+            {member.marketingConsent === true && 'happy to receive them'}
+            {member.marketingConsent === false && 'asked not to receive them'}
+            {member.marketingConsent === null && 'not asked'}
+          </p>
         </div>
         <span className={`badge ${STATUS_BADGE[member.status] ?? 'badge-gray'}`}>{member.status.replace(/_/g, ' ')}</span>
       </div>

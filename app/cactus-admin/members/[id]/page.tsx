@@ -91,6 +91,7 @@ export default async function MemberDetailPage({ params }: Props) {
         websiteUrl: member.websiteUrl,
         status: member.status,
         trusted: member.trusted,
+        marketingConsent: member.marketingConsent,
         suspensionReason: member.suspensionReason,
         suspendedUntil: member.suspendedUntil?.toISOString() ?? null,
         deletionScheduledAt: member.deletionScheduledAt?.toISOString() ?? null,
