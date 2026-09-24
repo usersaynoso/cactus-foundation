@@ -14,11 +14,22 @@
 export const DISPATCH_PATH = '/api/cron/dispatch'
 
 /**
- * The tick a site gets when nothing asks for better: hourly on a paid plan, and once a
- * day on Hobby whatever this says. Sites with a sub-hourly job get a faster tick
- * written for them - see dispatchScheduleForInterval.
+ * The tick a site gets when nothing asks for better: every half hour on a paid plan,
+ * and once a day on Hobby whatever this says. Sites with a job faster than half-hourly
+ * get a faster tick written for them - see dispatchScheduleForInterval.
+ *
+ * Half-hourly rather than the hourly `0 * * * *` this was until September 2026. The
+ * dispatcher's budget is one tick, so a job deferred for want of time - or one whose
+ * own minute has already gone by when the tick lands - waits for the next wake, and at
+ * `0 * * * *` that wait was a full hour and :00 was the only minute the dispatcher was
+ * ever awake for, which made every job's minute field decorative.
+ *
+ * Nothing fires twice as a result. A job is due only where its expression matched
+ * inside `(lastRunAt, now]`, and `lastRunAt` is stamped past the match it has just
+ * consumed, so `0 * * * *` still runs once an hour - at worst half an hour later than
+ * the minute it names, which is the bargain it already had.
  */
-export const DISPATCH_SCHEDULE = '0 * * * *'
+export const DISPATCH_SCHEDULE = '*/30 * * * *'
 
 /** Where the file lives in the repository. */
 export const VERCEL_JSON_PATH = 'vercel.json'

@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.451"
+      "version": "v0.1.453"
     },
     {
       "name": "address-lookup-for-shop",
@@ -28,7 +28,7 @@
     {
       "name": "google-shopping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-shopping-for-shop",
-      "version": "v0.1.23"
+      "version": "v0.1.25"
     },
     {
       "name": "stock-import-for-shop",
@@ -78,7 +78,7 @@
     {
       "name": "advanced-shipping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/advanced-shipping-for-shop",
-      "version": "v0.1.55"
+      "version": "v0.1.56"
     },
     {
       "name": "quote-for-shop",
@@ -88,7 +88,7 @@
     {
       "name": "abandoned-carts-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/abandoned-carts-for-shop",
-      "version": "v0.1.8"
+      "version": "v0.1.9"
     },
     {
       "name": "space-planner-for-shop",
@@ -163,12 +163,12 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.39"
+      "version": "v0.1.41"
     },
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.88"
+      "version": "v0.1.89"
     },
     {
       "name": "google-ai-studio",

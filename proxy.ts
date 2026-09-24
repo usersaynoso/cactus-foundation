@@ -24,7 +24,7 @@ import {
   isFirstRunComplete,
   refreshFirstRunComplete,
 } from '@/lib/config/site'
-import { cdnCacheControlForWindow, pageCacheControl, resolveCacheWindow, vercelCdnCacheControl } from '@/lib/cache/page-cache'
+import { cdnCacheControlForWindow, hasPageShapingQuery, pageCacheControl, resolveCacheWindow, vercelCdnCacheControl } from '@/lib/cache/page-cache'
 import { isCdnPurgeConfigured } from '@/lib/cache/cdn-purge'
 import { validateSession } from '@/lib/auth/session-core'
 import { isEdgeConfigWritable } from '@/lib/config/env'
@@ -235,7 +235,11 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
     // off nextUrl rather than the raw url so a rewrite earlier in this file
     // cannot change the answer under us.
     path: request.nextUrl.pathname,
-    hasQuery: request.nextUrl.search.length > 0,
+    // Tracking tags (utm_*, gclid and friends) do not count: they change where
+    // the visitor came from and nothing about the document, so a campaign-
+    // tagged product link belongs in the ordinary window with the bare address
+    // rather than in the long-tail one. See hasPageShapingQuery.
+    hasQuery: hasPageShapingQuery(request.nextUrl.search),
     method: request.method,
     header: (name: string) => request.headers.get(name),
     hasCookie: (name: string) => request.cookies.has(name),
@@ -348,6 +352,7 @@ const ADMIN_INTERNAL = '/cactus-admin'
 const ALWAYS_PASS = [
   '/api/health',
   '/api/webhooks/',
+  '/.well-known/',
   '/_next/',
   '/favicon.ico',
   // Where next.config.ts sends /favicon.ico. A tab icon is not a page: it must

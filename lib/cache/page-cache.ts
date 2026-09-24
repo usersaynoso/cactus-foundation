@@ -89,6 +89,51 @@ export function normaliseVercelEdgeTtl(value: unknown): VercelEdgeTtl {
 // ".md" is served as Markdown too, so it belongs in the same window either way.
 const MACHINE_READ_PATH = /^\/(?:robots\.txt|llms\.txt|llms-full\.txt|sitemap[\w-]*\.xml)$|\/feed\.xml$|\.md$/
 
+// Query parameters that name where a visitor came from and change NOTHING about
+// the page they land on.
+//
+// They matter here because "has a query string" is the test for the long
+// window, and the reasoning behind that test - a long tail of machine-read
+// addresses nobody is waiting on - is the opposite of what one of these is. A
+// campaign-tagged product link is the address a real shopper arrives at, sent
+// by a shopping channel or an ad, and it renders byte-for-byte the page the
+// untagged address does. Letting it fall into the long window would hold that
+// one copy for up to a week while the plain address refreshed every few
+// minutes, so the page a paying visitor sees would be the stale one - and on a
+// shop, a stale price on the landing page of a product feed is how a listing
+// gets disapproved.
+//
+// Deliberately only the unambiguous ones: the five UTM fields and the click
+// identifiers the big advertising networks append. Anything a site might
+// plausibly read itself (`page`, `sort`, `ref`) is left well alone - a wrong
+// entry here would give two different pages one cache entry, which is a far
+// worse failure than a short window.
+const TRACKING_ONLY_PARAMS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id',
+  'gclid', 'gbraid', 'wbraid', 'dclid', 'gclsrc', 'gad_source', 'srsltid',
+  'fbclid', 'msclkid', 'ttclid', 'twclid', 'igshid', 'mc_cid', 'mc_eid',
+])
+
+/**
+ * Whether this request's query string actually asks for a different page.
+ *
+ * Empty, or nothing but tracking tags, means no: the answer is the same
+ * document the bare address would return, so it belongs in the ordinary
+ * window with that address rather than in the long-tail one.
+ *
+ * Takes the raw `?a=b` string (or '') so the caller has nothing to decide.
+ */
+export function hasPageShapingQuery(search: string): boolean {
+  const query = search.startsWith('?') ? search.slice(1) : search
+  if (query === '') return false
+  for (const pair of query.split('&')) {
+    if (pair === '') continue
+    const name = decodeURIComponent(pair.split('=')[0]?.replace(/\+/g, ' ') ?? '')
+    if (!TRACKING_ONLY_PARAMS.has(name.toLowerCase())) return true
+  }
+  return false
+}
+
 export function usesLongCacheWindow(path: string, hasQuery: boolean): boolean {
   return hasQuery || MACHINE_READ_PATH.test(path)
 }

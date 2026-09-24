@@ -7,6 +7,7 @@ vi.mock('@/lib/modules/cache-cookies', () => ({
 import {
   cdnCacheControl,
   cdnCacheControlForWindow,
+  hasPageShapingQuery,
   vercelCdnCacheControl,
   pageCacheControl,
   normalisePageCacheTtl,
@@ -234,6 +235,34 @@ describe('normaliseVercelEdgeTtl', () => {
     for (const bad of [-1, 7, 3600, NaN, null, undefined, 'a bit', {}]) {
       expect(normaliseVercelEdgeTtl(bad)).toBe(DEFAULT_VERCEL_EDGE_TTL)
     }
+  })
+})
+
+describe('hasPageShapingQuery', () => {
+  it('is false for no query at all', () => {
+    expect(hasPageShapingQuery('')).toBe(false)
+    expect(hasPageShapingQuery('?')).toBe(false)
+  })
+
+  it('is false when every parameter is a tracking tag', () => {
+    expect(hasPageShapingQuery('?utm_source=google&utm_medium=free_listing&utm_campaign=shopping')).toBe(false)
+    expect(hasPageShapingQuery('?gclid=abc123')).toBe(false)
+    expect(hasPageShapingQuery('?srsltid=xyz&gbraid=1&wbraid=2')).toBe(false)
+    // Case and the leading '?' are both optional.
+    expect(hasPageShapingQuery('UTM_SOURCE=google')).toBe(false)
+  })
+
+  it('is true as soon as one parameter could change the page', () => {
+    expect(hasPageShapingQuery('?colour=black')).toBe(true)
+    expect(hasPageShapingQuery('?utm_source=google&colour=black')).toBe(true)
+    expect(hasPageShapingQuery('?page=2')).toBe(true)
+    // Deliberately NOT treated as a tracking tag: a site may well read it.
+    expect(hasPageShapingQuery('?ref=newsletter')).toBe(true)
+  })
+
+  it('reads a bare parameter with no value', () => {
+    expect(hasPageShapingQuery('?gclid')).toBe(false)
+    expect(hasPageShapingQuery('?preview')).toBe(true)
   })
 })
 

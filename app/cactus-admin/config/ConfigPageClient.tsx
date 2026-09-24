@@ -2455,6 +2455,18 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   </div>
                 </div>
 
+                <div className="field">
+                  <label style={{ display: 'flex', gap: '0.5rem', cursor: 'pointer', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={consent.hideRejectUntilManage ?? false}
+                      onChange={(e) => setConsent({ hideRejectUntilManage: e.target.checked })}
+                    />
+                    Hide &ldquo;Reject all&rdquo; until the visitor opens &ldquo;Manage preferences&rdquo;
+                  </label>
+                  <span className="field-hint">The banner opens with just &ldquo;Accept all&rdquo; and &ldquo;Manage preferences&rdquo;. &ldquo;Reject all&rdquo; appears alongside the switches once they have been opened. Worth knowing: the UK and EU regulators expect rejecting to be as easy as accepting, so check this suits your own legal advice before switching it on.</span>
+                </div>
+
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontWeight: 500, fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--color-text)' }}>
                     Cookie categories

@@ -116,13 +116,13 @@ On a basic hosting plan the check runs once a day instead of once an hour, and r
 
 ### The permission box in the checkout
 
-Switch the reminders on and you are offered one more thing: a tickbox in your checkout, so a shopper can say no before you have emailed them at all.
+A tickbox in your checkout, so a shopper can say no before you have emailed them at all. It is a setting in its own right: the reminders do not have to be on for it, and asking before you start sending is the polite order to do it in - a basket that was ticked stays out of the reminders for as long as you keep that basket, so switching the reminders on later sends nothing on that basket. The answer rides on the basket rather than on the person, so it lasts exactly as long as the basket does: on the default settings, ninety days.
 
-It sits directly under the email box on the contact step, which is the only place it reads as a question rather than as small print, and it appears once the shopper has typed an address - asking whether somebody minds being emailed is unanswerable before there is somebody to email. It is never compulsory and never holds an order up. It reads **"Don't email me about offers and similar products."** until you word it differently. Tick it and no reminder goes out on that basket; untick it and the basket is back where it was. A basket somebody has ticked it on says "No emails, please" in the list, so you are not left guessing why one was never chased.
+It sits directly under the email box on the contact step, which is the only place it reads as a question rather than as small print, and it appears once the shopper has typed an address - asking whether somebody minds being emailed is unanswerable before there is somebody to email. It is never compulsory and never holds an order up. It reads **"Don't email me about offers and similar products."** until you word it differently. Tick it and no reminder goes out on that basket; untick it and the basket is back where it was. A basket somebody has ticked it on says "They asked not to be emailed" under its Reminder column, so you are not left guessing why one was never chased.
 
 The box is drawn by the add-on, not by the shop, so a shop without this module installed has exactly the checkout it always had - and removing the module takes the box with it.
 
-Switching the reminders off, or the module off, takes the box out of the checkout too: a permission question about emails nobody is sending is just another line in somebody's checkout.
+Switching the module off takes the box out of the checkout. Switching the reminders off does not: the question still gets asked, and the answers still count for whenever you start sending.
 
 ### Why the basket stopped
 
@@ -177,7 +177,7 @@ This module holds a name, an address and a phone number belonging to somebody wh
 | Email a reminder | Off | The reminders. |
 | Wait before the reminder | 240 minutes | Since they last touched the basket. |
 | Reminders per basket | 1 | Capped at 3. |
-| Add an email permission box to the checkout | Off | Only offered once the reminders are on. Adds the tickbox described above, under the email box. |
+| Add an email permission box to the checkout | Off | Independent of the reminders. Adds the tickbox described above, under the email box. |
 | What the box says | "Don't email me about offers and similar products." | Up to 200 characters. Blank restores the wording we ship with. |
 
 ## Permissions
@@ -234,13 +234,13 @@ Each run is written down - when it went, how long it took, what it purged, sent,
 
 **No reminders are going out.** Start with the **Reminder** column, which now says why for each basket, and the line under the figures, which says whether the job that sends them is running at all. If it is running and the column says "Did not send", the reason is on the row. If nothing is running, check that the site has been live for more than an hour and that its scheduled jobs are set up. Otherwise, in order: reminders switched on, an email provider configured on the site, `SITE_URL` set, the wait elapsed, and the basket having an email address on it at all. A basket whose every product has since been deleted is skipped rather than sent as an empty list.
 
-**The permission box is not in my checkout.** Check three things: the reminders are switched on, the box itself is switched on under them, and the shop is on **0.1.309** or newer - the box is mounted on a fitting the shop only grew in that version, so an older shop simply has nowhere to put it. The box also stays hidden until the shopper has typed an email address.
+**The permission box is not in my checkout.** Check three things: **Keep unfinished baskets** is on, the box itself is switched on (the reminders need not be), and the shop is on **0.1.310** or newer, which is what this add-on asks for anyway. The box is mounted on a fitting the shop grew in **0.1.309**, so anything older has nowhere to put it. The box also stays hidden until the shopper has typed an email address.
 
 **The link in the email opens an empty basket.** Fixed in **0.1.7** of this module, which needs the shop on **0.1.310** or newer. Before that the email linked straight at the basket page, which only ever worked for a shopper opening the email in the same browser they built the basket in. Reminders sent by an older version carry the old link and cannot be mended after the fact; ones sent from 0.1.7 onwards bring the basket back wherever they are opened.
 
 **Why can I not email this person?** Open the basket. The Reminders column says which of the four it is: they unsubscribed, they ticked the box in the checkout, they never typed an address, or the basket has nothing left in it. The **Cannot be emailed** filter shows you all of them at once.
 
-**Somebody unsubscribed - what happened?** The link in the email does two things at once: it stops that address getting basket reminders for good, and it marks their baskets the same way ticking the permission box in the checkout would. So the list says "No emails, please" against them, rather than leaving you wondering why the second reminder never went.
+**Somebody unsubscribed - what happened?** The link in the email does two things at once: it stops that address getting basket reminders for good, and it marks their baskets the same way ticking the permission box in the checkout would. So the list says "This address has unsubscribed" against them, rather than leaving you wondering why the second reminder never went.
 
 **Someone says they unsubscribed and still got one.** They cannot have, from this: suppression is by address and is checked in the query that picks what to send. Check whether the email they received was an order confirmation, which is not a reminder and cannot be unsubscribed from.
 

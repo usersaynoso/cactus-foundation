@@ -329,7 +329,12 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
     items[next]?.focus()
   }
 
-  function handleNavClick(path: string) {
+  function handleNavClick(path: string, e: React.MouseEvent) {
+    // Modifier click opens a new tab - the original tab never navigates,
+    // so its pathname-driven spinner would never clear. (Middle-click opens
+    // a new tab too, but fires onAuxClick, not onClick, so it never reaches
+    // here in the first place.)
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return
     setPendingPath(path)
     onNavClick?.()
   }
@@ -381,7 +386,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
               e.preventDefault()
               return
             }
-            handleNavClick(item.path)
+            handleNavClick(item.path, e)
           }}
         >
           <span className="admin-nav-icon">
@@ -493,7 +498,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
                           href={`${base}${action.path}`}
                           role="menuitem"
                           className="admin-nav-new-item"
-                          onClick={() => { setNewOpen(false); handleNavClick(action.path) }}
+                          onClick={(e) => { setNewOpen(false); handleNavClick(action.path, e) }}
                         >
                           {PLUS_ICON}<span>{action.label}</span>
                         </Link>
@@ -561,7 +566,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
                       href={`${base}${r.path}`}
                       data-nav-item=""
                       className={isActive(`${base}${r.path}`) ? 'active' : ''}
-                      onClick={() => handleNavClick(r.path)}
+                      onClick={(e) => handleNavClick(r.path, e)}
                     >
                       <span className="admin-nav-icon">{CLOCK_ICON}</span>
                       <span className="admin-nav-label">{r.label}</span>
@@ -603,7 +608,7 @@ export default function AdminNav({ adminPath, version, sections, collapsed, onNa
             data-nav-item=""
             className={`admin-nav-account${collapsed ? ' admin-nav-account--collapsed' : ''}${isActive(`${base}/account`) ? ' active' : ''}`}
             {...tipProps('My Account')}
-            onClick={() => handleNavClick('/account')}
+            onClick={(e) => handleNavClick('/account', e)}
           >
             <span className="admin-nav-icon">{NAV_ICONS.account}</span>
             {!collapsed && 'My Account'}

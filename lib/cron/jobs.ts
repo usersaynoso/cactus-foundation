@@ -22,10 +22,17 @@
 //
 // WHAT THIS COSTS
 //
-// Vercel wakes the dispatcher hourly on paid plans and daily on Hobby, so a job's
-// schedule is honoured to the tick, not to the minute: `30 6 * * *` runs at the 07:00
-// tick, and on Hobby it runs on whichever daily tick follows. Hobby was already capped
-// at one run a day, so nothing is lost there that Vercel had not already taken.
+// Vercel wakes the dispatcher every half hour on paid plans and daily on Hobby, so a
+// job's schedule is honoured to the tick, not to the minute: `30 6 * * *` runs at the
+// 06:30 tick, `40 3 * * *` at the 04:00 one, and on Hobby whichever daily tick follows.
+// Hobby was already capped at one run a day, so nothing is lost there that Vercel had
+// not already taken.
+//
+// The tick was hourly until September 2026, which meant :00 was the only minute the
+// dispatcher was ever awake for and a job deferred for want of budget waited a whole
+// hour for its next go. Halving it halves both. It does not double anything up: due-ness
+// is "did this expression match inside (lastRunAt, now]", and lastRunAt is stamped past
+// the match just consumed, so an hourly job is still hourly on a half-hourly tick.
 
 import { prisma } from '@/lib/db/prisma'
 import { isValidCronExpression, minIntervalMinutes } from './schedule'

@@ -15,6 +15,28 @@ type LoginFormProps = {
   faviconDarkUrl: string | null
 }
 
+function isEmbeddedAppWebView(): boolean {
+  if (typeof window === 'undefined') return false
+  const w = window as Window & { Capacitor?: unknown }
+  return !!w.Capacitor || /\bDeskwellApp\b/.test(navigator.userAgent)
+}
+
+function passkeyErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    const blocked =
+      err.name === 'NotAllowedError' ||
+      /user agent|platform in the current context/i.test(err.message)
+    if (blocked && isEmbeddedAppWebView()) {
+      return 'Passkeys are not available in this app. Tap Use password instead, or sign in with a passkey from the site\'s home-screen shortcut in Safari.'
+    }
+    if (blocked) {
+      return 'Passkey sign-in was blocked. Try again after tapping the button, or use password instead.'
+    }
+    return err.message
+  }
+  return 'Passkey authentication failed'
+}
+
 export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: LoginFormProps) {
   const searchParams = useSearchParams()
   // Same-origin paths only - a ?next=https://evil.com would otherwise bounce the
@@ -47,7 +69,7 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
   const [noPasskeyMode, setNoPasskeyMode] = useState<NoPasskeyMode>(null)
   const [newPassword, setNewPassword] = useState('')
   const [tokenRecoveryMode] = useState(inRecoveryMode)
-  const [showFallback, setShowFallback] = useState(inRecoveryMode)
+  const [showFallback, setShowFallback] = useState(() => inRecoveryMode || isEmbeddedAppWebView())
   const autoPasskeyAttempted = useRef(false)
 
   useEffect(() => {
@@ -57,7 +79,7 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
   }, [])
 
   useEffect(() => {
-    if (autoPasskeyAttempted.current || tokenRecoveryMode) return
+    if (autoPasskeyAttempted.current || tokenRecoveryMode || isEmbeddedAppWebView()) return
     autoPasskeyAttempted.current = true
     void handlePasskeyLogin(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount to auto-prompt for a passkey
@@ -111,7 +133,7 @@ export default function LoginForm({ siteName, faviconUrl, faviconDarkUrl }: Logi
       // without shouting about it.
       const cancelled = err instanceof Error && err.name === 'NotAllowedError'
       if (!(auto && cancelled)) {
-        setError(err instanceof Error ? err.message : 'Passkey authentication failed')
+        setError(passkeyErrorMessage(err))
       }
       setShowFallback(true)
     } finally {

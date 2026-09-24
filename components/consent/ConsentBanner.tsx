@@ -266,9 +266,11 @@ export default function ConsentBanner({ config, privacyPolicyUrl }: Props) {
             <button style={btnPrimaryStyle} onClick={handleAcceptAll}>
               {config.acceptAllLabel}
             </button>
-            <button style={btnSecondaryStyle} onClick={handleRejectAll}>
-              {config.rejectAllLabel}
-            </button>
+            {(managing || !config.hideRejectUntilManage) && (
+              <button style={btnSecondaryStyle} onClick={handleRejectAll}>
+                {config.rejectAllLabel}
+              </button>
+            )}
             {managing ? (
               <button style={btnSecondaryStyle} onClick={handleSaveManaged}>
                 Save preferences

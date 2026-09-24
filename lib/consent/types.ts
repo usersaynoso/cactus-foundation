@@ -15,6 +15,10 @@ export type ConsentBannerConfig = {
   rejectAllLabel: string
   manageLabel: string
   dismissLabel: string
+  // Keeps "Reject all" off the first view of the banner and shows it only once
+  // the visitor has opened "Manage preferences". Optional because configs saved
+  // before it existed carry no value, and those must keep showing the button.
+  hideRejectUntilManage?: boolean
   categories: ConsentCategory[]
   // Puts an editable copy of the category switches at the top of the page linked
   // as the privacy policy, so a visitor can revisit their choice without waiting
@@ -35,6 +39,7 @@ export const DEFAULT_CONSENT_BANNER_CONFIG: ConsentBannerConfig = {
   rejectAllLabel: 'Reject all',
   manageLabel: 'Manage preferences',
   dismissLabel: 'Got it',
+  hideRejectUntilManage: false,
   categories: [
     {
       key: 'necessary',

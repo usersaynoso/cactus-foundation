@@ -65,6 +65,7 @@ For each one you can record the contact details, the account number you buy unde
 - **Lead time**, in days.
 - **Minimum order value** - the order screen tells you when you are under it.
 - **Carriage paid over** and **carriage charge**.
+- **Sale surcharge** - some suppliers charge more for clearance stock bought under a small order. Set the net value below which it applies, and what each category of stock costs per unit - a category is whatever you typed into the **Category** column when you uploaded their price list (**Purchase Orders → Catalogues**). Leave the threshold empty and nothing changes. See [Sold on sale, bought on sale](#buying-for-a-customer-order) for how it is worked out and added.
 - **Discount** - the percentage you have off their list. It is used when you import a price list of theirs that quotes retail prices, and nowhere else; leave it empty for a supplier who sends you trade prices already. Empty is not the same as 0%: one is "nothing recorded", the other is "we have checked, and they give us nothing".
 - **A message on their own order page** - a standing note this supplier reads at the top of every purchase order link you send them. Quote the account number, ring before delivering, nothing after three. It goes to them and only them: never on the order document, never on a packing slip, never in an email. See [The supplier's own link](#the-suppliers-own-link). **Notes**, at the bottom of the same form, is the opposite - that one is for you, and never leaves the building.
 
@@ -500,6 +501,33 @@ your product records one (**Shop → the product → Product codes → Supplier 
 and under your SKU where it does not, which is what a supplier who has never
 given you a code of theirs reads it as anyway.
 
+**Sold on sale, bought on sale.** Where the shop sold a line under a supplier's
+clearance code (**Shop → the product → Pricing → Sale SKU**, beside the sale
+price), that is the code the order goes out under - ahead of the supplier's
+ordinary code and ahead of yours. It is fixed the moment the sale is checked
+out, not read back off the product afterwards, so switching the offer off - or
+changing the clearance code for the next one - never changes what an order
+already placed is bought under. The code still needs a price behind it: upload
+the clearance list as another price list under that supplier
+(**Purchase Orders → Catalogues**), with the clearance codes in the SKU column,
+the same as you would their ordinary list. A sale line with nothing pricing its
+clearance code is listed under **Waiting on something** rather than bought at
+the ordinary cost price - a clearance code invoiced at the standard rate is not
+a mistake this module makes quietly.
+
+**Their small-order surcharge, added for you.** Where you have set one up
+(**Purchase Orders → Suppliers → Sale surcharge**), a draft that comes to less
+than their threshold has the surcharge added automatically, as its own line on
+the order total alongside carriage - never folded into what a line costs.
+Only stock actually bought on sale counts towards it, and only by the category
+you gave that stock on their price list: three chairs bought on sale add three
+lots of whatever that supplier charges per Seating unit, and three ordinary
+chairs on the same order add nothing at all. **It never costs you more than it
+has to** - if the surcharge worked out from the categories would push the order
+past the supplier's threshold, only the difference is added, not the full
+figure. A draft is still a draft: read it, and change the figure yourself if
+the supplier's own invoice says something different.
+
 **Their words, not yours, either.** Where their price list carries the code, the
 line is described the way THEY describe it on that list. Your shop listing title
 is your own invention - written to sell the thing to a customer, and no help at
@@ -516,8 +544,9 @@ cancelled or refunded is not bought for at all.
 
 Lines that cannot be bought are listed underneath with a sentence each: nothing
 says who supplies it, nobody on your supplier list is called that, the supplier
-is on hold or switched off, or the product has left the catalogue. Nothing is
-dropped in silence, and nothing stops the rest of the order being raised.
+is on hold or switched off, the product has left the catalogue, or a line sold
+on sale has no price for its clearance code. Nothing is dropped in silence, and
+nothing stops the rest of the order being raised.
 
 Raising them needs `purchase-orders.create`, and the panel is only there at all
 for somebody who can see purchasing.
@@ -597,7 +626,7 @@ A Google Sheet has to be **shared so that anyone with the link can view it**, ot
 
 Either way the same reading applies. A column of codes and a column of prices is enough, and the headers can say whatever they already say - "Supplier SKU", "Product code", "Code", "Trade price", "Net price", "RRP" and a good many others are all understood. Where a list carries both a trade price and a retail one, the trade price is the one taken.
 
-Pack size, minimum order quantity, lead time, discount group and a discontinued column are all read as well, when they are there.
+Pack size, minimum order quantity, lead time, discount group, category and a discontinued column are all read as well, when they are there. **Category** is whatever the supplier's own sheet calls the kind of thing a line is - "Seating", "Furniture", a range name - and it is the one thing here that does more than sit on the screen: it is what a supplier's [sale surcharge](#suppliers) prices against.
 
 **The headings do not have to be on the first line.** Most suppliers' spreadsheets are exports from something else, and exports arrive with a blank row, a title, a row of merged group headings, and only then the columns. The first fifteen rows are looked at and the one that reads like a header row is the one used.
 
@@ -605,7 +634,7 @@ Pack size, minimum order quantity, lead time, discount group and a discontinued 
 
 Some things cannot be guessed. A sheet carrying both a "SKU" and a "Catalogue Code" gives no clue which of them goes on a purchase order, because that is a fact about your supplier rather than about the file. A range sheet with eighty-nine columns will have several that could plausibly be a price.
 
-So under every preview there is **Say which column is which**, which opens itself when the reading has plainly gone wrong. Pick the row the headings are on, then point each thing - their product code, the description, the price, pack size, smallest order, lead time, discount group, no-longer-sold - at the column it actually lives in, or at **Not in this file** where they simply do not send it. Press **Read it again like this** and the preview is worked out afresh.
+So under every preview there is **Say which column is which**, which opens itself when the reading has plainly gone wrong. Pick the row the headings are on, then point each thing - their product code, the description, the price, pack size, smallest order, lead time, discount group, category, no-longer-sold - at the column it actually lives in, or at **Not in this file** where they simply do not send it. Press **Read it again like this** and the preview is worked out afresh.
 
 What you pick is **kept on that list**, so next month's import reads itself. It is kept by heading as well as by position, so a supplier who inserts a column, or adds a row above their headings, does not quietly shift everything along by one. **Work it out for me** forgets the mapping and goes back to reading the headings.
 

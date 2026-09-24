@@ -75,6 +75,9 @@ const ConsentBannerConfigPatch = z.object({
   rejectAllLabel: z.string().max(100).default('Reject all'),
   manageLabel: z.string().max(100).default('Manage preferences'),
   dismissLabel: z.string().max(100).default('Got it'),
+  // Deliberately absent from bumpConsentVersions' copyKeys too: hiding or
+  // showing a button does not change anything anyone has already agreed to.
+  hideRejectUntilManage: z.boolean().default(false),
   categories: z.array(ConsentCategoryPatch).min(1),
   // Deliberately absent from bumpConsentVersions' copyKeys: this only moves an
   // existing control onto the privacy page, so switching it must not re-prompt
