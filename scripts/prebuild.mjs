@@ -118,6 +118,19 @@ if (clientGraph.status !== 0) {
   process.exit(clientGraph.status ?? 1)
 }
 
+// 3b. The other direction of the same boundary: server code must not read a
+// value out of a 'use client' module. On the server that module is a proxy, and
+// reading a constant from it throws - the route returns a 500 for every request
+// while tsc, eslint and the unit tests all pass. Only a finding that is certain
+// (a throwing use in a file no client component can reach) fails the build; the
+// rest are printed. See scripts/check-server-client-imports.mjs.
+const serverClientImports = await run('server client imports', 'node', ['scripts/check-server-client-imports.mjs'])
+flush(serverClientImports)
+if (serverClientImports.status !== 0) {
+  console.error('[prebuild] server/client import check failed — aborting build')
+  process.exit(serverClientImports.status ?? 1)
+}
+
 // 4. Same moment, same reason, the mirror-image question: no generated registry
 // may sit in an import cycle with the module code it imports. Turbopack merges
 // a cycle into one scope and dies collecting page data with "Cannot access 'x'

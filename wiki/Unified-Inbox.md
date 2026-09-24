@@ -776,6 +776,7 @@ Both live behind the **dots beside a message**, under a rule, below the everyday
 - It goes for **everybody** who can see the address, which is what makes it different from the waste basket at the top of a conversation. That one is yours alone and puts back with the same press - see [The bin](#the-bin).
 - Both are written into **What has been done to this** at the foot of the conversation, so there is a record that something left. What was in the deleted message is deliberately not kept there: a deletion that quietly filed away the subject and the sender would not be much of a deletion.
 - On a voicemail from one of the calling channels you will see a **Delete** button in the foot of the message instead. That one is a bigger thing - it deletes the recording at the phone company as well - so the two are never offered side by side.
+- Any recording on a call or voicemail - where the channel supports it - has its own buttons under the player: **Delete from Twilio** (a copy is saved on the site first, so it still plays here) and then **Delete saved copy**. They act on that one recording and leave the message where it is. A line under the player says where the recording is kept, and once it has gone from everywhere the player is taken away. See the Twilio page, *Taking one recording off Twilio*.
 
 ### Junk, and turning a sender away
 

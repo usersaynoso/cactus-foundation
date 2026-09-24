@@ -1055,6 +1055,10 @@ model Member {
   avatarChoice              AvatarChoice @default(GENERATED)
   bio                       String?
   websiteUrl                String?
+  // Kept in sync with the shopper's most recent order ("last order wins") by
+  // the shop module - see lib/members/marketing-consent.ts. Null means no
+  // preference has ever been expressed, not "no".
+  marketingConsent          Boolean?
   trusted                   Boolean      @default(false)
   status                    MemberStatus @default(PENDING_VERIFICATION)
   // Assigned at registration to the site's protected "Members" role; nullable so

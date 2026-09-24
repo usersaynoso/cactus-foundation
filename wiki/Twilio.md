@@ -357,6 +357,17 @@ Call recordings and voicemails sit in your Twilio account until something remove
 
 Deleted recordings are gone for good - there's no bin to fish them back out of, at Twilio's end or ours - so pick a number you can live with. If you've a legal reason to keep recordings for a set period, that period is the one to use, and it's your call rather than ours.
 
+### Taking one recording off Twilio
+
+You don't have to wait for the overnight clear-out. Open the call or voicemail in the **Inbox** and, under the player, you'll find **Delete from Twilio**. Pressing it saves a copy in your site's own file storage *first*, and only once that copy is safe does it ask Twilio to delete theirs - so you can still play it in the Inbox afterwards, and Twilio stops charging you to keep it.
+
+Once it's off Twilio the button changes to **Delete saved copy**. That one really is the end of it: with Twilio's copy already gone there's nothing left anywhere, and the Inbox keeps the line saying the call happened but stops offering a player.
+
+- The saved copies are private. They never appear in the media library, and they only play for someone signed in with access to the phone inbox.
+- **Keep recordings for (days)** applies to saved copies too, so moving a recording off Twilio isn't a way round your own time limit.
+- Deleting a voicemail message outright (its **Delete** button) now removes the saved copy as well, not just Twilio's.
+- You need file storage set up under **Media** for any of this to work. Without it there's nowhere to put the copy, and the button says so rather than deleting anything.
+
 ---
 
 ## A note on costs

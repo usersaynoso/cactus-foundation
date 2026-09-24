@@ -666,6 +666,7 @@ CREATE TABLE "Member" (
     "avatarChoice" "AvatarChoice" NOT NULL DEFAULT 'GENERATED',
     "bio" TEXT,
     "websiteUrl" TEXT,
+    "marketingConsent" BOOLEAN,
     "trusted" BOOLEAN NOT NULL DEFAULT false,
     "status" "MemberStatus" NOT NULL DEFAULT 'PENDING_VERIFICATION',
     "roleId" TEXT,

@@ -75,6 +75,36 @@ export type ConversationAttachment = {
   contentType: string | null
 }
 
+/** Something that can be done to one attached file where the channel keeps it -
+ *  a call recording taken off the phone company's servers, a saved copy of it
+ *  thrown away. Named and worded by the channel; a consumer draws a button and
+ *  hands the id back, and never needs to know what it means. */
+export type ConversationAttachmentAction = {
+  id: string
+  /** What the button says. */
+  label: string
+  /** Asked before anything happens, when the act cannot be undone. Null for
+   *  one that can. */
+  confirm: string | null
+}
+
+/** Where one attached file stands right now, as the channel sees it.
+ *
+ *  Asked for when somebody opens the message, never stored: a consumer holding
+ *  a copy of the attachment keeps the url it was given, and that url goes on
+ *  working for as long as `available` is true. */
+export type ConversationAttachmentState = {
+  /** The attachment's url exactly as the channel handed it over, which is how a
+   *  consumer matches this to the file it is holding. */
+  url: string
+  /** False once the file is gone for good, so a screen stops offering a player
+   *  for something that will only ever answer "not found". */
+  available: boolean
+  /** One line on where it is kept, for a person to read. Null for nothing to say. */
+  note: string | null
+  actions: ConversationAttachmentAction[]
+}
+
 export type ConversationMessage = {
   id: string
   /** `note` is an internal remark by a colleague, never sent to anybody. */
@@ -152,6 +182,9 @@ export type ConversationProvider = {
     /** Whether the other party can be refused outright - a caller blocked, a
      *  sender turned away - by the channel that owns them. */
     block?: boolean
+    /** Whether attachments on this channel's messages can be acted on in place
+     *  - see `attachmentStates` and `attachmentAction`. */
+    attachmentActions?: boolean
     /** Which inline styles survive the journey, and what this channel writes
      *  each of them as. Absent means the channel takes words and nothing else,
      *  which is the honest default: a consumer offering a Bold button over a
@@ -190,6 +223,14 @@ export type ConversationProvider = {
   /** Whether the other party on this conversation is blocked right now, so a
    *  screen can offer the right one of the two rather than guessing. */
   isParticipantBlocked?(conversationId: string): Promise<boolean>
+  /** Where each attachment on one message stands, and what can be done to it.
+   *  Cheap by contract - read from the channel's own records, not the far end -
+   *  because it is asked every time somebody opens the message. An attachment
+   *  missing from the answer has nothing to say and nothing to offer. */
+  attachmentStates?(messageId: string): Promise<ConversationAttachmentState[]>
+  /** Does one of the actions `attachmentStates` offered. Throws, in words a
+   *  person can read, when it could not be done. */
+  attachmentAction?(messageId: string, attachmentUrl: string, actionId: string): Promise<void>
 }
 
 /** A provider as core resolved it: the module that published it, the manifest

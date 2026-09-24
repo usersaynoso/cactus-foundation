@@ -66,6 +66,7 @@ export async function assembleMemberExport(memberId: string): Promise<Record<str
       organisation: member.organisation,
       bio: member.bio,
       websiteUrl: member.websiteUrl,
+      marketingConsent: member.marketingConsent,
       avatarChoice: member.avatarChoice,
       createdAt: member.createdAt,
     },

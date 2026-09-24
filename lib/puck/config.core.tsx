@@ -96,6 +96,7 @@ import LoginForm from '@/components/members/LoginForm'
 import RegisterForm from '@/components/members/RegisterForm'
 import { SignInWidgetClient } from '@/components/members/SignInWidgetClient'
 import HeaderShrinkScroll from '@/lib/puck/components/HeaderShrinkScroll'
+import HeaderHideAway from '@/lib/puck/components/HeaderHideAway'
 import FeatureVideo from '@/lib/puck/components/FeatureVideo'
 import { IconLinkBlock, ICON_LINK_ICONS } from '@/lib/puck/components/IconLinkBlock'
 import ScaleToFit from '@/lib/puck/components/ScaleToFit'
@@ -4848,7 +4849,7 @@ export const layoutPuckConfig = {
 const headerRootRender = ({
   children, bg = { mode: 'color', color: '' }, height = '64px', sticky = 'yes',
   border = { show: 'show', color: '' }, maxWidth = '1200px', paddingX = '',
-  shrinkOnScroll = 'no', shrinkHeight = '48px', scrollAway = '',
+  shrinkOnScroll = 'no', shrinkHeight = '48px', scrollAway = '', hideAway = 'no',
 }: any) => {
   const bgMode = bg.mode ?? 'color'
   const bgColor = bg.color ?? ''
@@ -4899,6 +4900,18 @@ const headerRootRender = ({
   const scrollAwayRv = normalizeResponsiveValue<string>(scrollAway)
   const scrollAwayAt = (d: Device) => (pickResponsive(scrollAwayRv, d) ?? '').trim() || '0px'
   const partial = sticky === 'partial'
+  // Keeping a strip of header colour above the rows that stay means scrolling
+  // away less than the whole top row, which leaves the bottom of it showing in
+  // that strip. hideAway fades whatever starts above the line once the header
+  // has pinned - HeaderHideAway works out which boxes those are and flags them.
+  const hidingAway = partial && hideAway === 'yes'
+  const hideAwayCss = hidingAway
+    ? [
+        'header[data-hide-away] [data-header-away]{transition:opacity 0.2s ease,visibility 0.2s;}',
+        'header[data-hide-away][data-pinned] [data-header-away]{opacity:0;visibility:hidden;}',
+        '@media(prefers-reduced-motion:reduce){header[data-hide-away] [data-header-away]{transition:none;}}',
+      ].join('\n')
+    : ''
   // What is left pinned once the top has gone - the number every sticky block on
   // the page clears itself by. 'auto' cannot be measured at render time, so it
   // falls back to the same 48px floor the header itself uses.
@@ -4961,6 +4974,7 @@ const headerRootRender = ({
       data-bg-mode={bgMode}
       data-header-root=""
       data-shrink-root={shrinking ? '' : undefined}
+      data-hide-away={hidingAway ? '' : undefined}
       style={{
         height: desktopHeight === 'auto' ? undefined : desktopHeight,
         minHeight: desktopHeight === 'auto' ? 48 : undefined,
@@ -4984,6 +4998,7 @@ const headerRootRender = ({
       {headerPxCss && <style>{headerPxCss}</style>}
       {headerHeightCss && <style>{headerHeightCss}</style>}
       {headerTopCss && <style>{headerTopCss}</style>}
+      {hideAwayCss && <style>{hideAwayCss}</style>}
       {headerOffsetCss && <style>{headerOffsetCss}</style>}
       {/* Paints what the visitor actually sees, hiding the Safari tint colour
           sitting on the header itself. inset:0 is the padding box, so the
@@ -5014,16 +5029,20 @@ const headerRootRender = ({
       </div>
     </header>
   )
-  if (!shrinking) return headerEl
-  return (
-    <>
-      <style>{[
-        `header[data-shrink-root]{transition:height 0.25s ease;}`,
-        `header[data-shrink-root][data-shrunk]{height:${shrinkHeight} !important;}`,
-      ].join('\n')}</style>
-      <HeaderShrinkScroll>{headerEl}</HeaderShrinkScroll>
-    </>
-  )
+  // HeaderShrinkScroll finds the header as its first element child, so it has to
+  // sit inside HeaderHideAway, which looks the header up by attribute instead.
+  const shrinkWrapped = shrinking
+    ? (
+      <>
+        <style>{[
+          `header[data-shrink-root]{transition:height 0.25s ease;}`,
+          `header[data-shrink-root][data-shrunk]{height:${shrinkHeight} !important;}`,
+        ].join('\n')}</style>
+        <HeaderShrinkScroll>{headerEl}</HeaderShrinkScroll>
+      </>
+    )
+    : headerEl
+  return hidingAway ? <HeaderHideAway>{shrinkWrapped}</HeaderHideAway> : shrinkWrapped
 }
 
 // Module blocks that opted into the header via `layoutTypes: ["header"]` in their
@@ -5058,6 +5077,10 @@ export const headerPuckConfig = {
       // height of the rows the visitor is allowed to scroll past: type the height
       // of the logo row and the row under it stays pinned on its own.
       scrollAway:   { type: 'custom' as const, label: 'Height that scrolls away', units: ['px', 'rem', 'vh'], render: ResponsiveUnitValueField },
+      // Also 'partial' only. Lets the owner scroll away less than the whole top
+      // row - keeping a strip of header colour above the pinned row - without the
+      // bottom of the logo showing in that strip.
+      hideAway:     { type: 'select' as const, label: 'Hide what scrolls away once pinned', options: [{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }] },
       // `sides` turns the Show/Hide picker into the four-way edge choice
       // (bottom / top / both / none). See lib/puck/BorderField.tsx.
       border:       { type: 'custom' as const, label: 'Border', sides: true, render: BorderField },
@@ -5066,11 +5089,11 @@ export const headerPuckConfig = {
       shrinkOnScroll: { type: 'select' as const, label: 'Shrink on scroll', options: [{ value: 'no', label: 'Off' }, { value: 'yes', label: 'On' }] },
       shrinkHeight: { type: 'custom' as const, label: 'Shrunk height', units: ['px', 'rem'], render: UnitValueField },
     },
-    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', scrollAway: '', border: { show: 'show', color: '', width: '' }, maxWidth: '1200px', paddingX: '', shrinkOnScroll: 'no', shrinkHeight: '48px' },
+    defaultProps: { bg: { mode: 'color', color: '' }, height: '64px', sticky: 'yes', scrollAway: '', hideAway: 'no', border: { show: 'show', color: '', width: '' }, maxWidth: '1200px', paddingX: '', shrinkOnScroll: 'no', shrinkHeight: '48px' },
     resolveFields: (data: any, { fields }: any) => {
       const out: Record<string, any> = { ...fields }
       if (data.props?.shrinkOnScroll !== 'yes') delete out.shrinkHeight
-      if (data.props?.sticky !== 'partial') delete out.scrollAway
+      if (data.props?.sticky !== 'partial') { delete out.scrollAway; delete out.hideAway }
       return out
     },
     render: headerRootRender,

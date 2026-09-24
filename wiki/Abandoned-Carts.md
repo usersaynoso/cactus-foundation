@@ -122,6 +122,8 @@ It sits directly under the email box on the contact step, which is the only plac
 
 The box is drawn by the add-on, not by the shop, so a shop without this module installed has exactly the checkout it always had - and removing the module takes the box with it.
 
+The answer outlives the basket, too. Once a shopper has ticked or unticked the box, that answer is also saved on their order. If they are signed in when they order, it is saved on their account too, as its standing answer, kept up to date by whichever order they answered on most recently. A shopper who orders as a guest and makes an account afterwards gets it once they have confirmed their email address and opened their orders. A box they never touched saves nothing, and does not undo an answer they gave before. An order placed for somebody else's email address does not change the buyer's own answer. That copy has nothing to do with the ninety days above: it is not cleared when the basket is, and it is there whether or not this module ever runs another reminder. Nothing in your admin shows it yet.
+
 Switching the module off takes the box out of the checkout. Switching the reminders off does not: the question still gets asked, and the answers still count for whenever you start sending.
 
 ### Why the basket stopped
