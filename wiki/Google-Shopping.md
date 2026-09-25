@@ -421,7 +421,9 @@ The first of those is not a tidy-up, it is the safety net. Plenty of things chan
 
 ### Checking Google actually took it
 
-Merchant Center saying "received" is not the same as a shopper seeing the new price, so every hour Cactus picks a handful of products - twenty by default - and asks Google what it is actually showing for them. Anything that disagrees is listed on the panel with both figures side by side, yours and Google's, and is sent again on the next run.
+Merchant Center saying "received" is not the same as a shopper seeing the new price, so every hour Cactus picks a handful of products - twenty by default - and asks Google what it is actually showing for them. Anything that disagrees is listed on the panel with both figures side by side, yours and Google's. Nothing is sent again until the product itself changes, and the check comes back to it as it works its way round the shop.
+
+"Disagrees" means the price a shopper pays, or the stock, is not what you sent. A higher "was" price on Google's side does not count. Google reads your product pages as well as your feed, and when a page shows a struck-through RRP, Merchant Center files the RRP as the regular price and your price as the offer price: send £153.60 against an RRP of £391.20 and Google shows "£391.20, on offer at £153.60". That is your page, faithfully copied, and it is left alone.
 
 Products sent in the last couple of hours are left out of that check on purpose. Merchant Center takes its time processing, so asking too soon would report a difference that is about to sort itself out.
 
