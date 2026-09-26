@@ -1346,6 +1346,13 @@ and **`for`**, the colleagues the note is about, each saying whether they were
 `event` field says which of the four it was: `message.received`,
 `discussion.received`, `mention.received` or `conversation.assigned`.
 
+**Then it keeps quiet for a while.** An automation told about new post usually
+goes and deals with the whole inbox, not just the one message. So after each note
+a subscription sends, it says nothing more for **ten minutes** - whatever happens
+in that time is not sent at all, because whatever the first note set going will
+find it anyway. Each subscription has its own **Then keep quiet for** setting in
+minutes; **0** sends every one, and a day is the most it will take.
+
 **Login codes are never passed on.** An automation told about Marcus's post
 often signs in to deal with it, and signing in emails Marcus a code - which
 lands in Marcus's inbox. Passing that on would set the automation off again,
