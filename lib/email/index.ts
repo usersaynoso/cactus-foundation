@@ -1,4 +1,12 @@
-import { isEmailConfigured } from '@/lib/config/env'
+import { randomUUID } from 'node:crypto'
+import { getSiteUrlOrNull, isEmailConfigured } from '@/lib/config/env'
+import type { EmailTrackingRequest } from '@/lib/email/tracking/plan'
+import {
+  parseEmailProvider,
+  providerAvailabilityFromEnv,
+  resolveEmailProvider,
+  type EmailProvider,
+} from '@/lib/email/provider'
 
 /** A file travelling with the email. `content` is the raw bytes - base64 is done
  *  here, once, rather than at every call site, because Brevo wants base64 and
@@ -47,6 +55,25 @@ export type EmailPayload = {
   templateKey?: string
   /** Which module asked for this email, for the email log. Core leaves it unset. */
   moduleName?: string
+  /** The site's own open and click tracking, which only ever applies to mail
+   *  going out over SMTP (see lib/email/tracking/plan.ts). Left unset, the
+   *  site's rules decide - which is right for nearly everything. `false` keeps
+   *  this one message untracked; `{ ref }` tracks it and hands `ref` back on
+   *  every event about it, for a module keeping its own record. */
+  tracking?: EmailTrackingRequest
+}
+
+/** What became of one send, for a caller that wants to keep its own record. */
+export type SentEmail = {
+  /** The EmailLog row written for it - the handle every later event about the
+   *  message (an open, a click, a bounce) is filed against. */
+  emailLogId: string
+  /** The sending service's own id, when it gave one. */
+  providerId?: string
+  /** Which way it actually went. */
+  transport: 'brevo' | 'smtp'
+  /** Whether the site's own tracking was put on it. */
+  tracked: boolean
 }
 
 export type EmailSender = {
@@ -126,7 +153,7 @@ async function withOutboundIdentity(payload: EmailPayload): Promise<EmailPayload
  */
 async function keepCopyForModule(
   message: EmailPayload,
-  ids: { messageId?: string; providerId?: string },
+  ids: { messageId?: string; providerId?: string; emailLogId: string; transport: 'brevo' | 'smtp'; tracked: boolean },
 ): Promise<void> {
   if (!message.moduleName) return
   try {
@@ -144,6 +171,9 @@ async function keepCopyForModule(
       text: message.text,
       ...(ids.messageId ? { messageIdHeader: ids.messageId } : {}),
       ...(ids.providerId ? { providerMessageId: ids.providerId } : {}),
+      emailLogId: ids.emailLogId,
+      transport: ids.transport,
+      tracked: ids.tracked,
       sentAt: new Date(),
       // What actually travelled. Anything too big was dropped on the way out,
       // and a copy claiming an attachment the supplier never got is a copy that
@@ -155,7 +185,7 @@ async function keepCopyForModule(
   }
 }
 
-export async function sendEmail(payload: EmailPayload): Promise<void> {
+export async function sendEmail(payload: EmailPayload): Promise<SentEmail> {
   const message = await withOutboundIdentity(payload)
 
   // A payload carrying its own account IS configured, by definition - which is
@@ -167,10 +197,24 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 
   const { recordEmailSend } = await import('@/lib/email/log')
   const messageId = outgoingMessageId(payload)
+  // Chosen here rather than left to the database, because the tracked addresses
+  // in the body have to name the log row before the row exists: the message
+  // goes first and the ledger is written once we know how it went.
+  const emailLogId = randomUUID().replace(/-/g, '')
+  const settings = await siteEmailSettings()
+  const transport = transportKind(message, settings.provider)
+  // Tracked or not, the copy a module keeps is the message as written - an open
+  // picture in our own filing would only be one more thing to never fetch.
+  const { payload: outgoing, tracked } = await withTracking(message, {
+    emailLogId,
+    transport,
+    siteEnabled: settings.tracking,
+  })
 
   try {
-    const providerId = await dispatch(message)
+    const providerId = await dispatch(outgoing, transport)
     await recordEmailSend({
+      id: emailLogId,
       toAddress: payload.to,
       ccAddresses: payload.cc,
       subject: payload.subject,
@@ -179,12 +223,16 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
       status: 'sent',
       messageId,
       providerId,
+      transport,
+      tracked,
     })
-    await keepCopyForModule(message, { messageId, providerId })
+    await keepCopyForModule(message, { messageId, providerId, emailLogId, transport, tracked })
+    return { emailLogId, ...(providerId ? { providerId } : {}), transport, tracked }
   } catch (err) {
     // Logged and then rethrown: the caller's own error handling is unchanged,
     // and the ledger is the only place a failed send is visible afterwards.
     await recordEmailSend({
+      id: emailLogId,
       toAddress: payload.to,
       ccAddresses: payload.cc,
       subject: payload.subject,
@@ -193,18 +241,111 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
       status: 'failed',
       error: err instanceof Error ? err.message : String(err),
       messageId,
+      transport,
+      tracked: false,
     })
     throw err
+  }
+}
+
+/** Which kind of transport this message will actually go out on: the one the
+ *  payload names, or the site's own (see lib/email/provider.ts). */
+function transportKind(payload: EmailPayload, siteProvider: EmailProvider): EmailProvider {
+  return payload.transport ? payload.transport.provider : siteProvider
+}
+
+/**
+ * The two email settings a send needs: which way the site's own mail goes, and
+ * whether its own tracking is on. One read, on every send.
+ *
+ * Anything short of a clear answer - a database mid-update without a column
+ * yet - is the old behaviour and no tracking: an untracked email is a lost
+ * statistic, a failed one is a lost order confirmation.
+ */
+async function siteEmailSettings(): Promise<{ provider: EmailProvider; tracking: boolean }> {
+  const available = providerAvailabilityFromEnv()
+  let chosen: EmailProvider | null = null
+  let tracking = false
+  try {
+    const { prisma } = await import('@/lib/db/prisma')
+    const config = await prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { emailProvider: true, emailTracking: true },
+    })
+    chosen = parseEmailProvider(config?.emailProvider)
+    tracking = config?.emailTracking ?? true
+  } catch (error) {
+    console.error('[email] could not read the email settings; using the defaults, untracked', error)
+  }
+  const { provider, fellBack } = resolveEmailProvider(chosen, available)
+  if (fellBack) {
+    console.error(`[email] Settings > Emails says to send through ${chosen === 'smtp' ? 'SMTP' : 'Brevo'}, but its details are missing - sending through ${provider === 'smtp' ? 'SMTP' : 'Brevo'} instead.`)
+  }
+  return { provider, tracking }
+}
+
+/**
+ * The message with the site's own open and click tracking put into its body, or
+ * without it when it should not be tracked (see lib/email/tracking/plan.ts for
+ * every rule). NEVER throws: whatever goes wrong here, the email goes, untracked.
+ *
+ * Tracked or not, an open picture of ours already in the body is taken out. It
+ * can only be a quoted earlier message coming round again, and sending it on
+ * means every open of THIS message is recorded as an open of that one.
+ */
+async function withTracking(
+  message: EmailPayload,
+  ids: { emailLogId: string; transport: 'brevo' | 'smtp'; siteEnabled: boolean },
+): Promise<{ payload: EmailPayload; tracked: boolean }> {
+  let untracked: { payload: EmailPayload; tracked: boolean } = { payload: message, tracked: false }
+  try {
+    const { stripOwnOpenBeacons } = await import('@/lib/email/tracking/instrument')
+    const stripped = stripOwnOpenBeacons(message.html)
+    if (stripped !== message.html) untracked = { payload: { ...message, html: stripped }, tracked: false }
+  } catch (error) {
+    console.error('[email] could not check the body for old tracking pictures', error)
+  }
+  try {
+    const { shouldTrackSend, trackedHtml } = await import('@/lib/email/tracking/plan')
+    const { trackingSecret } = await import('@/lib/email/tracking/token')
+    const secret = trackingSecret()
+    const siteUrl = getSiteUrlOrNull()
+    const eligible = shouldTrackSend({
+      tracking: message.tracking,
+      transport: ids.transport,
+      templateKey: message.templateKey,
+      headers: message.headers,
+      html: message.html,
+      siteEnabled: ids.siteEnabled,
+      secret,
+      siteUrl,
+    })
+    if (!eligible || !secret || !siteUrl) return untracked
+
+    const ref = message.tracking ? message.tracking.ref : undefined
+    const { html } = trackedHtml({
+      html: message.html,
+      emailLogId: ids.emailLogId,
+      ...(message.moduleName ? { moduleName: message.moduleName } : {}),
+      ...(ref ? { ref } : {}),
+      secret,
+      siteUrl,
+    })
+    return { payload: { ...message, html }, tracked: true }
+  } catch (error) {
+    console.error('[email] could not add tracking; sending untracked', error)
+    return untracked
   }
 }
 
 /**
  * Which transport carries this message.
  *
- * A payload that names one wins; otherwise it is whatever the environment is
- * set up for, which is what every existing caller gets and always got.
+ * A payload that names one wins; otherwise it is the site's own, as chosen in
+ * Settings > Emails - which, left unchosen, is whatever the environment is set
+ * up for, as it always was.
  */
-async function dispatch(payload: EmailPayload): Promise<string | undefined> {
+async function dispatch(payload: EmailPayload, siteProvider: EmailProvider): Promise<string | undefined> {
   if (payload.transport?.provider === 'brevo') {
     return await sendViaBrevo(payload, payload.transport.apiKey)
   }
@@ -212,7 +353,7 @@ async function dispatch(payload: EmailPayload): Promise<string | undefined> {
     const { host, port, user, pass } = payload.transport
     return await sendViaSmtp(payload, { host, port, user, pass })
   }
-  return process.env.BREVO_API_KEY ? await sendViaBrevo(payload) : await sendViaSmtp(payload)
+  return siteProvider === 'brevo' ? await sendViaBrevo(payload) : await sendViaSmtp(payload)
 }
 
 /** Returns the provider's own id for the message, when it gives one. */
@@ -373,7 +514,7 @@ export async function sendTemplateEmail(
   to: string,
   key: string,
   vars: Record<string, string> = {},
-  opts?: { replyTo?: string; cc?: string[]; headers?: Record<string, string> },
+  opts?: { replyTo?: string; cc?: string[]; headers?: Record<string, string>; tracking?: EmailTrackingRequest },
 ): Promise<boolean> {
   const { renderEmailTemplate } = await import('@/lib/email/render')
   const rendered = await renderEmailTemplate(key, vars)

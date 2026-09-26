@@ -89,6 +89,7 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
 
   // ── Email tab sections ─────────────────────────────────────────────────────
   { id: 'email-provider', label: 'Email provider (Brevo / SMTP) credentials', section: S.email, path: '/config?tab=email#email-provider', requires: '/config', keywords: ['brevo', 'smtp', 'mail server', 'from address', 'sender'] },
+  { id: 'email-tracking', label: 'Email open and link tracking', section: S.email, path: '/config?tab=email#email-tracking', requires: '/config', keywords: ['tracking', 'opened', 'read receipt', 'clicks', 'pixel', 'privacy'] },
   { id: 'email-test', label: 'Send a test email', section: S.email, path: '/config?tab=email#email-test', requires: '/config', keywords: ['test email', 'check email', 'try email'] },
   { id: 'email-templates', label: 'Email templates', section: S.email, path: '/config?tab=email&sub=templates', requires: '/config', keywords: ['email template', 'welcome email', 'verification email', 'notification email', 'order email', 'wording', 'email copy'] },
   { id: 'email-wrappers', label: 'Email wrapper designs', section: 'Layouts', path: '/layouts?type=emailWrapper', requires: '/layouts', keywords: ['email design', 'email header', 'email footer', 'email branding', 'email wrapper', 'email layout'] },

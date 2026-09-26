@@ -291,6 +291,9 @@ model SiteConfig {
   recoveryPurgeAfterDays Int        @default(7)
   // How long the outbound email ledger (EmailLog) is kept, in months.
   emailLogRetentionMonths Int       @default(12)
+  // The site's own open and click tracking on mail sent over SMTP (see
+  // lib/email/tracking). On by default; Settings > Emails switches it off.
+  emailTracking          Boolean   @default(true)
   // FK to Menu.id — nullable until admin creates and assigns a menu
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
@@ -1420,12 +1423,41 @@ model EmailLog {
   // The Message-ID header we set, when we set one. This is what lets a reply
   // arriving later be threaded back to the message that prompted it.
   messageId   String?
-  // The provider's own id for the message, when it returns one.
+  // The provider's own id for the message, when it returns one. For mail sent
+  // over SMTP this is the Message-ID the mail library wrote on it, which is how
+  // a bounce that quotes it finds its way back here.
   providerId  String?
+  // 'brevo' | 'smtp' - which way it went. Null on rows written before this was
+  // recorded.
+  transport   String?
+  // Whether the site's own open and click tracking was put on it. Only ever on
+  // an SMTP send; Brevo counts its own.
+  tracked     Boolean  @default(false)
   sentAt      DateTime @default(now())
   meta        Json?
+  events      EmailEvent[]
 
   @@index([sentAt(sort: Desc)])
   @@index([toAddress, sentAt(sort: Desc)])
   @@index([messageId])
+  @@index([providerId])
+}
+
+// What the site's own tracking saw happen to one send: an open, a followed link,
+// a bounce or a delay. One row per occurrence, never a body. Written by the
+// public open-picture and redirect routes (one insert each, nothing else) and by
+// whatever reads a delivery report back out of a mailbox. Goes with its log row.
+model EmailEvent {
+  id         String   @id @default(cuid())
+  emailLogId String
+  // 'opened' | 'proxy_open' | 'clicked' | 'bounced' | 'deferred'
+  kind       String
+  // The address followed, on a click; the reason given, on a bounce or delay.
+  detail     String?
+  ip         String?
+  userAgent  String?
+  occurredAt DateTime @default(now())
+  emailLog   EmailLog @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+
+  @@index([emailLogId, occurredAt])
 }

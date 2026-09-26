@@ -141,7 +141,21 @@ Two sub-tabs: **Delivery** (who your email comes from and how it gets out) and *
 | From name | The display name on outgoing emails (e.g. "My Site") |
 | From address | The email address outgoing messages come from |
 
-The email provider is set by whichever credentials you've entered in your environment variables - Brevo takes priority if both Brevo and SMTP are configured.
+**Send the site's email through** - Brevo or SMTP (an ordinary mail account, such as iCloud+ on `smtp.mail.me.com:587` with an app-specific password). Both can be set up at once; the choice decides which one carries the mail, and the line under it says which one is **in use** right now. Saved with the page's Save button. Until somebody chooses, the old rule applies - Brevo if its key is set, SMTP otherwise - so nothing changes on an existing site by itself. Choose one whose details are not filled in yet and mail keeps going through the other rather than stopping, with a warning on the screen until the details are added. The **Details for** buttons underneath only change which set of credentials you are looking at.
+
+Worth knowing when you choose: Brevo adds its own unsubscribe link to every email it sends, order confirmations included, and some mail programs then offer the customer an *Unsubscribe* button - press it and Brevo stops sending them anything at all. SMTP adds nothing, but has daily limits of its own (iCloud: 1,000 messages and 1,000 recipients a day) and never reports *delivered*. Unified Inbox campaigns always go through Brevo whichever you choose here.
+
+**Notice when emails are opened and links in them are followed** (on by default). For mail sent over SMTP, the site adds an invisible picture and sends each link through its own address on the way to where it was going, so it can tell you when a message was opened and which link was followed. Where that shows: under each reply in the Unified Inbox, and against each automatic email on a person's page there. Sign-in codes, sign-in links, recovery links and email-change notices are never tracked. Mail sent through Brevo is never tracked by the site, because Brevo counts its own. A bounce is matched back to the email it is about when it lands in a mailbox the Unified Inbox collects - so send through an address the inbox reads if you want to hear about them. With nothing bounced back after two days, an email is shown as **Accepted, nothing bounced back**, never as *Delivered*: nobody tells an ordinary mail account that.
+
+#### Tracking pixels and the law (UK)
+
+A tracking picture reads information from the recipient's device, which puts it under **PECR regulation 6** (the "cookie rule" - it covers pixels too) as well as UK GDPR. The ICO's view is that tracking whether a named person opened an email is not "strictly necessary" to send it, so strictly it needs consent, and at the very least it must be explained. Link tracking records what a named person clicked, which is personal data under UK GDPR. In practice:
+
+- **Say so in your privacy notice.** Something like: *"Emails we send may contain a small image and links that pass through our website, which tell us whether the email was opened and which links were followed, along with the time, the internet address and the kind of device used. We use this to know whether our messages arrived and were read, and we keep it for as long as our email records (12 months by default)."*
+- **Transactional mail** (order confirmations, quotes) sits most comfortably on legitimate interests; marketing is where the ICO expects consent. Campaigns stay on Brevo and are governed by your Brevo settings, not this switch.
+- **If in doubt, switch it off.** Nothing else about sending changes. The records live with the email log and go when it does, after the window set under **Legal pages and data retention** (12 months unless you change it). Erasing a person in the Unified Inbox keeps the email log - and so these records - as it always has; the screen says so before you confirm.
+
+This is guidance, not legal advice.
 
 Saving email credentials triggers a short redeploy. A progress screen appears while the rebuild runs, then returns you to the admin when done.
 

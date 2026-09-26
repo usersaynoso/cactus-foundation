@@ -194,7 +194,10 @@ const Patch = z.object({
   trustDeviceDays: z.number().int().min(1).max(365).optional(),
   emailFromName: z.string().max(100).optional().nullable(),
   emailFromAddress: z.string().email().optional().nullable(),
-  emailProvider: z.string().optional().nullable(),
+  // Which way the site's own mail goes (lib/email/provider.ts). Null clears the
+  // choice back to the old rule: Brevo when its key is set, SMTP otherwise.
+  emailProvider: z.enum(['brevo', 'smtp']).optional().nullable(),
+  emailTracking: z.boolean().optional(),
   mediaProvider: z
     .enum(['B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO', 'VERCEL_BLOB', 'SUPABASE_STORAGE', 'CLOUDINARY', 'IMAGEKIT'])
     .optional()

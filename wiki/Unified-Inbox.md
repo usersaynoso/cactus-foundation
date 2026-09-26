@@ -394,6 +394,18 @@ One caveat, and it is the same sort of caveat as the invisible picture. Plenty o
 
 All of this amounts to keeping a note of what somebody did with an email you sent them. That is yours to decide, but **if your privacy notice does not mention it, add a line before you switch them on**. Nothing is recorded for any message sent before you did.
 
+#### An inbox that sends through its own mail account
+
+Everything above is Brevo telling the site what it saw. An inbox set to **Sent through: Its own mail server** - an iCloud address over SMTP, say - has no Brevo in the middle, so the site does the counting itself. It works the same way Brevo does: an invisible picture on the end of each message, and every ordinary link sent through the site's own address first (`yoursite/api/email/c/...`) and straight on to where it was going. The same labels appear under the reply - *Opened*, *Followed a link*, *It did not arrive* - and in the history each line now says who told you: **Reported by Brevo**, **Seen by this site**, or **Sent back by their email program**. While you are moving an inbox off Brevo you may see both on one conversation; they are never merged into one line, because they are counting different sends.
+
+What an ordinary mail account cannot give you is *Delivered*. The mail server takes the message, says "accepted", and goes quiet unless something goes wrong. So the label says exactly that - **Accepted by the mail server** - and once two days have gone by with nothing bouncing back it changes to **Accepted, nothing bounced back**, which is as close to *Delivered* as anybody can honestly get. If it does bounce, the bounce comes back to the mailbox you send from; as long as the inbox collects that mailbox, the bounce is matched to the message it is about and the label turns to *It did not arrive*, with the reason in the history. The bounce itself still appears on the conversation too, as the machinery it is.
+
+A few things are never touched: `mailto:` and phone links, links within the message, anything that looks like an unsubscribe or preferences link, and links already going through Brevo. Campaigns are left entirely alone - they stay on Brevo, which counts them and carries the unsubscribe link, even when the site's own mail goes by SMTP. And the site never counts its own staff: a link followed by somebody signed in to the admin is not recorded, pictures in our own sent mail and in quoted copies under a customer's reply are never fetched, and a tracked link in your own sent mail opens straight at its real address when you press it here, rather than going through the counter.
+
+**Opens are a rough guide, clicks are the signal.** Apple Mail downloads every picture the moment a message arrives - recorded as *Their email app fetched it*, never as an open - and Outlook in an office often blocks pictures, so a message read there may never register as opened at all.
+
+It is **on by default**, per inbox (**Notice when replies are opened and their links followed**, shown when the inbox sends through its own mail server) and for the whole site (**Settings → Emails → Delivery**, which has the last word). A message sent through Brevo never carries the site's own picture or links: Brevo already counts it, and two counters on one message would count every open twice.
+
 ### Attachments
 
 You can attach anything from your media library. There is a ceiling of 20 megabytes for the message and everything attached to it, which is what the email service itself allows, and **an attachment that will not fit is refused before you send** rather than quietly dropped on the way out.

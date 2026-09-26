@@ -48,6 +48,14 @@ export type RecordedOutboundEmail = {
   /** What the sending service called it. Usually the only handle a reply gives
    *  back, because most services stamp their own id over anything we set. */
   providerMessageId?: string
+  /** The EmailLog row core wrote for it. Every open, click and bounce the site's
+   *  own tracking sees later is filed against this, so a recorder that keeps it
+   *  can find its copy again when one arrives (see lib/email/tracking). */
+  emailLogId?: string
+  /** Which way it went. */
+  transport?: 'brevo' | 'smtp'
+  /** Whether the site's own tracking was put on it. */
+  tracked?: boolean
   sentAt: Date
   /** Only what actually travelled - anything dropped for size is already gone
    *  by the time this is built. */

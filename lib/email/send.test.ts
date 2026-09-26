@@ -215,7 +215,7 @@ describe('the transport', () => {
 
     await expect(
       sendEmail({ ...BASE, transport: { provider: 'brevo', apiKey: 'typed-in-key' } }),
-    ).resolves.toBeUndefined()
+    ).resolves.toMatchObject({ transport: 'brevo' })
   })
 
   it('still refuses when there is neither an account nor an environment', async () => {

@@ -113,7 +113,7 @@ describe('keeping a copy of a module email', () => {
 
   it('never lets a recorder take a sent email down with it', async () => {
     recorder.recordOutboundModuleEmail.mockRejectedValueOnce(new Error('filing cabinet on fire'))
-    await expect(sendEmail({ ...BASE, moduleName: 'purchase-orders' })).resolves.toBeUndefined()
+    await expect(sendEmail({ ...BASE, moduleName: 'purchase-orders' })).resolves.toMatchObject({ tracked: false })
     expect(log.recordEmailSend).toHaveBeenCalledWith(expect.objectContaining({ status: 'sent' }))
   })
 })

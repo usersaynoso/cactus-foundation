@@ -61,6 +61,7 @@ coverage/
 /lib/modules/extension-points.public.ts
 /lib/modules/extension-points.server.ts
 /lib/modules/extension-points.meta.ts
+/lib/modules/extension-points.email-tracking.ts
 /lib/modules/sms-providers.ts
 /lib/modules/email-templates.ts
 /lib/modules/sms-templates.ts

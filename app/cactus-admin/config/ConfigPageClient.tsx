@@ -35,6 +35,7 @@ import {
   envKeysForProvider,
 } from '@/lib/media/providers'
 import type { ConsentBannerConfig, ConsentCategory } from '@/lib/consent/types'
+import { parseEmailProvider, resolveEmailProvider } from '@/lib/email/provider'
 import { DEFAULT_CONSENT_BANNER_CONFIG, NECESSARY_CATEGORY_KEY, withNecessaryFirst } from '@/lib/consent/types'
 
 type SiteConfig = {
@@ -46,7 +47,8 @@ type SiteConfig = {
   pageCacheEnabled: boolean; pageCacheTtl: number; pageCacheLongTtl: number; vercelEdgeTtl: number; behindCloudflare: boolean;
   cloudflareImageResizing: boolean;
   trustDeviceDays: number;
-  emailFromName: string; emailFromAddress: string; emailProvider: string;
+  emailFromName: string; emailFromAddress: string; emailProvider: 'brevo' | 'smtp' | null;
+  emailTracking: boolean;
   mediaProvider: MediaProviderType | null; lazyLoadImages: boolean;
   logoMediaId: string | null; logoDarkMediaId: string | null; faviconMediaId: string | null; faviconDarkMediaId: string | null;
   appIconMediaId: string | null; appleTouchIconMediaId: string | null; webManifest192MediaId: string | null; webManifest512MediaId: string | null;
@@ -1039,9 +1041,14 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       setMenus((menusData as { menus?: MenuOption[] }).menus ?? [])
       setEnvStatus((envData as { vars?: Record<string, boolean> }).vars ?? {})
       setLocalMode((envData as { localMode?: boolean }).localMode === true)
-      // Pre-select SMTP mode if SMTP_HOST is set but BREVO_API_KEY is not
-      if ((envData as { vars?: Record<string, boolean> }).vars?.['SMTP_HOST'] && !(envData as { vars?: Record<string, boolean> }).vars?.['BREVO_API_KEY']) {
-        setEmailMode('smtp')
+      // Open on whichever one the site is actually sending through: the saved
+      // choice, or - with nothing chosen yet - the one the old rule picks.
+      {
+        const vars = (envData as { vars?: Record<string, boolean> }).vars ?? {}
+        setEmailMode(resolveEmailProvider(parseEmailProvider(cfgRest.emailProvider), {
+          brevo: !!vars['BREVO_API_KEY'],
+          smtp: !!vars['SMTP_HOST'],
+        }).provider)
       }
       setLoading(false)
     }).catch(() => { setError('Failed to load config'); setLoading(false) })
@@ -2272,27 +2279,94 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
           <div id="email-provider" className="admin-anchor" style={{ marginBottom: '1rem' }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Email provider credentials</div>
+            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Send the site&apos;s email through</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
-              Stored in your Vercel project environment variables — never in the database.
+              Both can be set up at once; this decides which one carries the mail. Saved with the Save button like
+              everything else here. The details themselves are stored in your Vercel project environment variables,
+              never in the database.
             </p>
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-              <button
-                className={emailMode === 'brevo' ? 'btn btn-primary' : 'btn btn-secondary'}
-                style={{ fontSize: '0.875rem' }}
-                onClick={() => setEmailMode('brevo')}
-              >Brevo</button>
-              <button
-                className={emailMode === 'smtp' ? 'btn btn-primary' : 'btn btn-secondary'}
-                style={{ fontSize: '0.875rem' }}
-                onClick={() => setEmailMode('smtp')}
-              >SMTP</button>
-            </div>
+            {(() => {
+              const available = { brevo: !!envStatus['BREVO_API_KEY'], smtp: !!envStatus['SMTP_HOST'] }
+              const chosen = parseEmailProvider(config.emailProvider)
+              const { provider, fellBack } = resolveEmailProvider(chosen, available)
+              const name = (p: 'brevo' | 'smtp') => (p === 'brevo' ? 'Brevo' : 'SMTP (your own mail account)')
+              const choose = (p: 'brevo' | 'smtp') => { set('emailProvider', p); setEmailMode(p) }
+              return (
+                <>
+                  <div role="radiogroup" aria-label="Send the site's email through" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    {(['brevo', 'smtp'] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        role="radio"
+                        aria-checked={provider === p}
+                        className={provider === p ? 'btn btn-primary' : 'btn btn-secondary'}
+                        style={{ fontSize: '0.875rem' }}
+                        onClick={() => choose(p)}
+                      >{p === 'brevo' ? 'Brevo' : 'SMTP'}</button>
+                    ))}
+                  </div>
+                  <p style={{ fontSize: 'var(--text-sm)', margin: '0 0 0.75rem' }}>
+                    <strong>In use: {name(provider)}.</strong>{' '}
+                    {fellBack
+                      ? `You chose ${name(chosen === 'smtp' ? 'smtp' : 'brevo')}, but its details are not filled in below yet, so mail is still going through ${name(provider)} until they are.`
+                      : chosen === null
+                        ? (available.brevo && available.smtp
+                          ? 'Nothing has been chosen yet, so Brevo is used because its key is set. Pick one to make it definite.'
+                          : 'Nothing has been chosen yet, so the one that is set up is used.')
+                        : provider === 'brevo'
+                          ? 'Brevo adds its own unsubscribe link to every email it sends, even an order confirmation.'
+                          : 'Nothing extra is added to your emails. Bounces come back to the mailbox you send from.'}
+                  </p>
+                  {emailMode !== provider && (
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
+                      Showing the {name(emailMode)} details below.
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Details for:</span>
+                    {(['brevo', 'smtp'] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        aria-pressed={emailMode === p}
+                        className={emailMode === p ? 'btn btn-secondary btn-sm' : 'btn btn-ghost btn-sm'}
+                        onClick={() => setEmailMode(p)}
+                      >{p === 'brevo' ? 'Brevo' : 'SMTP'}{available[p] ? '' : ' (not set up)'}</button>
+                    ))}
+                  </div>
+                </>
+              )
+            })()}
           </div>
           {/* Called as a plain function, not JSX: an inline-defined component gets a new
               identity every parent render, so React would remount the card (and drop input
               focus) on each keystroke. */}
           {EnvSectionCard({ section: emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION })}
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
+          {/* The site's own open and click counting, for mail that goes out
+              through an ordinary mail account. Saved with the page's own Save
+              button, like the sender fields above it. */}
+          <div id="email-tracking" className="field admin-anchor">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.emailTracking ?? true}
+                onChange={(e) => set('emailTracking', e.target.checked)}
+              />
+              Notice when emails are opened and links in them are followed
+            </label>
+            <span className="field-hint">
+              For mail sent through an ordinary mail account (SMTP), the site adds an invisible picture and sends
+              each link through itself on the way to where it was going, so it can tell you when a message was
+              opened and which link was followed. Brevo counts its own, so mail sent through Brevo is left alone
+              rather than counted twice. Sign-in codes and links are never tracked. Opens are a rough guide at best -
+              Apple Mail fetches pictures on its own and Outlook often blocks them - so a followed link is the one
+              to trust. While it is on, your privacy notice should say so - the wiki page on email tracking has a
+              paragraph you can borrow.
+            </span>
+          </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
           <div id="email-test" className="admin-anchor">

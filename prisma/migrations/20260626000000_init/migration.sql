@@ -170,6 +170,7 @@ CREATE TABLE "SiteConfig" (
     "sessionPurgeAfterDays" INTEGER NOT NULL DEFAULT 30,
     "recoveryPurgeAfterDays" INTEGER NOT NULL DEFAULT 7,
     "emailLogRetentionMonths" INTEGER NOT NULL DEFAULT 12,
+    "emailTracking" BOOLEAN NOT NULL DEFAULT true,
     "mainMenuId" TEXT,
     "homepageId" TEXT,
     "pendingRedeployId" TEXT,
@@ -431,9 +432,24 @@ CREATE TABLE "EmailLog" (
     "error" TEXT,
     "messageId" TEXT,
     "providerId" TEXT,
+    "transport" TEXT,
+    "tracked" BOOLEAN NOT NULL DEFAULT false,
     "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "meta" JSONB,
     CONSTRAINT "EmailLog_pkey" PRIMARY KEY ("id")
+);
+
+-- What the site's own tracking saw happen to one send: an open, a followed link,
+-- a bounce, a delay. See the EmailEvent model in schema.prisma.
+CREATE TABLE "EmailEvent" (
+    "id" TEXT NOT NULL,
+    "emailLogId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "detail" TEXT,
+    "ip" TEXT,
+    "userAgent" TEXT,
+    "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EmailEvent_pkey" PRIMARY KEY ("id")
 );
 
 CREATE TABLE "DeployLock" (
@@ -558,6 +574,8 @@ CREATE UNIQUE INDEX "CronRun_path_key" ON "CronRun"("path");
 CREATE INDEX "EmailLog_sentAt_idx" ON "EmailLog"("sentAt" DESC);
 CREATE INDEX "EmailLog_toAddress_sentAt_idx" ON "EmailLog"("toAddress", "sentAt" DESC);
 CREATE INDEX "EmailLog_messageId_idx" ON "EmailLog"("messageId");
+CREATE INDEX "EmailLog_providerId_idx" ON "EmailLog"("providerId");
+CREATE INDEX "EmailEvent_emailLogId_occurredAt_idx" ON "EmailEvent"("emailLogId", "occurredAt");
 
 CREATE INDEX "ConsentRecord_consentId_createdAt_idx" ON "ConsentRecord"("consentId", "createdAt");
 CREATE INDEX "ConsentRecord_userId_idx" ON "ConsentRecord"("userId");
@@ -597,6 +615,7 @@ ALTER TABLE "Folder" ADD CONSTRAINT "Folder_parentId_fkey" FOREIGN KEY ("parentI
 ALTER TABLE "MediaTag" ADD CONSTRAINT "MediaTag_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MediaTag" ADD CONSTRAINT "MediaTag_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MediaFormerAddress" ADD CONSTRAINT "MediaFormerAddress_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "EmailEvent" ADD CONSTRAINT "EmailEvent_emailLogId_fkey" FOREIGN KEY ("emailLogId") REFERENCES "EmailLog"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "Menu"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "MenuItem" ADD CONSTRAINT "MenuItem_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "MenuItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;

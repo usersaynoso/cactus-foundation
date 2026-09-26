@@ -359,6 +359,14 @@ const ALWAYS_PASS = [
   // answer during setup and while the site is closed, exactly as the static
   // file it replaced did.
   '/api/branding/',
+  // The site's own email tracking: the open picture and the link redirect. A
+  // stranger's mail program fetches these, from an email that may be weeks old,
+  // and they must answer whatever state the site is in - a link in an order
+  // confirmation that stops working because the site is in maintenance is a
+  // customer who cannot reach their order. Cheap by design; see
+  // lib/email/tracking/handlers.ts.
+  '/api/email/o/',
+  '/api/email/c/',
 ]
 
 // Paths allowed during first-run setup (before setupCompleted = true).

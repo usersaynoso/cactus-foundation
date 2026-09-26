@@ -12,6 +12,9 @@
 import type { Prisma } from '@prisma/client'
 
 export type EmailLogEntry = {
+  /** Chosen by the sender when the message carries tracked addresses that have
+   *  to name this row before it exists. Left unset, the database picks one. */
+  id?: string
   toAddress: string
   ccAddresses?: string[]
   subject: string
@@ -21,6 +24,10 @@ export type EmailLogEntry = {
   error?: string
   messageId?: string
   providerId?: string
+  /** Which way it went: a mail service ('brevo') or an ordinary mail account. */
+  transport?: 'brevo' | 'smtp'
+  /** Whether the site's own open and click tracking was put on it. */
+  tracked?: boolean
   meta?: Prisma.InputJsonValue
 }
 
@@ -30,6 +37,7 @@ export async function recordEmailSend(entry: EmailLogEntry): Promise<void> {
     const { prisma } = await import('@/lib/db/prisma')
     await prisma.emailLog.create({
       data: {
+        ...(entry.id ? { id: entry.id } : {}),
         toAddress: entry.toAddress,
         ccAddresses: entry.ccAddresses ?? [],
         subject: entry.subject,
@@ -41,6 +49,8 @@ export async function recordEmailSend(entry: EmailLogEntry): Promise<void> {
         error: entry.error ? entry.error.slice(0, 2000) : null,
         messageId: entry.messageId ?? null,
         providerId: entry.providerId ?? null,
+        transport: entry.transport ?? null,
+        tracked: entry.tracked ?? false,
         ...(entry.meta === undefined ? {} : { meta: entry.meta }),
       },
     })
