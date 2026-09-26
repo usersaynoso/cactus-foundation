@@ -185,6 +185,8 @@ It lands in your inbox **and** in the inbox of everybody you put it to. One conv
 
 **Done is done for you.** Ticking a discussion **Done for me** takes it off your own list and nobody else's - the colleagues still working on it keep it open. The next time anybody writes in it - you included - it comes back for everyone who had closed it, the same way an answered email reopens. Putting it to sleep is still shared, as it is on any conversation.
 
+**Marking a conversation done settles your ask about it.** If a colleague asked you to look at something and you mark that conversation done, the ask goes to Done in your Mentioned folder as well - only yours, not anybody else's who was asked about the same thing.
+
 **Deleting one is for you, too.** A discussion you delete goes into your own Bin and disappears from your lists only - everybody else in it keeps it, even if you were covering their post when you pressed the button. Emptying your Bin takes it out of the Bin for good, but never destroys it for the others; an ordinary email is still destroyed for everyone, exactly as before.
 
 It is the same internal note the inbox has always had, with one thing added: somewhere to put the first one. "A word about the Henderson order" no longer has to wait for the Hendersons to write in.
@@ -294,6 +296,8 @@ That is deliberately the only thing on offer. Editing somebody's half-written se
 **Sent says who actually pressed it.** The customer sees a message from Sam's address with Sam's signature, exactly as if Sam had sent it - but the entry in **Sent** credits whoever sent it, so there is no mystery afterwards about who let it go. If the draft had a chase on it, the chase is still Sam's: they asked for it.
 
 **Opening one shows the message rather than a writing box**: who it is to, what it is about, what is attached, when it is set to go out if it is, and the words. If it is an answer to a conversation, there is a link across to that conversation. At the foot it says whose writing it is, that only they can change it, and - where you may - offers to send it for them.
+
+**And the conversation shows it too.** Open the conversation any way you like and a colleague's unsent reply is there, opened out and marked **Draft** or **Scheduled**, right beside the newest message where a reply would sit.
 
 **A reply opens in its conversation.** A colleague's draft or scheduled reply to an existing conversation opens that conversation, with their draft opened out where it sits and the page scrolled to it - so you read it beside the message it answers. It stays in their Drafts or Scheduled folder as well. A brand new message, with no conversation behind it, still opens on its own.
 
