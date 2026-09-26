@@ -363,7 +363,10 @@ The panel only appears where it has something to offer: filters nothing in the r
 
 - Sent with the page, the block renders every product it lists (capped at 100 unpaged,
   500 paged) and filters instantly. Fetched as needed, it renders the first page and
-  asks for the rest - see above.
+  asks for the rest - see above - and filters over the whole category, collection or
+  shop, up to 5,000 products. Past that, the ones beyond the 5,000th cannot be filtered
+  or paged to, and the site's logs say so; a shop that size wants its filtering done
+  somewhere other than the shopper's browser.
 - Sorting works on the same set, for the same reason: it re-orders the products the page
   is already showing, not the whole catalogue behind it. On a page carrying the full
   category that is the same thing; on a page with a lower product limit, the cheapest
