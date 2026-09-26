@@ -1346,6 +1346,13 @@ and **`for`**, the colleagues the note is about, each saying whether they were
 `event` field says which of the four it was: `message.received`,
 `discussion.received`, `mention.received` or `conversation.assigned`.
 
+**Login codes are never passed on.** An automation told about Marcus's post
+often signs in to deal with it, and signing in emails Marcus a code - which
+lands in Marcus's inbox. Passing that on would set the automation off again,
+for ever, and would post a login code to somewhere outside the site besides. So
+the site's own account emails - login codes, recovery links, email-change codes -
+are filed like any other post but never sent to a web address.
+
 ### One password and one set of headers for the lot
 
 At the top of the page sit a **signing password** and a set of **extra headers**

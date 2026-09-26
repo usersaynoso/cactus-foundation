@@ -389,6 +389,12 @@ export async function sendTemplateEmail(
     templateKey: key,
     ...(moduleName && !['auth', 'system', 'member'].includes(moduleName) ? { moduleName } : {}),
     ...opts,
+    // Which template this was, on the message itself, so anything that later
+    // reads it back out of a mailbox can tell the site's own mail by what it
+    // is rather than by guessing from the sender. The case that needs it: a
+    // login code landing in a mailbox a module is collecting, and being passed
+    // on to an automation as if a customer had written.
+    headers: { 'X-Cactus-Template': key, ...(opts?.headers ?? {}) },
   })
   return true
 }
