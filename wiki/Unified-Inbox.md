@@ -29,7 +29,7 @@ You will find it under **Inbox** in the admin sidebar, as a tab called **Unified
 | **Sent replies** | Whether to find out what became of a reply after it left. |
 | **People** | Telling colleagues from customers, whether to show people's own pictures, the categories you file contacts under, and the shape of your order and quote numbers. |
 | **Campaigns** | Your business name and address for the unsubscribe footer, how long to leave between writing to the same person twice, and how long a finished campaign's log is kept. |
-| **Other apps** | Telling something else on the internet when the post arrives. |
+| **Other apps** | Telling something else on the internet when the post arrives, or when a colleague asks for somebody. |
 
 Start a form on one tab, wander off to another and come back, and what you had typed is still there. Nothing is saved until you press the Save button on that tab, mind.
 
@@ -1295,6 +1295,14 @@ Each one has:
   something on its private network, is refused when you save it and again before
   every note goes out.
 - **Which inbox.** One of them, or every inbox including any you add later.
+- **What to tell it about.** Tick any of four:
+  - **Post arriving from outside** - an email or message lands in the inbox.
+  - **A colleague writing in a discussion** - a note in an internal discussion put
+    to whoever owns the inbox, or filed in it.
+  - **Being asked to look at something** - a colleague tags whoever owns the inbox
+    in a note, on an email conversation or a discussion.
+  - **Being handed a conversation** - a colleague assigns a conversation to whoever
+    owns the inbox.
 - **What to send.** Either the details of the message that arrived - who it was
   from, the subject, which inbox, which conversation - or the same fixed message
   every time, which is what an address expecting its own wording needs.
@@ -1305,6 +1313,38 @@ Each one has:
   it so it can tell the message really came from your site.
 - **Extra headers**, written one per line as `Name: value`. This is where a key
   goes if the address you are telling asks for one.
+
+### Inboxes, people, and the other three
+
+An inbox is not a person, but an inbox that belongs to one person is as good as.
+Point a subscription at **Marcus's own inbox** and it hears about Marcus: post
+landing in it, discussions put to him, the times he is tagged, and conversations
+handed to him - wherever those conversations happen to live. Point it at **every
+inbox** and it hears about all of it, for everybody. Point it at a **shared**
+inbox and it hears about discussions filed there and its conversations being
+handed to somebody - but never about anybody being tagged, because nobody owns a
+shared address, and a tag goes to a person.
+
+Nobody is told about their own doing. A note you wrote, or a conversation you
+took yourself, sends nothing - your automation already knows. The automatic
+hand-overs (a conversation put on your desk because your own post started it, or
+because you asked to be reminded to chase it) are the same thing and send nothing
+either.
+
+**Each message is told about once.** An email lands in Marcus's inbox and his
+address is told. A few seconds later somebody assigns it to him - and nothing
+more is sent, because it is the same email and his address already knows about
+it. The hand-over is only passed on when there is post the address has not heard
+about yet: a subscription that only listens for hand-overs, or a newer reply that
+arrived since. A discussion put to Marcus is also him being asked to look at it;
+that is one note too, not two.
+
+For the details of the message style, these three add two things to what an
+arrival carries: **`by`**, the colleague who wrote the note or handed it over,
+and **`for`**, the colleagues the note is about, each saying whether they were
+**addressed** (on the discussion), **mentioned** (tagged) or **assigned**. The
+`event` field says which of the four it was: `message.received`,
+`discussion.received`, `mention.received` or `conversation.assigned`.
 
 ### One password and one set of headers for the lot
 
@@ -1331,9 +1371,9 @@ does not answer is tried again after a minute, then five, fifteen, an hour, thre
 hours and twelve - and after twenty failures in a row it switches itself off and
 says so on the screen. Editing it starts it again.
 
-**Send a test** fires a made-up message at the address there and then, and tells
-you what came back. Nobody's real post is used to prove a web address works.
-**History** shows the last twenty notes and what happened to each.
+**Send a test** fires a made-up message at the address there and then, shaped as
+the first thing on the list it is ticked for, and tells you what came back. Nobody's real post is used to prove a web address works.
+**History** shows the last twenty notes, what each one was about, and what happened to it.
 
 ## Reply Catcher
 
