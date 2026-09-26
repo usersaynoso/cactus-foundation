@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.459"
+      "version": "v0.1.460"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,7 +13,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.199"
+      "version": "v0.1.200"
     },
     {
       "name": "product-addons-for-shop",
@@ -148,7 +148,7 @@
     {
       "name": "live-chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat-powered-by-chatwoot",
-      "version": "v0.1.30"
+      "version": "v0.1.31"
     },
     {
       "name": "uk-bookkeeping",
