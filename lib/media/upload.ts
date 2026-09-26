@@ -1378,12 +1378,17 @@ export async function markMediaOptimised(ids: string[], optimised: boolean): Pro
 // Crop / edit — extract a rectangle from an existing raster image and either
 // replace the original in place (same Media.id, every reference preserved — the
 // optimise-in-place pattern) or mint a fresh Media row (leaving the original
-// untouched). The crop rectangle is in the source image's own pixels; it is
-// clamped to the image bounds server-side so a stale client rect can't fail the
-// extract. The output keeps the source format so the extension and every
+// untouched). The crop rectangle arrives as fractions (0-1) of the picture as
+// the editor drew it, and is turned into pixels here against the file actually
+// being cut. Pixels worked out in the browser drifted from the stored file
+// whenever the browser's idea of the picture's size went stale, and the saved
+// crop came out as a small patch from near the top-left corner. The result is
+// clamped to the image bounds so a rounding error can't fail the extract. The output keeps the source format so the extension and every
 // embedded reference stay coherent.
 // ---------------------------------------------------------------------------
 
+// Fractions of the displayed picture, each 0-1: `left: 0.25` is a quarter of the
+// way across, whatever the file's pixel size.
 export type CropRect = { left: number; top: number; width: number; height: number }
 
 // Re-encode a derived image in the source's own format, so a JPEG stays a JPEG
@@ -1790,18 +1795,24 @@ export async function editMediaImage(
 
   const original = await downloadMedia(media.provider, media.key, media.url)
   const meta = await sharp(original).metadata()
-  const iw = meta.width ?? 0
-  const ih = meta.height ?? 0
+  // The browser draws a photo the way up its EXIF orientation says, so the crop
+  // is measured against that. Orientations 5-8 turn the picture on its side,
+  // which swaps the stored width and height.
+  const sideways = (meta.orientation ?? 1) >= 5
+  const iw = (sideways ? meta.height : meta.width) ?? 0
+  const ih = (sideways ? meta.width : meta.height) ?? 0
   if (!iw || !ih) throw new Error('Could not read image dimensions')
 
-  // Clamp the requested rect to the image so a rounding error or a stale client
-  // rect can't push extract() past an edge.
-  const left = Math.max(0, Math.min(Math.round(crop.left), iw - 1))
-  const top = Math.max(0, Math.min(Math.round(crop.top), ih - 1))
-  const width = Math.max(1, Math.min(Math.round(crop.width), iw - left))
-  const height = Math.max(1, Math.min(Math.round(crop.height), ih - top))
+  // Fractions to pixels, clamped to the image so a rounding error can't push
+  // extract() past an edge.
+  const left = Math.max(0, Math.min(Math.round(crop.left * iw), iw - 1))
+  const top = Math.max(0, Math.min(Math.round(crop.top * ih), ih - 1))
+  const width = Math.max(1, Math.min(Math.round(crop.width * iw), iw - left))
+  const height = Math.max(1, Math.min(Math.round(crop.height * ih), ih - top))
 
-  const encoded = await encodeToMime(sharp(original).extract({ left, top, width, height }), media.mimeType)
+  // rotate() with no angle applies the EXIF orientation first, so the extract
+  // cuts the picture as displayed rather than the raw sensor rows.
+  const encoded = await encodeToMime(sharp(original).rotate().extract({ left, top, width, height }), media.mimeType)
 
   return persistDerivedImage(media, encoded, { ...opts, fallbackSuffix: '(edited)' }, userId)
 }

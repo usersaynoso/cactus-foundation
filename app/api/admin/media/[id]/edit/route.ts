@@ -8,7 +8,8 @@ type Ctx = { params: Promise<{ id: string }> }
 
 // Crop / edit a single raster image. Body:
 //   { crop: { left, top, width, height }, mode: 'replace' | 'new', newName? }
-// The crop rectangle is in the source image's own pixels. 'replace' swaps the
+// The crop rectangle is in fractions (0-1) of the picture as the editor draws
+// it; the server turns them into the stored file's pixels. 'replace' swaps the
 // blob under the existing row (id and every reference preserved); 'new' mints a
 // fresh library item in the same folder and leaves the original alone.
 export async function POST(request: NextRequest, { params }: Ctx) {
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     return errorResponse('crop must be { left, top, width, height } numbers')
   }
   if (c.width <= 0 || c.height <= 0) return errorResponse('crop width and height must be positive')
+  if (nums.some((k) => c[k] < 0 || c[k] > 1)) return errorResponse('crop values must be fractions between 0 and 1')
 
   const crop: CropRect = { left: c.left, top: c.top, width: c.width, height: c.height }
   const newName = typeof body.newName === 'string' ? body.newName : undefined

@@ -209,16 +209,30 @@ export default function MediaImageEditor({
   }
 
   async function save(mode: 'replace' | 'new') {
-    if (!crop || !disp || !imgRef.current) return
-    const scaleX = imgRef.current.naturalWidth / disp.w
-    const scaleY = imgRef.current.naturalHeight / disp.h
+    const img = imgRef.current
+    if (!crop || !img) return
+    // The box is sent as fractions of the picture exactly as it is drawn right
+    // now, and the server multiplies them by the stored file's own pixels. It
+    // used to be converted to pixels here, from the browser's naturalWidth and
+    // the last measured display size - two numbers that only agree with the
+    // file on the server when nothing has gone stale, and when they didn't the
+    // saved crop was a small patch from near the top-left corner instead of the
+    // area picked. The live box is read at save time, not from `disp`, because
+    // it is the one the crop overlay is actually drawn against.
+    const boxW = img.clientWidth
+    const boxH = img.clientHeight
+    if (!boxW || !boxH) {
+      setError('The image has not finished loading yet - give it a moment and try again')
+      return
+    }
+    const frac = (v: number, total: number) => clamp(v / total, 0, 1)
     const body = {
       mode,
       crop: {
-        left: crop.x * scaleX,
-        top: crop.y * scaleY,
-        width: crop.w * scaleX,
-        height: crop.h * scaleY,
+        left: frac(crop.x, boxW),
+        top: frac(crop.y, boxH),
+        width: frac(crop.w, boxW),
+        height: frac(crop.h, boxH),
       },
       ...(mode === 'new' ? { newName: newName.trim() } : {}),
     }
