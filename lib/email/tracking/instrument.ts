@@ -3,8 +3,8 @@ import { isOwnClickWrapper, isOwnOpenBeacon } from './paths'
 // ---------------------------------------------------------------------------
 // Putting the site's own tracking into one outgoing message.
 //
-// Two changes to the HTML body and nothing else. An invisible picture goes on
-// the end, so fetching it says the message was opened. Every ordinary web link
+// Two changes to the HTML body and nothing else. An invisible picture goes at
+// the very top, so fetching it says the message was opened. Every ordinary web link
 // is pointed at the site's own redirect first, so following it says which link
 // was followed before sending the reader on to exactly where it was going.
 //
@@ -29,6 +29,16 @@ import { isOwnClickWrapper, isOwnOpenBeacon } from './paths'
 //   - absurdly long addresses. The destination rides inside the token, and an
 //     address two thousand characters long is past what some mail programs
 //     will carry intact.
+//
+// Why the top and not the end, where it used to go: a reply ends with the
+// message it is answering, and mail programs fold that quoted part away behind
+// a "..." - Outlook on a phone and on the web both do - and do not load
+// pictures inside it. A picture on the end of a reply sits inside the fold and
+// is never fetched, so the reply never registers as opened. Measured on a live
+// send, 2026-09-27: the picture landed after the quote, and Outlook loaded the
+// signature logo and never asked for it. Gmail has the same failure the other
+// way round - it cuts off the bottom of any long message - so the top is the
+// one place every mail program shows.
 //
 // And one thing is taken OUT: any open picture of ours already in the body.
 // That is a quoted earlier message coming round again, and leaving its picture
@@ -125,10 +135,10 @@ export function instrumentEmailHtml(html: string, options: InstrumentOptions): I
   const pixel = `<img src="${escapeAttribute(options.openUrl)}" width="1" height="1" alt="" `
     + 'style="display:block;width:1px;height:1px;max-width:1px;max-height:1px;border:0;margin:0;padding:0;overflow:hidden;" />'
 
-  const closeBody = /<\/body\s*>/i.exec(withLinks)
-  const out = closeBody
-    ? `${withLinks.slice(0, closeBody.index)}${pixel}${withLinks.slice(closeBody.index)}`
-    : `${withLinks}${pixel}`
+  const openBody = /<body\b[^>]*>/i.exec(withLinks)
+  const out = openBody
+    ? `${withLinks.slice(0, openBody.index + openBody[0].length)}${pixel}${withLinks.slice(openBody.index + openBody[0].length)}`
+    : `${pixel}${withLinks}`
 
   return { html: out, links }
 }

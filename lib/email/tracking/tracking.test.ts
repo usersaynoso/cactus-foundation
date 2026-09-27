@@ -49,16 +49,24 @@ describe('rewriting a message', () => {
     linkUrl: (to) => `${SITE}/api/email/c/${encodeURIComponent(to)}`,
   })
 
-  it('tracks ordinary links and puts the picture before the end of the body', () => {
-    const out = build('<html><body><p><a href="https://deskwell.co.uk/shop?a=1&amp;b=2">Shop</a></p></body></html>')
+  it('tracks ordinary links and puts the picture at the top of the body', () => {
+    const out = build('<html><body style="margin:0"><p><a href="https://deskwell.co.uk/shop?a=1&amp;b=2">Shop</a></p></body></html>')
     expect(out.links).toBe(1)
     expect(out.html).toContain(`href="${SITE}/api/email/c/${encodeURIComponent('https://deskwell.co.uk/shop?a=1&b=2')}"`)
-    expect(out.html.indexOf('/api/email/o/OPEN')).toBeLessThan(out.html.indexOf('</body>'))
+    expect(out.html.startsWith('<html><body style="margin:0"><img')).toBe(true)
   })
 
-  it('appends the picture when there is no body tag', () => {
+  it('puts the picture first when there is no body tag', () => {
     const out = build('<p>Hello</p>')
-    expect(out.html.startsWith('<p>Hello</p><img')).toBe(true)
+    expect(out.html.startsWith('<img')).toBe(true)
+    expect(out.html.endsWith('<p>Hello</p>')).toBe(true)
+  })
+
+  it('keeps the picture out of the quoted message a reply ends with', () => {
+    // Outlook and Gmail fold the quote away and never load pictures inside it.
+    const reply = '<p>Thanks, here it is.</p><blockquote><p>Can I have a quote?</p></blockquote>'
+    const out = build(reply)
+    expect(out.html.indexOf('/api/email/o/OPEN')).toBeLessThan(out.html.indexOf('<blockquote'))
   })
 
   it('leaves mailto, tel, anchors, relative links and unsubscribe links alone', () => {
@@ -73,7 +81,7 @@ describe('rewriting a message', () => {
     ].join('')
     const out = build(html)
     expect(out.links).toBe(0)
-    expect(out.html.startsWith(html)).toBe(true)
+    expect(out.html.endsWith(html)).toBe(true)
   })
 
   it('never wraps a link that is already tracked, ours or Brevo\'s', () => {
