@@ -123,6 +123,8 @@ A few consequences worth knowing:
 
 **Mail between two of your own addresses lands in both of them.** Write from `chris@` to `marcus@` and there are two conversations afterwards: one in Marcus's inbox, unread, where he can answer it exactly as he would a customer's, and one in yours, showing as something you sent. His reply joins both of them. Each side is a conversation in its own right - mark one done, snooze it or hand it to somebody, and the other is left alone, because the two of you are not finished with it at the same moment.
 
+**A customer copying in a colleague lands in both of your tabs.** Somebody writes to `hi@` and copies in `emma@`, and the mail server puts it in both mailboxes - so does the hub. It stays ONE conversation, living at the first address the email names (the To line before the Cc line), and it is listed in every other address the email named as well: it shows in General Enquiries and in Emma's tab, with one unread mark, one done, one snooze and one reply between you, so two people do not answer the same customer twice. Anybody who can read either address can open it. A copy only Emma was sent blind turns up the same way. It only happens when the email names two or more of your addresses: a later reply to just the one address never pulls a conversation you have moved somewhere else back out again, and colleague-to-colleague mail is still split into a conversation each, as above. Conversations collected before this arrived are sorted out by the update, except ones somebody has since moved.
+
 Copy a third address in and it gets a conversation too. Nobody has to go looking through a colleague's tab for a message that was addressed to them.
 
 This is not how it used to behave. Until this update a colleague email was filed once, on whichever of the two addresses the site happened to read first, and a reply followed it there - so answering a colleague could put your answer somewhere they could not see it. Conversations already collected are put right on the update: the site reads that mail again the next time it checks, and fills in the sides that were missing. Nothing is collected twice.
@@ -808,6 +810,8 @@ Every conversation has a **no-entry sign** at the top of it, between the waste b
 
 **On a colleague's own address, it goes in theirs.** If you have been let in to somebody's own inbox to cover their post while they are away, junk you clear out of it lands in **their** spam folder rather than yours. That is the honest answer twice over: it is their post, and your own spam folder has no business filling up with a fortnight of somebody else's rubbish. The button says so before you press it, and the question that follows says it again - "it will go into Sam's spam folder".
 
+**Marking something as junk marks it read.** Same reason as the bin: it has been looked at and dealt with, so it stops counting as new, and "Not junk" brings it back read. On a shared address that shows as read for your colleagues as well, just as opening it would. Post the site turns away by itself because the sender is blocked is the one exception - that arrives unread in the spam folder, because nobody has looked at it yet and the folder's number is how you find out it happened.
+
 It also leaves *your* view of their inbox, which is rather the point of covering somebody: you are trying to see what they would see, and post they have already binned is post you should not be working through.
 
 You can look in their spam folder, and take something back out of it, under their name on the rail - **Spam** sits there beside their **Sent** and **Mentioned**. So a mis-click while covering is a mis-click you can fix.
@@ -858,6 +862,8 @@ Beside the junk sign at the top of every conversation is a **waste basket**, and
 **A deletion is yours, exactly as junk is.** What you delete leaves your lists and changes nothing at all on a colleague's screen. On a shared address like `sales@` it goes into **your** bin, because the address belongs to the team and the decision is yours alone.
 
 **On a colleague's own address it goes into theirs.** Covering somebody's post while they are away means clearing their inbox on their behalf, so what you delete out of it lands in **their** bin - not yours, which has no business filling up with a fortnight of somebody else's post. The button says so before you press it. Their bin sits under their name on the rail, beside their **Sent**, **Mentioned** and **Spam**, so a mis-click while covering is a mis-click you can fix.
+
+**Deleting something marks it read.** Something you have binned is something you have dealt with, so it stops counting as new: it leaves the address's unread number, and if you put it back later it comes back read rather than bold. Read is one mark on the conversation rather than one each, so on a shared address it reads as read for your colleagues too - the same as it would had you simply opened it.
 
 **Shared addresses have no bin of their own**, for the same reason they have no spam folder: a bin belongs to a person, and a shared address is nobody in particular.
 
