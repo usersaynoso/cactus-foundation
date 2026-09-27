@@ -69,7 +69,7 @@ describe('an SMTP send', () => {
   it('hands the ref back inside the token', async () => {
     const sent = await sendEmail({ ...BASE, moduleName: 'unified-inbox', tracking: { ref: 'row-1' } })
     const open = /\/api\/email\/o\/([^"]+)"/.exec(sentHtml())![1]!
-    expect(verifyTrackingToken(open, SECRET)).toEqual({ k: 'o', e: sent.emailLogId, m: 'unified-inbox', x: 'row-1' })
+    expect(verifyTrackingToken(open, SECRET)).toEqual({ k: 'o', e: sent.emailLogId, m: 'unified-inbox', x: 'row-1', t: expect.any(Number) })
   })
 
   it('keeps an untracked copy for a module that files one', async () => {

@@ -48,6 +48,10 @@ const claimSchema = z.object({
   x: z.string().min(1).max(64).optional(),
   /** Where a link really goes. Only on a click, and only http(s). */
   u: z.string().max(2048).regex(/^https?:\/\//i).optional(),
+  /** When the message was sent, in whole seconds since 1970. Lets an open that
+   *  arrives within seconds of sending be recognised as the mail system
+   *  fetching on arrival (see classify.ts). Absent on tokens minted before it. */
+  t: z.number().int().positive().optional(),
 }).strict()
 
 export type TrackingClaim = z.infer<typeof claimSchema>

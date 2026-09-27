@@ -27,7 +27,7 @@ You will find it under **Inbox** in the admin sidebar, as a tab called **Unified
 | **Inboxes** | The addresses people write to: where each is collected from, how its replies go out, what they are signed with, and who may read them. |
 | **Collecting** | How far back to go, how long to keep things, attachments, and which way round a conversation reads. |
 | **Sent replies** | Whether to find out what became of a reply after it left. |
-| **People** | Telling colleagues from customers, whether to show people's own pictures, the categories you file contacts under, and the shape of your order and quote numbers. |
+| **People** | Telling colleagues from customers, whether to show people's own pictures, whether shop customers are added to your contacts (only where the shop is installed), the categories you file contacts under, and the shape of your order and quote numbers. |
 | **Campaigns** | Your business name and address for the unsubscribe footer, how long to leave between writing to the same person twice, and how long a finished campaign's log is kept. |
 | **Other apps** | Telling something else on the internet when the post arrives, or when a colleague asks for somebody. |
 
@@ -352,17 +352,25 @@ It is on the new-message box as well, where it puts the conversation you have ju
 
 Their reply wakes it either way, as a reply always does, so you only see it again at the time you picked if nobody has answered by then.
 
-### When they write first
+### When somebody replies first
 
-A message set for Monday morning was written without Monday's post in front of you, and sending it anyway is how you ask a question that has already been answered.
+A message set for Monday morning was written without Monday's post in front of you, and sending it anyway is how you ask a question that has already been answered - or answer one a colleague already has.
 
-**So mail from the person it is addressed to holds it.** If they write to you before your message leaves, the timer comes off it, nothing is sent, and the writing stays exactly as it was. Their message opens with **A message to them was waiting to go out** across the top of it, saying what yours was about and when it was going to go, with a link straight to it - read what they said, then send yours as it stands, change it, or throw it away.
+**So the conversation moving on cancels it.** Any of these, before your message leaves, takes the timer off it, sends nothing, and keeps the writing exactly as it was, as a draft:
 
-**Nothing is lost and nothing is sent twice.** The message sits under **Drafts** with **Held - they wrote first** on the row. Put a time back on it and it is queued again as normal.
+- **They write on the conversation** - from the address you were writing to, from another address of theirs, or somebody copied in on it. On a chat, WhatsApp or a text, it is them writing in the same conversation (these used to go out regardless).
+- **They write to you anywhere else.** Mail from the person a scheduled message is addressed to cancels it on whichever conversation it was written in. Only the **To** line counts for this one, and it is email only - the address somebody types into a chat window is their say-so, not proof.
+- **A colleague answers first** - from here, from their own mail program, or from a channel's own screens. Your scheduled reply is cancelled so the customer is not answered twice. Their own scheduled reply is never cancelled by their own message; they knew it was there. A **forward** from a colleague cancels nothing, because it told the customer nothing.
+
+Each time, the conversation says so in a line just above the message that did it - *They wrote before Chris's scheduled reply went out, so it was cancelled and saved as a draft*, or *Sam replied first, so Chris's scheduled reply was cancelled and saved as a draft*. If it was written on a different conversation, that one gets a line of its own too. And whoever wrote it sees **A message to them was waiting to go out** across the top of the conversation, saying why and linking straight to it - read what was said, then send yours as it stands, change it, or throw it away.
+
+**Nothing is lost and nothing is sent twice.** The message sits under **Drafts** with **Held - somebody replied first** on the row. Put a time back on it and it is queued again as normal.
 
 **A message already going out is left alone.** If their mail arrives in the minute yours is being sent, yours has gone: the site will not pretend otherwise.
 
-Only the **To** line counts - somebody merely copied in writing to you does not hold anything - and only a real message does. An out-of-office or a bounce is the mail system talking, not an answer, and holds nothing.
+Only a real message counts. An out-of-office or a bounce is the mail system talking, not an answer, and cancels nothing; neither does post from a sender the site has blocked, an internal note, or old mail being read in for the first time when an account is connected.
+
+**If it cannot go when its time comes** - whoever wrote it can no longer send from that address, say - it stays a draft with the reason on it, and the conversation gets a line saying so, so nobody reading it waits for a message that is not coming.
 
 ### Sent
 
@@ -513,20 +521,22 @@ The first collection does not fetch everything at once. New post is picked up st
 
 ## Being told when post arrives
 
-The first time you open the inbox, a small card appears above the **bell** at the foot of the rail and asks whether you would like a nudge when something new lands. Say yes and your browser asks you to allow it, in its own words, once. From then on, post arriving in your address pops up in the corner of the screen the way a message from any other program does, and clicking it opens that conversation.
+The first time you open the inbox, a card appears in the middle of the screen asking whether you would like a nudge when something new lands. Say yes and your browser asks you to allow it, in its own words, once. From then on, new post pops up in the corner of the screen the way a message from any other program does, and clicking it opens that conversation.
 
-Say **No thanks** and you are not asked again. The bell is still there if you change your mind later, and pressing it turns nudges on and off whenever you like.
+Say **No thanks** and you are not asked again. The bell at the foot of the rail is still there if you change your mind later, and pressing it turns nudges on and off whenever you like.
 
 A few things worth knowing, because they are the questions everybody asks:
 
-- **It watches your own address**, the one pinned to the top of your rail. If you have not been given one, it watches everything you can read instead, which for you amounts to the same thing.
-- **Nothing pops up while you are looking at the inbox.** The list in front of you already shows what has arrived, in bold, where post has always appeared. Nudges are for when you are in a spreadsheet, or in another window, or on a different tab.
-- **The inbox has to be open somewhere.** This is the browser's own notification, not an app on your phone, so it needs a tab of the site left open in the background. Close every tab and the nudges stop until you open one again.
-- **It is per browser, per person.** Saying yes on the office machine does not say yes on your laptop, and the answer is kept against your own account, so two people sharing a computer get their own.
-- **A busy morning is one nudge, not forty.** Several arriving together come through as a count with the names underneath, and each new nudge replaces the last rather than stacking up.
-- **Been away a while?** Coming back to a tab you left open a few hours ago will not empty the whole morning onto your screen at once. It only ever looks back over the last twenty minutes.
+- **It watches everything you can read.** Your own address, every shared address you are on, and any colleague's address you have been let into - the Yours, Shared inboxes and Team inboxes sections of the rail. Each nudge says which one it landed in. Live chat, calls and texts bring their own alerts and are left out.
+- **The tab can be closed.** In Chrome, Edge, Firefox and Safari on a Mac, nudges come through the browser's own delivery service, so they arrive with every tab of the site shut. The browser itself has to be allowed to show notifications, which on a Mac is under **System Settings > Notifications**.
+- **On an iPhone or iPad, add it to the Home Screen first.** Apple only passes notifications on from apps on the Home Screen, not from an ordinary Safari tab. Open the inbox in Safari, tap **Share**, then **Add to Home Screen**, open the new icon, sign in, and press the bell there. In an ordinary tab, the bell explains this rather than doing nothing.
+- **It is per browser, per person.** Saying yes on the office machine does not say yes on your laptop or your phone, and each one you say yes on is told separately. Two people sharing a computer get their own answer.
+- **One nudge per conversation.** A second reply on the same conversation updates its nudge rather than stacking another, and several conversations arriving together come through as a count with the names underneath.
+- **Mail written a while ago still counts.** What matters is when the site collected it, not the date on the email - so a message that sat at the mail provider for ten minutes before the inbox fetched it is still news. Anything dated more than a day before it arrived is treated as history and stays quiet.
 
-If nothing happens after you have said yes, it is almost always the browser rather than the site: notifications can be switched off for the whole browser, or for this site, in its own settings, and a page cannot undo that from the inside. Windows also has a Focus assist setting, and macOS a Do Not Disturb, either of which will hold everything back quietly. When your browser has blocked us outright the bell is greyed out and says so if you hover over it.
+Already had nudges switched on before they could arrive with the tab closed? You will be asked once whether to move over; say yes and your browser may ask for permission again.
+
+If nothing happens after you have said yes, it is almost always the browser or the computer rather than the site: notifications can be switched off for the whole browser, or for this site, in its own settings, and a page cannot undo that from the inside. Windows also has a Focus assist setting, and macOS and iOS a Focus or Do Not Disturb, either of which will hold everything back quietly. When your browser has blocked us outright the bell is greyed out and says so if you hover over it.
 
 ---
 
@@ -716,7 +726,30 @@ That covers the customer answering, and it covers a colleague answering them fro
 
 Two things deliberately leave a conversation where it is whoever wrote them. An out-of-office and a bounce, because that is the mail system talking rather than a person - which is also what stops a mailing list nobody has unsubscribed from dragging a finished conversation back into Open every week. And an internal note, for the same reason it does not bump the conversation or mark it unread: us talking among ourselves is not the customer writing back.
 
-When one comes back this way it says so in **What has been done to this** at the foot of the conversation, with the time, and it says which it was - stopped being snoozed, or opened again. Where it was your own reply that did it, the line carries your name: **Marcus answered it, so it was opened again**. A conversation turning up in Open on Tuesday when you asked for Thursday, or one you were sure you had finished with, is explained rather than mysterious.
+When one comes back this way the conversation says so, in a line directly above the reply that did it - *A reply arrived, so it is no longer snoozed*, or *A reply arrived, so it was opened again*. Where it was your own reply that did it, the line carries your name: *Marcus replied, so it was opened again*. A conversation turning up in Open on Tuesday when you asked for Thursday, or one you were sure you had finished with, is explained rather than mysterious. See [What happened to it, in the conversation](#what-happened-to-it-in-the-conversation).
+
+### What happened to it, in the conversation
+
+Everything done to a conversation is written into the conversation itself, as a small line ruled off between the messages it happened between, with the time on the end. It used to be a folded-away list at the very foot of the conversation called **What has been done to this**, which nobody opened; that list is gone and every entry in it is now one of these lines.
+
+What gets a line:
+
+- **Snoozed** - *Chris snoozed it until Fri, 2 October 2026 at 09:00*, or *moved its snooze to...* when it was already asleep.
+- **Back from a snooze** - *Its snooze ran out, so it came back*, stamped with the time it was due rather than whenever somebody next looked; *Nobody replied, so it came back to Sam* when it was a follow-up; *Chris brought it back before its snooze ran out* when somebody woke it by hand.
+- **A reply waking it or reopening it** - *A reply arrived, so it is no longer snoozed*, *...so it was opened again*, or *A reply was sent from outside the inbox...* when a colleague answered from their phone.
+- **Done and opened again** - *Sam marked it done*, *Chris opened it again*.
+- **The bin** - *Chris put it in their bin*, *...took it back out of their bin*, and *A reply arrived, so it came back out of the bin*. When somebody is covering a colleague's own address, the line says whose: *Chris put it in Sam's bin*.
+- **Junk** - *Sam moved it to their junk*, *...took it back out of their junk*, and *It came from a sender the site has blocked, so it went straight to junk*.
+- **Scheduled messages** - cancelled because somebody replied first (see [When somebody replies first](#when-somebody-replies-first)), failed when their time came, or gone out with a follow-up or a snooze set on them.
+- **Everything the old list had** - handed to somebody, moved to another mailbox, merged (with **Unmerge** on the end while it can still be undone), a message deleted or moved out, a record linked, a colleague asked to look.
+
+**Where a line goes.** A line caused by a message - a reply waking a snooze, a scheduled reply cancelled because of it - sits directly above that message. Everything else sits after whatever was already in the conversation when it happened. Reading newest first, the lines turn round with the messages, so each one still sits between the same two.
+
+**Who sees them.** Everybody who can read the conversation - including bin and junk lines, which say whose bin or junk it was so nobody takes it to mean it went for everybody. The exception is an internal discussion, where done and the bin are each person's own: those lines are shown only to whoever pressed the button.
+
+**Mis-presses tidy themselves up.** Put something in the bin and press **Undo**, and the line goes rather than being joined by its opposite - the same for junk, snooze and done, if it is put back as it was by the same person within a minute and a half and nothing else has happened to the conversation since. Pressing a button that changes nothing writes nothing.
+
+Notes are not repeated as a line - the note is already there in the conversation.
 
 ### Finding something
 
@@ -776,7 +809,7 @@ Everything folds into **the conversation that started it** - the oldest of the o
 
 A few things worth knowing before you press it:
 
-- **Nothing is thrown away, and you can put it back.** Open the merged conversation, open **What has been done to this** at the foot of it, and the line recording the merge - *Chris merged it with another*, with the date - has **Unmerge** on the end of it. Anything that arrived *after* the merge stays where it is, because it arrived on the merged conversation rather than on the old one. It used to be a panel across the top of every merged conversation for ever, saying the same thing to everybody who opened it.
+- **Nothing is thrown away, and you can put it back.** Open the merged conversation and find the line recording the merge among the messages - *Chris merged it with another*, with the date - which has **Unmerge** on the end of it. Anything that arrived *after* the merge stays where it is, because it arrived on the merged conversation rather than on the old one. It used to be a panel across the top of every merged conversation for ever, saying the same thing to everybody who opened it.
 - **A merged conversation is still unanswered if any half of it was.** Merging something you had marked done into something you had not does not quietly mark the lot done, and an unread half stays unread. Better to be shown something twice than to lose it off the list.
 - **Merging across two of your addresses lets both of them read it.** This is the point of merging marcus@ and hi@ together, and it is also the thing to think about first: everybody who can read either address can then read the whole of the merged conversation, including the half that arrived on the other one. The confirmation says so, and names the addresses, before anything happens. See [Who can see what](#who-can-see-what).
 - **It shows in both addresses' tabs afterwards**, with the second address named in the line under the subject, and it stays merged when somebody replies. Without that last part the two sides would come apart again on the very next email.
@@ -804,7 +837,7 @@ Both live behind the **dots beside a message**, under a rule, below the everyday
 - **Nothing is deleted from your mail account.** The email is still sitting in whatever mailbox it arrived in; this is a fact about what the site holds. Same for the other channels: the part of the site that owns a chat still has every word of it.
 - **It does not come back.** The site writes down that you threw it away, so the next check walks past it rather than collecting it again - which is what would otherwise happen the first time somebody filed that email into another folder from their phone.
 - It goes for **everybody** who can see the address, which is what makes it different from the waste basket at the top of a conversation. That one is yours alone and puts back with the same press - see [The bin](#the-bin).
-- Both are written into **What has been done to this** at the foot of the conversation, so there is a record that something left. What was in the deleted message is deliberately not kept there: a deletion that quietly filed away the subject and the sender would not be much of a deletion.
+- Both are written into the conversation as a line where it happened, so there is a record that something left. What was in the deleted message is deliberately not kept there: a deletion that quietly filed away the subject and the sender would not be much of a deletion.
 - On a voicemail from one of the calling channels you will see a **Delete** button in the foot of the message instead. That one is a bigger thing - it deletes the recording at the phone company as well - so the two are never offered side by side.
 - Any recording on a call or voicemail - where the channel supports it - has its own buttons under the player: **Delete from Twilio** (a copy is saved on the site first, so it still plays here) and then **Delete saved copy**. They act on that one recording and leave the message where it is. A line under the player says where the recording is kept, and once it has gone from everywhere the player is taken away. See the Twilio page, *Taking one recording off Twilio*.
 
@@ -1069,7 +1102,7 @@ A contact can be in several at once, on purpose. Somebody can genuinely be a sup
 
 **Renaming and removing** them is under **Settings → Unified Inbox → People**, along with the order they appear in and how many contacts are in each - which is what makes an empty one worth removing and a typo worth renaming. **Removing a category keeps everybody who was in it.** They keep their records and simply stop showing the label.
 
-One thing said plainly, because it is the line this feature must not cross: **a category is not a stage.** Nothing moves between them on its own, nothing else on the site reads them, and there is no order to them beyond the one you drag them into. It is the label on the drawer, not a sales process.
+One thing said plainly, because it is the line this feature must not cross: **a category is not a stage.** Nothing moves between them on its own, nothing else on the site reads them, and there is no order to them beyond the one you drag them into. It is the label on the drawer, not a sales process. The single label anything puts on for you is **Customers**, on somebody who pays for a shop order - see [Shop customers](#shop-customers) - and even that only ever adds.
 
 ### Adding one by hand
 
@@ -1098,6 +1131,25 @@ Three things it does that are worth knowing:
 Five thousand rows at a time is the limit. Split a bigger file and bring it in in two goes.
 
 **The file never leaves your computer.** It is read in your browser so the matching step has something to show you, and only the rows you can see are sent to the site. There is no copy of your address book sitting in storage afterwards, which is rather the point.
+
+### Shop customers
+
+Where the **shop** is installed as well, somebody who pays for an order becomes a contact without anybody typing them in. Their card gets what they gave at the checkout:
+
+- **Name** - the one given with their email address. When the billing address names the same person, its first and last name are used as they were typed, so **Mary Ann Jones** arrives as Mary Ann and Jones rather than Mary and Ann Jones. An invoice addressed to somebody else in their office does not change who the contact is.
+- **Email address**, which is what everything else is matched on.
+- **Phone number** - the contact number they gave, or the one on the billing address. Never the delivery address's, which is very often whoever is on site to sign for the parcel.
+- **Company** - the organisation they said they were buying for, found by name among your organisations or made if it is new.
+- **Billing address** - or the delivery address, on an order that has no separate billing address, which is how the shop's own invoice reads it too. The country is written out in full: `GB` becomes **United Kingdom**.
+- The **Customers** category, made the first time it is needed. One you already have called Customers, however it is capitalised, is used rather than a second one made beside it. Renaming it stops it being found, and the next paid order makes a fresh one.
+
+**Nobody is copied.** Somebody already in your contacts - because they emailed before they bought, or have bought before - is found by their email address and **filled in rather than replaced**: a box that is empty on their card gets the order's answer, and anything already written there stays exactly as it is. The name and the postal address go in whole or not at all, so a card is never left with a postcode from one order under a street from somewhere else. They gain the Customers label and keep every other. A number they gave the shop is added to the ones they have, unless it already belongs to somebody else here, in which case it stays with them.
+
+**When it happens:** the moment the order is paid for, however that happened - card, a provider, a bank transfer marked as received by hand, or a free order. An order still waiting on a bank transfer adds its customer the day the money is marked as received, not before.
+
+**Who is never added:** anybody at one of your own domains, one of your staff, or one of your own inboxes - the same rule the post follows, so a colleague testing the checkout from a work address does not become a customer.
+
+It is **on unless you switch it off**, under **Settings → Unified Inbox → People → Customers from the shop**; the switch only appears where the shop is installed. The first time a site takes this update, the customers it already has are not added in one go - they arrive as they next order. Nothing about the shop changes and it needs no update of its own: the shop already says when an order has been paid for, and this module is simply listening.
 
 ---
 

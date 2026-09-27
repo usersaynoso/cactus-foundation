@@ -1,14 +1,13 @@
 import { prisma } from '@/lib/db/prisma'
 import { createHash, randomBytes, timingSafeEqual } from 'crypto'
 import { getSessionSecret } from '@/lib/config/env'
+import { SESSION_IDLE_MS, SESSION_TOUCH_EVERY_MS } from '@/lib/auth/session-timing'
 import type { User, Role } from '@prisma/client'
 
 // Cookie-free core of the session layer. Split out from lib/auth/session.ts
 // so that proxy.ts (Next.js 16 Node-runtime proxy, bundled outside the
 // Server Components graph) can call validateSession() without pulling in
 // next/headers, which that bundle context rejects.
-
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 export type SessionUser = User & { role: Role }
 
@@ -29,7 +28,7 @@ export function generateToken(): string {
 export async function createSession(userId: string): Promise<string> {
   const token = generateToken()
   const tokenHash = hashToken(token)
-  const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
+  const expiresAt = new Date(Date.now() + SESSION_IDLE_MS)
 
   await prisma.session.create({
     data: { userId, tokenHash, expiresAt },
@@ -61,6 +60,36 @@ export async function validateSessionWithMeta(token: string): Promise<SessionWit
 export async function validateSession(token: string): Promise<SessionUser | null> {
   const session = await validateSessionWithMeta(token)
   return session?.user ?? null
+}
+
+// Restarts the idle clock on a live session and returns its expiry, or null when
+// the token maps to no live session (gone, run out, or its user suspended).
+//
+// Deliberately NOT done inside validateSession(): that runs for every request,
+// including the ones an open tab makes on its own - the notification poll, the
+// inbox's mail collection - and sliding on those would keep a forgotten tab
+// signed in for ever. The admin shell calls this (via /api/auth/session) only
+// when a person actually clicks or types.
+//
+// A row moved within the last SESSION_TOUCH_EVERY_MS is left alone and its
+// current expiry returned, so a dozen open tabs cost one write, not twelve.
+export async function touchSession(token: string): Promise<Date | null> {
+  const session = await validateSessionWithMeta(token)
+  if (!session) return null
+
+  const now = Date.now()
+  if (session.expiresAt.getTime() - now > SESSION_IDLE_MS - SESSION_TOUCH_EVERY_MS) {
+    return session.expiresAt
+  }
+
+  const expiresAt = new Date(now + SESSION_IDLE_MS)
+  // Guarded on the row still being live, so a sign-out that lands between the
+  // read above and this write cannot be undone by it.
+  const { count } = await prisma.session.updateMany({
+    where: { tokenHash: hashToken(token), expiresAt: { gt: new Date(now) } },
+    data: { expiresAt },
+  })
+  return count > 0 ? expiresAt : null
 }
 
 // Authentication time of the session behind this token, for step-up checks. A

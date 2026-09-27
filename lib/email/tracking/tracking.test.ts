@@ -140,6 +140,16 @@ describe('what an open is worth', () => {
     expect(classifyOpen('Mimecast Security Scanner')).toBe('proxy_open')
   })
 
+  it('counts anything fetched within a minute of sending as the mail system, not a person', () => {
+    // The live measurements: Google's proxy 3-5 s, an iPhone app 13-18 s.
+    const gmail = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246 (via ggpht.com GoogleImageProxy)'
+    expect(classifyOpen(gmail, 4_000)).toBe('proxy_open')
+    expect(classifyOpen('Mozilla/5.0 (iPhone; CPU iPhone OS 11_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', 18_000)).toBe('proxy_open')
+    expect(classifyOpen(gmail, 61_000)).toBe('opened')
+    // A token from before the send time was carried: judged on the program alone.
+    expect(classifyOpen(gmail, null)).toBe('opened')
+  })
+
   it('counts a real mail program and Gmail\'s proxy as opens', () => {
     expect(classifyOpen('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0 Safari/537.36')).toBe('opened')
     expect(classifyOpen('Mozilla/5.0 (Windows NT 5.1; rv:11.0) Gecko Firefox/11.0 (via ggpht.com GoogleImageProxy)')).toBe('opened')
@@ -201,14 +211,14 @@ describe('what gets tracked', () => {
     const click = /\/api\/email\/c\/([^"]+)"/.exec(html)![1]!
     const open = /\/api\/email\/o\/([^"]+)"/.exec(html)![1]!
     expect(verifyTrackingToken(click, SECRET)).toEqual({ k: 'c', e: 'log42', m: 'unified-inbox', x: 'msg-9', u: 'https://deskwell.co.uk/q/1' })
-    expect(verifyTrackingToken(open, SECRET)).toEqual({ k: 'o', e: 'log42', m: 'unified-inbox', x: 'msg-9' })
+    expect(verifyTrackingToken(open, SECRET)).toEqual({ k: 'o', e: 'log42', m: 'unified-inbox', x: 'msg-9', t: expect.any(Number) })
     expect(html).not.toContain('//api/email')
   })
 
   it('drops a ref that will not travel safely rather than failing the send', () => {
     const { html } = trackedHtml({ html: '<p>x</p>', emailLogId: 'log1', ref: 'has spaces in it', secret: SECRET, siteUrl: SITE })
     const open = /\/api\/email\/o\/([^"]+)"/.exec(html)![1]!
-    expect(verifyTrackingToken(open, SECRET)).toEqual({ k: 'o', e: 'log1' })
+    expect(verifyTrackingToken(open, SECRET)).toEqual({ k: 'o', e: 'log1', t: expect.any(Number) })
   })
 })
 

@@ -94,6 +94,8 @@ export function trackedHtml(input: {
   ref?: string
   secret: string
   siteUrl: string
+  /** When it is going out. Defaults to now. */
+  sentAt?: Date
 }): { html: string; links: number } {
   const base = input.siteUrl.replace(/\/+$/, '')
   const moduleName = tokenSafe(input.moduleName)
@@ -103,7 +105,10 @@ export function trackedHtml(input: {
     ...(moduleName ? { m: moduleName } : {}),
     ...(ref ? { x: ref } : {}),
   }
-  const openToken = signTrackingToken({ k: 'o', ...common }, input.secret)
+  const t = Math.floor((input.sentAt ?? new Date()).getTime() / 1000)
+  // Only the picture carries the send time: it is what an open is judged by,
+  // and every link would otherwise be a few bytes longer for nothing.
+  const openToken = signTrackingToken({ k: 'o', ...common, t }, input.secret)
   return instrumentEmailHtml(input.html, {
     openUrl: `${base}${EMAIL_OPEN_PATH}${openToken}`,
     linkUrl: (destination) => {

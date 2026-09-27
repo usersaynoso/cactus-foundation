@@ -114,6 +114,17 @@ export type ConversationMessage = {
   html: string | null
   sentAt: Date
   attachments: ConversationAttachment[]
+  /**
+   * What kind of contact this message was, on a channel that carries more than
+   * one kind in a single conversation: the telephony one files calls,
+   * voicemail and texts with the same number together.
+   *
+   * Optional, and absent on every channel that only carries one kind. It exists
+   * so a consumer can treat a text differently from a call - a text can be
+   * answered in writing, and filed beside an email that asked the question -
+   * without learning any one module's own message ids to tell them apart.
+   */
+  medium?: 'text' | 'call' | 'voicemail'
 }
 
 export type ConversationListOptions = {

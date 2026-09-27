@@ -77,6 +77,18 @@ describe('the open picture', () => {
     )
   })
 
+  it('files an open seconds after sending as the mail system fetching it on arrival', async () => {
+    const now = new Date('2026-09-27T12:25:24Z')
+    const sentAt = Math.floor(now.getTime() / 1000) - 5
+    const token = signTrackingToken({ k: 'o', e: 'log1', t: sentAt }, SECRET)
+    const gmail = 'Mozilla/5.0 (Windows NT 10.0) Chrome/42.0 (via ggpht.com GoogleImageProxy)'
+    await handleOpen(token, facts({ 'user-agent': gmail }), now).record!()
+    expect(events.recordObservedEvent).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ kind: 'proxy_open' }))
+
+    await handleOpen(token, facts({ 'user-agent': gmail }), new Date(now.getTime() + 10 * 60_000)).record!()
+    expect(events.recordObservedEvent).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ kind: 'opened' }))
+  })
+
   it('records nothing for a bad token, a click token, or staff', () => {
     const click = signTrackingToken({ k: 'c', e: 'log1', u: 'https://a.example/' }, SECRET)
     const open = signTrackingToken({ k: 'o', e: 'log1' }, SECRET)

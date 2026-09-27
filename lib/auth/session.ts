@@ -15,7 +15,9 @@ import {
   revokeSessionById,
   safeCompare,
   getSessionCreatedAt,
+  touchSession,
 } from '@/lib/auth/session-core'
+import { SESSION_IDLE_MS } from '@/lib/auth/session-timing'
 import type { SessionUser, SessionWithMeta } from '@/lib/auth/session-core'
 
 export type { SessionUser, SessionWithMeta }
@@ -49,17 +51,35 @@ export async function isCurrentSessionFresh(maxAgeMs = STEP_UP_MAX_AGE_MS): Prom
 
 const SESSION_COOKIE = 'cactus_session'
 const TRUSTED_DEVICE_COOKIE = 'cactus_trusted'
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
 
-export async function setSessionCookie(token: string): Promise<void> {
+// The cookie's expiry tracks the session row's. Without that, sliding the row
+// alone would be pointless: the browser would still throw the cookie away a day
+// after sign-in, however busy the person had been since.
+export async function setSessionCookie(
+  token: string,
+  expires: Date = new Date(Date.now() + SESSION_IDLE_MS)
+): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    expires: new Date(Date.now() + SESSION_DURATION_MS),
+    expires,
     path: '/',
   })
+}
+
+// Restarts the idle clock for the session in this request's cookie, and carries
+// the cookie's own expiry forward with it. Returns the new expiry, or null when
+// there is no live session to keep going. Route handlers only - a server
+// component cannot set a cookie.
+export async function touchCurrentSession(): Promise<Date | null> {
+  const cookieStore = await cookies()
+  const token = cookieStore.get(SESSION_COOKIE)?.value
+  if (!token) return null
+  const expiresAt = await touchSession(token)
+  if (expiresAt) await setSessionCookie(token, expiresAt)
+  return expiresAt
 }
 
 // Wrapped in React cache() so the two or three calls a single public render makes

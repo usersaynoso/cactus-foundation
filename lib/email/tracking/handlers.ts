@@ -83,7 +83,8 @@ export function handleOpen(rawToken: string, facts: RequestFacts, now = new Date
     record: async () => {
       try {
         const who = await whoFetched(facts)
-        await recordObservedEvent(claim, { kind: classifyOpen(who.userAgent), occurredAt: now, ...who })
+        const sinceSendMs = claim.t ? now.getTime() - claim.t * 1000 : null
+        await recordObservedEvent(claim, { kind: classifyOpen(who.userAgent, sinceSendMs), occurredAt: now, ...who })
       } catch (error) {
         console.error('[email] could not record an open', error)
       }

@@ -27,15 +27,34 @@
 
 export type OpenKind = 'opened' | 'proxy_open'
 
+/**
+ * How soon after sending an open is taken to be the mail system fetching the
+ * picture on arrival rather than a person reading.
+ *
+ * Measured on a live site, 2026-09-27: on every test send, Google's picture
+ * proxy fetched the picture 3 to 5 seconds after the message left, an iPhone
+ * mail app 13 to 18 seconds after, and Apple's privacy fetch inside 22 - all
+ * before anybody could have opened anything. Gmail now fetches pictures as mail
+ * arrives, not only when it is opened, so its proxy can no longer be trusted on
+ * its own. A minute is comfortably past all of that. The price is that somebody
+ * who genuinely reads a message within a minute of it landing is recorded as
+ * "their email app fetched it" - and any later open still counts in full.
+ */
+export const ARRIVAL_FETCH_WINDOW_MS = 60_000
+
 const SCANNER_RE = /mimecast|proofpoint|barracuda|symantec|messagelabs|trend\s?micro|sophos|fortinet|forcepoint|cisco|ironport|zscaler|bot\b|crawler|spider|python-|curl\/|wget\/|go-http-client|java\/|okhttp|headless/i
 
 /** Whether an open came from a person's mail program or from a machine acting
- *  on its own. */
-export function classifyOpen(userAgent: string | null | undefined): OpenKind {
+ *  on its own. `sinceSendMs` is how long after the send it arrived, when the
+ *  token says when that was (tokens minted before it did carry nothing). */
+export function classifyOpen(userAgent: string | null | undefined, sinceSendMs?: number | null): OpenKind {
   const agent = (userAgent ?? '').trim()
+  // Fetched as the message arrived, by whatever fetched it. See above.
+  if (typeof sinceSendMs === 'number' && sinceSendMs < ARRIVAL_FETCH_WINDOW_MS) return 'proxy_open'
   // Apple Mail Privacy Protection, and anything else that says nothing at all.
   if (!agent || agent === 'Mozilla/5.0') return 'proxy_open'
-  // Gmail and Yahoo fetch on open, through their own servers. A real open.
+  // Gmail and Yahoo fetch through their own servers. Past the arrival window,
+  // that is somebody opening it.
   if (/GoogleImageProxy|YahooMailProxy/i.test(agent)) return 'opened'
   if (SCANNER_RE.test(agent)) return 'proxy_open'
   return 'opened'
