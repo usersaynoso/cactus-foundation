@@ -568,6 +568,12 @@ The same mail program, one pane at a time. Below about 1200px there is no room f
 
 **On a tablet** (roughly 900px and up) the list stays beside what you have opened, exactly as on a desktop. **On a phone** you see the list, or the thing you opened from it, never both: a **&lsaquo;** at the start of the subject line takes you back to the list, and the box fills the screen edge to edge under the admin's own bar rather than sitting in a frame. Every pane scrolls its own contents, so the conversation's subject and its buttons stay at the top while you read, and the note bar stays at the bottom. The buttons on the subject line run sideways under your thumb rather than piling up in rows.
 
+**On a phone, swipe a conversation sideways** to deal with it without opening it. **Swipe it left** and **Done** and **Snooze** come out from the right-hand side; **swipe it right** and **Junk** and **Delete** come out from the left. Press one and it happens, with the same five seconds of **Undo** the buttons elsewhere give you - Junk still asks whether to turn the sender away, and Snooze still asks when. Let go short of halfway and the row slides back shut; tap a row that is open and it shuts rather than opening the conversation. Only one row is open at a time. Something already done offers **Reopen** in place of Done, and in the Bin, Delete becomes **Put back** and Junk is left off.
+
+**Swipe in from the left-hand edge of the screen** and the drawer of mailboxes slides out, the same drawer the name on the bar opens; swipe back to the left to put it away. It starts from the very edge on purpose, so a swipe that starts on a row still opens that row. On a phone the drawer is also a third narrower than on a tablet, so the list you are choosing from stays in sight beside it. (If the site is open in Safari rather than added to the home screen, Safari may take a swipe from the very edge as "go back" before the page sees it - the button on the bar always works.)
+
+**On a phone the search, the filter and the sort sit at the bottom of the list** rather than the top, where your thumb already is. The Open/Snoozed/Done tabs and the folder's name stay at the top.
+
 **Dialogs and menus come up from the bottom edge** on a phone - the new-message box, the search, the file and catalogue pickers take the whole screen, and every short menu (assign, snooze, the dots on a message, the pen's arrow) is a sheet along the bottom rather than a small panel pinned to the button that opened it. Anything pressed with a finger, anywhere the screen is a touchscreen, is given a target a finger can hit.
 
 ### Covering somebody's post
@@ -870,6 +876,8 @@ Beside the junk sign at the top of every conversation is a **waste basket**, and
 **Nothing is destroyed by being deleted.** The conversation keeps every message in it and sits in the bin until somebody empties it. Open the **Bin**, press the same basket again, and it goes straight back where it was - or pick a pile and press **Put back**, which is what the Delete button turns into inside the folder. You also get five seconds of **Undo** on the press itself, in the corner of the screen.
 
 **Nothing empties itself.** There is no thirty-day timer and no nightly sweep. A conversation that vanishes on a date nobody chose is exactly what makes people stop trusting a bin, so this one holds what you put in it until somebody presses the button.
+
+**A reply brings it back out.** Deleting a conversation is a decision about what had been said when you pressed the basket, not about whatever comes next. When somebody writes on a conversation that is sitting in a bin, it comes back out of every bin it was in and lands on the lists unread, the same way a reply reopens something marked done, and its history says why. Otherwise the new message would sit unread in a folder nobody opens, waiting for the next **Empty bin** to throw it away before anybody had read it. Out-of-office replies, bounces and post from a sender you have turned away leave it where it is.
 
 #### Emptying it
 
