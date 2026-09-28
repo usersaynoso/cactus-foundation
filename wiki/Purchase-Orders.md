@@ -182,7 +182,7 @@ Open an order and everything you can **do** to it is in one bar across the top, 
     1. **Upload their proforma** - for a supplier who invoices before they confirm. The file, their invoice number (left empty, it is read off the file) and what they are invoicing.
     2. **Upload proof of payment** - the screenshot or remittance, your payment reference, and a tick to send the proof with the "we have paid" email. This is what marks the proforma as paid.
     3. **Upload their acknowledgement** - the file and their sales order number, and a tick (on by default) that marks the order as confirmed by the supplier in the same go.
-    4. **Enter their invoice** - choose the file and their number, date and total are read off it where they can be. Everything still to be invoiced is proposed at the prices you ordered at, with the carriage; change what their invoice says differently and save. It is checked against the order the moment it is saved, and you are told whether it agrees. Anything stranger - a charge that was never on the order - belongs on the full bill form, which is one link away.
+    4. **Enter their invoice** - choose the file and their number, date and total are read off it where they can be. Everything still to be invoiced is proposed at the prices you ordered at, with the carriage and any sale surcharge (on the first invoice only - once anything on the order has been invoiced, both start at nothing); change what their invoice says differently and save. It is checked against the order the moment it is saved, and you are told whether it agrees. Anything stranger - a charge that was never on the order - belongs on the full bill form, which is one link away.
   - A supplier on a credit account simply starts at step 3. If goods are still on their way to you, **Book goods in** stays the solid button and the invoice sits beside it - the lorry usually beats the invoice. When there is no paperwork left and nothing left to arrive, the solid button is **Close the order**.
   - Anything that goes wrong in one of those windows is said inside it, not behind it.
 - Beside it are the everyday ones - **Edit** (or **Amend**, once the supplier has it), **View document**, **Email it again**, **Book goods in**, **Enter a bill**.
@@ -334,6 +334,7 @@ What you type is what is on their paperwork. That is the whole point of the exer
 
 - **Their invoice number** is what everybody will quote. One supplier cannot bill you twice under the same number, however they capitalise it - the second attempt is refused, by name.
 - **The invoice date** is the date on their paperwork, not today. The due date is worked out from it and the supplier's terms, so an invoice dated the second and opened on the twentieth is due thirty days after the second. Paying it thirty days after the twentieth is how an account goes on stop.
+- **Carriage** and **Surcharge** each have a box of their own. On a bill against an order they start at whatever the order carries, on the first invoice only - once anything on it has been billed, both start at nothing, because a supplier charges them once. Both are taxed at the highest rate on the bill, and both reach the books as lines of their own, so a surcharge never makes the carriage look dearer than it was.
 - **VAT** is worked out for you and can be overtyped. Suppliers who round line by line where we round once at the line land a penny or two out on a long invoice, and the figure that matters is the one on the document they would show anybody who asked.
 - **Total, as their invoice states it** is the figure printed on their document, read off the file where it could be read. It is never used as a figure - it is checked against what these lines at these prices actually come to, and if the two disagree by more than a couple of pence the screen says so while you are still typing, and the bill carries the disagreement afterwards. A supplier whose lines all check out and whose total does not has charged you for something nobody has itemised.
 - **A charge that is not on the order** - a pallet fee, a fuel surcharge, a sundry - is added as its own line. It will be flagged, which is the point.
@@ -526,7 +527,8 @@ chairs on the same order add nothing at all. **It never costs you more than it
 has to** - if the surcharge worked out from the categories would push the order
 past the supplier's threshold, only the difference is added, not the full
 figure. A draft is still a draft: read it, and change the figure yourself if
-the supplier's own invoice says something different.
+the supplier's own invoice says something different. When their invoice
+arrives, the surcharge comes across onto the bill with the rest of the order.
 
 **Their words, not yours, either.** Where their price list carries the code, the
 line is described the way THEY describe it on that list. Your shop listing title
@@ -701,7 +703,7 @@ Choose a window - the last twelve months to start with - and the module shows wh
 
 **Spend is what somebody has agreed to pay**: invoices you have approved, and ones already in your books. A draft nobody has looked at and a queried one nobody has settled are not spend yet, and a void one never was. Credits from returns come off it.
 
-**All of it excludes VAT**, which is the figure worth comparing one supplier against another and the only one the category breakdown can produce. The category breakdown comes off the invoice lines, so carriage - which hangs off the invoice rather than off any line - is not in it; that is why it can come to a little less than the supplier table above it.
+**All of it excludes VAT**, which is the figure worth comparing one supplier against another and the only one the category breakdown can produce. The category breakdown comes off the invoice lines, so carriage and any surcharge - which hang off the invoice rather than off any line - are not in it; that is why it can come to a little less than the supplier table above it.
 
 Category names come from UK Bookkeeping. Without it the column shows whatever was typed on the lines, and says so.
 
