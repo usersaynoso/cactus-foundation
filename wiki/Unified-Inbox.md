@@ -782,6 +782,8 @@ The address in your browser holds the lot, so a search can be sent to a colleagu
 
 Search covers subjects, senders and the text of messages, and it only ever searches the inboxes you are allowed to read.
 
+It is forgiving. Half a word will do - **invoi** finds invoice - and so will a word spelt wrong: **recieve** finds receive, by swapping a word your mail never contains for the few closest words it does. A word that is spelt right is taken as meant, so **order** does not start finding border. Numbers and references are never guessed at - **PO-00025** finds PO-00025 and not its neighbour - though any part of a conversation's subject counts, so **0025** finds it too. Put a phrase in quotes, a minus before a word or OR between two, and the search goes back to being exact.
+
 ### Moving a conversation to another mailbox
 
 Mail turns up at the wrong address all the time - a delivery question sent to sales@, an invoice query sent to whoever answered last. **Drag the conversation from the list and drop it on the mailbox it belongs in.** The mailbox lights up as you hover over it; the one it is already in does not, and will not take the drop.
