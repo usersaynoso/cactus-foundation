@@ -65,7 +65,7 @@ For each one you can record the contact details, the account number you buy unde
 - **Lead time**, in days.
 - **Minimum order value** - the order screen tells you when you are under it.
 - **Carriage paid over** and **carriage charge**.
-- **Sale surcharge** - some suppliers charge more for clearance stock bought under a small order. Set the net value below which it applies, and what each category of stock costs per unit - a category is whatever you typed into the **Category** column when you uploaded their price list (**Purchase Orders → Catalogues**). Leave the threshold empty and nothing changes. See [Sold on sale, bought on sale](#buying-for-a-customer-order) for how it is worked out and added.
+- **Sale surcharge** - some suppliers charge more for clearance stock bought under a small order. Set the order value below which it applies (goods plus carriage, net), and what each category of stock costs per unit - a category is whatever you typed into the **Category** column when you uploaded their price list (**Purchase Orders → Catalogues**). Leave the threshold empty and nothing changes. See [Sold on sale, bought on sale](#buying-for-a-customer-order) for how it is worked out and added.
 - **Discount** - the percentage you have off their list. It is used when you import a price list of theirs that quotes retail prices, and nowhere else; leave it empty for a supplier who sends you trade prices already. Empty is not the same as 0%: one is "nothing recorded", the other is "we have checked, and they give us nothing".
 - **A message on their own order page** - a standing note this supplier reads at the top of every purchase order link you send them. Quote the account number, ring before delivering, nothing after three. It goes to them and only them: never on the order document, never on a packing slip, never in an email. See [The supplier's own link](#the-suppliers-own-link). **Notes**, at the bottom of the same form, is the opposite - that one is for you, and never leaves the building.
 
@@ -112,6 +112,8 @@ There is a box for delivery instructions beside it - the gate code, the side ent
 **Notes** come in two kinds, and the labels say which is which: notes for the supplier print on the order, notes for us never leave the building.
 
 The **totals** update as you type. They are worked out again on the server when you save, so what is stored is never whatever the browser happened to think.
+
+**Carriage, surcharge and any order discount are line items, not totals.** On the order screen, on the printed order and in the lines of the email to the supplier they sit as rows of their own under the goods. The totals on the order screen and the printed order are only ever three: **Subtotal** (goods, carriage and surcharge, less any order discount), **VAT** and **Total**. On the printed order, where each line's delivery service is priced on its own row and those rows add up to the carriage, they *are* the carriage and no separate Carriage row is printed; change the carriage by hand and the delivery rows keep their names, drop their figures, and one Carriage row carries the real amount - so the rows on the page always add up to the subtotal. The `{{SUBTOTAL}}` placeholder prints the same figure.
 
 ---
 
@@ -518,8 +520,11 @@ a mistake this module makes quietly.
 
 **Their small-order surcharge, added for you.** Where you have set one up
 (**Purchase Orders → Suppliers → Sale surcharge**), a draft that comes to less
-than their threshold has the surcharge added automatically, as its own line on
-the order total alongside carriage - never folded into what a line costs.
+than their threshold has the surcharge added automatically, as a line of its
+own counted in the subtotal. The threshold is
+checked against the goods **plus carriage**, both net - £290 of goods with
+£25.90 carriage is a £315.90 order, and clears a £300 threshold with no
+surcharge at all. It is never folded into what a line costs.
 Only stock actually bought on sale counts towards it, and only by the category
 you gave that stock on their price list: three chairs bought on sale add three
 lots of whatever that supplier charges per Seating unit, and three ordinary
@@ -764,8 +769,8 @@ Drag them about, drop the ones you do not want, and every one of them has its ow
 | **Who it is between** | Their details and yours, side by side. |
 | **From** / **To** | The same two, one at a time, for a layout that wants them in different places or at different sizes. |
 | **Deliver to** | Where the goods actually go - which on a drop-shipped order is neither address, and is the single most misread line on a purchase order. The country is left off unless you switch it on, because "GB" under every postcode is noise on a sheet going four miles up the road; switch it on and it prints properly spelled out ("France", not "FR"). |
-| **Lines** | What you are buying: description, their code, quantity, unit cost, line total. Under the description sits anything the supplier has to act on differently - the delivery service and what it costs, your own code, the date wanted, a discount. |
-| **Totals** | Goods, discount, carriage, VAT and the order total, with the currency beside it. |
+| **Lines** | What you are buying: description, their code, quantity, unit cost, line total. Under the description sits anything the supplier has to act on differently - the delivery service and what it costs, your own code, the date wanted, a discount. Carriage, surcharge and an order discount follow the goods as lines of their own, each with its own wording, and carriage or surcharge can be printed at nothing where "carriage paid" is the deal. |
+| **Totals** | Subtotal (everything above it, carriage and surcharge included), VAT and the order total, with the currency beside it. |
 | **Terms** | Your standing terms from settings, plus this order's payment and delivery terms. |
 | **Notes** | Whatever was typed on the order *for the supplier*. Notes for you never appear here and cannot be made to. |
 | **Authorised by** | Who raised it, who approved it, and a line to sign if you print them out. |

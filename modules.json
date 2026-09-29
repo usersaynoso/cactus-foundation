@@ -163,12 +163,12 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.43"
+      "version": "v0.1.44"
     },
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.103"
+      "version": "v0.1.104"
     },
     {
       "name": "google-ai-studio",

@@ -27,7 +27,7 @@ You will find it under **Inbox** in the admin sidebar, as a tab called **Unified
 | **Inboxes** | The addresses people write to: where each is collected from, how its replies go out, what they are signed with, and who may read them. |
 | **Collecting** | How far back to go, how long to keep things, attachments, and which way round a conversation reads. |
 | **Sent replies** | Whether to find out what became of a reply after it left. |
-| **People** | Telling colleagues from customers, whether to show people's own pictures, whether shop customers are added to your contacts (only where the shop is installed), the categories you file contacts under, and the shape of your order and quote numbers. |
+| **People** | Telling colleagues from customers, whether shop customers are added to your contacts (only where the shop is installed), the categories you file contacts under, and the shape of your order and quote numbers. |
 | **Campaigns** | Your business name and address for the unsubscribe footer, how long to leave between writing to the same person twice, and how long a finished campaign's log is kept. |
 | **Other apps** | Telling something else on the internet when the post arrives, or when a colleague asks for somebody. |
 
@@ -549,7 +549,7 @@ The inbox is laid out the way a mail program is: one box the height of the windo
 | Group | What is in it |
 | --- | --- |
 | **Yours** | Your own address if you have been given one, then **All**, **Mentioned**, **Drafts**, **Scheduled** and **Sent**. The handful of places one person opens all day, in whatever order you drag them into. **Drafts** and **Scheduled** are only there while there is something in them. Underneath is a **More** button holding the two nobody opens on purpose - **Spam** and **Bin**. |
-| **Shared inboxes** | The addresses the business owns, each with a coloured dot and the number of open conversations beside it. Press one and its **Sent** folder appears underneath - everything that has left that address, whoever wrote it. |
+| **Shared inboxes** | The addresses the business owns, each with a small arrow in front and the number of open conversations beside it. Press one and its **Sent** folder appears underneath - everything that has left that address, whoever wrote it. |
 | **Team inboxes** | Colleagues whose own post you have been let in to, named after the person rather than the address. Press one and their folders open out underneath - **Drafts**, **Scheduled**, **Sent**, **Mentioned**, **Spam** and **Bin**. Only there if somebody has shared one with you. |
 | **Channels** | The chat, form and phone conversations, where another part of the site owns them. Each wears a small picture of what it is - a handset for the phone, a handset with a screen for WhatsApp, a speech bubble for a live chat, a sheet of paper for a contact form. |
 | **Everything else** | **Contacts** (the address book), **Campaigns** if you are allowed them, and, for whoever looks after the site, **Not filed**. |
@@ -562,7 +562,9 @@ The refresh button sits in a box stuck to the foot of the rail, with **Updated**
 
 **Channels wear a picture rather than a dot.** They used to carry the same coloured dot the addresses do, which told one row from another and nothing else - and a group of three rows that are each a genuinely different kind of thing deserves better than three identical marks. The picture is chosen from what the channel calls itself, so anything installed later gets the right one without a setting: a channel that calls itself WhatsApp gets the handset with a screen, a live chat gets the bubble, a phone gets the handset. Anything nobody has a picture for keeps its dot.
 
-**The coloured dots** are worked out from the address itself, so a site with six inboxes gets six different colours without anybody being asked to pick them, and the same address is the same colour on every screen and for every colleague. There is nothing to set and nothing to keep in step. Your own address is the exception: it wears a small figure rather than a colour, because there is only ever one of it and saying "this one is you" is more use than saying which of five colours it happens to have landed on.
+**The arrows.** Every shared and team inbox wears a small arrow in front of its name, pointing right while its folders are tucked away and down once they are showing. It used to be a coloured dot that only turned into the arrow under the pointer, which hid the one thing the mark was for. The phone's bar along the top still shows the chosen inbox's colour.
+
+**The coloured dots** that remain are worked out from the address itself, so a site with six inboxes gets six different colours without anybody being asked to pick them, and the same address is the same colour on every screen and for every colleague. There is nothing to set and nothing to keep in step. Your own address is the exception: it wears a small figure rather than a colour, because there is only ever one of it and saying "this one is you" is more use than saying which of five colours it happens to have landed on.
 
 **Opening the hub takes you to your own inbox.** Not to All, not to wherever you were last: `/hq/inbox` with nothing after it is your own address, every time.
 
@@ -571,6 +573,15 @@ The refresh button sits in a box stuck to the foot of the rail, with **Updated**
 **The order of the Yours group is yours.** Drag any of those entries up or down - or hold Alt and press the arrow keys - and they stay where you put them. Unlike the shared addresses and the channels below, this needs no permission and changes nothing on anybody else's screen, because it is a fact about how you work rather than about the site.
 
 **Mentioned** answers the other half of the same question. Being handed a conversation and being asked about one are two different things: the first puts the whole thing on your desk, the second asks you about a bit of it. Everything a colleague has tagged you in gathers here, with its own **To do**, **Later** and **Done** across the top - see [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something).
+
+### The look
+
+The inbox borrows its finish from a Mac and an iPhone. Controls that change what the list shows are frosted-glass capsules and circles rather than framed boxes; menus and dialogs float over a gentle blur of whatever is behind them; and on a Mac the screen uses the Mac's own typeface.
+
+- **The search box** is a single rounded capsule with the magnifier inside it.
+- **Filter and sort** share one capsule of two halves beside it: three lines for the filters, and the up-and-down arrows for which end of the list comes first.
+- **Open, Snoozed, Done and All** are a row of separate pills. Only the one you are on says its name - the rest are a picture each: an envelope for Open, an alarm clock for Snoozed, a tick for Done, a tray for All (and a figure for Unassigned on a shared inbox). Hover over one, or listen with a screen reader, and it says its name and how many are in it. The one you are on is filled in solid, in the text colour rather than any accent, so it reads the same in light and dark.
+- **Rows** on a computer are rounded, with the one you have open picked out as a soft tint, the way Mail on a Mac draws them. On a phone they stay full-width, as an iPhone's lists do, because they slide sideways there.
 
 ### On a phone or a tablet
 
@@ -582,7 +593,7 @@ The same mail program, one pane at a time. Below about 1200px there is no room f
 
 **Swipe in from the left-hand edge of the screen** and the drawer of mailboxes slides out, the same drawer the name on the bar opens; swipe back to the left to put it away. It starts from the very edge on purpose, so a swipe that starts on a row still opens that row. On a phone the drawer is also a third narrower than on a tablet, so the list you are choosing from stays in sight beside it. (If the site is open in Safari rather than added to the home screen, Safari may take a swipe from the very edge as "go back" before the page sees it - the button on the bar always works.)
 
-**On a phone the search, the filter and the sort sit at the bottom of the list** rather than the top, where your thumb already is. The Open/Snoozed/Done tabs and the folder's name stay at the top.
+**On a phone the search, the filter and the sort sit at the bottom of the list** rather than the top, where your thumb already is: the filter-and-sort capsule on the left, the search in the middle, and the pen on the right. The pen writes an email; the arrow on it opens upwards for a **Discussion**, a **Call** or an **SMS** instead. The pen that used to live in the bar at the top of the screen steps aside while this one is showing. The Open/Snoozed/Done tabs and the folder's name stay at the top.
 
 **Dialogs and menus come up from the bottom edge** on a phone - the new-message box, the search, the file and catalogue pickers take the whole screen, and every short menu (assign, snooze, the dots on a message, the pen's arrow) is a sheet along the bottom rather than a small panel pinned to the button that opened it. Anything pressed with a finger, anywhere the screen is a touchscreen, is given a target a finger can hit.
 
@@ -642,23 +653,15 @@ Your widths are remembered in your own browser, so they are yours rather than th
 
 Junk and deleting are part of covering somebody too: what you mark as junk or delete out of their inbox goes into **their** spam folder or **their** bin rather than yours, and both sit under their name beside **Sent** and **Mentioned**. See [Junk, and turning a sender away](#junk-and-turning-a-sender-away) and [The bin](#the-bin).
 
-### People's own pictures
+### No pictures, no initials
 
-By default everybody appears as a circle with their initials in it.
-
-Plenty of people have published a picture of themselves against their email address at **Gravatar** or **Libravatar** - two long-standing services that do nothing else. Tick **Show people's own pictures beside their messages** on **Settings → Unified Inbox → People** and those pictures appear in place of the initials, on the list, on a contact's row, beside each message, and against your own name at the top of the rail. Nobody is asked to sign up for anything, and nothing changes for anyone who has not.
-
-**It is off until you turn it on, and here is the trade.** To find out whether somebody has a picture, your site has to ask those two services about their address - so those services learn that you hold it. Three things are done to keep that as small as it can be:
-
-- The address itself is never sent. Only a one-way scramble of it goes, which cannot be turned back into the address.
-- The asking is done by your site, not by your browser. Gravatar and Libravatar never learn who on your team is reading their mail, or from where.
-- The picture is then served from your own site, so nothing on the page points at anybody else.
-
-Even so, it is somebody else being told something about your customer, which is why it is your decision rather than one that arrives with an update. If your customers' company runs its own picture service, that is asked first and the two big ones are never troubled at all.
-
-Turn it off again and everybody is back to initials immediately, including on a page somebody left open.
+Nobody appears as a picture or a circle of initials anywhere in the inbox any more - not on the list, not beside a message, not against a contact, and not at the top of the rail. Hardly anybody had a picture to put in one, so it was a column of two-letter circles taking up the width a list on a laptop needs for the name. The name is simply the first thing on the row. The old **Show people's own pictures** setting has gone with them, and so has the little phone, chat or form mark that sat on the corner of the circle: how somebody got in touch is no longer said on the row at all, since who they are is the question.
 
 **Working through several at once.** Rows are picked the way a mail program has picked them for thirty years: a plain click opens a conversation, cmd-click (ctrl on Windows) adds or removes one on its own, and shift-click picks everything between the last one and this one. Space and shift-space do the same for anybody on the keyboard. Pick a few and a bar appears above the list offering the things you would otherwise open each of them to do: **Done** and **Reopen** in words, then the same small pictures the conversation itself uses - an open envelope for read, a sealed one for unread, a clock for snooze, a no-entry sign for junk, a basket for delete, and in the Bin an arrow lifting them back out. Hover over any of them, or reach it with the keyboard, and it says what it is. Six mailing lists on a Monday morning is now two presses rather than twenty-four. Anything that will not change says so and the rest still go through.
+
+While anything is picked, every row grows a small circle at its front - empty on the ones not picked, ticked on the ones that are - so you can see the whole pick at a glance.
+
+**On a phone, press and hold.** There is no cmd key on a phone, so hold your finger on a conversation for a moment and it is picked, with every row showing its circle. From then on a tap picks or un-picks another rather than opening it, exactly as Mail on an iPhone does. Press **Cancel** in the bar, or un-pick the last one, and taps open conversations again.
 
 They are pictures rather than sentences because they used to take three lines of a narrow list column and push the conversations down the screen every time anybody picked one. The two that are still words are the two that say where a conversation *stands* rather than what is about to happen to it, and no drawing means "filed" to anybody. **Clear**, at the far end, drops the pick and changes nothing else.
 
@@ -676,7 +679,7 @@ Only the buttons that would actually change something are drawn. Pick six conver
 
 **Answering is on the message, not on the conversation.** Every message has a **reply arrow** at the right-hand end of its own header, beside the name and the time, and the writing box opens under it when you press it. Beside the arrow are three dots holding the rarer three: **Reply all**, **Forward** and **Mark as unread**. This is worth the change on a long thread: a single Reply button above nine messages could never say which of them you meant, and now the one you are looking at is the one you are answering. Press the arrow again to put the box away. If you left a draft on that conversation it opens with the box already up, so nothing half-written is out of sight. (Starting one from scratch is **Write a message**, above.)
 
-**Internal notes have their own line at the bottom.** One box, always there as you scroll, in the same amber the notes themselves wear, saying on its face that nobody outside sees it. Type and press Enter. A note is not sent to anybody and deliberately does not bump the conversation or mark it unread: us talking among ourselves should not look like the customer writing again. **Type @ to ask a colleague.** The names open in a short menu above the line, one under another; the arrow keys move through it and Return or Tab takes one. You can also simply write the name out - **@Emma can you look at this** - and pressing Enter asks Emma, whether or not you went near the menu. The only thing it will not do is guess: a half-written name, or a name two of you share, is left for the menu to settle. See [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something). For a longer note - something with a file on it - press a reply arrow and switch the box to **Internal note**, which still does everything it always did.
+**Internal notes have their own line at the bottom.** One rounded box on a strip of frosted glass, always there as you scroll, edged in the same amber the notes themselves wear and saying on its face that nobody outside sees it. Type and press Enter, or the round arrow button beside it. **Shift+Enter starts a new line**, and the box grows with the note, up to about six lines, before it scrolls. A note is not sent to anybody and deliberately does not bump the conversation or mark it unread: us talking among ourselves should not look like the customer writing again. **Type @ to ask a colleague.** The names open in a short menu above the line, one under another; the arrow keys move through it and Return or Tab takes one. You can also simply write the name out - **@Emma can you look at this** - and pressing Enter asks Emma, whether or not you went near the menu. The only thing it will not do is guess: a half-written name, or a name two of you share, is left for the menu to settle. See [Asking a colleague to look at something](#asking-a-colleague-to-look-at-something). For a longer note - something with a file on it - press a reply arrow and switch the box to **Internal note**, which still does everything it always did.
 
 **Assign** sits on the subject's own line, between the alarm clock and the button saying where the conversation stands, and opens the list of colleagues to hand it to. Once it is with somebody it says so - *With Marcus* - and pressing it again hands it on or takes it back to nobody.
 
@@ -704,9 +707,17 @@ They do need permission to use the inbox screen at all. Tagging somebody who has
 
 Every ask is written into the conversation's own log, naming who was asked, so "who did we hand this to" has an answer a fortnight later.
 
-**Where it stands is a button, not an instruction.** On the subject's own line, hard against the cross that shuts the conversation, there is one button reading **Open**, **Snoozed** or **Done** - whichever it actually is - with an arrow beside it. Press it and the other answers are there to pick. It used to say "Mark as done", which told you what pressing it would do but never told you where the conversation stood without reading the tag on the line above. Every change is recorded, so "who marked this done" has an answer.
+**Where it stands is a box to tick.** On the subject's own line, hard against the cross that shuts the conversation, there is a square. Empty means it is still open (or asleep); ticked means it is done. Press an empty one and it is marked done; press a ticked one and it opens again. Either way the **Undo** below appears, so a stray press costs nothing. Snoozing and waking belong to the clock beside it. Every change is recorded, so "who marked this done" has an answer.
 
-**Anything that closes a conversation offers to take it back.** Mark one done, snooze it, or junk it, and for five seconds afterwards a small **Undo** sits at the bottom of the screen. Pressing it puts the conversation back exactly where it stood - open if it was open, and still asleep until Monday if that is what it was. Leave it alone and it fades away by itself. It is there because all three of those take the conversation off the list you were looking at, and finding one again meant knowing that **All** exists and which of the forty rows in it was yours.
+**The bin, the junk sign and the snooze clock share one glass capsule** at the left of that row, with a hairline between each, the way Mail on an iPhone groups its own.
+
+**Whose it is sits beside it**, as a capsule: a small figure while nobody has it, their name once somebody does, and an arrow on the right that opens the list of colleagues to hand it to.
+
+**Press an outsider's name or address to see everything they are in.** On any message, the name and address it came from and every address on its **To** line can be pressed - but only for people outside the business: your own addresses and your colleagues' stay plain text. Pressing one opens **All**, every status, narrowed to each conversation that person is anywhere on - who wrote it, who it went to, or who was copied in - with a chip at the top (**Everything with "sam@example.com"**) whose cross takes it off again. It is the exact address, so sam@example.com does not also sweep in bigsam@example.com, and the narrowing stays while you open and work through the conversations it found. The name under the subject works the same way.
+
+**The line under the subject says who it is with**, by name or email address, where it used to say how they got in touch - "Phone", "Email". A conversation merged together out of emails, texts and calls is not a phone conversation, and the question anybody reading it has is who, not how.
+
+**Anything that closes or reopens a conversation offers to take it back.** Mark one done, open one again, snooze it, or junk it, and for five seconds afterwards a small **Undo** sits at the bottom of the screen. Pressing it puts the conversation back exactly where it stood - open if it was open, and still asleep until Monday if that is what it was. Leave it alone and it fades away by itself. It is there because all three of those take the conversation off the list you were looking at, and finding one again meant knowing that **All** exists and which of the forty rows in it was yours.
 
 The same offer appears when you do any of it to a picked pile from the bar above the list: **6 conversations snoozed**, with an **Undo** that puts all six back where each of them individually stood. Where you also turned the senders away, Undo brings the post back out of the spam folder and leaves the front door shut - it says so - because letting somebody back in is a decision about the whole site rather than about six messages, and it is made in the Spam folder or in the inbox settings.
 
@@ -808,6 +819,8 @@ Sometimes one conversation arrives as two. Somebody writes from their work addre
 The conversation you already have open counts as one of them. Reading something and ctrl-clicking a second conversation gives you two picked, not one, which is what the highlight on the open row has always suggested - so the pair you are looking at is a merge without any further ceremony. Ctrl-click the open one again if you did not mean to include it.
 
 Everything folds into **the conversation that started it** - the oldest of the ones you picked. It keeps that one's subject and its place in the list, and every message from the others joins it in date order, so the merged conversation reads as the one story it always was.
+
+**You are asked who it is with.** Where the conversations being merged are with different-looking people - an email from Sam Jones and a phone call from 07700 900123, say - the confirmation lists them and you pick the one the merged conversation should be known by. That name is what the list, the line under the subject and new-mail notices show from then on, however the next message arrives; without it, whichever came in last decided, so a customer's name turned into a phone number every time they rang. Undoing the merge that brought that person in puts back whoever it said before.
 
 A few things worth knowing before you press it:
 
