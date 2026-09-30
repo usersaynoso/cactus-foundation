@@ -21,7 +21,7 @@ The whole thing waits on your cookie banner. No agreement, nothing recorded.
 | Column | What it tells you |
 | --- | --- |
 | Shopper | Their name, their email and their phone number, or "Nothing typed yet" |
-| Stage | Basket only, Checkout started, Abandoned, or Came back (with a link to the order) |
+| Stage | Basket only, Checkout started, Abandoned, or Came back (with a link to the order) - plus **Saved their basket** and its quote number, if they saved it |
 | Items | How many things were in it |
 | Worth | Roughly what it would have been, at today's prices |
 | Reminder | Whether one has been sent, when, and if not, why not |
@@ -135,6 +135,14 @@ Card and bank payments on a Cactus shop write no order at all until the money is
 - Neither line means anybody was charged. If the money had moved there would be an order, and the basket would read "Came back" instead.
 
 Open a basket and the history spells it out with the time on it. A shopper who tries again after a refusal replaces the refusal with the new attempt, which is what actually happened.
+
+### They saved it on purpose
+
+If you also run [Quotes](Quotes) with save-a-basket switched on, a shopper who presses **Save cart as a quote** gets a blue **Saved their basket** badge on their row, with the quote number under it, and the history in the open row says when. A basket parked with a code is still unfinished, but it was put down deliberately rather than walked away from - worth knowing before you write to somebody asking whether they got lost. The CSV export carries it too (`saved_basket`, `saved_at`, `saved_reference`).
+
+It is heard the same way as everything else here, so it waits on the same marketing consent: a shopper who said no to the banner saves their quote perfectly well and simply never appears on this list. Saving again after changing the basket moves the badge to the newer quote. Nothing about reminders changes - a saved basket is chased exactly like any other, so if that feels like nagging somebody who has clearly got it in hand, send by hand rather than leaving the automatic ones on.
+
+Under the hood the Quotes module announces the save on the site's conversion signal (as type `saved-cart`, carrying the quote number), and this module listens. Neither knows the other is installed; with Quotes absent there is simply never a save to hear.
 
 ### Deleting itself
 

@@ -36,6 +36,8 @@ You can also **withhold prices entirely** in this mode, so the shop shows your s
 
 **Saving a basket.** They press the button, optionally give a name and an email, and get a code like `ACDE-FGHJ`. Their quote opens in a panel over the page - your own design, not ours - with a **Download as PDF** button pinned to the bottom of it. If they gave an email, the code and a link arrive there too.
 
+If you also run [Abandoned baskets](Abandoned-Carts), a saved basket shows up on that list with a **Saved their basket** badge and the quote number, so you can tell a parked basket from an abandoned one.
+
 **Getting it back.** The **Retrieve quote** button sits beside the "Your basket" heading. They type the code in, and their basket is put back as it was.
 
 Their basket is **replaced**, not added to, and they are told so before they press it - adding an old basket on top of a new one produces something that is neither.

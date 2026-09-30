@@ -83,12 +83,12 @@
     {
       "name": "quote-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/quote-for-shop",
-      "version": "v0.1.35"
+      "version": "v0.1.36"
     },
     {
       "name": "abandoned-carts-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/abandoned-carts-for-shop",
-      "version": "v0.1.10"
+      "version": "v0.1.11"
     },
     {
       "name": "space-planner-for-shop",
