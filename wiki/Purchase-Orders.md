@@ -80,6 +80,7 @@ Tick **This supplier drop-ships** on a supplier whose goods go straight to your 
 - **Book goods in** and **Record a despatch** are not offered, and the Deliveries card and the Received / Still due columns stay away. Nothing is going to arrive, so nothing asks you to count it. (Anything that *was* booked in before you ticked the box stays on the record.)
 - **Their invoice is checked against what you ordered**, not against what was delivered. Without this every invoice from a drop-shipper was flagged "nothing has been booked in yet" - true, permanent, and therefore noise. Price and total are checked exactly as before, and an invoice for more than you ordered is still flagged.
 - The order's status line stops saying it is waiting for the goods.
+- **Their invoice for the lot counts as the goods arriving.** Nothing from them is ever booked in, so once every line on the order is invoiced in full (less anything given up) and they owe you nothing back, the order finishes itself straight from Sent or Acknowledged, exactly as a delivered order does. If any invoice on it is still a draft or queried - the usual case when it came by email or through their link - it goes to **Pending close** and waits there until somebody presses **Close**. If every invoice on it is already approved or voided - typically because you have just approved the last one you typed in - it goes straight to **Closed**. An order on hold is left alone, and every other supplier works exactly as before.
 
 It is a switch on the supplier rather than the order, and it applies to their open orders as well as new ones. The supplier's own link still lets *them* tell you when something has left, and anything they report still shows on the order.
 
@@ -172,6 +173,124 @@ Two things it will not do. It never overwrites a number you have typed - if the 
 **Every number is yours to type or correct.** Both boxes - **Their invoice number** on the proforma, **Their sales order number** on the acknowledgement - take a number straight from you, with a **Save** button that appears the moment you change one. For a supplier who reads it down the phone, a scan with nothing readable in it, a photograph, or a guess that read the wrong line, just type it in. Emptying the box clears it.
 
 Files are stored and checked for being what they claim to be. **They are not scanned for viruses** - nothing on this platform is, and pretending otherwise would be worse than saying so.
+
+### Reading a supplier's documents
+
+Underneath all of this is a reader that goes through a supplier's PDF **a page at a time**, which matters because plenty of suppliers send a day's invoices as one file: one invoice to a page, each for a different order.
+
+For each document it finds in a file it works out:
+
+- **What it is** - a proforma, their acknowledgement (a *Sales Order* or *Order Acknowledgement*), a VAT invoice or a credit note. It reads the document's own heading first, then the filename, then the email's subject. A *Pro Forma Invoice* is a proforma, whatever the word *Invoice* on the end of it thinks.
+- **Their reference** - the invoice, proforma, credit note or sales order number.
+- **Which of your orders it is for** - by looking for the purchase order numbers you actually issued, exactly, rather than trusting whatever label the supplier put beside them. It will never read one of yours back as theirs.
+- **The date and the total**, where it can find them.
+- **Which pages it runs to.** A new document starts on a page with a different reference; a page with no reference of its own (the second page of a long invoice) stays with the one before it.
+
+It can also **cut a document's pages out into a file of its own**, encrypted files included, keeping everything else about the original exactly as it was. It checks every file it cuts by reading it back, and refuses anything it is not sure of - files that have been edited and re-saved, and a few ways of building a PDF that it deliberately does not handle. Where it refuses, the whole original is used instead: slower to read, never wrong.
+
+On its own this changes one thing you will see: on **Enter a bill**, the date now fills in on invoice layouts that print the date across the page from its label, which it previously missed, and a file of several invoices fills the boxes from the first invoice in it. The rest of a multi-invoice file is filed by the next section, if you switch it on.
+
+---
+
+## Supplier paperwork from email
+
+If the [Unified Inbox](Unified-Inbox) is installed, purchasing can file the paperwork your suppliers email you without anybody opening it: the proforma, their acknowledgement, and the VAT invoice, including the daily batch that arrives as one PDF with an invoice to a page. It is **off until you switch it on**, under **Settings → Purchase Orders → Supplier paperwork by email**.
+
+### What it does
+
+When an email arrives from one of your suppliers with a PDF on it, the file is read within half an hour - often straight away. Each document in it is filed on the purchase order it quotes:
+
+- **A proforma** goes in the proforma slot on the order, with their reference, the amount and the date the email came. If it comes to more or less than the order, beyond your **price tolerance**, the order says so and you are emailed.
+- **A revised proforma** - any second proforma for the same order that cannot be shown to be the very same document (the same number *and* the same amount, both readable) - replaces the first on the order, but loudly. The order then carries the new one's number and amount, never the old ones beside the new file. The first stays in your media library and in the order's history, and you are emailed. That is not paranoia: a "revised invoice" with new bank details is the commonest fraud there is, and an email cannot prove who sent it.
+- **A second proforma for a different amount** says so: *an extra charge, or a revision?* Suppliers do send a separate proforma for an extra charge, and only a person can tell which it is.
+- **The same goes for a second proforma sent through the supplier's own link**: it replaces the first with its own number and amount, raises the same warning, and is refused outright once the proforma is paid.
+- **While any such warning stands, the proforma cannot be marked paid until somebody ticks** *I have checked the bank details on this proforma with the supplier, on a number we already hold*. Their name goes in the order's history. The warning stays until then, whatever arrives afterwards - a second copy of the same "revised" proforma does not make it go away - and a new warning after the tick needs a new tick - including one that arrives while the box is ticked, which is refused with a sentence and shown to you before you can tick again.
+- **Once a proforma is paid, nothing arriving by email replaces it.** A new one waits on the Paperwork list with a sentence telling you to ring the supplier, on a number you already have, before doing anything with it.
+- **Their acknowledgement** (a sales order or order confirmation) goes in the acknowledgement slot with their sales order number, and **marks the order acknowledged straight away** - even on an order whose proforma you have not paid yet, because they have accepted the order and that is what acknowledged means. The badge then reads *Acknowledged, proforma to pay* until you pay it, so the money you owe does not drop out of sight.
+- **A VAT invoice** whose total agrees with what is left to invoice on the order (within your price tolerance) becomes a **draft bill** for everything still left to invoice on that order - with the order's carriage and sale surcharge on it too if it is the first invoice against the order, exactly as when you enter one yourself - priced at the prices on your order - never the supplier's - with the total printed on their invoice kept beside it, so any difference shows. Their invoice is attached to the bill: just its own page, cut out of the batch, or where the file cannot safely be cut, the whole file with a note saying which page is theirs. When that leaves nothing on the order un-invoiced and everything has arrived, the order moves to **Pending close**, exactly as when a supplier invoices through their own link.
+
+Each filed document is copied into your media library under **Purchasing**, beside that order's other paperwork. The email and its original attachment stay in the inbox as they were.
+
+On the conversation in the inbox you will see a line such as *Filed on PO-01234 as the proforma*, with the order linked. When the file was too big to deal with the moment it arrived, the line says *Passed to Purchasing to file* instead, and the order or the Paperwork list is where to look. On the order, a **Filed from their email** card lists each document with a link to the email it came on and the day it arrived.
+
+### What it does not do
+
+It never pays anything, never approves a bill, never sends anything to a supplier, and never puts anything in the books. A bill it writes is a draft, and somebody reads it before a penny moves - which is the whole reason **Pending close** exists.
+
+### When it will not file something
+
+A document is filed only when it is certain: **exactly one** of your order numbers is on it, that order went to **the supplier who sent it**, and it has arrived at a sensible moment - no proforma on a cancelled order, no invoice on a draft nobody has sent, no proforma on an order that is on their account. Anything else waits at the top of the **Orders** tab under **Paperwork**, with one sentence saying why. That includes, always:
+
+- **credit notes**, which are left for a person in this version;
+- a document it cannot tell the kind of;
+- a file quoting none of your orders, or several;
+- a file the inbox could not fetch from the mail server;
+- a scan or a picture where the only clue is the filename or the email's subject - it will not write a bill, or file a proforma, on the strength of what somebody called the file;
+- an invoice whose total does not match what is left to invoice - *"Their invoice says £46.80 but £170.34 is left to invoice on PO-00031 - a part invoice or an extra charge? File it by hand."* - or whose total could not be read. Filing one of those by hand writes the bill for everything left, and the difference shows on the bill for you to adjust.
+
+For each one you can **file it on this order** (pick one of that supplier's orders and say what the document is), say **it is not ours**, or **ignore it**. Filing it by hand goes through exactly the same rules, so it will still refuse an invoice onto an order that is fully invoiced, and say so.
+
+You are emailed about anything that lands on that list, and about a proforma that disagrees with its order - once each, and never to say all went well.
+
+### Who counts as a supplier
+
+Mail is only looked at if it comes from one of your suppliers:
+
+- from the **email** or **copy-to** address on the supplier, exactly, or
+- from **anybody at the same domain as the supplier's email address** - their staff write from all sorts of addresses - unless it is a free email service such as gmail.com or outlook.com, where only the exact address counts. The copy-to address is matched exactly but its domain is not used, because it is often somebody here. Or
+- from anything listed under **Their paperwork also comes from** on the supplier, for an accounts system on a different domain or a second trading name. A domain listed there also covers its subdomains.
+
+An email between colleagues - everybody it was sent to at the sender's own domain - is never matched to a supplier by its domain, whatever is on a supplier record, so a PDF forwarded round the office is not mistaken for the supplier's. A supplier who puts one of their own colleagues in the To line beside you is still recognised. One who writes To a colleague of their own with you in Cc is recognised too.
+
+Everything else is ignored in an instant, which is nearly all of your post. The same invoice arriving twice, or the inbox offering the same email again, never produces a second bill.
+
+## Delivery tracking from email
+
+The other thing your suppliers' post brings is tracking: the supplier replying on the order's thread with a link or a number, or the courier they booked writing to you directly - a two-person delivery firm's "your order is now with us" and "your timeslot is confirmed", or a parcel carrier's "we're expecting your parcel". With the [Unified Inbox](Unified-Inbox) installed, purchasing can read those and record each one as a **despatch** on the order it is about, so you are not copying consignment numbers from one window to another. It is **off until you switch it on**, under **Settings → Purchase Orders → Delivery tracking by email** - a switch of its own, separate from the paperwork one, because it reads couriers' mail as well as suppliers' and what it records can go on to reach your customer.
+
+### What it reads
+
+From the email's own text - never the quoted history underneath a reply, so last week's tracking quoted back at you is not mistaken for news:
+
+- a **tracking link**: a parcel carrier's own page, a follow-my-parcel link, a delivery firm's page that names the parcel and the postcode, or any other link that is plainly about tracking a particular parcel. A generic "track your order" page with nothing in it is not one, and neither are the little pictures, "rate your delivery" surveys and unsubscribe links every such email carries;
+- a **parcel or consignment number** printed beside a label like *Consignment*, *Tracking number* or *Your parcel*, spaces and all;
+- the **delivery day** and **timeslot**, where it gives them - including "out for delivery today, ETA 1-4pm" from the supplier. A window with no day is not taken as a booking: "collect from them between 11 and 6" is opening hours;
+- the supplier's **own order number**, and the **delivery postcode**.
+
+### Which order it is for
+
+It has to be certain, and it tries the strongest evidence first:
+
+1. **One of your order numbers**, from that supplier, on one of their orders - a reply on the order's own thread.
+2. **The supplier's own reference you already hold** - the sales order number from their acknowledgement, or their proforma number - even printed without its leading zeros, as delivery firms do (their *123456* is your supplier's *0000123456*). From a courier rather than the supplier, only a number printed beside *Order number* or *Sales order* counts - never *Your order* or *Our ref*, which on a courier's email are their own numbers - and it has to be at least six characters long, or the delivery postcode in the email has to be the order's.
+3. **A parcel already on one of your despatches** - the second and third emails about the same parcel.
+4. **The delivery postcode alone**, when exactly one order going straight to a customer at that postcode is still waiting to be sent - or has been sent and is still waiting to hear its delivery slot, which is exactly when a delivery firm's "your timeslot is confirmed" email turns up quoting nothing but its link and the postcode. Once you have said yes to one of those, the firm's later emails about a new day carry the same link and go straight on.
+
+The first three are recorded straight away, with two exceptions that go to the Paperwork list instead, saying why:
+
+- **The email gives a different delivery postcode** from the order's - even from your supplier, quoting your order number. It looks like that order's delivery and is going somewhere else, which is exactly when somebody should look.
+- **A courier is the first word that an order has gone.** On an order with nothing despatched yet, an email from anybody but your supplier is only recorded by itself when it quotes the supplier's order number *and* the right delivery postcode. Anything less waits for you.
+
+**The fourth never is**: a wrong guess there would put one customer's delivery on another customer's order, so it waits at the top of the **Orders** tab under **Paperwork** with the tracking, the day and the postcode, and a **Yes, that one** button. *It is not ours* and *Ignore it* are there as usual.
+
+Only your suppliers may use the first rule - anybody can type a number that looks like yours.
+
+**Links from strangers.** Anybody on the internet can send an email with a "tracking" link to a page of their own, and that link would end up in front of your customer. So a link in an email from anybody but your supplier is only kept when it goes to a known carrier (DPD, Royal Mail, Evri, UPS, DHL and the like, the Multidrop-style pages, GFS) or to the sender's own website - a delivery firm linking its own tracking page (never a free email service: somebody writing from a gmail address does not vouch for a gmail.com link). Anything else is left out and only the parcel number kept, and where what is left would start a new despatch, it waits on the Paperwork list. If one of your couriers links a tracking site on a different address, list it under **Also trust tracking links to** in the settings - a whole website, such as *tracking.yourcourier.co.uk*; an ending on its own, like *co.uk*, is refused. An email from anybody else (the courier, the delivery firm) is read only when it actually carries tracking, which is how a courier's email is recognised: by what is in it, not by a list of couriers, so it works for one nobody has heard of. Mail between your own colleagues is never read for tracking.
+
+### What it records
+
+- **A new despatch** covering everything on the order still to be sent, marked *From an email with the tracking* on the **What the supplier has sent** card, with the carrier (named off the link, or off the courier's own email address), the number, the link, and the day and slot when known. It moves no stock and changes no status, exactly like a despatch the supplier files through their link.
+- **Later news about the same parcel updates that despatch** rather than adding another: a timeslot, a new day, or a link where it had none. A number or link already on it is never replaced - a different one is a second parcel, or somebody else's link, not news about this one.
+- **A parcel that went out with no tracking** gets the tracking filled in.
+- Where everything on the order has already gone under other tracking, it is left alone and nothing is overwritten.
+
+The order's history names the email each despatch came from. On the conversation in the inbox you will see a line such as *Tracking recorded on PO-01234 as despatch DSP-00007*, with the order linked - or, for the postcode-only kind, that it is waiting on the Paperwork list.
+
+The same email offered twice, or two couriers' emails about the same parcel arriving together, still makes one despatch.
+
+### Your customer's order
+
+On an order **going straight to a customer** that was raised from one of their shop orders, the despatch - and each later change to its tracking, day or slot - is passed to the shop. What the shop does with it is the shop's own setting (**Settings → Shop → Notifications → Tracking from your suppliers**), off until you choose: leave the customer's order alone, put the parcel on it quietly, or put it on and tell the customer. See [Shop](Shop). A despatch on an order coming to your own warehouse stays in purchasing.
 
 ---
 
@@ -389,7 +508,7 @@ Where it lands depends on whether anybody still has reading to do:
 - **Closed**, where every invoice on the order has been approved, is in the books, or has been voided. There is nothing left for anybody to look at.
 - **Pending close**, where an invoice on it is still in draft or still queried - which is what a supplier filing their own invoice through their link leaves behind. Everything has happened; somebody here has still to agree that what they say you owe is what you owe.
 
-It is checked at each of the three moments an order can actually finish: approving or voiding the last invoice, a supplier sending theirs in, and the last delivery being booked in on an order the invoices got to first.
+It is checked at each of the moments an order can actually finish: approving or voiding the last invoice, a supplier sending theirs in (through their link or by email), and the last delivery being booked in on an order the invoices got to first. For a supplier who drop-ships, "fully delivered" is the invoice itself - see *Suppliers who drop-ship*.
 
 It will not settle one with a return still waiting on its money. Closing the order would file away the one screen showing that a supplier owes you.
 
@@ -575,10 +694,11 @@ right, not to send the buying team round the loop again, so they do not show the
 customer-order buying panel, make drafts by themselves, or appear in the
 overnight "paid but not bought" sweep.
 
-**It drafts and it stops.** Nothing is approved, nothing is sent, no supplier
-hears a word. What is being automated is the typing, not the buying - a draft
-sitting on the Orders tab commits you to nothing, and somebody still reads it and
-presses Send. Drafts over your approval threshold still need approving, exactly
+**It drafts and it stops** - unless you have also asked for the drafts to be
+sent by themselves (below), supplier by supplier. Otherwise nothing is approved,
+nothing is sent, no supplier hears a word. What is being automated is the typing,
+not the buying - a draft sitting on the Orders tab commits you to nothing, and
+somebody still reads it and presses Send. Drafts over your approval threshold still need approving, exactly
 as they would if you had typed them.
 
 **You are told when something could not be bought, and only then.** A run nobody
@@ -602,6 +722,69 @@ for you to sort out: the goods may already be on their way, and that is a
 conversation with the supplier rather than something to cancel behind your own
 back. An order that is *already* cancelled or refunded is never bought for in the
 first place.
+
+### Having those drafts sent by themselves
+
+**Settings → Purchase Orders → Sending those drafts by themselves**, and then
+**Suppliers → (a supplier) → Send their automatic drafts by themselves.** Both are
+off until you switch them on, and both have to be on: the first is the master
+switch, the second says which suppliers it applies to.
+
+With them on, a draft made when a customer pays is emailed to its supplier once a
+wait is up - an hour unless you change it - exactly as if you had pressed Send:
+the same email, the same link for the supplier, the same entry in the order's
+history. The check runs every half hour, so in practice it goes between one hour
+and an hour and a half after the customer paid. Where a name would go under
+**Authorised by** on the purchase order, it says **Sent automatically**, because
+that is what happened. The order screen and the orders download from the Reports
+tab say the same.
+
+**Read this before you tick a supplier.** On the first live site to use automatic
+drafting, most of the drafts had their prices changed by hand before they were
+sent - by anything from 2% to a quarter. A draft that is usually wrong should not
+go out by itself. So each supplier shows its record beside the switch: *"Of the
+last 10 automatic drafts to this supplier, 7 were changed before they were sent."*
+That number is the thing to watch. It is information, not a lock - you decide -
+but if it is not close to nought, the drafts are not ready to send themselves.
+
+**A person touching it takes it out of the queue for good.** While a draft is
+waiting, the customer order's Purchasing panel and the order itself say *"Sends
+automatically at 14:30 unless you open it and change it"*, in your own time zone.
+Save any change to it - an edit, putting it on hold, submitting it for approval,
+changing its terms - and it will not be sent by itself: a person changed it, so a
+person sends it, and the order says who. Pressing **Send** yourself before the time
+is up works exactly as it always has. The one moment you cannot do either is the
+minute it is actually being sent: you are told *"This draft is being sent
+automatically right now. Look again in a minute"*, and when you do, it has gone - so
+nothing ever reaches the supplier twice, or reaches them with one version while the
+screen shows another.
+
+**What it will not send.** Each of these leaves the draft as a draft, says why on
+the order, and sends you one email about it (never one every half hour):
+
+- the master switch or the supplier's switch was turned off during the wait;
+- the customer order was cancelled or refunded during the wait, in full or in part,
+  or is anywhere other than paid and going ahead - on hold, say, or its payment
+  failed;
+- the order is over your approval threshold, as your settings stand at the moment
+  it would go - nothing is ever approved by itself;
+- the supplier has no email address;
+- anything on the customer order could not be drafted at all;
+- a line with no price, or - with suppliers' price lists switched on - a line whose
+  price is not exactly what that supplier's current list says, or that the list
+  marks discontinued;
+- an order already sent once: a change to it is never sent by itself;
+- the email would not go after three tries, half an hour apart. The email you get
+  quotes what the mail server said.
+
+And once an email has gone it is never sent again by itself. If the site could not
+note it on the order afterwards, or the check stopped part way through, the draft
+says so and asks you to check before sending it yourself.
+
+**It never turns itself off.** If a supplier's proforma or invoice arrives by
+email disagreeing with the order, the paperwork email says so and adds that their
+drafts are being sent by themselves. The switch stays where you put it: whether to
+turn it off is your decision, and that email is the moment to make it.
 
 ---
 
@@ -931,7 +1114,7 @@ The tracking link is for your side of the desk only. It never prints on the pack
 
 Plenty of them will not. They email, or they ring, and somebody here writes it down.
 
-**Record a despatch**, under **More** at the top of the order, opens a form on that same card with what is still to send, a box per line, the date it left them, the carrier, the tracking number and a tracking link. Save it and you get the same row, the same number and the same packing slip - the table simply says *Entered here* rather than *Told to us by the supplier*, so you can always tell which is which.
+**Record a despatch**, under **More** at the top of the order, opens a form on that same card with what is still to send, a box per line, the date it left them, the carrier, the tracking number and a tracking link. Save it and you get the same row, the same number and the same packing slip - the table simply says *Entered here* rather than *Told to us by the supplier*, so you can always tell which is which. A despatch read off an email (see [Delivery tracking from email](#delivery-tracking-from-email)) says *From an email with the tracking*, and shows the delivery day and slot where the email gave them.
 
 Two things it does differently from the supplier's own page, both on purpose:
 
@@ -977,6 +1160,7 @@ The wording is yours: **Settings → Purchase Orders → Wording on a packing sl
 - **Wording on a packing slip** - the heading, the opening line, and what somebody should do if the box is short or damaged, plus the start of the filename a saved slip gets. Its own wording again, because this one goes in the box and is read by your customer rather than by your supplier.
 - **Reordering** - whether draft orders are raised overnight from your reorder levels. Off by default, and greyed out on a site with no catalogue. See [Reordering](#reordering).
 - **Buying for customer orders** - whether a paid customer order drafts its purchase orders by itself. Off by default, and greyed out on a site with no shop. It drafts and stops; nothing is ever sent to a supplier without somebody sending it. See [Having it drafted the moment they pay](#having-it-drafted-the-moment-they-pay).
+- **Supplier paperwork by email** and **Delivery tracking by email** - only on a site running [Unified Inbox](Unified-Inbox). Each off by default, each its own switch. See [Supplier paperwork from email](#supplier-paperwork-from-email) and [Delivery tracking from email](#delivery-tracking-from-email).
 - **Suppliers' price lists** - whether an order line is priced off a supplier's own list where one names the code. Off by default. You can keep lists on file either way; this is the switch that lets them price anything. See [Suppliers' price lists](#suppliers-price-lists).
 - **Where this email goes** - only on a site running [Unified Inbox](Unified-Inbox), and only for somebody who may manage it. Two questions, either useful on its own. **Send these from** picks which of your inboxes your purchase order emails leave as, so a supplier's reply lands with the people chasing the order rather than in the site's general post. **Keep a copy of these in** files each order you send as a conversation in an inbox, holding what you sent and the document that went with it, for the supplier's reply to land under - worth switching on whichever address they go out as, since email your site sends never appears in a mail folder otherwise. Left alone, they go out as the site's usual address exactly as they always have and nothing is filed. Each saves itself the moment you pick.
 - **Chasing and the supplier link** - whether a supplier hears from you when an order is late, how late it has to be, and how often to ask again; whether every order you send carries a link of its own, and how long those links last; whether suppliers may **send you files** through that link (their proforma and their acknowledgement); whether they may **say what they have sent** and take away a packing slip for each delivery; and whether they may **send you their VAT invoice**, ticking off what it covers. The first two of those three are on and the invoice one is not, and all three are greyed out entirely with the link itself off. See [Chasing a late supplier](#chasing-a-late-supplier), [The supplier's own link](#the-suppliers-own-link), [What they have sent, and the packing slip](#what-they-have-sent-and-the-packing-slip) and [Letting suppliers invoice you through the link](#letting-suppliers-invoice-you-through-the-link).
@@ -996,12 +1180,48 @@ Purchasing works out for itself what else is on the site, and every screen behav
 - A supplier's price list can be picked from the catalogues your shop already records for them - which is also what lets it be imported straight from the link rather than from a file - and your products can be checked against the codes and prices they currently publish.
 - A customer's order can be bought in at the press of a button, one draft per supplier, delivered straight to them - see [Buying for a customer order](#buying-for-a-customer-order).
 
+- A despatch recorded from a courier's email, on an order going straight to the customer, can be put on the customer's order - see [Your customer's order](#your-customers-order).
+
 **With the UK Bookkeeping module:**
 - Bill lines can be filed under your own expense categories as you type them, and the spend report names those categories rather than only their references.
 - Approving a supplier bill files it in the books as an expense, with their own invoice attached as evidence. Voiding it takes it back out. A supplier credit reduces what you spent and the VAT you reclaimed. See [Straight into the books](#straight-into-the-books).
 
 **With neither:**
 - Everything above is either typed in by hand (lines, suppliers) or honestly switched off (stock, reordering, the books). Suppliers, orders, approvals, deliveries, returns, bills, chasing, price lists, the exports and every report on the Reports tab work exactly as they do anywhere else. A price list is a purchasing thing: you can keep one, import it and price orders off it with no shop on the site at all. Approved bills simply stop at approved - a purchasing record with the supplier's own invoice attached, rather than a ledger entry.
+
+### For module authors: `purchase-orders.despatch-recorded`
+
+Purchasing announces a despatch through an extension point, so the module that owns the customer's order can act on it without purchasing knowing it exists. **Observers, not contributors**, modelled on the shop's `shop.order-paid`: nothing an observer returns is used, and one that throws is logged and the next still runs. Register it `serverOnly` - it is database work - and restate the payload type locally rather than importing purchasing:
+
+```json
+{
+  "point": "purchase-orders.despatch-recorded",
+  "id": "your-module-despatch",
+  "serverOnly": true,
+  "import": "./lib/despatch-observer",
+  "component": "yourDespatchObserver"
+}
+```
+
+```ts
+type DespatchRecordedEvent = {
+  despatchId: string                 // stable across updates to the same parcel
+  change: 'new' | 'update'
+  purchaseOrderNumber: string
+  source: { module: 'shop'; orderId: string } | null   // from the order's source
+  lines: Array<{ sourceOrderItemId: string; qty: number }>   // the customer order's own lines
+  carrier: string | null
+  trackingNumber: string | null      // spaces taken out
+  trackingUrl: string | null
+  trackingShortCode: string | null   // the code out of a follow-my-parcel link, as read
+  deliveryDate: string | null        // 'YYYY-MM-DD'
+  deliverySlot: [string, string] | null   // ['HH:MM', 'HH:MM']
+}
+```
+
+It fires **for a new despatch and for each real change** to one (a new tracking number or link, a delivery day or slot), and not for an email that changes nothing: what was last announced is kept on the despatch, written once every observer has taken it without throwing - an observer that fails hears about it again with the next offer.
+
+**Failures.** An observer **throws** for a passing failure (the order was busy, the database blinked) and **returns** for a permanent refusal (switched off, a cancelled order, tracking already there). A throw leaves the despatch pending, and the half-hourly inbound-documents job announces it again - waiting half an hour longer after each failure (up to four hours), so one that keeps failing does not hold up the rest - and after ten failed tries it stops and puts it on the **Paperwork** list ("Delivery tracking not passed on"), saying the parcel has to be put on the customer's order by hand. A return is taken as done. An observer that stops part way and throws is offered the same despatch again, so it should finish whatever it left undone (the shop does: lines it had not yet recorded, and the order's status). Two runs reading the same email at the same moment may both announce it, so **an observer must be idempotent** (the shop's is: the second time, the tracking is already on the order). A tracking link in the event has already been through purchasing's check on whose links to believe; check it again by your own rules before showing it to anybody. It fires only for an order going straight to a customer that was raised from one of their orders (`source` set), and only for lines that came from that order. Normalise what you are given with your own rules - which courier it is, which link you keep - since this is what the email said.
 
 ---
 

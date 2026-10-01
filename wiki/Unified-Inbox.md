@@ -1004,7 +1004,7 @@ Post that arrived before this was fixed is included as far as it can be. Older m
 
 Once you have pressed it for a message, that message keeps its pictures. Go off to something else, come back to it a fortnight later, and it opens with them already there rather than asking again - the sender found out the first time, and there is nothing left to protect by making you click twice. It is remembered by the browser you pressed it in, so a different computer starts the message the careful way round. The five hundred most recent are held; older ones quietly drop off the end.
 
-**Attachments are fetched when somebody opens one**, not while collecting. Once fetched they go into your media library like any other file, filed under whoever the message was with: **Inbox**, then their email address, then **Received** or **Sent**. So one supplier's whole paper trail sits in one folder, and you can find last March's invoice from the media page without going anywhere near the conversation it came on.
+**Attachments are fetched when somebody opens one**, not while collecting. Once fetched they go into your media library like any other file, filed under whoever the message was with: **Inbox**, then their email address, then **Received** or **Sent**. So one supplier's whole paper trail sits in one folder, and you can find last March's invoice from the media page without going anywhere near the conversation it came on. The one exception: when another part of the site is listening for post and has asked for a particular kind of file - purchasing asking for PDFs, say (see *Other parts of the site hearing about the post*) - files of that kind on post arriving from outside go into the library as the message is collected, so it has something to read. Only PDFs and ordinary pictures can ever be stored this way, each checked by what is actually inside it rather than what the sender called it, and never more than 30MB per email. Web pages, SVG drawings and programs are never stored without somebody opening them, whatever anybody asks for. Set **Attachments** to never fetch them and nothing is stored this way either.
 
 **Worth knowing before you rely on it:** anything filed there can be seen by everybody on your site who can use the media library. Attachments used to be kept where only the inbox could reach them, precisely so that an invoice out of `accounts@` did not turn up in front of everybody who can edit a page. Putting them on the media page gives that up, on purpose. If that is not what you want for a particular address, the people who can open that inbox is still the setting that matters, but the files themselves are now in the open.
 
@@ -1491,6 +1491,86 @@ says so on the screen. Editing it starts it again.
 **Send a test** fires a made-up message at the address there and then, shaped as
 the first thing on the list it is ticked for, and tells you what came back. Nobody's real post is used to prove a web address works.
 **History** shows the last twenty notes, what each one was about, and what happened to it.
+
+## Other parts of the site hearing about the post
+
+Some of your other modules may want to know when an email arrives - purchasing filing a supplier's proforma on the right purchase order, say. The inbox tells them, and they decide whether it is any of their business. On a site where nothing is listening, none of this happens and nothing extra is done.
+
+**What they are told about:** post that has arrived from outside, once it and its attachments are safely stored. Never your own replies, never a colleague's note, never an out-of-office, bounce or newsletter, never post from a sender you have blocked, and never a conversation somebody has marked as junk. Nor the history a new mail account is read in with - a proforma from last March is not news.
+
+**What they can do about it:** put a link on the conversation to the record the email is about, exactly like the ones the inbox finds from a reference number. It says it was found automatically and comes off in one click - and once you have taken one off, it stays off: offering the post again does not put it back. Adding it yourself later works as normal. They can also leave one line on the message itself, such as *"Filed on PO-01234 as the proforma"*, shown just above the message. Hover over the line to see which part of the site wrote it.
+
+**If something goes wrong:** a module that takes too long or falls over is given up on and the next one is told; collecting your post is never held up. Anything that was not offered at the time - the site was being updated, the check ran out of time - is offered on the next hourly check, for up to three days.
+
+**Offer the last 14 days again**, on each address under **Settings → Unified Inbox → Inboxes**, hands that address's last fortnight of post to the listening modules again, whether or not they have seen it. It is for switching a module on after the paperwork has already arrived. Nothing is done twice - a module that has already filed something recognises it. The button only appears when something is listening, and only on an address post actually arrives at.
+
+### For module authors: `unified-inbox.message-received`
+
+A module listens by registering a handler in its own `cactus.module.json`. Colleague-to-colleague email between two of the site's own addresses is offered too, on the side that received it. Mail the inbox classes as automated is never offered: anything with an `Auto-Submitted` header other than `no`, a `Precedence` of `bulk`, `list` or `junk`, any `List-Id`, a delivery report or other bounce, or mail from the site's own sending address. Some carriers' and suppliers' order systems set those headers on perfectly useful mail, so a module that needs it cannot rely on this point for it today.
+
+```json
+{
+  "point": "unified-inbox.message-received",
+  "id": "my-module-inbound",
+  "serverOnly": true,
+  "import": "./lib/inbound-handler",
+  "component": "myInboundHandler"
+}
+```
+
+`serverOnly` keeps it out of the map public pages load; the inbox reads the server map. Do not import anything from `@/modules/unified-inbox` - restate the types below in your own file. They are structural, so a later inbox that sends more fields does not break you.
+
+`component` names either the handler function itself, or - when you need files in hand - an object:
+
+```ts
+export const myInboundHandler = {
+  attachmentTypes: ['application/pdf'],
+  handle: async (event: InboundMessageEvent, context: { signal: AbortSignal }) => { /* ... */ },
+}
+```
+
+`attachmentTypes` asks the inbox to store files of those kinds in the media library as mail arrives, so `mediaId` is set. It lives on the export, not on the manifest entry, because core stores a parsed manifest and drops fields its schema does not know. Only `application/pdf`, `image/png`, `image/jpeg`, `image/gif` and `image/webp` are honoured; anything else you name is ignored. Each file is judged by its own first bytes, not the sender's label, and stored as the kind its bytes prove. At most 30MB per message. Without `attachmentTypes`, every file comes with `mediaId: null` unless somebody has already opened it.
+
+```ts
+export type InboundMessageEvent = {
+  messageId: string        // uin_messages.id - your idempotency key
+  threadId: string
+  fromAddress: string      // lower case; '' when the channel had no address (a text, a call)
+  toAddresses: string[]
+  ccAddresses: string[]    // who was copied in, as toAddresses; [] when nobody, or a channel with no Cc
+  subject: string          // '' when there was none
+  bodyText: string         // capped at 20,000 characters
+  sentAt: string           // ISO 8601, the date on the message
+  attachments: Array<{
+    attachmentId: string
+    filename: string
+    mimeType: string
+    sizeBytes: number
+    mediaId: string | null // core Media row; null for inline parts (ignore them) and unstored files
+  }>
+}
+
+export type InboundMessageOutcome = {
+  links?: Array<{ moduleName: string; recordType: string; recordId: string; label: string }>
+  note?: string            // one line on the message
+}
+
+export async function myInboundHandler(
+  event: InboundMessageEvent,
+  context: { signal: AbortSignal },
+): Promise<InboundMessageOutcome | void> { /* ... */ }
+```
+
+The rules:
+
+- **Be idempotent on `messageId`.** The same message is offered again by the hourly catch-up when a run was cut short, and on purpose by the "offer again" button, which ignores what was offered before. Doing something twice on a second offer is your bug. The inbox claims each message before offering it, so offers of one message do not normally overlap, but a claim can expire under a run that died slowly: make the guarantee with a unique constraint and `ON CONFLICT`, never by looking first and then inserting.
+- **Five seconds.** The signal is aborted when they run out and whatever you return afterwards is ignored. Do the cheap check inline (is this sender any of mine?) and queue anything slow - reading a PDF - for your own cron.
+- **Throwing is allowed and logged**, and the next handler still runs. The message is still marked as offered: a handler that fails every time is not retried every hour.
+- **Return nothing** for mail that is not yours, which is nearly all of it.
+- **`links`** are stored as automatic links on the conversation (at most ten per handler). Only name records that exist. A link somebody has taken off that conversation is not put back.
+- **`note`** is folded to one line and cut at 200 characters. A later offer replaces your earlier line rather than adding a second; returning no note leaves the old one alone.
+- **Read the file** by `mediaId` with core's `downloadMedia`. Files of the kinds you asked for are stored as the message is filed (unless **Attachments** under **Collecting** is set to never fetch them). For older messages, the catch-up and the button fetch them from the mail server first, allowing eight seconds per file. A file that cannot be had in time is left out, no further files are fetched for that message (the slow fetch is still running and a second would open another connection to the same mailbox), and the message is offered anyway with those files' `mediaId` null. A message with no sender address gets nothing stored, having no library folder to file it under. A slow mail server is not the same as running out of time: when a run simply has no time left to fetch a file you asked for, the message is not offered yet - it waits for the next run, with any file already fetched kept, so you are not handed it without the file. (The one exception is a message whose files keep failing: it is offered with what there is rather than waiting for ever.)
+- **When a message is offered:** email, straight after it is filed, during the collecting pass that found it. Messages from other channels (forms, chat, texts) as they are copied in, if dated within the last three days. The hourly catch-up re-offers anything from the last three days never marked as offered; a module installed later sees those, and older post through the button.
 
 ## Reply Catcher
 

@@ -462,6 +462,29 @@ Recorded a dispatch that never happened? Press **Undo** beside it in the Parcels
 
 Two sensible limits: you can't dispatch more of something than was bought, and you can't dispatch something you've already refunded. If a refund and a dispatch are attempted at the same moment, one of them waits its turn rather than both squeezing past the check.
 
+### Tracking from your suppliers
+
+When a supplier delivers straight to your customer, the tracking usually reaches *you* - the supplier's reply, or an email from the courier they booked - and the customer is left waiting until somebody copies it across. If you run [Purchase Orders](Purchase-Orders) with **Delivery tracking by email** switched on, purchasing reads those emails and records the despatch on its purchase order. Whether that despatch then reaches the customer's order here is this shop's own decision, under **Settings → Shop → Notifications → Tracking from your suppliers**:
+
+- **Leave the customer's order alone** (the default). Nothing the supplier's tracking says reaches the order; you record parcels yourself, as now.
+- **Put it on the customer's order, but email nobody.** The parcel goes on the order with its tracking, and the order moves to **Dispatched** as it would if you had pressed **Dispatch items** - but the parcel is marked **quiet**. The customer is not emailed now, and nothing that follows from that parcel emails them either: not the delivery window or the failed-delivery message the automatic tracking would otherwise send, and not the completion email when it lands (the order still completes). They can see the parcel on their own order page. When you want them told, open the parcel (**Edit tracking** in the Parcels list) and press **Send dispatch note**: they get the dispatch note a parcel you recorded yourself would have sent, tracking and all, and from then on the parcel behaves like any other. This is the setting to start with: give it a fortnight, check what it recorded against what actually turned up, and only then let it talk to anybody. Switching to the next setting later does not go back and email anybody about parcels recorded quietly.
+- **Put it on the customer's order and tell the customer.** The same, plus exactly the emails a parcel you recorded yourself would send: the dispatch note for a new parcel, the "here is your tracking" message for one that went out without, and the delivery window once the courier confirms it.
+
+What it does with the order:
+
+- **A parcel you already dispatched with no tracking** - you pressed **Dispatch items** and left the number blank, which is common - has the tracking filled in, rather than a second parcel appearing. If that parcel held only some of what the supplier sent, the rest goes on as a parcel of its own with the same tracking.
+- **The same tracking already on the order**: nothing, apart from a newly confirmed delivery day or window, which follows the same rules as typing it in with **Edit tracking** yourself (the window email goes once per parcel, and only in the third setting).
+- **Otherwise** a new parcel for the items the supplier sent, carrying their tracking, with the courier matched to your own courier list where it can be: by name, or by the link - a DPD follow-my-parcel link goes on your DPD courier with its code, a Multidrop link on your Multidrop courier - so the automatic tracking above picks it up.
+- **A tracking link** is only kept when it goes to a courier the shop knows (DPD, Royal Mail, Evri, UPS, DHL and the like, Multidrop, GFS). Anything else read out of an email is left off and only the number goes on: an email can come from anybody, and the link is what your customer would press.
+
+Only the **first** announcement of a despatch puts parcels or lines on the order. Later news about it - a new day, a confirmed window - only changes the day and window on the parcel already carrying that tracking. By then the order is yours: an item you held back stays held back, and a parcel you deleted is not put back.
+
+Nothing is brought across after the event: despatches purchasing recorded while this was set to **Leave the customer's order alone**, or before the shop could hear about them at all, stay on the purchase order only when you switch it on later. Later news about one of those changes nothing here either - unless you typed the same tracking onto a parcel yourself, in which case its day and window are kept up to date like any other.
+
+And what it will not do: put anything on a **cancelled or refunded** order, or **overwrite tracking already on an order**. If everything the supplier sent is already dispatched here under different tracking, it leaves it alone. Two emails about the same parcel arriving at once still make one parcel.
+
+**For module authors.** The shop listens on `purchase-orders.despatch-recorded` (documented on [Purchase Orders](Purchase-Orders#for-module-authors-purchase-ordersdespatch-recorded)) with a `serverOnly` observer, `lib/despatch-observer.ts`. It acts only on an event whose `source` is `{ module: 'shop', orderId }`, and treats `lines[].sourceOrderItemId` as its own order item ids. Any module can announce on that point; the shop does not know or care which.
+
 ### Delivery dates, time windows and your own couriers
 
 Some couriers work in two goes. They collect the parcel and tell you which **day** it is going out on; then, usually the evening before, they ring back with the **four-hour window**. The order has already been dispatched by then, so there is nothing left to send - and the bit the customer actually plans their morning around arrives last.
