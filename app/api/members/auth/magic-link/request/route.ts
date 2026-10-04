@@ -13,6 +13,7 @@ import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
 import { sendMagicLink, sendNotRegisteredNotice } from '@/lib/members/magic-link'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
+import { memberLoginMethods } from '@/lib/members/login-methods'
 
 const Body = z.object({ email: z.string().email() })
 
@@ -39,7 +40,12 @@ export async function POST(request: NextRequest) {
 
   const member = await prisma.member.findUnique({
     where: { email: parsed.data.email },
-    select: { id: true, email: true },
+    select: {
+      id: true,
+      email: true,
+      password: { select: { id: true } },
+      passkeys: { select: { id: true }, take: 1 },
+    },
   })
 
   const siteConfig = await prisma.siteConfig.findUnique({
@@ -49,7 +55,20 @@ export async function POST(request: NextRequest) {
   const siteName = siteConfig?.siteName ?? 'Cactus'
 
   if (member) {
-    await sendMagicLink(member.id, member.email, siteName)
+    const methods = memberLoginMethods(
+      {
+        passkey: isAuthMethodEnabled(config, 'PASSKEY'),
+        password: isAuthMethodEnabled(config, 'PASSWORD'),
+        magicLink: true,
+      },
+      {
+        hasPasskey: member.passkeys.length > 0,
+        hasPassword: member.password !== null,
+      }
+    )
+    if (methods.magicLink) {
+      await sendMagicLink(member.id, member.email, siteName)
+    }
   } else {
     await sendNotRegisteredNotice(parsed.data.email, siteName)
   }

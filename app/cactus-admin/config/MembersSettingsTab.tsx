@@ -65,7 +65,7 @@ const AUTH_METHOD_FIELDS = [
   {
     key: 'MAGIC_LINK',
     label: 'Email sign-in link',
-    hint: 'A one-time link to their inbox. Needs no setup, which is why it has no "required" option - the mailbox is the credential.',
+    hint: 'A one-time link for members who have not added a password or passkey yet. Needs no setup, which is why it has no "required" option - the mailbox is the credential.',
     requiredHint: null,
     allowRequired: false,
   },

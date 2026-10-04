@@ -18,7 +18,8 @@ export type EnrolableAuthMethod = (typeof ENROLABLE_AUTH_METHODS)[number]
 export type HeldAuthCredentials = {
   hasPasskey: boolean
   hasPassword: boolean
-  // Any verified second factor - authenticator app, email code or SMS.
+  // Any usable second factor - an enrolled authenticator/SMS method or the
+  // built-in email code while email delivery is available.
   hasTwoFactor: boolean
 }
 
@@ -67,7 +68,7 @@ export async function memberOutstandingAuthSetup(
   return outstandingAuthSetup(config, {
     hasPasskey: record.passkeys.length > 0,
     hasPassword: record.password !== null,
-    hasTwoFactor: record.twoFactorConfigs.length > 0,
+    hasTwoFactor: isEmailConfigured() || record.twoFactorConfigs.length > 0,
   })
 }
 

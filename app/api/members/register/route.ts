@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMembersConfig, registrationPasswordPolicy } from '@/lib/members/config'
+import { getMembersConfig, isAuthMethodEnabled, registrationPasswordPolicy } from '@/lib/members/config'
 import { hashPassword, validateNewPassword } from '@/lib/auth/password'
 import {
   isUsernameFormatValid,
@@ -21,6 +21,7 @@ import { verifyTurnstile } from '@/lib/auth/turnstile'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
 import { notifyAdminMemberPendingApproval } from '@/lib/members/admin-notify'
+import { memberLoginMethods } from '@/lib/members/login-methods'
 
 const Body = z.object({
   email: z.string().email(),
@@ -132,7 +133,13 @@ export async function POST(request: NextRequest) {
   // handle - not the enumeration surface this addresses).
   const existing = await prisma.member.findUnique({
     where: { email },
-    select: { id: true, status: true, username: true },
+    select: {
+      id: true,
+      status: true,
+      username: true,
+      password: { select: { id: true } },
+      passkeys: { select: { id: true }, take: 1 },
+    },
   })
   if (existing) {
     // verificationEmailSent has to mean the same thing on both branches or it
@@ -144,7 +151,18 @@ export async function POST(request: NextRequest) {
     if (isEmailConfigured()) {
       const siteConfig = await prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { siteName: true } })
       const siteName = siteConfig?.siteName ?? 'Cactus'
-      if (existing.status === 'ACTIVE') {
+      const existingMethods = memberLoginMethods(
+        {
+          passkey: isAuthMethodEnabled(config, 'PASSKEY'),
+          password: isAuthMethodEnabled(config, 'PASSWORD'),
+          magicLink: isAuthMethodEnabled(config, 'MAGIC_LINK'),
+        },
+        {
+          hasPasskey: existing.passkeys.length > 0,
+          hasPassword: existing.password !== null,
+        }
+      )
+      if (existing.status === 'ACTIVE' && existingMethods.magicLink) {
         emailSent = await sendMagicLink(existing.id, email, siteName).then(
           () => true,
           (err: unknown) => {

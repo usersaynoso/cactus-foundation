@@ -6,6 +6,9 @@ import { loginRejectionForStatus } from '@/lib/members/registration'
 import { createMemberSession, setMemberSessionCookie } from '@/lib/members/session'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { recordMemberActivity } from '@/lib/members/activity'
+import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
+import { isEmailConfigured } from '@/lib/config/env'
+import { memberLoginMethods } from '@/lib/members/login-methods'
 
 const Body = z.object({ token: z.string() })
 
@@ -26,8 +29,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'This sign-in link is invalid or has expired' }, { status: 400 })
   }
 
-  const member = await prisma.member.findUnique({ where: { id: result.memberId } })
+  const member = await prisma.member.findUnique({
+    where: { id: result.memberId },
+    include: {
+      password: { select: { id: true } },
+      passkeys: { select: { id: true }, take: 1 },
+    },
+  })
   if (!member) {
+    return NextResponse.json({ error: 'This sign-in link is invalid or has expired' }, { status: 400 })
+  }
+
+  // A link issued before the member added a password/passkey must not remain a
+  // short-lived way round that credential. Re-check at consumption as well as
+  // at issuance; the same generic answer keeps account state out of the reply.
+  const config = await getMembersConfig()
+  const methods = memberLoginMethods(
+    {
+      passkey: config.enabled && isAuthMethodEnabled(config, 'PASSKEY'),
+      password: config.enabled && isAuthMethodEnabled(config, 'PASSWORD'),
+      magicLink:
+        config.enabled && isAuthMethodEnabled(config, 'MAGIC_LINK') && isEmailConfigured(),
+    },
+    {
+      hasPasskey: member.passkeys.length > 0,
+      hasPassword: member.password !== null,
+    }
+  )
+  if (!methods.magicLink) {
     return NextResponse.json({ error: 'This sign-in link is invalid or has expired' }, { status: 400 })
   }
 

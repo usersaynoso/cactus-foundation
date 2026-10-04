@@ -20,6 +20,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
+import { memberLoginMethods } from '@/lib/members/login-methods'
 
 const Body = z.object({ email: z.string().email() })
 
@@ -66,9 +67,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(linkOnly)
   }
 
-  return NextResponse.json({
-    passkey: siteAllows.passkey && member.passkeys.length > 0,
-    password: siteAllows.password && member.password !== null,
-    magicLink: siteAllows.magicLink,
-  })
+  return NextResponse.json(
+    memberLoginMethods(siteAllows, {
+      hasPasskey: member.passkeys.length > 0,
+      hasPassword: member.password !== null,
+    })
+  )
 }

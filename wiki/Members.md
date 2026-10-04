@@ -24,7 +24,7 @@ Members can sign in three ways, and each one has its own setting (**Users → Se
 
 - **Passkey** - fingerprint, face unlock, or a security key. The quickest and most secure option. **Optional** by default.
 - **Email sign-in link** - a one-time link emailed to them. No password to remember. **Optional** by default, and it's what a brand-new member uses the very first time, before they've set anything else up.
-- **Password** - the traditional option, **off** by default. If you turn it on, members must also set up a second sign-in step (an email code or an authenticator app) - a password alone is never enough.
+- **Password** - the traditional option, **off** by default. If you turn it on, the password is always followed by a short code sent to the member's verified email address. They can choose an authenticator app or text messages instead.
 
 ### Off, Optional, Required
 
@@ -36,7 +36,7 @@ Each method is one of three things:
 
 The email sign-in link has no **Required** option, and that's deliberate rather than an oversight: there's nothing for a member to set up. Their inbox is the credential, and they proved they have it when they verified their address.
 
-Setting **Password** to Required also puts a password box on the sign-up form, so new members choose one as they join. The second step can't be done until they're actually signed in, so they're asked for that the first time they arrive.
+Setting **Password** to Required also puts a password box on the sign-up form, so new members choose one as they join. The email code needs no separate setup; a member only has something to enrol if they choose an authenticator app or text messages instead.
 
 With **Password** set to Optional the sign-up form offers a password box too, which you can turn off with **Ask new members to set a password** under [Registration](#shortening-the-sign-up-form). Passwords stay available either way - members just add one from their own Account & Security page rather than being asked for one before they've so much as looked round.
 
@@ -54,7 +54,7 @@ It asks for the email address first, and nothing else. Once they press **Continu
 - Set a password? They get the password button.
 - Done neither - which is everyone on day one - the sign-in link is simply sent there and then, and they're told to check their inbox. No second button to press, because there was only ever one thing they could have pressed.
 
-The sign-in link is offered to everybody, since it's the one method that always works. Nobody is shown a button that could only ever fail, and nobody has to remember which of three things they set up last spring. There's a "use a different email address" link underneath - on the choice of methods and on the "check your inbox" message alike - for the inevitable typo.
+Once a member has a working password or passkey, the sign-in link is no longer offered and a new one cannot be requested for that account. It remains the way in for members who have neither. Nobody is shown a button that could only ever fail, and nobody has to remember which of three things they set up last spring. There's a "use a different email address" link underneath - on the choice of methods and on the "check your inbox" message alike - for the inevitable typo.
 
 An address that isn't registered at all gets the same "check your inbox" message as a real one - the form never lets on whether an account exists. What lands in that inbox differs: a registered address gets its sign-in link, an unregistered one gets a short email saying no account was found there, with a link to register. So a mistyped address doesn't just go quiet - the person who typed it finds out, without the sign-in form itself giving anything away.
 

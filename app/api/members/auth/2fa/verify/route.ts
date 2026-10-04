@@ -18,6 +18,8 @@ import { getMembersConfig } from '@/lib/members/config'
 import { memberNeedsSmsEnrolment } from '@/lib/members/sms-policy'
 import { recordMemberActivity } from '@/lib/members/activity'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
+import { isEmailConfigured } from '@/lib/config/env'
+import { memberPasswordSecondFactor } from '@/lib/members/password-second-factor'
 
 const Body = z.object({
   memberId: z.string(),
@@ -47,11 +49,7 @@ export async function POST(request: NextRequest) {
   // delivery differs), so both verify through verifyMemberEmailChallenge -
   // which also covers the login route's silent SMS→email fallback.
   const configs = member?.twoFactorConfigs ?? []
-  // Only a *verified* factor counts - mirror password/login exactly. An
-  // unverified row must never gate login (no unverified fallback).
-  const twoFactor =
-    configs.find((c) => c.method === 'SMS' && c.verified && c.phoneEncrypted) ??
-    configs.find((c) => c.method !== 'SMS' && c.verified)
+  const twoFactor = memberPasswordSecondFactor(configs, isEmailConfigured())
   if (!member || !twoFactor) {
     return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 })
   }
@@ -76,6 +74,9 @@ export async function POST(request: NextRequest) {
     const result = verifyTotpCode(secret, code, twoFactor.lastStep)
     if (!result.valid) {
       return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
+    }
+    if (!twoFactor.id) {
+      return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 })
     }
     await prisma.memberTwoFactor.update({ where: { id: twoFactor.id }, data: { lastStep: result.step } })
   }

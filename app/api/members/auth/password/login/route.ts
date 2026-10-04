@@ -16,6 +16,7 @@ import { sendLoginOtp } from '@/lib/email/index'
 import { verifyTurnstile } from '@/lib/auth/turnstile'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
+import { memberPasswordSecondFactor } from '@/lib/members/password-second-factor'
 
 const Body = z.object({
   email: z.string().email(),
@@ -86,15 +87,11 @@ export async function POST(request: NextRequest) {
   // deliver texts; otherwise fall back to whatever else is configured. SMS and
   // EMAIL share the same challenge store, so the verify route stays in step.
   const configs = member.twoFactorConfigs
-  const smsConfig = configs.find((c) => c.method === 'SMS' && c.verified && c.phoneEncrypted)
-  // Only ever gate on a *verified* factor. An unverified row (secret generated
-  // but never confirmed) is not a real second factor; selecting it would let
-  // login proceed against a factor the member never proved they hold.
-  const twoFactor = smsConfig ?? configs.find((c) => c.method !== 'SMS' && c.verified)
+  const twoFactor = memberPasswordSecondFactor(configs, isEmailConfigured())
   if (!twoFactor) {
     return NextResponse.json(
-      { error: 'Two-factor authentication is required but not yet configured for this account.' },
-      { status: 403 }
+      { error: 'A second sign-in step is required, but email delivery is not available for this site.' },
+      { status: 503 }
     )
   }
 

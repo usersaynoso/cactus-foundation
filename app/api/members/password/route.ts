@@ -5,6 +5,7 @@ import { getMemberFromCookie, deleteAllMemberSessions, getCurrentMemberSessionTo
 import { hashPassword, verifyPassword, validateNewPassword } from '@/lib/auth/password'
 import { getMembersConfig, isAuthMethodEnabled, isAuthMethodRequired } from '@/lib/members/config'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
+import { isEmailConfigured } from '@/lib/config/env'
 
 export async function GET() {
   const member = await getMemberFromCookie()
@@ -12,13 +13,13 @@ export async function GET() {
 
   const [password, twoFactor, config] = await Promise.all([
     prisma.memberPassword.findUnique({ where: { memberId: member.id } }),
-    prisma.memberTwoFactor.findFirst({ where: { memberId: member.id } }),
+    prisma.memberTwoFactor.findFirst({ where: { memberId: member.id, verified: true } }),
     getMembersConfig(),
   ])
 
   return NextResponse.json({
     hasPassword: !!password,
-    hasTwoFactor: !!twoFactor,
+    hasTwoFactor: isEmailConfigured() || !!twoFactor,
     passwordsEnabled: isAuthMethodEnabled(config, 'PASSWORD'),
     passwordRequired: isAuthMethodRequired(config, 'PASSWORD'),
   })
@@ -78,8 +79,10 @@ export async function POST(request: NextRequest) {
 
   await notifyMemberSecurityAlert(member, existing ? 'Your password was changed.' : 'A password was added to your account.')
 
-  const twoFactor = await prisma.memberTwoFactor.findFirst({ where: { memberId: member.id } })
-  return NextResponse.json({ ok: true, twoFactorRequired: !twoFactor })
+  const twoFactor = await prisma.memberTwoFactor.findFirst({
+    where: { memberId: member.id, verified: true },
+  })
+  return NextResponse.json({ ok: true, twoFactorRequired: !isEmailConfigured() && !twoFactor })
 }
 
 export async function DELETE() {
