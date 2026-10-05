@@ -4390,7 +4390,7 @@ export const puckConfig = {
           { value: 'link', label: 'Go to the sign-in page' },
           { value: 'modal', label: 'Open a sign-in panel over the page' },
         ] },
-        redirectTo: { type: 'text' as const, label: 'After signing in, go to (blank = the page they were on)' },
+        redirectTo: { type: 'text' as const, label: 'After signing in, go to (blank = their account)' },
         modalHeading: { type: 'text' as const, label: 'Panel: heading' },
         modalWidth: { type: 'number' as const, label: 'Panel: width (px)' },
         modalRadius: { type: 'number' as const, label: 'Panel: corner radius (px)' },

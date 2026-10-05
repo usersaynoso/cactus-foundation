@@ -85,10 +85,10 @@ Find it in the page builder under **Members**, or in the header editor under **S
 
 **What happens when someone clicks it**
 
-- **Go to the sign-in page** - the ordinary route. They're brought back to the page they were reading once they're in.
-- **Open a sign-in panel over the page** - the form floats over whatever they were looking at, so they never lose their place. It's the same sign-in form as the real page, so passkeys, sign-in links, passwords and codes all behave identically. You can set the panel's heading, its width, its corner rounding, and whether it offers a "create an account" link underneath. That link stays hidden if you've set registration to invite-only, since there'd be nothing behind it.
+- **Go to the sign-in page** - the ordinary route. Once they're in, they're taken to their account.
+- **Open a sign-in panel over the page** - the form floats over whatever they were looking at while they sign in, then takes them to their account. It's the same sign-in form as the real page, so passkeys, sign-in links, passwords and codes all behave identically. You can set the panel's heading, its width, its corner rounding, and whether it offers a "create an account" link underneath. That link stays hidden if you've set registration to invite-only, since there'd be nothing behind it.
 
-You can also name a specific page to send people to after they sign in. Leave it blank and they simply carry on from where they were.
+You can also name a specific page to send people to after they sign in. Leave it blank and they go to their account overview.
 
 **Once they're signed in**
 

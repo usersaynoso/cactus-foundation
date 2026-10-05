@@ -4,6 +4,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import MemberAvatar from '@/components/members/MemberAvatar'
+import { memberLoginDestination } from '@/lib/members/login-presentation'
 
 // The panel carries the whole sign-in form - passkey, magic link, password,
 // two-factor codes, recovery codes - and most visitors never open it, so it is
@@ -34,10 +35,9 @@ export type SignInWidgetOptions = {
   hoverColour: string
   borderRadius: number
   // What clicking it does. 'link' goes to the member sign-in page; 'modal'
-  // keeps the visitor on the page they were reading and floats the same form
-  // over it.
+  // floats the same form over the page they were reading.
   clickAction: 'link' | 'modal'
-  // Where they land after signing in. Blank means the page they were on.
+  // Where they land after signing in. Blank means their account overview.
   // Sanitised server-side (MembersSignInRsc) - it becomes a location
   // assignment, so an off-site value here would be an open redirect.
   redirectTo: string
@@ -253,10 +253,9 @@ export function SignInWidgetClient(
     </>
   )
 
-  // Blank "after sign-in" means the page they were reading, which only the
-  // browser knows. Search params are deliberately left off: reading them would
-  // force a Suspense boundary around every header this block sits in.
-  const redirectTarget = o.redirectTo || pathname || '/'
+  // A blank destination behaves like the dedicated sign-in page: successful
+  // sign-in lands on the member account overview.
+  const redirectTarget = memberLoginDestination(o.redirectTo, o.accountHref)
 
   if (o.clickAction === 'modal') {
     return (

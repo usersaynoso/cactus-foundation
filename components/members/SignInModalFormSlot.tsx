@@ -5,8 +5,7 @@
 //
 // It is a component rather than the form itself because the form needs two
 // things the layout cannot carry. The first is where to send the visitor after
-// they sign in, which - when the block leaves "after sign-in" blank - is the
-// page they were reading, and only the browser knows that. The second is that
+// they sign in. The second is that
 // the layout is rendered on the server, inside a block that may sit in a header
 // on every page of the site: importing the form there would put the whole of it
 // (passkeys, two-factor, recovery codes) in every page's bundle for the sake of
@@ -14,13 +13,13 @@
 // it was - the layout only renders once the panel is actually opened.
 
 import dynamic from 'next/dynamic'
-import { usePathname } from 'next/navigation'
+import { memberLoginDestination } from '@/lib/members/login-presentation'
 
 const LoginForm = dynamic(() => import('@/components/members/LoginForm'), { ssr: false })
 
 type Props = {
-  // The block's sanitised "after sign-in" destination. Blank means the current
-  // page.
+  // The block's sanitised "after sign-in" destination. Blank means the member
+  // account overview.
   redirectTo: string
   // Where the member area lives ("/account"), so the form's own detours (verify
   // your email, add a mobile number) resolve against it rather than against
@@ -29,10 +28,9 @@ type Props = {
 }
 
 export default function SignInModalFormSlot({ redirectTo, basePath }: Props) {
-  const pathname = usePathname()
   return (
     <LoginForm
-      redirectTo={redirectTo || pathname || '/'}
+      redirectTo={memberLoginDestination(redirectTo, basePath)}
       basePath={basePath}
       // The panel draws its own heading, or the layout does. Either way the form
       // saying "Sign in" a second time is one too many.

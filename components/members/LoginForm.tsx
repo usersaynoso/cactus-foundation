@@ -1,9 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import {
+  memberTwoFactorMessage,
+  type MemberTwoFactorMethod,
+} from '@/lib/members/login-presentation'
 
 type Step = 'email' | 'methods' | 'magic-sent' | 'consuming' | 'password' | '2fa' | 'recovery-code'
-type TwoFactorMethod = 'EMAIL' | 'AUTHENTICATOR_APP' | 'SMS'
 
 // Which sign-in methods the address typed on the first step can actually use,
 // from /api/members/auth/methods.
@@ -36,7 +39,7 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
   const [code, setCode] = useState('')
   const [trustBrowser, setTrustBrowser] = useState(false)
   const [memberId, setMemberId] = useState('')
-  const [twoFactorMethod, setTwoFactorMethod] = useState<TwoFactorMethod>('EMAIL')
+  const [twoFactorMethod, setTwoFactorMethod] = useState<MemberTwoFactorMethod>('EMAIL')
   const [twoFactorDestination, setTwoFactorDestination] = useState('')
   const [siteMethods, setSiteMethods] = useState<AuthMethods>({ passkey: false, password: false, magicLink: false })
   const [methods, setMethods] = useState<AuthMethods | null>(null)
@@ -302,13 +305,14 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
     : null
 
   if (step === '2fa') {
+    const deliveryMessage = memberTwoFactorMessage(twoFactorMethod, email, twoFactorDestination)
     return (
       <div>
         {heading}
         {error && <div className="alert alert-danger">{error}</div>}
-        {twoFactorMethod === 'SMS' && (
+        {deliveryMessage && (
           <p className="field-hint" style={{ marginBottom: 'var(--space-3)' }}>
-            We&apos;ve sent a code by text message{twoFactorDestination ? ` to ${twoFactorDestination}` : ''}.
+            {deliveryMessage}
           </p>
         )}
         <div className="field">

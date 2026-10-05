@@ -193,7 +193,7 @@ export async function MembersSignInRsc(props: Partial<SignInWidgetOptions>) {
       {...(options as Partial<SignInWidgetOptions>)}
       // The "after sign-in" destination becomes a location assignment inside
       // the form, so an off-site value would be an open redirect. Blank stays
-      // blank: the island reads the current path for that case.
+      // blank: the island turns it into the member account overview.
       redirectTo={redirectTo}
       modalLayout={modalLayout}
       signedIn={signedIn}
