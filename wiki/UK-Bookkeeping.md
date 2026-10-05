@@ -198,6 +198,19 @@ from here, and only you know which is which.
 The **Evidence** filter on the entries list now offers **Still needs one**, which
 means no receipt and not ticked, and **None needed** for the ticked ones.
 
+**One file for several entries.** Some paperwork covers a batch: a card
+processor's monthly statement of fees, against every fee its payouts recorded
+that month; one invoice for several deliveries. On **Bookkeeping → Entries**,
+tick the entries it covers (the **Who with** box and the category filter narrow
+the list down quickly), press **Attach a file to these** and pick the file. It is
+stored once and appears as evidence on every ticked entry. Taking it off one
+entry later leaves it on the others.
+
+Entries in a VAT return that has been filed or finalised have no tick box,
+because their evidence stays as it was; transfers have none either. If one of the
+ticked entries cannot take the file, it is named beside the count of the ones
+that did, and the rest still get it.
+
 **Buying something that lasts: tick the box on that line.** When you pick a
 capital category - "Equipment and other capital purchases" - a tickbox appears on
 that line saying **Put this one on the asset register**, ticked already. Leave it
@@ -457,6 +470,29 @@ on your site still pointing at it. In both cases the receipt still leaves the
 list and only the file is spared. Deleting from the media library also needs
 permission to do that - if you have not got it, you are told before anything is
 removed rather than afterwards.
+
+### Invoices for payments you record by hand
+
+When you record money coming in by hand - a failed delivery charge, a cash sale,
+a bank transfer nobody raised paperwork for - Bookkeeping makes the invoice for
+you. It is a PDF built from the entry's own lines, so the invoice and the books
+cannot disagree, with the next number in a run (`INV-000001`, `INV-000002`...).
+It is filed as the entry's evidence under Bookkeeping / year / month / Customer
+Invoices, exactly as an uploaded invoice would be.
+
+- **What gets one:** money in, recorded by a person, posted. Sales handed over by
+  your shop already have the shop's own invoice and are left alone, as are
+  corrections and drafts.
+- **When you attach your own:** pick a receipt from the inbox, or tick "no
+  receipt is coming", and no invoice is made - one document per payment.
+- **Settings:** under Settings, "Invoices for payments you record by hand" holds
+  the on/off switch, the letters the number starts with and your address as it
+  should appear. Your business name and VAT number come from "Your business"
+  above it. Fill in the address, or the invoice has none.
+- **If it could not be made** (no file storage, no browser to print with), the
+  payment is still saved and says so. The entry has a "Make the invoice" button
+  that tries again under the same number, so a failure never leaves a gap in the
+  run. It is also how you make one for a payment recorded before this existed.
 
 ### Sales handed over by your shop
 
@@ -756,6 +792,22 @@ than zero rated, so that is what is filled in.
 
 Refunds netted off a payout come out as a **minus** in the list, because that is
 how the bank saw it. Tick one and it pulls the total down.
+
+**One invoice, paid in two goes.** A customer who pays half now and half on
+delivery, or splits the bill across two cards, leaves you one invoice and two
+payouts. Press **It paid several invoices** on the first payout, tick the
+invoice, and change the amount beside it to what that payout covered - the whole
+unpaid amount is filled in to start with, so the ordinary case needs nothing
+typed. The rest stays unpaid on the invoice, and the second payout offers
+exactly that much of it and no more. A fee on either payout is the difference,
+as usual. An amount of nothing, or more than is still unpaid, is refused before
+anything is written.
+
+The invoice counts as paid on the date of the **first** payout. The books keep
+one payment date per entry, and the earlier one is the safe side for VAT on cash
+accounting: it is never declared late, only early. If the two payouts land
+either side of the end of a VAT quarter, that is worth a word with your
+accountant.
 
 Nothing is guessed about which invoices make up a payout. Working that out from
 the total is the kind of arithmetic a machine is confidently wrong at, and a
