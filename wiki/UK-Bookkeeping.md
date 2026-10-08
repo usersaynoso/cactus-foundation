@@ -1194,6 +1194,17 @@ in order. Each step proves the one after it is worth attempting.
 
 Steps 1, 3, 6 and 7 are the ones worth repeating after any update.
 
+**Room for more than one go.** In the practice service, refreshing from HMRC
+brings in four open quarters from 2017 rather than HMRC's usual one. The
+practice service remembers nothing, but this module locks a period once it is
+filed - so with a single quarter, one test filing would have used it up for
+good. Each fresh round of testing (HMRC's approvals team only look at the last
+30 days) files the next quarter along.
+
+**What you owe and what you have paid** (the button on the VAT returns page)
+shows an empty list in the practice service. That is HMRC's practice answer of
+"nothing on record", and it is a perfectly good test that the calls work.
+
 ---
 
 ## 11. Going live
