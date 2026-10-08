@@ -179,6 +179,13 @@ export type ConversationTextStyles = {
   monospace?: string
 }
 
+/** A file travelling with a reply on a channel that is answered by email. */
+export type ConversationOutgoingAttachment = {
+  filename: string
+  contentType: string | null
+  content: Buffer
+}
+
 export type ConversationProvider = {
   /** Human label for the channel this provider serves, e.g. "Live chat". */
   label: string
@@ -202,10 +209,30 @@ export type ConversationProvider = {
      *  channel that cannot carry one is offering a button that quietly does
      *  nothing. */
     textStyles?: ConversationTextStyles
+    /** Whether this channel's conversations are answered BY EMAIL - an enquiry
+     *  off a form, say. A consumer may then treat them as mail: let the
+     *  subject of a reply be changed (`send` is handed it) and let a message
+     *  be forwarded to somebody else by the consumer's own mail road. Absent
+     *  for a chat, a text or a call, which have no subject and no address. */
+    email?: boolean
   }
   list(opts: ConversationListOptions): Promise<ConversationListPage>
   thread(id: string): Promise<ConversationThread | null>
-  send?(id: string, body: { text: string; html?: string; authorUserId: string }): Promise<void>
+  send?(
+    id: string,
+    body: {
+      text: string
+      html?: string
+      authorUserId: string
+      /** Only ever set on a channel that declared `capabilities.email`: the
+       *  subject the reply should go out under instead of its usual one. */
+      subject?: string
+      /** Only on a channel that declared `capabilities.email`: files that go
+       *  with the reply, already fetched. `html` is then the formatted reply
+       *  (already cleaned) and `text` its plain words. */
+      attachments?: ConversationOutgoingAttachment[]
+    },
+  ): Promise<void>
   markRead?(id: string): Promise<void>
   /** Everything this provider holds for one person, for a unified timeline. */
   byIdentity?(identity: ConversationIdentity): Promise<ConversationSummary[]>
