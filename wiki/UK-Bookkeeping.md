@@ -1195,7 +1195,9 @@ in order. Each step proves the one after it is worth attempting.
 Steps 1, 3, 6 and 7 are the ones worth repeating after any update.
 
 **Room for more than one go.** In the practice service, refreshing from HMRC
-brings in four open quarters from 2017 rather than HMRC's usual one. The
+asks for HMRC's test quarters from 2017 and 2018 rather than their usual single
+one, and says next to "Last checked" how many periods HMRC listed and how many
+were new. The
 practice service remembers nothing, but this module locks a period once it is
 filed - so with a single quarter, one test filing would have used it up for
 good. Each fresh round of testing (HMRC's approvals team only look at the last
