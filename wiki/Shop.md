@@ -847,6 +847,12 @@ One thing the books will refuse: crediting an invoice they have never seen. If t
 
 ---
 
+## VAT at checkout before an address is in
+
+The order review at checkout shows VAT from the moment it shows a total, even before the shopper has typed a delivery address. Until there is a postcode it uses the rate from your catch-all delivery zone (the one with no postcodes listed, which covers everywhere the others do not), and it works the figures out again as soon as the postcode arrives. Delivery is still added once the postcode is in. A shop with no catch-all zone shows VAT only once the address is known, as before.
+
+---
+
 ## Discounts
 
 **Shop → Discounts** has two kinds:
