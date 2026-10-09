@@ -361,6 +361,15 @@ There's no Save button on that tab, and that isn't an oversight: every add, remo
 
 ## Orders
 
+**Inside an order.** The total, customer, payment state and delivery progress are the first things you see. The framed workspace uses the same quiet, rounded treatment as Unified Inbox, with customer details and order controls alongside the work.
+
+- **Overview** holds the items, full price breakdown, customer reports, replacements, downloads and any supplier purchase orders.
+- **Delivery** holds the delivery address and instructions, parcels, tracking and redelivery charges. A pending charge or failed delivery puts a shortcut above the sections, so it still gets attention when needed.
+- **Payment & documents** holds the payment record, proforma, invoices, credit notes and billing address.
+- **Activity** holds the order history, private notes and checkout agreements. Switching sections keeps unfinished notes and forms intact.
+
+**Dispatch items**, **Email customer** and, when applicable, **Payment received** stay at the top. **More actions** holds refunds, replacements and printing. Printing includes the order's printable details from every section. On smaller screens, customer details and order controls follow the selected section. Redelivery has its place, but no longer gets to introduce the order.
+
 **Shop → Trading** is the screen you'll live on. Across the top sit four counters: how many orders are waiting on money, how many are paid and haven't gone out yet, how many are waiting on pre-order stock, and what you've taken in the last thirty days. The first three are buttons: click one and the list below shows exactly those orders, so "three to send" always turns into three orders and never four.
 
 Refunds go back through whichever payment method the customer used automatically for Stripe and PayPal; bank transfer and cash refunds are recorded in Cactus and the money is yours to send, since there's no card or account to refund back to automatically. The same goes for a replacement part you charged for: it was billed between you and the customer rather than through the checkout, so its refund is recorded and the money is yours to send.
@@ -1062,6 +1071,10 @@ Once someone has proved a postcode, that browser remembers it for **30 days**, f
 
 The whole thing can be switched off under **Settings → Shop → Checkout → Order history** if you'd rather guests rang you. With it off, the tracking page doesn't exist and the line drops out of your emails.
 
+### Redelivery fees on VAT invoices
+
+When a customer pays a redelivery fee before their order's VAT invoice is raised, that fee now appears as its own line on the same invoice, with the VAT recorded when the fee was paid. One order still gets one invoice, rather than a small paperwork sequel nobody asked for.
+
 One thing to know if you've edited your emails: the *Keep track of your order* line is part of the wording Cactus ships, and any template you've already rewritten keeps your wording rather than having ours put back. Add `{{orderUrl}}` where you want the link on those, in **Settings → Email → Templates**.
 
 Anyone can still look an order's status up the old way as well, using their order number and the email address it was placed under. That is typed into a box now rather than being carried in the address of the page, so there is no link to that order for anybody to come across afterwards.
@@ -1459,6 +1472,14 @@ And the payment methods no longer insist on being last. A shopper who fancies ch
 And whatever is holding the order up is now said once, in one red line, rather than twice. A list of unfinished boxes in one place and a separate "choose a payment method" note in another left the shopper to work out that the two added up to the same refusal, so they are now a single sentence: "Complete your email and full name above, and then choose a payment method above to place your order." Every outstanding bit in it - each box, the payment method, the tickboxes - is a link that takes the shopper straight there, which on a long checkout saves a good deal of scrolling and squinting. The boxes are named exactly as the form above names them, your own wording included if you've renamed the organisation box. An address typed into the email box that isn't quite an address is asked to be corrected rather than filled in, with a note saying what looks wrong with it, since telling somebody to fill in a field they have very obviously filled in helps nobody. The line is red, and readable in both the light and the dark version of your site.
 
 The thank-you page is straighter about what happens next, too. Pay by bank and the money is authorised on the spot but takes a few minutes to actually clear, which used to leave the page saying only that the order was "awaiting payment confirmation" - the same wording someone gets when they've been asked to go and make a bank transfer themselves, and quite the opposite meaning. It now says the payment has gone through and that clearing usually takes a few minutes, and then the page waits with them: it checks quietly in the background and announces the moment the payment clears, so nobody sits there jabbing refresh. It checks briskly for the first minute, eases off, and after five minutes stops and says so, since the confirmation email is coming either way. Wander off to another tab and it picks the thread back up when you return. If the payment doesn't clear, the page says so plainly, points out that nothing has been charged, and sends the shopper back to checkout with their basket still intact rather than thanking them for an order that never happened. Behind the scenes those failures now actually land: a bank payment that fell over after being authorised used to sit in your orders list looking like money still on its way, forever, and now shows as failed like it should.
+
+### A picture on the thank-you page
+
+The tick at the top of the thank-you page can be swapped for a picture of your own - a mascot, a logo, a dog in confetti, whatever says "well done" in your house style. Open the **Confirmation** layout under **Appearance → Layouts**, select the **Shop: Order Confirmation** block and pick a **Celebration picture** from the media library. Give it a short description for screen readers, and a width if 220 pixels is not to your taste.
+
+By default it gets a **holographic shimmer**: a rainbow foil that slides across the picture and tilts it towards the viewer as they move their mouse around the page. On a phone it follows the phone itself as they tip it, and it rolls as they scroll, which works everywhere with no questions asked. iPhones will not share which way they are being held until somebody taps the page, so on an iPhone a tap on the picture asks, once, and nothing else ever pops a prompt at someone who has just paid. Turn **Holographic shimmer** to **No** for the plain picture. Anyone who has asked their device for reduced motion gets the foil standing still.
+
+Pictures with a transparent background work best: the shimmer only covers what is actually drawn, so a cut-out shimmers and the page around it does not. The picture only appears when there is something to celebrate - a payment that failed keeps its warning sign, since a dog in confetti above "your payment didn't go through" would strike rather the wrong note. It will not show in the layout editor itself, which has no real order to confirm; place a test order to see it.
 
 ### Asking for an organisation name
 

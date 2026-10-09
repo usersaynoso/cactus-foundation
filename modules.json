@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.472"
+      "version": "v0.1.473"
     },
     {
       "name": "address-lookup-for-shop",
@@ -153,7 +153,7 @@
     {
       "name": "uk-bookkeeping",
       "repoUrl": "https://github.com/cactus-foundation-modules/uk-bookkeeping",
-      "version": "v0.2.40"
+      "version": "v0.2.41"
     },
     {
       "name": "google-tag",
@@ -168,7 +168,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.113"
+      "version": "v0.1.114"
     },
     {
       "name": "google-ai-studio",

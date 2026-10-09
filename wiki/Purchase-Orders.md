@@ -474,7 +474,7 @@ Three things get compared, which is why it is called a three-way match: what you
 
 The tolerances are yours, in **Settings → Purchase Orders**. A price tolerance of 2% is the sensible default - suppliers round, and being told about every three pence would train everybody to stop reading.
 
-**None of it stops you approving the invoice.** Sometimes the supplier is right, the extra two arrived and are being kept. What matters is that the decision is written down rather than living in somebody's head, so the flags stay on the bill afterwards.
+**None of it stops you approving the invoice.** Sometimes the supplier is right, the extra two arrived and are being kept. What matters is that the decision is written down rather than living in somebody's head, so the differences stay on the bill afterwards - but an approved bill says plainly that they were accepted, rather than looking like unfinished work.
 
 A bill with no purchase order behind it says so and nothing more. There is nothing to check it against, and a green tick claiming otherwise would be a lie.
 
