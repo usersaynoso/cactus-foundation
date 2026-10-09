@@ -845,6 +845,12 @@ One thing the books will refuse: crediting an invoice they have never seen. If t
 - **Coupon codes** - a code customers type in at checkout. Percentage off, a fixed amount off, or free shipping. Set a minimum order value, a total usage limit, and a per-customer limit if you like.
 - **Automatic discounts** - apply themselves with no code needed, whenever their conditions are met. Useful for a blanket "10% off everything this weekend" or a free-shipping threshold. When several could apply at once, priority decides which wins.
 
+An automatic discount can cover **the whole basket** or **particular products**. Pick "Particular products" under **Applies to**, search for as many as you like, and the discount comes off those products alone - a desk sitting in the same basket pays full price. Picking a product covers every option of it, so a discount on a chair applies to it in every colour and size.
+
+Either kind can also have a **minimum quantity**: how many items the basket must hold before the discount kicks in. On a discount for particular products the items are counted together, so with a minimum of six, four of one chosen chair and two of another qualifies; anything you did not pick does not count. Leave it empty for no minimum. Handy for "10% off when you buy six or more" without anyone needing a code, or a spreadsheet.
+
+Worth knowing: a fixed amount off particular products comes off once per order, not once per item, and never more than those products are worth. A minimum order value on the same discount still means the whole basket. If every product a discount was pinned to is later deleted, it applies to nothing rather than quietly spreading itself across the entire shop - the list says so, in case you were wondering why it has gone quiet.
+
 A few rules worth knowing, because they decide what a basket actually gets:
 
 - **Dates run on your shop's clock, and both days count.** A discount starts at midnight at the beginning of its start day and keeps working right through its last day, stopping at midnight at the end of it, in the timezone the site is set to - so a last day of 30 September means it works all of the 30th and stops as 1 October begins. Leave the last day empty and it runs until you switch it off. Discounts set up before the editor asked for a last day have not changed when they stop; the list simply shows them by their last working day, so one you entered as "expires 1 October" now reads "last day 30 September".

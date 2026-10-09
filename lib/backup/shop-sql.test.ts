@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { readFileSync, readdirSync, existsSync } from 'fs'
 import path from 'path'
 import { PrismaClient } from '@prisma/client'
@@ -9,6 +9,7 @@ import {
 import { rememberAddressForMember } from '@/modules/shop/lib/db/addresses'
 import { getDeductionRules, listOrderSizeDeductionChecks } from '@/modules/shop/lib/db/suppliers'
 import { getCategoryFaqChainBySlug, getCollectionFaqSetBySlug, getProductFaqCategoryChain } from '@/modules/shop/lib/db/catalogue'
+import { listAutomaticDiscounts, createAutomaticDiscount, updateAutomaticDiscount } from '@/modules/shop/lib/db/discounts'
 import type { ShpAddress } from '@/modules/shop/lib/types'
 import { splitMigrationStatements } from './migration-sql'
 
@@ -33,6 +34,17 @@ import { splitMigrationStatements } from './migration-sql'
 // same way roundtrip.test.ts does. A skip is not a pass - export them from the
 // Deskwell workspace's .env for the run. Provisions and drops its own throwaway
 // database, named under TEST_PREFIX; it never touches anything else on the box.
+// The automatic-discount queries open their own transactions, so they cannot take
+// a `client` the way the address book does without dragging Prisma's
+// transaction types into the shop's API. The shared client is pointed at the
+// throwaway database instead, for that block only; everything else keeps the
+// real one (and passes its own `client` regardless).
+const shared = vi.hoisted(() => ({ client: null as unknown }))
+vi.mock('@/lib/db/prisma', async (original) => {
+  const real = await original<typeof import('@/lib/db/prisma')>()
+  return { ...real, get prisma() { return shared.client ?? real.prisma } }
+})
+
 const cfg = (() => { try { return vpsConfigFromEnv() } catch { return null } })()
 
 describe.skipIf(!cfg)('supplier page SQL against a real database', () => {
@@ -477,5 +489,88 @@ describe.skipIf(!cfg)('product FAQ category chain against a real database', () =
     expect(chain).toHaveLength(1)
     expect(chain[0]!.items[0]!.question).toBe('Do you deliver?')
     expect(await getCategoryFaqChainBySlug('no-such-category', { client: db })).toEqual([])
+  })
+})
+
+describe.skipIf(!cfg)('automatic discounts pinned to products against a real database', () => {
+  let db: PrismaClient
+  let dbName: string
+  let roleName: string
+
+  beforeAll(async () => {
+    const suffix = `${Date.now()}`.slice(-9)
+    dbName = `${TEST_PREFIX}adp_${suffix}`
+    roleName = `${TEST_PREFIX}role_adp_${suffix}`
+    const role = await createTestRole(cfg!, roleName)
+    await createTestDatabase(cfg!, dbName, role)
+    db = new PrismaClient({ datasources: { db: { url: connectionUri(cfg!, dbName, role) } } })
+
+    const initSql = path.join(process.cwd(), 'prisma/migrations/20260626000000_init/migration.sql')
+    for (const s of splitMigrationStatements(readFileSync(initSql, 'utf8'))) {
+      await db.$executeRawUnsafe(s)
+    }
+    const dir = path.join(process.cwd(), 'modules/shop/migrations')
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
+      for (const s of splitMigrationStatements(readFileSync(path.join(dir, f), 'utf8'))) {
+        await db.$executeRawUnsafe(s)
+      }
+    }
+    await db.$executeRawUnsafe(`
+      INSERT INTO "shp_products" ("id", "name", "slug", "type", "status", "price")
+      VALUES ('p-chair', 'Chair', 'chair', 'PHYSICAL', 'ACTIVE', 100.00),
+             ('p-stool', 'Stool', 'stool', 'PHYSICAL', 'ACTIVE', 50.00),
+             ('p-desk', 'Desk', 'desk', 'PHYSICAL', 'ACTIVE', 300.00)`)
+    shared.client = db
+  }, 300_000)
+
+  afterAll(async () => {
+    shared.client = null
+    await db?.$disconnect()
+    if (dbName) await dropTestDatabase(cfg!, dbName)
+    if (roleName) await dropTestRole(cfg!, roleName)
+  }, 120_000)
+
+  it('saves a rule pinned to products with its minimum quantity, and reads it back', async () => {
+    const { id } = await createAutomaticDiscount({
+      name: 'Six chairs', type: 'PERCENTAGE', value: 10, appliesTo: 'PRODUCTS',
+      productIds: ['p-stool', 'p-chair', 'p-chair', 'no-such-product'], minimumQuantity: 6,
+    })
+    const [rule] = (await listAutomaticDiscounts(true)).filter((d) => d.id === id)
+    expect(rule!.appliesTo).toBe('PRODUCTS')
+    expect(rule!.minimumQuantity).toBe(6)
+    // Duplicates collapse and an id that is not a product is left out, rather
+    // than failing the whole save on the foreign key.
+    expect(rule!.products).toEqual([{ id: 'p-chair', name: 'Chair' }, { id: 'p-stool', name: 'Stool' }])
+  })
+
+  it('replaces the product list whole on an edit, and leaves it alone when none is sent', async () => {
+    const { id } = await createAutomaticDiscount({ name: 'Swap', type: 'FIXED_AMOUNT', value: 5, appliesTo: 'PRODUCTS', productIds: ['p-chair'] })
+    await updateAutomaticDiscount(id, { productIds: ['p-desk'] })
+    let rule = (await listAutomaticDiscounts()).find((d) => d.id === id)!
+    expect(rule.products.map((p) => p.id)).toEqual(['p-desk'])
+    await updateAutomaticDiscount(id, { isActive: false })
+    rule = (await listAutomaticDiscounts()).find((d) => d.id === id)!
+    expect(rule.products.map((p) => p.id)).toEqual(['p-desk'])
+    expect((await listAutomaticDiscounts(true)).some((d) => d.id === id)).toBe(false)
+  })
+
+  it('keeps a whole-basket rule as it always was, with no product query owed', async () => {
+    const { id } = await createAutomaticDiscount({ name: 'Basket', type: 'PERCENTAGE', value: 5 })
+    const rule = (await listAutomaticDiscounts()).find((d) => d.id === id)!
+    expect(rule.appliesTo).toBe('ALL')
+    expect(rule.products).toEqual([])
+    expect(rule.minimumQuantity).toBeNull()
+  })
+
+  it('drops a deleted product from the rule but leaves the rule pinned', async () => {
+    const { id } = await createAutomaticDiscount({ name: 'Gone', type: 'PERCENTAGE', value: 10, appliesTo: 'PRODUCTS', productIds: ['p-stool'] })
+    await db.$executeRawUnsafe(`DELETE FROM "shp_products" WHERE "id" = 'p-stool'`)
+    const rule = (await listAutomaticDiscounts()).find((d) => d.id === id)!
+    expect(rule.appliesTo).toBe('PRODUCTS')
+    expect(rule.products).toEqual([])
+  })
+
+  it('refuses a minimum quantity under one', async () => {
+    await expect(db.$executeRawUnsafe(`INSERT INTO "shp_automatic_discounts" ("name", "type", "minimum_quantity") VALUES ('Bad', 'PERCENTAGE', 0)`)).rejects.toThrow()
   })
 })
