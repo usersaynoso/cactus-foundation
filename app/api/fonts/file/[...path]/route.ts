@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GOOGLE_FONTS_FILE_ORIGIN, isSafeFontFilePath } from '@/lib/design/font-proxy'
+import {
+  GOOGLE_FONTS_FILE_ORIGIN,
+  KIT_FONT_FILE_PATH,
+  isSafeFontFilePath,
+  sanitiseKitFontQuery,
+} from '@/lib/design/font-proxy'
 
 // The font FILES, from this site's origin rather than Google's.
 //
@@ -35,13 +40,30 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ path: s
     return new NextResponse('Not a font', { status: 400 })
   }
 
-  const ext = joined.split('.').pop()?.toLowerCase() ?? ''
-  const type = TYPES[ext]
-  if (!type) return new NextResponse('Not a font', { status: 400 })
+  // Two shapes of Google url (see KIT_FONT_FILE_PATH). A path one names its type
+  // by extension; a kit one has no extension, so its type is read off Google's
+  // answer instead - and still only accepted if it is one of the font types above.
+  let upstream: string
+  let type: string | undefined
+  if (joined === KIT_FONT_FILE_PATH) {
+    const query = sanitiseKitFontQuery(request.nextUrl.searchParams)
+    if (!query) return new NextResponse('Not a font', { status: 400 })
+    upstream = `${GOOGLE_FONTS_FILE_ORIGIN}/${KIT_FONT_FILE_PATH}?${query.toString()}`
+  } else {
+    const ext = joined.split('.').pop()?.toLowerCase() ?? ''
+    type = TYPES[ext]
+    if (!type) return new NextResponse('Not a font', { status: 400 })
+    upstream = `${GOOGLE_FONTS_FILE_ORIGIN}/${joined}`
+  }
 
   try {
-    const res = await fetch(`${GOOGLE_FONTS_FILE_ORIGIN}/${joined}`, { cache: 'no-store' })
+    const res = await fetch(upstream, { cache: 'no-store' })
     if (!res.ok) return new NextResponse('Not found', { status: 404 })
+    if (!type) {
+      const served = res.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? ''
+      type = Object.values(TYPES).find((t) => t === served)
+      if (!type) return new NextResponse('Not a font', { status: 502 })
+    }
     const bytes = await res.arrayBuffer()
     return new NextResponse(bytes, {
       headers: {

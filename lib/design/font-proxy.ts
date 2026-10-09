@@ -87,6 +87,37 @@ export function isSafeFontFilePath(path: string): boolean {
   return /^[A-Za-z0-9/._-]+$/.test(path)
 }
 
+/**
+ * Google's second shape of font-file url: `fonts.gstatic.com/l/font?kit=…&skey=…&v=…`.
+ *
+ * Most answers name files by path (`/s/inter/v20/….woff2`), but Google sometimes
+ * answers the very same css2 query with this one instead - the file is identified
+ * by the query string and the path carries no extension at all. Which shape comes
+ * back is Google's choice, varies by where the request comes from, and is not
+ * something a site can ask for. Learned 2026-10-09: a fresh deployment's cold
+ * instance got this shape, every face 400'd as "Not a font", and the whole site
+ * fell back to system fonts until the deployment was rolled back.
+ */
+export const KIT_FONT_FILE_PATH = 'l/font'
+
+const KIT_PARAM_VALUE = /^[A-Za-z0-9_-]{1,200}$/
+
+/**
+ * The query of a kit-shaped font url, narrowed to the three parameters Google
+ * puts there, or null if `kit` is missing or anything looks off. Rebuilt rather
+ * than forwarded, so the request cannot carry anything else to Google.
+ */
+export function sanitiseKitFontQuery(params: URLSearchParams): URLSearchParams | null {
+  const out = new URLSearchParams()
+  for (const name of ['kit', 'skey', 'v'] as const) {
+    const value = params.get(name)
+    if (value === null) continue
+    if (!KIT_PARAM_VALUE.test(value)) return null
+    out.set(name, value)
+  }
+  return out.has('kit') ? out : null
+}
+
 /** The site-relative address of the proxied stylesheet for a sanitised query. */
 export function proxiedFontHref(params: URLSearchParams): string {
   return `${FONT_CSS_PATH}?${params.toString()}`

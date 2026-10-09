@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
   FONT_FILE_PATH,
+  KIT_FONT_FILE_PATH,
   isSafeFontFilePath,
   proxiedFontHref,
   rewriteFontFileUrls,
   sanitiseFontQuery,
+  sanitiseKitFontQuery,
 } from './font-proxy'
 
 // These two guards are the whole security surface of serving fonts from our own
@@ -110,5 +112,40 @@ describe('proxiedFontHref', () => {
     // be relative - and it must not accidentally point back at Google.
     expect(href.startsWith('/')).toBe(true)
     expect(href).not.toContain('fonts.googleapis.com')
+  })
+})
+
+// Google sometimes answers with `l/font?kit=…` urls instead of `/s/<family>/….woff2`
+// ones. On 2026-10-09 a fresh deployment got that shape and every face on the site
+// 400'd, so both halves are pinned here: the url keeps its query through the
+// rewrite, and the file route's query guard lets Google's three parameters through
+// and nothing else.
+describe('kit-shaped font urls', () => {
+  const KIT = 'kit=UcCB3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfU5NJeWUdIOjBeTGiXZdND2MVsiEu&skey=c491285d6722e4fa&v=v20'
+
+  it('rewrites a kit url onto the file route with its query intact', () => {
+    const css = `@font-face{src:url(https://fonts.gstatic.com/l/font?${KIT}) format('woff2');}`
+    expect(rewriteFontFileUrls(css)).toContain(`url(${FONT_FILE_PATH}/${KIT_FONT_FILE_PATH}?${KIT})`)
+  })
+
+  it('accepts the path the file route sees for one', () => {
+    expect(isSafeFontFilePath(KIT_FONT_FILE_PATH)).toBe(true)
+  })
+
+  it("keeps Google's three parameters", () => {
+    const q = sanitiseKitFontQuery(new URLSearchParams(KIT))
+    expect(q?.toString()).toBe(KIT)
+  })
+
+  it('drops anything else rather than forwarding it to Google', () => {
+    const q = sanitiseKitFontQuery(new URLSearchParams(`${KIT}&url=https://evil.example`))
+    expect(q?.has('url')).toBe(false)
+    expect(q?.get('kit')).toBeTruthy()
+  })
+
+  it('refuses a query with no kit, or a value that is not a plain token', () => {
+    expect(sanitiseKitFontQuery(new URLSearchParams('skey=abc&v=v20'))).toBeNull()
+    expect(sanitiseKitFontQuery(new URLSearchParams('kit=../../etc'))).toBeNull()
+    expect(sanitiseKitFontQuery(new URLSearchParams('kit=a&v=v20%2F..'))).toBeNull()
   })
 })
