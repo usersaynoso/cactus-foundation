@@ -679,9 +679,13 @@ Do not cap your tab's width - there is nothing in the page to stop a form stretc
 
 | Class | What it does |
 |-------|--------------|
-| `settings-cols` | Two columns on a desktop screen, one on a phone or tablet. Never three, however wide the screen. Children needing the whole row take `settings-cols__full`. |
-| `settings-col` | A stack of cards that sits in one column of `settings-cols`, so a tall card does not leave a hole beside a short one. |
-| `settings-masonry` | Cards of any height flowed into two balanced columns, reading down the first and then the second. Each child stays in one piece. Best when the cards have no natural pairing. |
+| `settings-cols` / `settings-masonry` | Wrap your sections. When the children are `.card`s the sections stack **full width**, one under another. When the children are flat fields or switches with no cards, they flow into two columns. |
+| `settings-col` | A stack of cards; stacks full width like the above. |
+| `field` / `settings-field` | A direct child of a `.card` with this class takes half the card's row, so fields sit **two across inside a section**. Everything else in the card (titles, hints, tables, buttons) takes the whole row. |
+| `field--wide` | Opt a field out of the half row (long hints, textareas are automatic). |
+| `settings-fields` | Put on a wrapper div around a group of fields to make that group its own two-column grid. |
+
+Sections are never side by side; fields inside a section are two across.
 
 ### Hosted settings panels
 
