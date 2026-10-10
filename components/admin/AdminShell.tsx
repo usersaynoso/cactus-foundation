@@ -22,11 +22,14 @@ type Props = {
   unreadCount?: number
   faviconUrl?: string | null
   faviconDarkUrl?: string | null
+  /** Site logo pair; when logoUrl is set it replaces the favicon + name in the sidebar header. */
+  logoUrl?: string | null
+  logoDarkUrl?: string | null
   /** Milliseconds of session left at render time, so the tab can bow out on its own. */
   sessionExpiresInMs?: number
 }
 
-export default function AdminShell({ adminPath, siteName, version, children, sections, moduleSettingsTabs, unreadCount, faviconUrl, faviconDarkUrl, sessionExpiresInMs }: Props) {
+export default function AdminShell({ adminPath, siteName, version, children, sections, moduleSettingsTabs, unreadCount, faviconUrl, faviconDarkUrl, logoUrl, logoDarkUrl, sessionExpiresInMs }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
@@ -123,10 +126,29 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="admin-sidebar-logo-link"
+              className={`admin-sidebar-logo-link${logoUrl && !effectiveCollapsed ? ' admin-sidebar-logo-link--full' : ''}`}
               title={`Open ${siteName} in a new tab`}
             >
-              {faviconUrl ? (
+              {logoUrl && !effectiveCollapsed ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={logoUrl}
+                    alt={siteName}
+                    className="admin-sidebar-site-logo"
+                    data-logo-variant={logoDarkUrl ? 'light' : undefined}
+                  />
+                  {logoDarkUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={logoDarkUrl}
+                      alt={siteName}
+                      className="admin-sidebar-site-logo"
+                      data-logo-variant="dark"
+                    />
+                  )}
+                </>
+              ) : faviconUrl ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -153,7 +175,7 @@ export default function AdminShell({ adminPath, siteName, version, children, sec
                   className="admin-sidebar-logo-img"
                 />
               )}
-              {!effectiveCollapsed && <span className="admin-sidebar-logo-text">{siteName}</span>}
+              {!effectiveCollapsed && !logoUrl && <span className="admin-sidebar-logo-text">{siteName}</span>}
             </a>
             <button
               className="admin-sidebar-close"

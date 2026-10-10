@@ -12,6 +12,7 @@ import { buildAdminThemeStyles, buildFontHref } from '@/lib/design/tokens'
 import { sanitizeSvgFragment } from '@/lib/sanitize'
 import { resolveBranding } from '@/lib/config/branding'
 import { getSiteConfig } from '@/lib/config/site'
+import { prisma } from '@/lib/db/prisma'
 import pkg from '@/package.json'
 import type { Metadata } from 'next'
 
@@ -146,6 +147,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // White-label the admin chrome to the site's primary colour and font. Only the
   // --color-primary family and --font-sans are injected (see buildAdminThemeStyles)
   // so admin spacing, radii and the mono/code font stay on the Cactus design system.
+  // Optional: the site logo in place of favicon + name at the top of the sidebar
+  // (Settings > Navigation). Only looked up when switched on and a logo exists.
+  const useSiteLogo = parseAdminMenuConfig(config?.adminMenuConfig).useSiteLogo === true
+  const sidebarLogoIds = useSiteLogo && config?.logoMediaId
+    ? [config.logoMediaId, config.logoDarkMediaId].filter((v): v is string => !!v)
+    : []
+  const sidebarLogoRows = sidebarLogoIds.length > 0
+    ? await prisma.media
+        .findMany({ where: { id: { in: sidebarLogoIds } }, select: { id: true, url: true } })
+        .catch(() => [])
+    : []
+  const sidebarLogoUrl = sidebarLogoRows.find((r) => r.id === config?.logoMediaId)?.url ?? null
+  const sidebarLogoDarkUrl = sidebarLogoRows.find((r) => r.id === config?.logoDarkMediaId)?.url ?? null
+
   const adminThemeStyles = buildAdminThemeStyles(config?.designTokens)
   // Load the site font(s) so the adopted --font-sans actually renders in admin.
   const fontHref = buildFontHref(config?.designTokens)
@@ -181,6 +196,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         unreadCount={unreadCount}
         faviconUrl={branding.faviconUrl}
         faviconDarkUrl={branding.faviconDarkUrl}
+        logoUrl={sidebarLogoUrl}
+        logoDarkUrl={sidebarLogoDarkUrl}
         sessionExpiresInMs={msUntilExpiry(session.expiresAt)}
       >
         {children}

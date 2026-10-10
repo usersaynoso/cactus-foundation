@@ -646,7 +646,7 @@ function configFingerprint(c: Partial<SiteConfig>): string {
 }
 
 type ModuleTab = { id: string; label: string }
-type NavEditorData = { sections: EditorNavSection[]; roles: Array<{ id: string; name: string; isProtected: boolean }> }
+type NavEditorData = { useSiteLogo: boolean; siteLogoUploaded: boolean; sections: EditorNavSection[]; roles: Array<{ id: string; name: string; isProtected: boolean }> }
 
 type ConfigPageInnerProps = {
   moduleTabs: ModuleTab[]
@@ -1577,7 +1577,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     const gh = ghStatus
 
     return (
-      <div id="integrations-github" className="card admin-anchor" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div id="integrations-github" className="card admin-anchor">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
           <div>
             <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>GitHub App</h3>
@@ -1701,7 +1701,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     ))
 
     return (
-      <div id={`section-${section.id}`} className="card admin-anchor" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div id={`section-${section.id}`} className="card admin-anchor">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
           <div>
             <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{section.label}</h3>
@@ -1799,7 +1799,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       )}
 
       {tab === 'navigation' && showNavTab && navEditorData && (
-        <NavBuilder sections={navEditorData.sections} roles={navEditorData.roles} />
+        <NavBuilder sections={navEditorData.sections} roles={navEditorData.roles} useSiteLogo={navEditorData.useSiteLogo} siteLogoUploaded={navEditorData.siteLogoUploaded} />
       )}
 
       {/* Saves each row on its own, like the navigation editor - hence no page-level

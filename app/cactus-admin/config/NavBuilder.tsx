@@ -10,6 +10,10 @@ type Role = { id: string; name: string; isProtected: boolean }
 type Props = {
   sections: EditorNavSection[]
   roles: Role[]
+  /** Saved "site logo in the sidebar" choice. */
+  useSiteLogo: boolean
+  /** A site logo exists (Appearance > Styles); the switch is inert without one. */
+  siteLogoUploaded: boolean
 }
 
 type WorkItem = {
@@ -51,7 +55,7 @@ function initWork(sections: EditorNavSection[]): WorkSection[] {
   }))
 }
 
-function toConfig(work: WorkSection[]): AdminMenuConfig {
+function toConfig(work: WorkSection[], useSiteLogo: boolean): AdminMenuConfig {
   const items: AdminMenuConfig['items'] = {}
   const sections: AdminMenuConfig['sections'] = {}
   work.forEach((sec, si) => {
@@ -69,20 +73,21 @@ function toConfig(work: WorkSection[]): AdminMenuConfig {
       items[it.id] = override
     })
   })
-  return { items, sections }
+  return useSiteLogo ? { items, sections, useSiteLogo } : { items, sections }
 }
 
-export default function NavBuilder({ sections, roles }: Props) {
+export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteLogo, siteLogoUploaded }: Props) {
   const router = useRouter()
   const [work, setWork] = useState<WorkSection[]>(() => initWork(sections))
-  const [savedJson, setSavedJson] = useState<string>(() => JSON.stringify(toConfig(initWork(sections))))
+  const [useSiteLogo, setUseSiteLogo] = useState(savedUseSiteLogo)
+  const [savedJson, setSavedJson] = useState<string>(() => JSON.stringify(toConfig(initWork(sections), savedUseSiteLogo)))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState(false)
   const [resetArmed, setResetArmed] = useState(false)
 
   const selectableRoles = useMemo(() => roles.filter((r) => !r.isProtected), [roles])
-  const currentJson = useMemo(() => JSON.stringify(toConfig(work)), [work])
+  const currentJson = useMemo(() => JSON.stringify(toConfig(work, useSiteLogo)), [work, useSiteLogo])
   const dirty = currentJson !== savedJson
 
   function update(next: WorkSection[]) {
@@ -135,7 +140,7 @@ export default function NavBuilder({ sections, roles }: Props) {
     setSaving(true)
     setError(null)
     try {
-      const payload = toConfig(work)
+      const payload = toConfig(work, useSiteLogo)
       const res = await fetch('/api/admin/navigation', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -168,7 +173,7 @@ export default function NavBuilder({ sections, roles }: Props) {
       const res = await fetch('/api/admin/navigation', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: {}, sections: {} }),
+        body: JSON.stringify(useSiteLogo ? { items: {}, sections: {}, useSiteLogo } : { items: {}, sections: {} }),
       })
       if (!res.ok) throw new Error('Could not reset the menu')
       // Full reload so the editor re-reads the default order/labels from the server.
@@ -186,6 +191,19 @@ export default function NavBuilder({ sections, roles }: Props) {
         Reorder, rename and control who sees each item in the admin menu on the left. Drag isn’t needed - use the
         arrows to move things. Administrators always see every item, so you can’t lock yourself out.
       </p>
+
+      <label className="navb-role" style={{ marginBottom: 'var(--space-3)' }}>
+        <input
+          type="checkbox"
+          checked={useSiteLogo}
+          disabled={!siteLogoUploaded}
+          onChange={(e) => setUseSiteLogo(e.target.checked)}
+        />
+        Show site logo instead of favicon and site name in admin sidebar
+        {!siteLogoUploaded && (
+          <span className="navb-roles-note"> (upload a site logo under Appearance &gt; Styles first)</span>
+        )}
+      </label>
 
       <SettingsHeaderActions>
         {error && <span className="navb-status navb-status--err">{error}</span>}

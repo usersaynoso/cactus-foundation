@@ -167,12 +167,14 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
   // the rest of System settings). The editor lists every menu item - core and every
   // module link, unfiltered by permission - so an admin can set rules on all of them.
   let navEditorData: {
+    useSiteLogo: boolean
+    siteLogoUploaded: boolean
     sections: EditorNavSection[]
     roles: Array<{ id: string; name: string; isProtected: boolean }>
   } | null = null
   if (canManageNav && user) {
     const [siteConfigRow, navRoles] = await Promise.all([
-      prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { adminMenuConfig: true } }),
+      prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { adminMenuConfig: true, logoMediaId: true } }),
       prisma.role.findMany({ select: { id: true, name: true, isProtected: true }, orderBy: { name: 'asc' } }),
     ])
     const navManifests = activeModules.map((mod) => mod.manifest as ModuleManifestNav | null)
@@ -187,6 +189,8 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
     )
     if (hasInboxTab) availableCoreItemIds.add('inbox')
     navEditorData = {
+      useSiteLogo: parseAdminMenuConfig(siteConfigRow?.adminMenuConfig).useSiteLogo === true,
+      siteLogoUploaded: !!siteConfigRow?.logoMediaId,
       sections: resolveAdminMenuForEditor(moduleGroups, parseAdminMenuConfig(siteConfigRow?.adminMenuConfig), availableCoreItemIds),
       roles: navRoles,
     }

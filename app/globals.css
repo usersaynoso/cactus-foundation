@@ -541,6 +541,15 @@ a:hover {
   flex-shrink: 0;
 }
 
+.admin-sidebar-site-logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 56px;
+  object-fit: contain;
+  object-position: center;
+}
+
 .admin-sidebar-logo-text {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
@@ -1482,10 +1491,9 @@ a:hover {
 .navb-status--ok { color: var(--color-success); }
 .navb-status--err { color: var(--color-error); }
 .navb-sections {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(26rem, calc((100% - var(--space-3)) / 2))), 1fr));
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
-  align-items: start;
 }
 .navb-section {
   border: 1px solid var(--color-border);
@@ -3028,11 +3036,17 @@ tbody tr:hover {
   }
 }
 
-/* Two columns on a desktop screen, one on a tablet or phone. The track minimum is
-   the larger of 26rem and half the row, so a wide screen never goes to three
-   columns and a narrow one drops to one - and min(100%, ...) stops the minimum
-   itself overflowing a phone. Children that need the whole row take
-   .settings-cols__full. */
+/* Settings layout. Two different shapes live under these classes:
+
+   1. A tab made of CARDS (sections). Each card runs the full width of the page and
+      the FIELDS inside it sit in two columns (see "Fields in two columns" below).
+   2. A tab with no cards, where the children ARE the fields or switches. Those flow
+      into two columns directly.
+
+   :has() tells them apart, so a module only has to use the class. The track minimum
+   is the larger of 26rem and half the row, so a wide screen never goes to three
+   columns and a narrow one drops to one; min(100%, ...) stops the minimum itself
+   overflowing a phone. Children that need the whole row take .settings-cols__full. */
 .settings-cols {
   display: grid;
   grid-template-columns: repeat(
@@ -3053,9 +3067,8 @@ tbody tr:hover {
 .settings-cols > .field {
   margin-bottom: 0;
 }
-/* Cards of every height flowed into two balanced columns - for a tab whose cards
-   carry their own spacing and have no natural pairing. Reads down the first column,
-   then the second; one column below 26rem a column. Each child stays in one piece. */
+/* Flat fields flowed into two balanced columns - for a tab with no cards. Reads down
+   the first column, then the second; one column below 26rem a column. */
 .settings-masonry {
   column-count: 2;
   column-width: 26rem;
@@ -3064,9 +3077,25 @@ tbody tr:hover {
 .settings-masonry > * {
   break-inside: avoid;
 }
+/* Sections: stack them full width. */
+.settings-cols:has(> .card, > .settings-col),
+.settings-masonry:has(> .card) {
+  display: flex;
+  flex-direction: column;
+  column-count: auto;
+  gap: var(--space-6);
+}
+.settings-masonry:has(> .card) {
+  margin-bottom: var(--space-6);
+}
+.settings-masonry > .card {
+  margin-bottom: var(--space-6);
+}
+.settings-masonry:has(> .card) > .card {
+  margin-bottom: 0;
+}
 
-/* A stack of cards that sits in one column of .settings-cols, so a tall card on one
-   side does not leave a hole beside a short one on the other. */
+/* A stack of cards. Full width; kept as a class so older markup still works. */
 .settings-col {
   display: flex;
   flex-direction: column;
@@ -3075,6 +3104,46 @@ tbody tr:hover {
 }
 .settings-col > .card {
   margin-bottom: 0;
+}
+
+/* Fields in two columns. A section card is full width; its fields sit two across and
+   everything else in it (title, intro text, tables, buttons, alerts) takes the whole
+   row. Fields that cannot sit in half a row (a textarea, a code box, a picture
+   picker) take the row too, via .field--wide, or automatically when they hold a
+   textarea. Wrapper divs are NOT looked through: give a group of fields the
+   .settings-fields class and it becomes its own two-column grid. */
+.settings-cols .card,
+.settings-masonry .card,
+.settings-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  column-gap: var(--space-6);
+  align-items: start;
+}
+.settings-cols .card > *,
+.settings-masonry .card > *,
+.settings-fields > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.settings-cols .card > .field,
+.settings-masonry .card > .field,
+.settings-fields > .field,
+.settings-cols .card > .settings-field,
+.settings-masonry .card > .settings-field,
+.settings-fields > .settings-field {
+  grid-column: auto;
+}
+.settings-cols .card > .field:has(textarea),
+.settings-masonry .card > .field:has(textarea),
+.settings-fields > .field:has(textarea),
+.settings-cols .card > .field--wide,
+.settings-masonry .card > .field--wide,
+.settings-fields > .field--wide {
+  grid-column: 1 / -1;
+}
+.settings-fields {
+  grid-column: 1 / -1;
 }
 
 .page-title {

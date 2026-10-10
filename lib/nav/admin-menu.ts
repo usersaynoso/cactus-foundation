@@ -118,6 +118,9 @@ const SectionOverrideSchema = z.object({
 export const AdminMenuConfigSchema = z.object({
   items: z.record(z.string(), ItemOverrideSchema).default({}),
   sections: z.record(z.string(), SectionOverrideSchema).default({}),
+  // Settings > Navigation: swap the sidebar's favicon + site name for the site logo
+  // (light/dark pair from Appearance > Styles). Ignored while no logo is uploaded.
+  useSiteLogo: z.boolean().optional(),
 })
 export type AdminMenuConfig = z.infer<typeof AdminMenuConfigSchema>
 
