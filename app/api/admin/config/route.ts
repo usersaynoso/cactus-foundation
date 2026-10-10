@@ -264,10 +264,14 @@ export async function PATCH(request: NextRequest) {
       select: { adminMenuConfig: true },
     })
     const current = parseAdminMenuConfig(stored?.adminMenuConfig)
+    const sidebarOn = settingsSidebar ?? current.settingsSidebar === true
     data.adminMenuConfig = {
       ...current,
       ...(settingsSidebar !== undefined ? { settingsSidebar } : {}),
       ...(settingsSidebarHideSubTabs !== undefined ? { settingsSidebarHideSubTabs } : {}),
+      // Hiding the sub-tabs only makes sense with the sidebar to stand in for them,
+      // so switching the sidebar off switches this off with it.
+      ...(sidebarOn ? {} : { settingsSidebarHideSubTabs: false }),
     }
   }
 

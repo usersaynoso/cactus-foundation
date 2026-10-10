@@ -40,9 +40,31 @@ describe('SettingsNav', () => {
     const beta = [...el.querySelectorAll('.settings-sidebar__tree button')].find((b) => b.textContent === 'Beta') as HTMLButtonElement
     await act(async () => { beta.click() })
     expect(el.querySelector('#showing')?.textContent).toBe('b')
-    expect(tree()).toEqual(['Alpha', 'Beta*'])
-    // the inner strip does not take over
-    expect(el.querySelectorAll('.settings-sub-tabs').length).toBe(1)
+    // the strip drawn inside Beta hangs under Beta, and is hidden with the rest
+    expect(tree()).toEqual(['Alpha', 'Beta*', 'Inner*', 'Inner2'])
+    expect(el.querySelectorAll('.settings-sub-tabs').length).toBe(2)
+    await act(async () => { root.unmount() })
+  })
+
+  it('leaves a strip in a hidden panel out of the tree', async () => {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    const root = createRoot(el)
+    await act(async () => {
+      root.render(
+        <SettingsNavProvider>
+          <SettingsSidebar nodes={[{ key: 'm', label: 'Module', active: true, onClick: () => {}, capturesModuleTabs: true }]} />
+          <SettingsNavCapture>
+            <TabStrip items={[{ key: 'a', label: 'Alpha', active: true }, { key: 'b', label: 'Beta', active: false }]} />
+            <div hidden>
+              <TabStrip items={[{ key: 'x', label: 'Stale', active: true }, { key: 'y', label: 'Stale2', active: false }]} />
+            </div>
+          </SettingsNavCapture>
+        </SettingsNavProvider>,
+      )
+    })
+    const tree = [...el.querySelectorAll('.settings-sidebar__tree button')].map((b) => b.textContent)
+    expect(tree).toEqual(['Alpha', 'Beta'])
     await act(async () => { root.unmount() })
   })
 })

@@ -48,7 +48,8 @@ export function TabStrip({ items, trailing, style, className }: Props) {
   // On the Settings page a module's sub-tabs are also listed in the sidebar, and
   // can be hidden here in favour of it (see SettingsNav). Everywhere else this is
   // always false.
-  const isSettingsSubTabs = useSettingsNavStrip(items)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const isSettingsSubTabs = useSettingsNavStrip(items, rootRef)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -77,7 +78,7 @@ export function TabStrip({ items, trailing, style, className }: Props) {
   }
 
   return (
-    <div className={[className, isSettingsSubTabs && 'settings-sub-tabs'].filter(Boolean).join(' ') || undefined} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border)', marginBottom: '1rem', ...style }}>
+    <div ref={rootRef} className={[className, isSettingsSubTabs && 'settings-sub-tabs'].filter(Boolean).join(' ') || undefined} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border)', marginBottom: '1rem', ...style }}>
       <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
         <div ref={scrollRef} className="no-scrollbar" style={{ display: 'flex', overflowX: 'auto' }}>
           {items.map((item) => item.href ? (
@@ -117,7 +118,7 @@ export function TabStrip({ items, trailing, style, className }: Props) {
           </>
         )}
       </div>
-      {trailing && <div style={{ flexShrink: 0, marginLeft: '0.75rem' }}>{trailing}</div>}
+      {trailing && <div className="tab-strip__trailing" style={{ flexShrink: 0, marginLeft: '0.75rem' }}>{trailing}</div>}
     </div>
   )
 }

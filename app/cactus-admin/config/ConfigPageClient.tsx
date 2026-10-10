@@ -98,9 +98,8 @@ const EMAIL_SUBS: readonly SubTabDef[] = [
 
 const INTEGRATION_SUBS: readonly SubTabDef[] = [
   { key: 'github', label: 'GitHub', anchors: ['integrations-github'] },
-  { key: 'hosting', label: 'Vercel', anchors: ['section-edge-config', 'section-webhook'] },
+  { key: 'hosting', label: 'Vercel & database', anchors: ['section-edge-config', 'section-webhook', 'section-neon'] },
   { key: 'protection', label: 'Protection & monitoring', anchors: ['section-turnstile', 'section-sentry'] },
-  { key: 'database', label: 'Database', anchors: ['section-neon'] },
 ]
 
 const SUBS_BY_TAB: Record<string, readonly SubTabDef[] | undefined> = {
@@ -1258,7 +1257,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         dirtyRef.current = false
         setSidebarPrefs({
           enabled: config.settingsSidebar === true,
-          hideSubTabs: config.settingsSidebarHideSubTabs === true,
+          hideSubTabs: config.settingsSidebar === true && config.settingsSidebarHideSubTabs === true,
         })
       }
       setSaved(true)
@@ -1928,9 +1927,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <span className="field-hint">The menu shown in the site header navigation.</span>
             </div>
           </div>
-          <div className="field">
-            <span className="field-hint">Header and footer are designed in <strong>Appearance</strong>. Layouts are managed under <strong>Layouts</strong>.</span>
-          </div>
           <div id="general-status" className="field admin-anchor">
             <label>Site status</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1942,12 +1938,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>Manage status page layouts →</a>
             </div>
           </div>
-                  </div>
-                </div>
-                <div className="settings-col">
-                  <div className="card">
-                    <div className="card-title">Search engines</div>
-          <div id="general-seo" className="field admin-anchor">
+          <div id="general-seo" className="field field--beside-input admin-anchor">
             <label className="settings-check">
               <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
               Hide from search engines (noindex)
@@ -1957,6 +1948,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </InfoTip>
             </label>
           </div>
+          <p className="field-hint">Header and footer are designed in <strong>Appearance</strong>. Layouts are managed under <strong>Layouts</strong>.</p>
                   </div>
                   <div className="card">
                     <div className="card-title">Language &amp; time</div>
@@ -1983,7 +1975,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           </div>
                   </div>
                   <div className="card">
-                    <div className="card-title">Admin access</div>
+                    <div className="card-title">Admin</div>
           <div id="general-admin-path" className="settings-fields admin-anchor">
             <div className="field">
               <label>Admin path</label>
@@ -1996,10 +1988,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <span className="field-hint">How long an admin who ticks &quot;trust this browser&quot; at login skips the email code.</span>
             </div>
           </div>
-
-                  </div>
-                  <div id="general-settings-sidebar" className="card admin-anchor">
-                    <div className="card-title">Settings page</div>
+                    <div id="general-settings-sidebar" className="settings-fields admin-anchor">
                     <div className="field">
                       <label className="settings-check">
                         <input
@@ -2017,34 +2006,31 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                         </InfoTip>
                       </label>
                     </div>
+                    {config.settingsSidebar && (
                     <div className="field">
-                      <label
-                        className="settings-check"
-                        style={{
-                          cursor: config.settingsSidebar ? 'pointer' : 'not-allowed',
-                          color: config.settingsSidebar ? undefined : 'var(--color-text-muted)',
-                        }}
-                      >
+                      <label className="settings-check">
                         <input
                           type="checkbox"
-                          disabled={!config.settingsSidebar}
-                          checked={(config.settingsSidebar ?? false) && (config.settingsSidebarHideSubTabs ?? false)}
+                          checked={config.settingsSidebarHideSubTabs ?? false}
                           onChange={(e) => set('settingsSidebarHideSubTabs', e.target.checked)}
                         />
                         Also hide the sub-tabs on every settings page
                         <InfoTip>
-                          Takes the row of sub-tabs off the top of each settings page, so the sidebar is the only way round.
+                          Takes the rows of sub-tabs (and any tabs inside them) off the top of each settings page, so the
+                          sidebar is the only way round. Only while the sidebar is switched on.
                         </InfoTip>
                       </label>
                     </div>
+                    )}
                   </div>
+                    </div>
                 </div>
               </div>
             </>
           )}
 
           {tab === 'backup' && canManageConfig && (
-            <div className="settings-cols">
+            <div className="settings-cols"><div className="settings-card-row">
           <div id="general-backup" className="card admin-anchor">
             <div className="card-title">Backup <InfoTip>Download a full copy of your database - every page, user, layout, and setting - as a single SQL file. No storage provider needed, it downloads straight to your device.</InfoTip></div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
@@ -2146,11 +2132,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             )}
           </div>
 
-            </div>
+            </div></div>
           )}
 
           {tab === 'danger' && canManageConfig && (
-          <div id="general-danger" className="admin-anchor settings-cols">
+          <div id="general-danger" className="admin-anchor settings-cols"><div className="settings-card-row">
             <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
             <div className="card-title" style={{ color: 'var(--color-destructive)' }}>Reset Database</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
@@ -2278,7 +2264,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             )}
             </div>
             )}
-          </div>
+          </div></div>
           )}
 
       {tab === 'speed' && canManageConfig && (
@@ -2452,14 +2438,14 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </div>
           )}
           {(config.pageCacheEnabled ?? false) && (
+            <div className="settings-card-row">
             <div id="speed-page-cache-purge" className="admin-anchor">
               {/* Plain function call (not JSX) for the same reason as the Integrations
                   grid: the card is defined inline, so rendering it as an element would
                   remount it - and drop focus out of the inputs - on every keystroke. */}
               {EnvSectionCard({ section: PAGE_CACHE_PURGE_SECTION })}
             </div>
-          )}
-          {(config.pageCacheEnabled ?? false) && !!envStatus['CLOUDFLARE_ZONE_ID'] && (!!envStatus['CLOUDFLARE_PURGE_API_TOKEN'] || !!envStatus['CLOUDFLARE_API_TOKEN']) && (
+          {!!envStatus['CLOUDFLARE_ZONE_ID'] && (!!envStatus['CLOUDFLARE_PURGE_API_TOKEN'] || !!envStatus['CLOUDFLARE_API_TOKEN']) && (
             <div id="speed-purge-now" className="card admin-anchor">
               <div className="card-title">Purge everything now</div>
               <p className="field-hint">
@@ -2470,6 +2456,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={purging} onClick={handlePurgeEverything}>
                 {purging ? 'Purging…' : purged ? '✓ Purged' : 'Purge everything now'}
               </button>
+            </div>
+          )}
             </div>
           )}
         </div>
@@ -2546,10 +2534,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               )
             })()}
           </div>
-            </div>
-          <div id="email-tracking" className="card admin-anchor">
-            <div className="card-title">Tracking</div>
-            <div className="field">
+            <div id="email-tracking" className="field admin-anchor">
             <label className="settings-check">
               <input
                 type="checkbox"
@@ -2565,14 +2550,15 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </InfoTip>
             </label>
             </div>
-          </div>
+            </div>
 
           </div>
           <div className="settings-col">
           {/* Called as a plain function, not JSX: an inline-defined component gets a new
               identity every parent render, so React would remount the card (and drop input
               focus) on each keystroke. */}
-          {EnvSectionCard({ section: emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION })}
+          <div className="settings-card-row">
+          <div>{EnvSectionCard({ section: emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION })}</div>
 
           <div id="email-test" className="card admin-anchor">
             <div className="card-title">Send a test email</div>
@@ -2595,6 +2581,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </div>
             {testEmailSent && <div className="alert alert-success" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>Sent to {testEmailSent}.</div>}
             {testEmailError && <div className="alert alert-danger" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>{testEmailError}</div>}
+          </div>
           </div>
           </div>
         </div>
@@ -2639,6 +2626,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         // members' data used to be three sub-tabs. One page now: none of them is long.
         return (
               <div className="settings-cols">
+                <div className="settings-card-row">
                 <div className="card">
                   <div className="card-title">Legal pages</div>
             <div id="gdpr-legal" className="settings-fields admin-anchor">
@@ -2682,10 +2670,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </div>
 
                 </div>
+                </div>
                   <div className="card">
             <div id="gdpr-banner" className="card-title admin-anchor">Cookie consent banner</div>
 
-            <div className="field field--wide">
+            <div className="field">
             <label className="settings-check">
               <input
                 type="checkbox"
@@ -2701,6 +2690,23 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               Enable cookie consent banner
             </label>
             </div>
+            {consent && (
+              <div className="field">
+                <label className="settings-check">
+                  <input
+                    type="checkbox"
+                    checked={consent.hideRejectUntilManage ?? false}
+                    onChange={(e) => setConsent({ hideRejectUntilManage: e.target.checked })}
+                  />
+                  Hide &ldquo;Reject all&rdquo; until the visitor opens &ldquo;Manage preferences&rdquo;
+                  <InfoTip>
+                    The banner opens with just &ldquo;Accept all&rdquo; and &ldquo;Manage preferences&rdquo;; &ldquo;Reject
+                    all&rdquo; appears with the switches. UK and EU regulators expect rejecting to be as easy as
+                    accepting, so check with your own legal advice first.
+                  </InfoTip>
+                </label>
+              </div>
+            )}
 
             {consent && (
               <>
@@ -2744,21 +2750,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   </div>
                 </div>
 
-                <div className="field">
-                  <label className="settings-check">
-                    <input
-                      type="checkbox"
-                      checked={consent.hideRejectUntilManage ?? false}
-                      onChange={(e) => setConsent({ hideRejectUntilManage: e.target.checked })}
-                    />
-                    Hide &ldquo;Reject all&rdquo; until the visitor opens &ldquo;Manage preferences&rdquo;
-                    <InfoTip>
-                      The banner opens with just &ldquo;Accept all&rdquo; and &ldquo;Manage preferences&rdquo;; &ldquo;Reject
-                      all&rdquo; appears with the switches. UK and EU regulators expect rejecting to be as easy as
-                      accepting, so check with your own legal advice first.
-                    </InfoTip>
-                  </label>
-                </div>
 
               </>
             )}
@@ -2796,7 +2787,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
                 {(consent.categoriesVersion ?? 0) > 0 && (
                   <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                    Categories version: <strong>{consent.categoriesVersion}</strong> &mdash; visitors will be re-prompted when this number increases.
+                    Categories version: <strong>{consent.categoriesVersion}</strong> - visitors will be re-prompted when this number increases.
                   </p>
                 )}
                     </div>
@@ -2957,12 +2948,15 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <div className="settings-col">
             {/* Provider dropdown, grouped by kind */}
             <div id="media-provider" className="card admin-anchor">
-              <div className="card-title">Media provider</div>
-              <div className="field field--wide">
-              <p className="field-hint" style={{ margin: '0 0 0.25rem' }}>
-                Where uploaded images are stored. The choice is saved here; the credentials live in your Vercel
-                environment variables.
-              </p>
+              <div className="card-title">Media</div>
+              <div className="field">
+              <label>
+                Provider
+                <InfoTip>
+                  Where uploaded images are stored. The choice is saved here; the credentials live in your Vercel
+                  environment variables.
+                </InfoTip>
+              </label>
               <select
                 value={selected ?? ''}
                 disabled={mediaBusy || !!jobActive}
@@ -2983,6 +2977,40 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <span className="field-hint">
                 Changing this only affects where new uploads land. Existing images stay put until you migrate them.
               </span>
+              </div>
+              <div id="media-lazy-load" className="field field--beside-input admin-anchor">
+              <label className="settings-check">
+                <input
+                  type="checkbox"
+                  checked={config.lazyLoadImages ?? true}
+                  onChange={(e) => set('lazyLoadImages', e.target.checked)}
+                />
+                Load images only as visitors scroll to them
+                <InfoTip>
+                  Images wait until they are nearly in view, so nobody downloads pictures they never reach. It applies to
+                  every image, the big one at the top included - if that feels slow to appear, turn this off.
+                </InfoTip>
+              </label>
+              </div>
+              <div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', marginBottom: '0.375rem' }}>Where your media lives</div>
+              {Object.keys(breakdown).length === 0 ? (
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>No media uploaded yet.</p>
+              ) : (
+                <ul style={{ fontSize: '0.875rem', paddingLeft: '1.25rem' }}>
+                  {Object.entries(breakdown).map(([p, n]) => (
+                    <li key={p}>
+                      {PROVIDER_LABELS[p as MediaProviderType] ?? p}: {n} item{n === 1 ? '' : 's'}
+                      {p === selected && <span style={{ color: 'var(--color-primary)' }}> (active)</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {selected && straysExist && !jobActive && (
+                <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={confirmMigrateNow}>
+                  Migrate everything to {PROVIDER_LABELS[selected]}
+                </button>
+              )}
               </div>
             </div>
 
@@ -3068,6 +3096,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                             Global API Key
                           </label>
                         </div>
+                        <div className="settings-fields">
                         {cfAuthMode === 'token' ? (
                           <div className="field">
                             <label style={{ fontSize: '0.8125rem', display: 'flex', justifyContent: 'space-between' }}>
@@ -3107,6 +3136,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                             {envStatus[CLOUDFLARE_CREDENTIAL_KEYS.accountId] && <StatusBadge set />}
                           </label>
                           <input type="text" autoComplete="off" value={cfAccountId} onChange={(e) => setCfAccountId(e.target.value)} placeholder={envStatus[CLOUDFLARE_CREDENTIAL_KEYS.accountId] ? 'Leave blank to reuse the account this site already deploys to' : 'Auto-detected - only needed if you have several Cloudflare accounts'} style={{ fontSize: '0.875rem' }} />
+                        </div>
                         </div>
                         {cfResult && (
                           <div className={cfResult.ok ? 'alert alert-success' : 'alert alert-danger'} style={{ fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>
@@ -3167,28 +3197,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
               </div>
               <div className="settings-col">
-            {/* Per-provider breakdown */}
-            <div className="card">
-              <div className="card-title">Where your media lives</div>
-              {Object.keys(breakdown).length === 0 ? (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>No media uploaded yet.</p>
-              ) : (
-                <ul style={{ fontSize: '0.875rem', paddingLeft: '1.25rem' }}>
-                  {Object.entries(breakdown).map(([p, n]) => (
-                    <li key={p}>
-                      {PROVIDER_LABELS[p as MediaProviderType] ?? p}: {n} item{n === 1 ? '' : 's'}
-                      {p === selected && <span style={{ color: 'var(--color-primary)' }}> (active)</span>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {selected && straysExist && !jobActive && (
-                <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={confirmMigrateNow}>
-                  Migrate everything to {PROVIDER_LABELS[selected]}
-                </button>
-              )}
-            </div>
-
             {/* Live migration progress */}
             {jobActive && job && (
               <div className="card">
@@ -3230,25 +3238,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </div>
             )}
 
-            {/* Delivery — how images behave on the public site, as opposed to
-                where they are stored. Saved with the page's own Save button. */}
-            <div id="media-lazy-load" className="card admin-anchor">
-              <div className="card-title">Loading</div>
-              <div className="field">
-              <label className="settings-check">
-                <input
-                  type="checkbox"
-                  checked={config.lazyLoadImages ?? true}
-                  onChange={(e) => set('lazyLoadImages', e.target.checked)}
-                />
-                Load images only as visitors scroll to them
-                <InfoTip>
-                  Images wait until they are nearly in view, so nobody downloads pictures they never reach. It applies to
-                  every image, the big one at the top included - if that feels slow to appear, turn this off.
-                </InfoTip>
-              </label>
-              </div>
-            </div>
               </div>
             </div>
           </div>
@@ -3263,6 +3252,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           <div className="settings-cols">
             {/* eslint-disable-next-line react-hooks/static-components -- GitHubAppCard and EnvSectionCard are render helpers; extracting them would require threading ~20 state values as props */}
             {activeSub === 'github' && <GitHubAppCard />}
+            <div className="settings-card-row">
             {INTEGRATION_SUBS.find((d) => d.key === activeSub)?.anchors
               .filter((a) => a.startsWith('section-'))
               .map((a) => INTEGRATION_SECTIONS.find((section) => `section-${section.id}` === a))
@@ -3271,6 +3261,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 // inline-defined card isn't remounted - and inputs unfocused - every render.
                 <Fragment key={section.id}>{EnvSectionCard({ section })}</Fragment>
               ))}
+            </div>
           </div>
         </div>
       )}

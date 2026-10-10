@@ -192,7 +192,7 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
         arrows to move things. Administrators always see every item, so you can’t lock yourself out.
       </p>
 
-      <label className="navb-role" style={{ marginBottom: 'var(--space-3)' }}>
+      <label className="settings-check" style={{ marginBottom: 'var(--space-4)' }}>
         <input
           type="checkbox"
           checked={useSiteLogo}
@@ -201,7 +201,7 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
         />
         Show site logo instead of favicon and site name in admin sidebar
         {!siteLogoUploaded && (
-          <span className="navb-roles-note"> (upload a site logo under Appearance &gt; Styles first)</span>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>(upload a site logo under Appearance &gt; Styles first)</span>
         )}
       </label>
 
@@ -209,16 +209,13 @@ export default function NavBuilder({ sections, roles, useSiteLogo: savedUseSiteL
         {error && <span className="navb-status navb-status--err">{error}</span>}
         {dirty && !saving && <span className="navb-status navb-status--dirty">Unsaved changes</span>}
         {flash && <span className="navb-status navb-status--ok">Saved</span>}
+        <button type="button" className="btn btn-secondary" onClick={reset} disabled={saving}>
+          {resetArmed ? 'Click again to reset everything' : 'Reset to defaults'}
+        </button>
         <button type="button" className="btn btn-primary" onClick={save} disabled={!dirty || saving}>
           {saving ? 'Saving…' : 'Save menu'}
         </button>
       </SettingsHeaderActions>
-
-      <div className="navb-actionbar">
-        <button type="button" className="btn btn-secondary" onClick={reset} disabled={saving}>
-          {resetArmed ? 'Click again to reset everything' : 'Reset to defaults'}
-        </button>
-      </div>
 
       <div className="navb-sections">
         {work.map((section, si) => (

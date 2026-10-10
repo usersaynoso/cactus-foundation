@@ -12,22 +12,25 @@ import type { TabStripItem } from './TabStrip'
 //
 // Only strips inside a <SettingsNavCapture> report in (core wraps the module's tab in
 // one), so the core strips in the Settings bar, and every TabStrip anywhere else in
-// the admin, are left alone. Where a module draws more than one strip - a strip
-// inside one of its own sub-tabs, say - the first one drawn is the page's sub-tabs
-// and the rest are its business. That first strip is given the same class as core's
-// own sub-tab strip, so when the owner has asked for the sub-tabs to be hidden the
-// stylesheet hides it with the rest - on a screen wide enough for the sidebar only,
-// so a phone still has a way round. The module's own state still decides which
-// sub-tab is showing, so nothing about it has to change.
+// the admin, are left alone. A module can draw a strip inside one of its own
+// sub-tabs (Shop > Google Shopping > Feed, Merchant Center...): the strips that are
+// on screen, taken in the order they were first drawn, form a chain, and each one
+// hangs in the sidebar under the open item of the one before it. Every strip in that
+// chain is given the same class as core's own sub-tab strip, so when the owner has
+// asked for the sub-tabs to be hidden the stylesheet hides all of them - on a screen
+// wide enough for the sidebar only, so a phone still has a way round. The module's
+// own state still decides which tab is showing, so nothing about it has to change.
+// A strip inside a panel that is mounted but hidden is left out of the chain.
 
 type CapturedItem = { key: string; label: ReactNode; active: boolean; href?: string }
+type CapturedStrip = { id: number; items: CapturedItem[] }
 
 type Store = {
-  register: (id: number, items: TabStripItem[]) => void
+  register: (id: number, items: TabStripItem[], visible: boolean) => void
   unregister: (id: number) => void
-  primaryId: number | null
-  primaryItems: CapturedItem[]
-  click: (key: string, event: React.MouseEvent<HTMLElement>) => void
+  /** The strips on screen, outermost first. */
+  chain: CapturedStrip[]
+  click: (id: number, key: string, event: React.MouseEvent<HTMLElement>) => void
 }
 
 const StoreContext = createContext<Store | null>(null)
@@ -35,8 +38,8 @@ const CaptureContext = createContext(false)
 
 let nextStripId = 0
 
-function signature(items: TabStripItem[]): string {
-  return items.map((i) => `${i.key}\u0001${i.active ? 1 : 0}\u0001${typeof i.label === 'string' ? i.label : ''}\u0001${i.href ?? ''}`).join('\u0002')
+function signature(items: TabStripItem[], visible: boolean): string {
+  return (visible ? 'v' : 'h') + items.map((i) => `${i.key}\u0001${i.active ? 1 : 0}\u0001${typeof i.label === 'string' ? i.label : ''}\u0001${i.href ?? ''}`).join('\u0002')
 }
 
 export function SettingsNavProvider({ children }: { children: ReactNode }) {
@@ -45,15 +48,15 @@ export function SettingsNavProvider({ children }: { children: ReactNode }) {
   // and only changes when a key, label or active flag does - a module re-rendering
   // for some other reason never re-renders the sidebar.
   const latest = useRef(new Map<number, TabStripItem[]>())
-  const [strips, setStrips] = useState<Map<number, { sig: string; items: CapturedItem[] }>>(() => new Map())
+  const [strips, setStrips] = useState<Map<number, { sig: string; visible: boolean; items: CapturedItem[] }>>(() => new Map())
 
-  const register = useCallback((id: number, items: TabStripItem[]) => {
+  const register = useCallback((id: number, items: TabStripItem[], visible: boolean) => {
     latest.current.set(id, items)
-    const sig = signature(items)
+    const sig = signature(items, visible)
     setStrips((prev) => {
       if (prev.get(id)?.sig === sig) return prev
       const next = new Map(prev)
-      next.set(id, { sig, items: items.map(({ key, label, active, href }) => ({ key, label, active, href })) })
+      next.set(id, { sig, visible, items: items.map(({ key, label, active, href }) => ({ key, label, active, href })) })
       return next
     })
   }, [])
@@ -68,23 +71,19 @@ export function SettingsNavProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const primaryId = strips.size > 0 ? Math.min(...strips.keys()) : null
-
-  const click = useCallback((key: string, event: React.MouseEvent<HTMLElement>) => {
-    if (primaryId === null) return
-    latest.current.get(primaryId)?.find((i) => i.key === key)?.onClick?.(event)
-  }, [primaryId])
-
-  const value = useMemo<Store>(
-    () => ({
-      register,
-      unregister,
-      primaryId,
-      primaryItems: primaryId === null ? [] : strips.get(primaryId)?.items ?? [],
-      click,
-    }),
-    [register, unregister, primaryId, strips, click],
+  const chain = useMemo<CapturedStrip[]>(
+    () => [...strips.entries()]
+      .filter(([, strip]) => strip.visible)
+      .sort(([a], [b]) => a - b)
+      .map(([id, strip]) => ({ id, items: strip.items })),
+    [strips],
   )
+
+  const click = useCallback((id: number, key: string, event: React.MouseEvent<HTMLElement>) => {
+    latest.current.get(id)?.find((i) => i.key === key)?.onClick?.(event)
+  }, [])
+
+  const value = useMemo<Store>(() => ({ register, unregister, chain, click }), [register, unregister, chain, click])
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }
 
@@ -93,9 +92,22 @@ export function SettingsNavCapture({ children }: { children: ReactNode }) {
   return <CaptureContext.Provider value>{children}</CaptureContext.Provider>
 }
 
+/** Whether anything above the strip is hiding it (a panel kept mounted but not
+ * shown). The strip's own display is left out: hiding sub-tabs in favour of the
+ * sidebar is exactly what must not take a strip out of the sidebar. */
+function shownByAncestors(el: HTMLElement | null): boolean {
+  let node = el?.parentElement ?? null
+  while (node && node !== document.body) {
+    if (node.hidden || node.style.display === 'none') return false
+    node = node.parentElement
+  }
+  return true
+}
+
 /** Called by TabStrip. Reports the strip when it is a captured settings strip, and
- * answers whether it is the page's sub-tab strip (the first one a module draws). */
-export function useSettingsNavStrip(items: TabStripItem[]): boolean {
+ * answers whether it is one of the page's sub-tab strips (so it can be hidden in
+ * favour of the sidebar). */
+export function useSettingsNavStrip(items: TabStripItem[], ref: React.RefObject<HTMLElement | null>): boolean {
   const store = useContext(StoreContext)
   const capture = useContext(CaptureContext)
   // Strips are numbered in the order they are first drawn, so the outermost strip of
@@ -106,14 +118,14 @@ export function useSettingsNavStrip(items: TabStripItem[]): boolean {
   const unregister = store?.unregister
 
   useLayoutEffect(() => {
-    if (live && register) register(id, items)
+    if (live && register) register(id, items, shownByAncestors(ref.current))
   })
   useLayoutEffect(() => {
     if (!live || !unregister) return
     return () => unregister(id)
   }, [live, unregister, id])
 
-  return store !== null && capture && store.primaryId === id
+  return live && store.chain.some((strip) => strip.id === id)
 }
 
 export type SettingsNavNode = {
@@ -146,23 +158,25 @@ const linkStyle = (active: boolean, depth: number): React.CSSProperties => ({
 /** The Settings sidebar. Only the open tab's tree is unfolded. */
 export function SettingsSidebar({ nodes }: { nodes: SettingsNavNode[] }) {
   const store = useContext(StoreContext)
-  const captured = store?.primaryItems ?? []
+  const chain = store?.chain ?? []
 
-  function renderCaptured(depth: number) {
-    if (captured.length < 2) return null
+  function renderCaptured(level: number, depth: number): ReactNode {
+    const strip = chain[level]
+    if (!strip || strip.items.length < 2) return null
     return (
       <ul className="settings-sidebar__tree">
-        {captured.map((item) => (
+        {strip.items.map((item) => (
           <li key={item.key}>
             {item.href ? (
-              <Link href={item.href} prefetch={false} style={linkStyle(item.active, depth)} aria-current={item.active ? 'page' : undefined} onClick={(e) => store?.click(item.key, e)}>
+              <Link href={item.href} prefetch={false} style={linkStyle(item.active, depth)} aria-current={item.active ? 'page' : undefined} onClick={(e) => store?.click(strip.id, item.key, e)}>
                 {item.label}
               </Link>
             ) : (
-              <button type="button" style={linkStyle(item.active, depth)} aria-current={item.active ? 'page' : undefined} onClick={(e) => store?.click(item.key, e)}>
+              <button type="button" style={linkStyle(item.active, depth)} aria-current={item.active ? 'page' : undefined} onClick={(e) => store?.click(strip.id, item.key, e)}>
                 {item.label}
               </button>
             )}
+            {item.active && renderCaptured(level + 1, depth + 1)}
           </li>
         ))}
       </ul>
@@ -184,7 +198,7 @@ export function SettingsSidebar({ nodes }: { nodes: SettingsNavNode[] }) {
             {node.label}
           </button>
           {kids.length > 0 && <ul className="settings-sidebar__tree">{renderNodes(kids, depth + 1)}</ul>}
-          {node.active && node.capturesModuleTabs && renderCaptured(depth + 1)}
+          {node.active && node.capturesModuleTabs && renderCaptured(0, depth + 1)}
         </li>
       )
     })

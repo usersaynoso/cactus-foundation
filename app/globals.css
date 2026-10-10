@@ -1502,7 +1502,6 @@ a:hover {
 
 /* ── Navigation builder (Settings > Navigation) ── */
 .navb-intro { color: var(--color-text-muted); font-size: 14px; margin-bottom: var(--space-4); max-width: 62ch; }
-.navb-actionbar { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); flex-wrap: wrap; }
 .navb-status { font-size: 13px; }
 .navb-status--dirty { color: var(--color-text-muted); }
 .navb-status--ok { color: var(--color-success); }
@@ -3146,6 +3145,16 @@ tbody tr:hover {
   .settings-layout--hide-subtabs .settings-sub-tabs {
     display: none !important;
   }
+  /* A hidden strip that carries a control of its own (a Refresh button, say) keeps
+     the control and loses only the tabs. */
+  .settings-layout--hide-subtabs .settings-sub-tabs:has(> .tab-strip__trailing) {
+    display: flex !important;
+    justify-content: flex-end;
+    border-bottom: none !important;
+  }
+  .settings-layout--hide-subtabs .settings-sub-tabs:has(> .tab-strip__trailing) > :first-child {
+    display: none;
+  }
 }
 .settings-sidebar__list,
 .settings-sidebar__tree {
@@ -3327,7 +3336,7 @@ tbody tr:hover {
    rule above lines its items up at the start, which in a column means every card
    shrinks to the width of whatever is in it - the half-empty, quarter-width
    sections this used to produce. */
-.settings-cols:has(> .card, > .settings-col),
+.settings-cols:has(> .card, > .settings-col, > .settings-card-row),
 .settings-masonry:has(> .card) {
   display: flex;
   flex-direction: column;
@@ -3345,6 +3354,25 @@ tbody tr:hover {
   margin-bottom: 0;
 }
 
+/* Two small sections side by side: a card holding one button, or one or two short
+   fields, does not need the whole width of the page to itself. Falls back to one
+   under the other on a narrow screen. */
+.settings-card-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+  gap: var(--space-6);
+  align-items: stretch;
+  min-width: 0;
+}
+.settings-card-row > .card,
+.settings-card-row > * > .card:only-child {
+  margin: 0 !important;
+  align-content: start;
+}
+.settings-card-row > * > .card:only-child {
+  height: 100%;
+}
+
 /* A stack of cards. Full width; kept as a class so older markup still works. */
 .settings-col {
   display: flex;
@@ -3356,23 +3384,24 @@ tbody tr:hover {
   margin-bottom: 0;
 }
 
-/* Fields in two columns. A section card is full width; its fields sit two across and
-   everything else in it (title, intro text, tables, alerts) takes the whole row.
-   Never more than two across: the track minimum is the larger of 18rem and half the
-   row, so a wide screen cannot grow a third and fourth column and leave most of the
-   card empty beside a couple of fields. A field with nobody to pair with - the only
-   one in its card, or the odd one out at the end - takes the whole row rather than
-   leaving a hole beside it. Fields that cannot sit in half a row (a textarea, a code
-   box, a picture picker) take the row too, via .field--wide, or automatically when
-   they hold a textarea. Buttons keep their own width instead of being stretched
-   across the card. Wrapper divs are NOT looked through: give a group of fields the
-   .settings-fields class and it becomes its own two-across grid. */
+/* Fields in two columns. A section card is full width; its fields AND its tick boxes
+   sit two across, and everything else in it (title, intro text, tables, alerts)
+   takes the whole row. Never more than two across: the track minimum is the larger
+   of 18rem and half the row, so a wide screen cannot grow a third and fourth column.
+   A field or tick box with nobody to pair with keeps its half of the row: a short
+   number box stretched across a whole card, or one tick box alone on a line, is
+   just more scrolling. Fields that genuinely need the room (a textarea, a code box,
+   a picture picker) take the row via .field--wide, or automatically when they hold
+   a textarea. Buttons keep their own width. Wrapper divs are NOT looked through,
+   with two exceptions: a div holding one tick box and its hint counts as a tick
+   box, and a div holding nothing but tick boxes lays them out two across. Give any
+   other group of fields the .settings-fields class to make it its own grid. */
 .settings-cols .card,
 .settings-masonry .card,
 .settings-fields {
   display: grid;
   grid-template-columns: repeat(
-    auto-fit,
+    auto-fill,
     minmax(min(100%, max(18rem, calc((100% - var(--space-6)) / 2))), 1fr)
   );
   column-gap: var(--space-6);
@@ -3397,29 +3426,50 @@ tbody tr:hover {
   grid-column: 1 / -1;
   min-width: 0;
 }
-.settings-cols .card > .field,
-.settings-masonry .card > .field,
-.settings-fields > .field,
-.settings-cols .card > .settings-field,
-.settings-masonry .card > .settings-field,
-.settings-fields > .settings-field {
+:is(.settings-cols .card, .settings-masonry .card, .settings-fields) > :is(.field, .settings-field, .settings-check),
+:is(.settings-cols .card, .settings-masonry .card, .settings-fields) > div:not(.settings-fields):has(> .settings-check:only-of-type):not(:has(input:not([type="checkbox"], [type="radio"], [type="hidden"]), select, textarea, table)) {
   grid-column: auto;
 }
-.settings-cols .card > :is(.field, .settings-field):not(.field--wide, :has(textarea)):nth-child(odd of :is(.field, .settings-field):not(.field--wide, :has(textarea))):nth-last-child(1 of :is(.field, .settings-field):not(.field--wide, :has(textarea))),
-.settings-masonry .card > :is(.field, .settings-field):not(.field--wide, :has(textarea)):nth-child(odd of :is(.field, .settings-field):not(.field--wide, :has(textarea))):nth-last-child(1 of :is(.field, .settings-field):not(.field--wide, :has(textarea))),
-.settings-fields > :is(.field, .settings-field):not(.field--wide, :has(textarea)):nth-child(odd of :is(.field, .settings-field):not(.field--wide, :has(textarea))):nth-last-child(1 of :is(.field, .settings-field):not(.field--wide, :has(textarea))),
-.settings-cols .card > .field:has(textarea),
-.settings-masonry .card > .field:has(textarea),
-.settings-fields > .field:has(textarea),
-.settings-cols .card > .field--wide,
-.settings-masonry .card > .field--wide,
-.settings-fields > .field--wide {
+:is(.settings-cols .card, .settings-masonry .card, .settings-fields) > .field:has(textarea),
+:is(.settings-cols .card, .settings-masonry .card, .settings-fields) > .field--wide {
   grid-column: 1 / -1;
 }
-/* A field that is only a tick box reads as a line of its own. Paired up with a text
-   box it left a stray tick in one column and a label-less gap beside it. */
-:is(.settings-cols .card, .settings-masonry .card, .settings-fields) > :is(.field, .settings-field):has(input[type="checkbox"]):not(:has(input:not([type="checkbox"], [type="radio"]), select, textarea)) {
-  grid-column: 1 / -1;
+/* A tick box sharing a row with a text box or dropdown: drop it to line up with the
+   box rather than with the box's label. */
+:is(.settings-cols .card, .settings-masonry .card, .settings-fields) > .field--beside-input,
+.settings-group > .field--beside-input {
+  align-self: start;
+  padding-top: 2.125rem;
+}
+@media (max-width: 640px) {
+  :is(.settings-cols .card, .settings-masonry .card, .settings-fields, .settings-group) > .field--beside-input {
+    padding-top: 0;
+  }
+}
+/* A switch and the settings it reveals, kept together in half the row so the
+   next switch can sit beside it. */
+:is(.settings-cols .card, .settings-masonry .card, .settings-fields) > .settings-group {
+  grid-column: auto;
+  display: grid;
+  row-gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+.settings-group > * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  min-width: 0;
+}
+/* A run of tick boxes in a plain wrapper sits two across rather than one per line
+   down the left of an otherwise empty card. */
+:is(.settings-cols .card, .settings-masonry .card, .settings-fields) > div:not(.settings-fields, .field, .settings-field):has(> .settings-check + .settings-check):not(:has(> :not(.settings-check))) {
+  display: grid !important;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, max(18rem, calc((100% - var(--space-6)) / 2))), 1fr)
+  );
+  column-gap: var(--space-6);
+  row-gap: var(--space-3);
 }
 .settings-cols .card > :is(button, .btn),
 .settings-masonry .card > :is(button, .btn),

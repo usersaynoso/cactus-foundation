@@ -27,6 +27,7 @@ export default function MembersGdprClient() {
 
   return (
     <div className="settings-cols">
+    <div className="settings-card-row">
       <div className="card">
         <h2 className="card-title">Pending deletion requests</h2>
         {deletionRequests.length === 0 && <p style={{ color: 'var(--color-text-muted)' }}>None.</p>}
@@ -72,6 +73,7 @@ export default function MembersGdprClient() {
           </div>
         ))}
       </div>
+    </div>
     </div>
   )
 }
