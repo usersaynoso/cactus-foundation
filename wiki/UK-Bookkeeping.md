@@ -771,6 +771,34 @@ back to unexplained rather than staying ticked off against something that no
 longer exists. If you need to undo a match without deleting anything, open the
 line and use **Not that one** beside the entry.
 
+### Checking a prepaid balance that has no statement
+
+Some suppliers you pay in advance only ever show you a balance on a web page.
+There is no statement to import, so there is nothing to tick off. The check is
+smaller: type in the balance they show and see whether the books say the same.
+
+Open **Reconcile** and pick the account. Any account of the **cash** kind gets a
+**Balance check** panel above the statement lines. It shows:
+
+- **According to the books** - what the account holds on the date you choose
+  (today, unless you change it). Its opening balance, plus the top-ups moved in,
+  less the bills paid from it.
+- **According to** the supplier - the box you type their figure into.
+- **Difference** - **Agrees** in green, or the amount you are out by, with a
+  line saying which way to look. If the supplier shows less than the books,
+  something recorded never reached them. If it shows more, a top-up has not been
+  recorded.
+
+**Save this check** keeps a note of what was compared, on which date and by
+whom, with an optional note of your own. The last one is shown beneath the panel.
+It moves no money and reaches no report; it is a record that someone looked. A
+fold-out under it lists the latest movements in the account, which is usually
+enough to find the one that is missing.
+
+A cash account that does have statements (an advertising account that emails one
+each month) shows the same panel above its statement lines, as a cross-check. Bank
+and card accounts do not get it; their statement balance is the check.
+
 ### When the amount does not match: card payouts
 
 A card processor does not pay you what you invoiced. GoCardless and Square batch
