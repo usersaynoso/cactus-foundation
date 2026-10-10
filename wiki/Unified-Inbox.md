@@ -894,7 +894,9 @@ It is in the spam folder for **everybody**, which is the one thing on this scree
 
 **Why collect it at all?** Because "did they ever actually write?" is a question somebody asks eventually, usually the week a customer rings up cross about being ignored - and until now the only way to answer it was to go and log into the mailbox yourself. A nuisance is a nuisance either way and you never have to look; somebody blocked in a temper turns out to have written four times, and now you can see that.
 
-**Blocking never deletes anything either.** Their old conversations stay exactly where they are - often that history is the whole reason you want them stopped.
+**Blocking never deletes a conversation.** Their old conversations stay exactly where they are - often that history is the whole reason you want them stopped.
+
+**It does take them out of your contacts.** Every address that writes in becomes a contact, and a spammer you have turned away has no business sitting in the contacts list, the people search or a campaign audience looking exactly like a customer. So blocking an address removes the contact that is nothing but that address (and anything merged into it), and no new one is made while they stay blocked. A contact who can still be reached some other way - a phone number, or a second address nobody has blocked - is kept, and only loses the blocked address. Blocking `ada+offers@example.com` touches that address only, never plain `ada@example.com`. Unblock somebody and their next email makes them a contact again, from scratch.
 
 **If one of them turns out to be real**, open it in the Spam folder and press the same junk button at the top of it. That takes the conversation out of the spam folder for everybody and puts it back in the ordinary lists. The sender stays blocked: letting one conversation through and opening the front door again are two different decisions, and they are two different buttons.
 
@@ -1166,7 +1168,7 @@ Five thousand rows at a time is the limit. Split a bigger file and bring it in i
 
 ### Shop customers
 
-Where the **shop** is installed as well, somebody who pays for an order becomes a contact without anybody typing them in. Their card gets what they gave at the checkout:
+Where the **shop** is installed as well, somebody who places an order becomes a contact without anybody typing them in. Their card gets what they gave at the checkout:
 
 - **Name** - the one given with their email address. When the billing address names the same person, its first and last name are used as they were typed, so **Mary Ann Jones** arrives as Mary Ann and Jones rather than Mary and Ann Jones. An invoice addressed to somebody else in their office does not change who the contact is.
 - **Email address**, which is what everything else is matched on.
@@ -1177,11 +1179,21 @@ Where the **shop** is installed as well, somebody who pays for an order becomes 
 
 **Nobody is copied.** Somebody already in your contacts - because they emailed before they bought, or have bought before - is found by their email address and **filled in rather than replaced**: a box that is empty on their card gets the order's answer, and anything already written there stays exactly as it is. The name and the postal address go in whole or not at all, so a card is never left with a postcode from one order under a street from somewhere else. They gain the Customers label and keep every other. A number they gave the shop is added to the ones they have, unless it already belongs to somebody else here, in which case it stays with them.
 
-**When it happens:** the moment the order is paid for, however that happened - card, a provider, a bank transfer marked as received by hand, or a free order. An order still waiting on a bank transfer adds its customer the day the money is marked as received, not before.
+**When it happens:** the moment the order is paid for, however that happened - card, a provider, a bank transfer marked as received by hand, or a free order - and, for bank transfer and any other method paid by hand, the moment the order is placed as well. Somebody who emailed in and then ordered on bank transfer has their number, address and the Customers label straight away rather than whenever the money lands; clearing the payment later runs it again and changes nothing, because it only ever fills blanks and adds. A delivery number that is the order number in international form (`+44 7311 351565` against `07311 351565`) is recognised as the same phone and not added twice. Every number the address book stores is written one way: a number in the site's own country (Settings > General, dialling code) nationally with no spaces - `07311351565` - and any other with its country code and no spaces. A text or call from `+44 7311 351565` therefore finds the card that says `07311351565` rather than starting a nameless contact of its own. Calls and texts read the same way: the conversation's title, the caller's name where the channel only gave a number, and the number on each message are all written `01217329511` rather than `+441217329511`. Replies still go out on the number the channel knows them by.
 
 **Who is never added:** anybody at one of your own domains, one of your staff, or one of your own inboxes - the same rule the post follows, so a colleague testing the checkout from a work address does not become a customer.
 
 It is **on unless you switch it off**, under **Settings → Unified Inbox → People → Customers from the shop**; the switch only appears where the shop is installed. The first time a site takes this update, the customers it already has are not added in one go - they arrive as they next order. Nothing about the shop changes and it needs no update of its own: the shop already says when an order has been paid for, and this module is simply listening.
+
+### Marketing emails: their answer, on record
+
+Every contact card says whether that person is happy to be sent marketing email - **Happy to receive them**, **Asked not to receive them** or **Not asked** - and, under it, where the answer came from and when: **Order DW000218 · 5 October 2026, 19:25**, **Unsubscribed by email link**, or **Changed by hand by** whoever changed it. Consent nobody can trace back is consent nobody can show, so the trail is kept, not just the tick.
+
+- **From the shop.** Where the checkout asks the question, each order's answer goes onto the customer's card when the order comes through, alongside everything else above. The newest answer wins: somebody who said yes in March and no in October is a no, and an older order arriving late never overrides a newer answer. An order whose checkout never asked leaves the card as it was.
+- **By hand.** Somebody tells you on the phone? Change it on their card under **Marketing emails**. It is recorded as said now, with your name, so it outranks every order they placed before.
+- **Unsubscribing** from a campaign marks their card **Asked not to receive them** as well as taking them off the list.
+- **Campaigns leave them out.** Somebody whose card says no is not put on a campaign, and the Who step says why: **They asked not to be sent marketing email.** "Not asked" is treated as before.
+- **Merging two cards** keeps whichever of the two answers was given last; undoing the merge puts the other back. Their answer is in the data export too.
 
 ---
 

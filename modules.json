@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.478"
+      "version": "v0.1.479"
     },
     {
       "name": "address-lookup-for-shop",
@@ -88,7 +88,7 @@
     {
       "name": "abandoned-carts-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/abandoned-carts-for-shop",
-      "version": "v0.1.12"
+      "version": "v0.1.13"
     },
     {
       "name": "space-planner-for-shop",
@@ -168,7 +168,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.115"
+      "version": "v0.1.116"
     },
     {
       "name": "google-ai-studio",

@@ -876,6 +876,12 @@ Three rules, and the last one is the one that bites. It is called **last**, afte
 
 `purchase-orders`' `purchaseOrdersOrderPaidObserver` is the worked example. Its first line reads a cached config flag that is off by default and returns; with it on it drafts one purchase order per supplier and sends nothing to anybody. It also shows the other half of the lesson: **a hook is not a guarantee.** A webhook can die, a module can be installed the day after an order was paid, a site can be running a shop older than the point. So the module pairs it with a nightly sweep that asks the same question of the last week's paid orders and picks up whatever the announcement missed. If what your observer does actually matters, write the sweep too.
 
+### Being told an unpaid order exists: `shop.order-placed-unpaid`
+
+The other half of `shop.order-paid`. Card and provider orders announce order-paid seconds after they are placed, so that one point covers them. A bank transfer, cash, or a module's own `confirmMode: 'manual'` method can sit unpaid for a week, and the shopper is a real customer the whole time. `shop.order-placed-unpaid` (`modules/shop/lib/order-placed-hooks.ts`) is told once, when the checkout confirm route parks such an order as awaiting confirmation - a repeat call finds it no longer pending and announces nothing.
+
+An observer is `(event: { orderId, orderNumber, paymentMethod }) => Promise<void> | void`: plain strings, no shop types, for the same reason as order-paid. It fires after the how-to-pay emails, every observer is try/caught, and the gather itself is caught, so nothing an observer does can cost the shopper their order. **The same order announces order-paid later**, when the money is cleared, so an observer listening to both must be safe to run twice. `unified-inbox`'s `unifiedInboxOrderPlacedUnpaidObserver` is the worked example: it runs the same fill-in-the-blanks contact sync as its paid observer.
+
 ### Keeping your own rows in step with a product: `shop.product-saved`
 
 A module that mirrors part of a product into rows of its own has a standing problem: it hears about the copy it makes, and never about the original changing afterwards. `shop.product-saved` (`modules/shop/lib/product-saved.ts`) is the seam for that. A hook is `(productId: string, changed: readonly string[]) => Promise<void> | void`, where `changed` names only the fields that write actually carried - so the usual answer is to look at the array and return.
