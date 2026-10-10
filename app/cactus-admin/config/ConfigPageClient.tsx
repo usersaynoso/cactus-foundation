@@ -1834,13 +1834,16 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       <div className="settings-sticky" style={showSubStrip ? { marginBottom: '0.5rem' } : undefined}>
         <div className="page-header">
           <h1 className="page-title">Settings</h1>
+          {/* Anything a page adds to the bar (a status line, Reset to defaults,
+              its own Save) lands in the slot, which comes first: Save is always
+              the right-most button, with any companions to its left. */}
           <div className="settings-header-actions">
+            <SettingsHeaderSlot />
             {showSave && (
               <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
                 {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save changes'}
               </button>
             )}
-            <SettingsHeaderSlot />
           </div>
         </div>
 
@@ -2043,10 +2046,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           {tab === 'backup' && canManageConfig && (
             <div className="settings-cols">
           <div id="general-backup" className="card admin-anchor">
-            <div className="card-title">Backup</div>
-            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-              Download a full copy of your database - every page, user, layout, and setting - as a single SQL file. No storage provider needed, it downloads straight to your device.
-            </p>
+            <div className="card-title">Backup <InfoTip>Download a full copy of your database - every page, user, layout, and setting - as a single SQL file. No storage provider needed, it downloads straight to your device.</InfoTip></div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               This saves your database, not your uploaded files. Images and documents live in your connected storage, so keep that storage in place - a restored site reads its files straight from there.
             </p>
@@ -2804,10 +2804,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 {consent && (
                   <div className="card">
                 <div>
-                  <div className="card-title">Cookie categories</div>
-                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
-                    &ldquo;Necessary&rdquo; is pinned to the top and cannot be removed or moved. The rest appear on the site in the order you arrange them here. Adding or removing categories, or changing their defaults, will re-prompt existing visitors; reordering them will not.
-                  </p>
+                  <div className="card-title">Cookie categories <InfoTip>&ldquo;Necessary&rdquo; is pinned to the top and cannot be removed or moved. The rest appear on the site in the order you arrange them here. Adding or removing categories, or changing their defaults, will re-prompt existing visitors; reordering them will not.</InfoTip></div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'auto 0.67fr 0.67fr 2.67fr auto auto', border: '1px solid var(--color-border)', borderRadius: 8, overflow: 'hidden', marginBottom: '0.75rem' }}>
                     {(() => {
@@ -3054,11 +3051,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                       <span className="field-hint">{CLOUDFLARE_WORKER_VAR.hint}</span>
                     </div>
                     <div style={{ border: '1px solid var(--color-primary-border)', borderRadius: 'var(--radius)', padding: '0.85rem', marginBottom: '0.75rem', background: 'var(--color-primary-subtle)' }}>
-                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.9rem' }}>Set up the Worker automatically</h4>
-                        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
-                          Paste a Cloudflare credential and Cactus creates and configures the Worker for you - no terminal, no dashboard hunting. Cloudflare&apos;s free plan is fine.
-                          {' '}Your {PROVIDER_LABELS[selected]} credentials are picked up from your saved settings, so there&apos;s nothing to re-enter here.
-                        </p>
+                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.9rem' }}>Set up the Worker automatically <InfoTip>Paste a Cloudflare credential and Cactus creates and configures the Worker for you - no terminal, no dashboard hunting. Cloudflare&apos;s free plan is fine. {' '}Your {PROVIDER_LABELS[selected]} credentials are picked up from your saved settings, so there&apos;s nothing to re-enter here.</InfoTip></h4>
                         {localMode ? (
                           <div className="alert alert-info" style={{ fontSize: '0.8125rem', margin: 0 }}>
                             Automatic deployment runs on your live site, not in local development (credentials are written to your Vercel project). Deploy from your deployed admin and the credential fields appear here.

@@ -673,6 +673,8 @@ import { SettingsHeaderActions, SettingsHeaderStatus } from '@/components/admin/
 - A panel you keep mounted but hidden (to hold a half-typed form while another sub-tab is showing) must stop rendering its actions while hidden, or every hidden panel's Save button will sit in the bar at once. Render `SettingsHeaderActions` only for the active panel.
 - Anything that saves itself on the spot (a tick-box, a dropdown, a list row) needs no button. A row-level edit inside a list may keep its own small Save.
 - Name the button for what it saves. Where a tab has two different saves (settings, and credentials that go to the server's environment) give each its own label.
+- **Save is always the right-most button in the bar.** Anything else that acts on the whole page (Reset to defaults, Cancel, a status line) goes inside the same `SettingsHeaderActions`, written *before* the Save button, so it sits to its left. The core page draws its own Save after every module's actions for the same reason.
+- One Save per page. If a page holds both ordinary settings and a credential, have the one Save write both (save the credential first, and stop if it fails) rather than putting a second Save beside it.
 
 A tab with more than a screen of settings is split into **sub-tabs** with `TabStrip` (`components/admin/TabStrip`), one job per sub-tab, and keeps the open one in the URL with `useTabParam` (`components/admin/useTabParam`). **Use a key other than `sub` if your panel is hosted inside Shop** (Shop owns `sub` and `pane`): the Google Shopping and Abandoned baskets panels use `view`.
 
@@ -685,13 +687,13 @@ Do not cap your tab's width - there is nothing in the page to stop a form stretc
 | `settings-cols` / `settings-masonry` | Wrap your sections. When the children are `.card`s the sections stack **full width**, one under another (stretched - a card never shrinks to the width of what is in it). When the children are flat fields or switches with no cards, they flow into two columns. |
 | `settings-col` | A stack of cards; stacks full width like the above. |
 | `card-title` | The heading of a section card. Use it rather than a hand-styled `<h3>`, so every section reads the same. |
-| `settings-check` | A tick box and its words on one line: `<label className="settings-check"><input type="checkbox" /> Words</label>`. |
+| `settings-check` | A tick box and its words on one line: `<label className="settings-check"><input type="checkbox" /> Words</label>`. A `.field` holding nothing but a tick box takes the whole row, so it never pairs up with a text box beside it. |
 | `InfoTip` | Not a class: `import { InfoTip } from '@/components/admin/InfoTip'` and put `<InfoTip>the long explanation</InfoTip>` inside the label. It draws a small (i) that shows the text in the house tooltip on hover or focus. Keep a field's visible hint to one short line and put the rest in here. Safe inside a tick-box label (it does not tick the box). Needs core 0.5.1763. |
 | `field` / `settings-field` | A direct child of a `.card` with this class takes half the card's row, so fields sit **two across inside a section** - never more than two, however wide the screen. A field left on its own (the only one in its card, or the odd one out at the end) takes the whole row. Everything else in the card (titles, hints, tables) takes the whole row; buttons keep their own width. |
 | `field--wide` | Opt a field out of the half row (long hints, textareas are automatic). |
 | `settings-fields` | Put on a wrapper div around a group of fields to make that group its own two-column grid. |
 
-Sections are never side by side; fields inside a section are two across. Spacing inside a section comes from the grid alone: top and bottom margins on a section's direct children are ignored, so do not reach for `marginBottom` to space things out.
+Sections are never side by side; fields inside a section are two across. Give every section a `card-title`, and every input a `<label>` above it; inputs, selects, textareas and labels inside a settings card are normalised to the house size, so do not size them by hand. Spacing inside a section comes from the grid alone: top and bottom margins on a section's direct children are ignored, so do not reach for `marginBottom` to space things out.
 
 ### Hosted settings panels
 
