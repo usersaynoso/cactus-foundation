@@ -12,6 +12,7 @@ import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@
 import { readJsonResponse } from '@/lib/updates/read-json-response'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { SettingsHeaderActions, SettingsHeaderProvider, SettingsHeaderSlot } from '@/components/admin/SettingsHeaderActions'
 import { useScrollToHash } from '@/components/admin/useScrollToHash'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
 import type { HostedSettingsPanels, HostedSettingsSlots } from '@/lib/modules/hosted-settings'
@@ -65,6 +66,51 @@ type MenuOption = { id: string; name: string }
 
 const TABS = ['general', 'speed', 'email', 'media', 'gdpr', 'integrations'] as const
 type Tab = typeof TABS[number]
+
+// Sub-tabs of the core tabs that have them. `anchors` lists the deep-link ids each
+// sub-tab renders, so a command-palette jump to #general-backup opens Backup &
+// restore first and then scrolls, instead of landing on a tab that does not hold it.
+type SubTabDef = { key: string; label: string; anchors: readonly string[] }
+
+const GENERAL_SUBS: readonly SubTabDef[] = [
+  { key: 'site', label: 'Site', anchors: ['general-updates', 'general-identity', 'general-homepage', 'general-status', 'general-seo', 'general-speed-insights', 'general-locale', 'general-admin-path'] },
+  { key: 'backup', label: 'Backup & restore', anchors: ['general-backup', 'general-restore'] },
+  { key: 'danger', label: 'Danger zone', anchors: ['general-danger'] },
+]
+
+const EMAIL_SUBS: readonly SubTabDef[] = [
+  { key: 'delivery', label: 'Delivery', anchors: ['email-provider', 'email-tracking', 'email-test', 'section-email-brevo', 'section-email-smtp'] },
+  { key: 'templates', label: 'Templates', anchors: [] },
+]
+
+const GDPR_SUBS: readonly SubTabDef[] = [
+  { key: 'legal', label: 'Legal pages & retention', anchors: ['gdpr-legal', 'gdpr-retention'] },
+  { key: 'banner', label: 'Cookie banner', anchors: ['gdpr-banner'] },
+  { key: 'members', label: 'Members\u2019 data', anchors: [] },
+]
+
+const INTEGRATION_SUBS: readonly SubTabDef[] = [
+  { key: 'github', label: 'GitHub', anchors: ['integrations-github'] },
+  { key: 'hosting', label: 'Vercel', anchors: ['section-edge-config', 'section-webhook'] },
+  { key: 'protection', label: 'Protection & monitoring', anchors: ['section-turnstile', 'section-sentry'] },
+  { key: 'database', label: 'Database', anchors: ['section-neon'] },
+]
+
+const SUBS_BY_TAB: Partial<Record<Tab, readonly SubTabDef[]>> = {
+  general: GENERAL_SUBS,
+  email: EMAIL_SUBS,
+  gdpr: GDPR_SUBS,
+  integrations: INTEGRATION_SUBS,
+}
+
+// Which sub-tab (of which core tab) renders a deep-link anchor, if any does.
+function locateAnchor(id: string): { tab: Tab; sub: string } | null {
+  for (const [tab, subs] of Object.entries(SUBS_BY_TAB) as Array<[Tab, readonly SubTabDef[]]>) {
+    const hit = subs.find((sub) => sub.anchors.includes(id))
+    if (hit) return { tab, sub: hit.key }
+  }
+  return null
+}
 
 // Cookie category keys are machine-readable: lowercase, starting with a letter,
 // only letters, numbers, hyphens and underscores (the API enforces the same
@@ -665,10 +711,25 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     'general'
   const initialTab = isVisibleTab(tabParam) ? (tabParam as string) : fallbackTab
   const [tab, setTab] = useState<string>(initialTab)
-  // Email tab sub-tabs. "Delivery" is the from-address and provider settings
-  // that have always lived here; "Templates" is every email the site sends,
-  // core and module alike.
-  const [emailSubTab, setEmailSubTab] = useState<'delivery' | 'templates'>(canManageConfig ? 'delivery' : 'templates')
+  // The open sub-tab of whichever core tab is showing. Email: "Delivery" is the
+  // from-address and provider settings that have always lived here, "Templates" is
+  // every email the site sends, core and module alike.
+  const [sub, setSub] = useState<string>('')
+
+  // The sub-tabs this role can open on a core tab. Email and GDPR each have a
+  // second permission key that opens their own half and nothing else.
+  const visibleSubsFor = useCallback((t: string): readonly SubTabDef[] => {
+    const defs = SUBS_BY_TAB[t as Tab]
+    if (!defs) return []
+    return defs.filter((d) => {
+      if (t === 'email') return d.key === 'delivery' ? canManageConfig : canManageEmailTemplates
+      if (t === 'gdpr') return d.key === 'members' ? canViewMembersGdpr : canManageConfig
+      return canManageConfig
+    })
+  }, [canManageConfig, canManageEmailTemplates, canViewMembersGdpr])
+
+  const tabSubs = visibleSubsFor(tab)
+  const activeSub = tabSubs.find((d) => d.key === sub)?.key ?? tabSubs[0]?.key ?? ''
 
   // Follow the ?tab= / ?sub= query params so command-palette deep links (and the
   // browser back button) land on the right tab, not just the one chosen at mount.
@@ -680,50 +741,72 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab state to the URL param for deep links
       if (valid) setTab(t)
     }
-    const sub = searchParams.get('sub')
+    const nextTab = t && isVisibleTab(t) ? t : 'general'
+    const wanted = searchParams.get('sub')
     // ?sub= belongs to whichever tab is open - a module settings tab keeps its own
-    // sub-tab there too - so only read it as an email sub-tab when Email is the tab
-    // in play. Without that, a module that happened to name a sub-tab "delivery"
+    // sub-tab there too - so only read it as a core sub-tab when a core tab is the
+    // one in play. Without that, a module that happened to name a sub-tab "delivery"
     // (a shipping module, say) would drag the page onto Email.
     const emailIsTheTab = !t || t === 'email'
     // The email templates editor used to hang off the Users tab; the old
     // ?sub=email-templates deep link still lands on it, wherever it moves to.
-    if (sub === 'email-templates' || (sub === 'templates' && emailIsTheTab)) {
+    if (wanted === 'email-templates' || (wanted === 'templates' && emailIsTheTab)) {
       if (canManageEmailTemplates) {
         setTab('email')
-        setEmailSubTab('templates')
+        setSub('templates')
       }
-    } else if (sub === 'delivery' && emailIsTheTab) {
+    } else if (wanted === 'delivery' && emailIsTheTab) {
       setTab('email')
-      setEmailSubTab('delivery')
+      setSub('delivery')
+    } else if (wanted && SUBS_BY_TAB[nextTab as Tab]) {
+      setSub(wanted)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react only to URL changes; the permission flags/tab lists are stable for a session
   }, [searchParams])
 
+  // A #section deep link names a card that may sit on a sub-tab other than the one
+  // showing - open the one that holds it before the scroll tries to find it.
+  useEffect(() => {
+    function revealHash() {
+      const found = locateAnchor(decodeURIComponent(window.location.hash.slice(1)))
+      if (!found || !isVisibleTab(found.tab)) return
+      if (!visibleSubsFor(found.tab).some((d) => d.key === found.sub)) return
+      setTab(found.tab)
+      setSub(found.sub)
+    }
+    revealHash()
+    window.addEventListener('hashchange', revealHash)
+    window.addEventListener('cactus:scroll-hash', revealHash)
+    return () => {
+      window.removeEventListener('hashchange', revealHash)
+      window.removeEventListener('cactus:scroll-hash', revealHash)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the tab lists and permission flags are stable for a session
+  }, [searchParams])
+
   // Clicking a tab writes it back into the URL, so a refresh (or a pasted link)
   // lands on the tab the admin was actually looking at instead of bouncing to
-  // General. General is the default, so it carries no param.
-  const syncTabUrl = useCallback((nextTab: string, nextSub: 'delivery' | 'templates') => {
+  // General. General and each tab's first sub-tab are the defaults, so they carry
+  // no param.
+  const syncTabUrl = useCallback((nextTab: string, nextSub: string) => {
+    const first = visibleSubsFor(nextTab)[0]?.key
     setUrlParams({
       tab: nextTab === 'general' ? null : nextTab,
-      sub: nextTab === 'email' && nextSub === 'templates' ? 'templates' : null,
+      sub: nextSub && nextSub !== first ? nextSub : null,
     }, { dropHash: true })
-  }, [])
+  }, [visibleSubsFor])
 
   const selectTab = useCallback((next: string) => {
     setTab(next)
-    syncTabUrl(next, emailSubTab)
-  }, [emailSubTab, syncTabUrl])
-
-  const selectEmailSubTab = useCallback((next: 'delivery' | 'templates') => {
-    setEmailSubTab(next)
-    syncTabUrl('email', next)
+    setSub('')
+    syncTabUrl(next, '')
   }, [syncTabUrl])
 
-  // The only tab with a second strip of its own underneath the main one.
-  const hasEmailSubTabs = tab === 'email' && canManageConfig && canManageEmailTemplates
+  const selectSub = useCallback((next: string) => {
+    setSub(next)
+    syncTabUrl(tab, next)
+  }, [syncTabUrl, tab])
 
-  // Deep links carry a #section hash; pull that section into view once its tab has
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
@@ -738,7 +821,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   // Deep links carry a #section hash; pull that section into view once its tab (and
   // the initial data load) have rendered. Re-attempt when the active tab or the
   // loading flag changes so a cross-tab or fetch-gated jump still lands.
-  useScrollToHash([tab, loading])
+  useScrollToHash([tab, activeSub, loading])
 
   // Env var state
   const [envStatus, setEnvStatus] = useState<Record<string, boolean>>({})
@@ -746,8 +829,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   // Local-development mode: env vars come from .env.local, so the editor is
   // read-only and the Vercel-only "Reset Everything" action is hidden.
   const [localMode, setLocalMode] = useState(false)
-  const [savingEnvId, setSavingEnvId] = useState<string | null>(null)
-  const [savedEnvId, setSavedEnvId] = useState<string | null>(null)
+  // True for a few seconds after credentials were saved and a redeploy began, so the
+  // cards can say so beside the "takes effect on next deployment" note.
+  const [envJustSaved, setEnvJustSaved] = useState(false)
   const [envError, setEnvError] = useState('')
   const [emailMode, setEmailMode] = useState<'brevo' | 'smtp'>('brevo')
   const [testEmailTo, setTestEmailTo] = useState('')
@@ -934,7 +1018,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     ? !!cfToken.trim() || cfSavedToken
     : (!!cfEmail.trim() && !!cfGlobalKey.trim()) || cfSavedGlobal
 
-  const handleDeployWorker = useCallback(async (provider: MediaProviderType) => {
+  const handleDeployWorker = async (provider: MediaProviderType) => {
     setCfDeploying(true)
     setCfResult(null)
     try {
@@ -1003,7 +1087,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     } finally {
       setCfDeploying(false)
     }
-  }, [cfAuthMode, cfToken, cfGlobalKey, cfEmail, cfAccountId, envFields])
+  }
 
   const loadMediaState = useCallback(async () => {
     const [bd, ms] = await Promise.all([
@@ -1062,20 +1146,84 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     dirtyRef.current = configFingerprint(config) !== savedFingerprint.current
   }, [config, dirtyRef])
 
+  // What the Save button in the bar covers on the tab that is open. Credentials typed
+  // into a card are saved by the same button as the settings around them - they used
+  // to have a button of their own at the bottom of each card, which is exactly the
+  // sort of thing that gets scrolled past. Tabs that save themselves, row by row,
+  // or hold no fields at all (Backup, Updates, Schedules) have no page-level button.
+  function saveScope(): { config: boolean; envKeys: string[] } | null {
+    if (!canManageConfig) return null
+    const cardKeys = (sections: EnvSection[]) => sections.flatMap((section) => section.keys.map((f) => f.key))
+    switch (tab) {
+      case 'general': return activeSub === 'site' ? { config: true, envKeys: [] } : null
+      case 'speed': return { config: true, envKeys: cardKeys([PAGE_CACHE_PURGE_SECTION]) }
+      case 'email':
+        return activeSub === 'delivery'
+          ? { config: true, envKeys: cardKeys([EMAIL_BREVO_SECTION, EMAIL_SMTP_SECTION]) }
+          : null
+      case 'media': {
+        const provider = config.mediaProvider ?? null
+        return {
+          config: true,
+          envKeys: provider ? [...envKeysForProvider(provider), CLOUDFLARE_WORKER_VAR.key] : [],
+        }
+      }
+      case 'gdpr': return activeSub === 'members' ? null : { config: true, envKeys: [] }
+      case 'integrations': return { config: false, envKeys: cardKeys(INTEGRATION_SECTIONS) }
+      default: return null
+    }
+  }
+
+  // Writes whichever of these credential fields have something typed in them. Throws
+  // on failure so the caller can stop before saving the rest and show one error.
+  async function saveEnvKeys(keys: string[]) {
+    const vars = keys
+      .filter((k) => envFields[k]?.trim())
+      .map((k) => ({ key: k, value: (envFields[k] ?? '').trim() }))
+    if (vars.length === 0) return
+
+    const res = await fetch('/api/admin/env', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vars }),
+    })
+    const d = (await res.json()) as { ok?: boolean; error?: string; redeployTriggered?: boolean }
+    if (!res.ok) throw new Error(d.error ?? 'Save failed')
+
+    // A redeploy was triggered - surface live status via the notification bell
+    if (d.redeployTriggered) announceRedeployStarted()
+
+    // Update local status optimistically
+    const savedKeys = vars.map((v) => v.key)
+    setEnvStatus((prev) => ({ ...prev, ...Object.fromEntries(savedKeys.map((k) => [k, true])) }))
+
+    // Clear saved fields (they're now stored in Vercel)
+    setEnvFields((prev) => ({ ...prev, ...Object.fromEntries(savedKeys.map((k) => [k, ''])) }))
+
+    setEnvJustSaved(true)
+    setTimeout(() => setEnvJustSaved(false), 3000)
+  }
+
   async function handleSave(): Promise<boolean> {
     setSaving(true)
     setError('')
     setSaved(false)
     try {
-      const res = await fetch('/api/admin/config', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error ?? 'Save failed')
-      savedFingerprint.current = configFingerprint(config)
-      dirtyRef.current = false
+      const scope = saveScope()
+      if (scope && scope.envKeys.length > 0 && !localMode) await saveEnvKeys(scope.envKeys)
+      // Config goes up when this tab edits it, or when it has been edited elsewhere
+      // and the "save before leaving?" prompt is asking.
+      if ((scope?.config ?? false) || dirtyRef.current) {
+        const res = await fetch('/api/admin/config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config),
+        })
+        const d = await res.json()
+        if (!res.ok) throw new Error(d.error ?? 'Save failed')
+        savedFingerprint.current = configFingerprint(config)
+        dirtyRef.current = false
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
       const newAdminPath = config.adminPath ?? ''
@@ -1107,50 +1255,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     const ok = await handleSave()
     if (ok && href) { setPendingHref(null); router.push(href) }
     else setPendingHref(null) // save failed - stay put so the error is visible
-  }
-
-  async function handleSaveEnv(sectionId: string, keys: string[]) {
-    setEnvError('')
-    setSavingEnvId(sectionId)
-    setSavedEnvId(null)
-    try {
-      const vars = keys
-        .filter((k) => envFields[k]?.trim())
-        .map((k) => ({ key: k, value: (envFields[k] ?? '').trim() }))
-
-      if (vars.length === 0) {
-        setSavingEnvId(null)
-        return
-      }
-
-      const res = await fetch('/api/admin/env', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vars }),
-      })
-      const d = (await res.json()) as { ok?: boolean; error?: string; redeployTriggered?: boolean }
-      if (!res.ok) throw new Error(d.error ?? 'Save failed')
-
-      // A redeploy was triggered - surface live status via the notification bell
-      if (d.redeployTriggered) announceRedeployStarted()
-
-      // Update local status optimistically
-      const updated: Record<string, boolean> = { ...envStatus }
-      keys.forEach((k) => { if (envFields[k]?.trim()) updated[k] = true })
-      setEnvStatus(updated)
-
-      // Clear saved fields (they're now stored in Vercel)
-      const cleared: Record<string, string> = { ...envFields }
-      keys.forEach((k) => { if (envFields[k]?.trim()) cleared[k] = '' })
-      setEnvFields(cleared)
-
-      setSavedEnvId(sectionId)
-      setTimeout(() => setSavedEnvId(null), 3000)
-    } catch (err: unknown) {
-      setEnvError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
-      setSavingEnvId(null)
-    }
   }
 
   async function handleTestEnvCredentials(sectionId: string) {
@@ -1570,8 +1674,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   function EnvSectionCard({ section }: { section: EnvSection }) {
     const allKeys = section.keys.map((f) => f.key)
     const hasEntries = allKeys.some((k) => envFields[k]?.trim())
-    const isSaving = savingEnvId === section.id
-    const isSaved = savedEnvId === section.id
     const isEmailSection = section.id === 'email-brevo' || section.id === 'email-smtp'
     const isTesting = testingEnvId === section.id
     const isTested = testedEnvId === section.id
@@ -1619,33 +1721,22 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         ) : fieldRows}
         {!localMode && (
           <>
-            {envError && savingEnvId === null && savedEnvId === null && (
-              <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>{envError}</div>
-            )}
             {isEmailSection && testEnvError && testingEnvId === null && (
               <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>{testEnvError}</div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: 'auto', flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-primary"
-                style={{ fontSize: '0.875rem' }}
-                disabled={isSaving || !hasEntries}
-                onClick={() => handleSaveEnv(section.id, allKeys)}
-              >
-                {isSaving ? 'Saving…' : isSaved ? '✓ Saved' : 'Save credentials'}
-              </button>
               {isEmailSection && hasEntries && (
                 <button
                   className="btn btn-secondary"
                   style={{ fontSize: '0.875rem' }}
-                  disabled={isTesting || isSaving}
+                  disabled={isTesting || saving}
                   onClick={() => handleTestEnvCredentials(section.id)}
                 >
                   {isTesting ? 'Sending…' : isTested ? '✓ Test sent' : 'Send test email'}
                 </button>
               )}
               <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                {isSaved ? 'Redeploying…' : isTested ? 'Test email sent to your admin address' : 'Takes effect on next deployment'}
+                {envJustSaved ? 'Redeploying…' : isTested ? 'Test email sent to your admin address' : 'Saved with the Save button at the top. Takes effect on next deployment'}
               </span>
             </div>
           </>
@@ -1654,20 +1745,43 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     )
   }
 
-  return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">Settings</h1>
-        {/* The templates sub-tab saves each email on its own, so the page-level
-            Save button would be a second button that does something else. */}
-        {canManageConfig && TABS.includes(tab as Tab) && !(tab === 'email' && emailSubTab === 'templates') && (
-          <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
-            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save changes'}
-          </button>
-        )}
-      </div>
+  const scope = saveScope()
+  // Credentials cannot be saved from a local-development build (they come from
+  // .env.local), so a tab that holds nothing else has nothing for the button to do.
+  const showSave = scope !== null && !(localMode && !scope.config)
+  const showSubStrip = tabSubs.length > 1
 
-      {error && <div className="alert alert-danger">{error}</div>}
+  return (
+    <SettingsHeaderProvider>
+    <div>
+      {/* Title, Save button and tab strip share one sticky bar, so Save is in reach
+          however far down a long tab you have scrolled. Module tabs put theirs in
+          the slot beside the core button (see SettingsHeaderActions). */}
+      <div className="settings-sticky" style={showSubStrip ? { marginBottom: '0.5rem' } : undefined}>
+        <div className="page-header">
+          <h1 className="page-title">Settings</h1>
+          <div className="settings-header-actions">
+            {showSave && (
+              <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
+                {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save changes'}
+              </button>
+            )}
+            <SettingsHeaderSlot />
+          </div>
+        </div>
+
+        <TabStrip
+          style={{ marginBottom: 0 }}
+          items={[
+            ...visibleCoreTabs.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => selectTab(t) })),
+            ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => selectTab('navigation') }] : []),
+            ...(showSchedulesTab ? [{ key: 'schedules', label: 'Schedules', active: tab === 'schedules', onClick: () => selectTab('schedules') }] : []),
+            ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => selectTab(t.id) })),
+          ]}
+        />
+
+        {error && <div className="alert alert-danger" style={{ margin: '0.75rem 0 0.25rem' }}>{error}</div>}
+      </div>
 
       <UnsavedChangesModal
         pendingHref={pendingHref}
@@ -1678,18 +1792,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         onSave={saveAndLeave}
       />
 
-      {/* Tab bar. The email tab puts a second strip directly underneath, and two
-          underlined rows with 2rem of nothing between them read as a mistake -
-          so the gap closes up to the sub-tabs' own spacing when they are there. */}
-      <TabStrip
-        style={{ marginBottom: hasEmailSubTabs ? '0.5rem' : '2rem' }}
-        items={[
-          ...visibleCoreTabs.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => selectTab(t) })),
-          ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => selectTab('navigation') }] : []),
-          ...(showSchedulesTab ? [{ key: 'schedules', label: 'Schedules', active: tab === 'schedules', onClick: () => selectTab('schedules') }] : []),
-          ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => selectTab(t.id) })),
-        ]}
-      />
+      {showSubStrip && (
+        <TabStrip
+          items={tabSubs.map((d) => ({ key: d.key, label: d.label, active: d.key === activeSub, onClick: () => selectSub(d.key) }))}
+        />
+      )}
 
       {tab === 'navigation' && showNavTab && navEditorData && (
         <NavBuilder sections={navEditorData.sections} roles={navEditorData.roles} />
@@ -1701,13 +1808,19 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
       {tab === 'general' && canManageConfig && (
         <div>
-          <div id="general-updates" className="admin-anchor"><UpdatesPanel /></div>
-          <div id="general-identity" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+          {activeSub === 'site' && (
+            <>
+              <div id="general-updates" className="admin-anchor"><UpdatesPanel /></div>
+              <div className="settings-cols">
+                <div className="settings-col">
+                  <div className="card">
+                    <div className="card-title">Your site</div>
+          <div id="general-identity" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}><label>Site name</label><input value={config.siteName ?? ''} onChange={(e) => set('siteName', e.target.value)} /></div>
             <div className="field" style={{ margin: 0 }}><label>Tagline</label><input value={config.tagline ?? ''} onChange={(e) => set('tagline', e.target.value)} /></div>
           </div>
           <div className="field"><label>Description</label><textarea value={config.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></div>
-          <div id="general-homepage" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+          <div id="general-homepage" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Homepage</label>
               <select
@@ -1760,6 +1873,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <a href={`/${config.adminPath ?? ''}/layouts?type=statusPage`} style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>Manage status page layouts →</a>
             </div>
           </div>
+                  </div>
+                </div>
+                <div className="settings-col">
+                  <div className="card">
+                    <div className="card-title">Search engines &amp; measuring</div>
           <label id="general-seo" className="admin-anchor" style={{ display: 'flex', gap: '0.5rem', marginBottom: 'var(--form-gap)', cursor: 'pointer' }}>
             <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
             Hide from search engines (noindex)
@@ -1779,6 +1897,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               Turn it off if you would rather not send the measurements, or if your Vercel plan charges for them.
             </span>
           </div>
+                  </div>
+                  <div className="card">
+                    <div className="card-title">Language &amp; time</div>
           <div id="general-locale" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 11rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Timezone</label>
@@ -1800,7 +1921,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </span>
             </div>
           </div>
-          <div id="general-admin-path" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+                  </div>
+                  <div className="card">
+                    <div className="card-title">Admin access</div>
+          <div id="general-admin-path" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Admin path</label>
               <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
@@ -1813,9 +1937,16 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </div>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
-          <div id="general-backup" className="admin-anchor">
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Backup</h2>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeSub === 'backup' && (
+            <div className="settings-cols">
+          <div id="general-backup" className="card admin-anchor">
+            <div className="card-title">Backup</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Download a full copy of your database - every page, user, layout, and setting - as a single SQL file. No storage provider needed, it downloads straight to your device.
             </p>
@@ -1835,9 +1966,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             {backupExtensions}
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
-          <div id="general-restore" className="admin-anchor">
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Restore from a backup</h2>
+          <div id="general-restore" className="card admin-anchor">
+            <div className="card-title">Restore from a backup</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Upload a backup file to put your site back exactly as it was. This <strong>replaces everything</strong> currently in the database - every page, user, layout, and setting - with the contents of the file, so everyone (you included) will be signed out afterwards.
             </p>
@@ -1892,7 +2022,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 Choose backup file…
               </button>
             ) : (
-              <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
+              <div style={{ border: '1px solid var(--color-destructive)', borderRadius: 'var(--radius)', padding: '1rem' }}>
                 <p style={{ fontSize: '0.875rem', margin: '0 0 0.5rem' }}>
                   Restore from <strong>{restoreFile.name}</strong>?
                 </p>
@@ -1919,13 +2049,13 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             )}
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '2rem 0 1.5rem' }} />
-          <div id="general-danger" className="admin-anchor">
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1.5rem', color: 'var(--color-destructive)' }}>Danger zone</h2>
+            </div>
+          )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-            <div>
-            <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Reset Database</h3>
+          {activeSub === 'danger' && (
+          <div id="general-danger" className="admin-anchor settings-cols">
+            <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
+            <div className="card-title" style={{ color: 'var(--color-destructive)' }}>Reset Database</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Permanently removes all data from the database — every user, page, layout, menu, and media record. The site returns to fresh-install state and you will be taken to the setup wizard.
             </p>
@@ -1935,7 +2065,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </button>
             )}
             {showDbResetConfirm && !dbResetDone && (
-              <div className="card" style={{ borderColor: 'var(--color-destructive)', marginBottom: '1.5rem' }}>
+              <div style={{ border: '1px solid var(--color-destructive)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: '1rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--color-destructive)' }}>Are you absolutely sure?</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
                   This will <strong>permanently delete all content</strong> from the database — every page, layout, menu, media record, and other user accounts. This cannot be undone.
@@ -1981,8 +2111,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
             {/* Reset Everything deletes Vercel env vars - irrelevant in local mode. */}
             {!localMode && (
-            <div>
-            <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.25rem' }}>Reset Everything</h3>
+            <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
+            <div className="card-title" style={{ color: 'var(--color-destructive)' }}>Reset Everything</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
               Permanently removes all environment variables from your Vercel project and resets the site to factory settings.
             </p>
@@ -1992,7 +2122,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </button>
             )}
             {showResetConfirm && !resetDone && (
-              <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
+              <div style={{ border: '1px solid var(--color-destructive)', borderRadius: 'var(--radius)', padding: '1rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--color-destructive)' }}>Are you sure?</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
                   This will <strong>permanently delete all environment variables</strong> from your Vercel project —
@@ -2051,13 +2181,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             )}
             </div>
             )}
-            </div>
           </div>
+          )}
         </div>
       )}
 
       {tab === 'speed' && canManageConfig && (
         <div>
+          <div className="settings-cols">
+            <div className="settings-col">
+              <div className="card">
+                <div className="card-title">Page cache</div>
           <div id="speed-page-cache" className="field admin-anchor">
             <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
               <input
@@ -2149,6 +2283,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </span>
             </div>
           )}
+              </div>
+            </div>
+            <div className="settings-col">
+              <div className="card">
+                <div className="card-title">Cloudflare</div>
           <div id="speed-cloudflare" className="field admin-anchor">
             <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
               <input
@@ -2187,6 +2326,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               back to how it was.
             </span>
           </div>
+              </div>
           {(config.pageCacheEnabled ?? false) && (
             <div
               id="speed-cloudflare-setup"
@@ -2236,7 +2376,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </div>
           )}
           {(config.pageCacheEnabled ?? false) && (
-            <div id="speed-page-cache-purge" className="admin-anchor" style={{ maxWidth: '46rem', marginTop: 'var(--form-gap)' }}>
+            <div id="speed-page-cache-purge" className="admin-anchor">
               {/* Plain function call (not JSX) for the same reason as the Integrations
                   grid: the card is defined inline, so rendering it as an element would
                   remount it - and drop focus out of the inputs - on every keystroke. */}
@@ -2244,8 +2384,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </div>
           )}
           {(config.pageCacheEnabled ?? false) && !!envStatus['CLOUDFLARE_ZONE_ID'] && (!!envStatus['CLOUDFLARE_PURGE_API_TOKEN'] || !!envStatus['CLOUDFLARE_API_TOKEN']) && (
-            <div id="speed-purge-now" className="field admin-anchor" style={{ maxWidth: '46rem' }}>
-              <label>Purge everything now</label>
+            <div id="speed-purge-now" className="card admin-anchor">
+              <div className="card-title">Purge everything now</div>
               <span className="field-hint" style={{ display: 'block', marginBottom: '0.5rem' }}>
                 Drops every stored copy of your pages straight away, rather than waiting for each one to age out on its
                 own. Useful right after a change that does not go through a page save - a new theme, a bulk price
@@ -2257,27 +2397,23 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </button>
             </div>
           )}
+            </div>
+          </div>
         </div>
       )}
-      {hasEmailSubTabs && (
-        <TabStrip
-          items={[
-            { key: 'delivery', label: 'Delivery', active: emailSubTab === 'delivery', onClick: () => selectEmailSubTab('delivery') },
-            { key: 'templates', label: 'Templates', active: emailSubTab === 'templates', onClick: () => selectEmailSubTab('templates') },
-          ]}
-        />
-      )}
+      {tab === 'email' && activeSub === 'templates' && canManageEmailTemplates && <EmailTemplatesClient />}
 
-      {tab === 'email' && emailSubTab === 'templates' && canManageEmailTemplates && <EmailTemplatesClient />}
-
-      {tab === 'email' && emailSubTab === 'delivery' && canManageConfig && (
-        <div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+      {tab === 'email' && activeSub === 'delivery' && canManageConfig && (
+        <div className="settings-cols">
+          <div className="settings-col">
+            <div className="card">
+              <div className="card-title">Sender</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
             <div className="field" style={{ margin: 0 }}><label>From name</label><input value={config.emailFromName ?? ''} onChange={(e) => set('emailFromName', e.target.value)} /></div>
             <div className="field" style={{ margin: 0 }}><label>From address</label><input type="email" placeholder="Defaults to your admin email" value={config.emailFromAddress ?? ''} onChange={(e) => set('emailFromAddress', e.target.value)} /></div>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
+              <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0.5rem 0 1.25rem' }} />
           <div id="email-provider" className="admin-anchor" style={{ marginBottom: '1rem' }}>
             <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Send the site&apos;s email through</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
@@ -2339,16 +2475,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               )
             })()}
           </div>
-          {/* Called as a plain function, not JSX: an inline-defined component gets a new
-              identity every parent render, so React would remount the card (and drop input
-              focus) on each keystroke. */}
-          {EnvSectionCard({ section: emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION })}
-
-          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
-          {/* The site's own open and click counting, for mail that goes out
-              through an ordinary mail account. Saved with the page's own Save
-              button, like the sender fields above it. */}
-          <div id="email-tracking" className="field admin-anchor">
+            </div>
+          <div id="email-tracking" className="card admin-anchor">
             <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
               <input
                 type="checkbox"
@@ -2368,9 +2496,15 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </span>
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '1.5rem 0' }} />
-          <div id="email-test" className="admin-anchor">
-            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Send a test email</div>
+          </div>
+          <div className="settings-col">
+          {/* Called as a plain function, not JSX: an inline-defined component gets a new
+              identity every parent render, so React would remount the card (and drop input
+              focus) on each keystroke. */}
+          {EnvSectionCard({ section: emailMode === 'brevo' ? EMAIL_BREVO_SECTION : EMAIL_SMTP_SECTION })}
+
+          <div id="email-test" className="card admin-anchor">
+            <div className="card-title">Send a test email</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
               Sends using the settings above. Leave blank to send to your own admin address.
             </p>
@@ -2389,10 +2523,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             {testEmailSent && <div className="alert alert-success" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>Sent to {testEmailSent}.</div>}
             {testEmailError && <div className="alert alert-danger" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>{testEmailError}</div>}
           </div>
+          </div>
         </div>
       )}
 
-      {tab === 'gdpr' && canManageConfig && (() => {
+      {tab === 'gdpr' && canManageConfig && activeSub !== 'members' && (() => {
         const consent = config.consentBannerConfig ?? null
         // Normalised on the way in as well as on save, so a config written before
         // the order was settable shows the same list the visitor will see.
@@ -2429,7 +2564,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
         return (
           <div>
-            <div id="gdpr-legal" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            {activeSub === 'legal' && (
+              <div className="settings-cols">
+                <div className="card">
+                  <div className="card-title">Legal pages</div>
+            <div id="gdpr-legal" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
               <div className="field" style={{ margin: 0 }}>
                 <label>Privacy policy page</label>
                 <select value={config.privacyPolicyPageId ?? ''} onChange={(e) => set('privacyPolicyPageId', e.target.value || null as unknown as string)}>
@@ -2455,7 +2594,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 </p>
               )}
             </div>
-            <div id="gdpr-retention" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                </div>
+                <div className="card">
+                  <div className="card-title">Data retention</div>
+            <div id="gdpr-retention" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
               <div className="field" style={{ margin: 0 }}>
                 <label>Purge expired sessions after (days)</label>
                 <input type="number" min={1} max={365} value={config.sessionPurgeAfterDays ?? 30} onChange={(e) => set('sessionPurgeAfterDays', parseInt(e.target.value))} />
@@ -2466,11 +2608,15 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </div>
             </div>
 
-            {/* ----------------------------------------------------------------
-                Cookie Consent Banner
-            ---------------------------------------------------------------- */}
-            <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid var(--color-border)' }} />
-            <h3 id="gdpr-banner" className="admin-anchor" style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)' }}>Cookie consent banner</h3>
+                </div>
+              </div>
+            )}
+
+            {activeSub === 'banner' && (
+              <>
+                <div className="settings-cols">
+                  <div className="card">
+            <div id="gdpr-banner" className="card-title admin-anchor">Cookie consent banner</div>
 
             <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer', alignItems: 'center' }}>
               <input
@@ -2489,7 +2635,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
             {consent && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
                   <div className="field" style={{ margin: 0 }}>
                     <label>Banner style</label>
                     <select value={consent.style ?? 'bottom-bar'} onChange={(e) => setConsent({ style: e.target.value as 'bottom-bar' | 'modal' })}>
@@ -2509,7 +2655,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <span className="field-hint">Use <code>{'{privacyPolicy}'}</code> to insert a link to your configured privacy policy page.</span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 10rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
                   <div className="field" style={{ margin: 0 }}>
                     <label>Accept all label</label>
                     <input type="text" value={consent.acceptAllLabel ?? ''} onChange={(e) => setConsent({ acceptAllLabel: e.target.value })} placeholder="Accept all" />
@@ -2541,6 +2687,47 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <span className="field-hint">The banner opens with just &ldquo;Accept all&rdquo; and &ldquo;Manage preferences&rdquo;. &ldquo;Reject all&rdquo; appears alongside the switches once they have been opened. Worth knowing: the UK and EU regulators expect rejecting to be as easy as accepting, so check this suits your own legal advice before switching it on.</span>
                 </div>
 
+              </>
+            )}
+                  </div>
+                  {consent && (
+                    <div className="card">
+                      <div className="card-title">When to ask again</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Re-prompt after (days)</label>
+                    <input type="number" min={1} max={3650} value={consent.reConsentDays ?? 365} onChange={(e) => setConsent({ reConsentDays: parseInt(e.target.value) || 365 })} />
+                    <span className="field-hint">Visitors who consented more than this many days ago will be shown the banner again.</span>
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Keep consent records for (days)</label>
+                    <input type="number" min={0} value={consent.consentLogRetentionDays ?? ''} onChange={(e) => setConsent({ consentLogRetentionDays: e.target.value ? parseInt(e.target.value) : null })} placeholder="Blank = keep indefinitely" />
+                    <span className="field-hint">Leave blank to keep records indefinitely (recommended for audit purposes).</span>
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label style={{ display: 'flex', gap: '0.5rem', cursor: 'pointer', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={consent.showPrivacyPagePanel ?? true}
+                      onChange={(e) => setConsent({ showPrivacyPagePanel: e.target.checked })}
+                    />
+                    Show a preferences panel on the privacy policy page
+                  </label>
+                  <span className="field-hint">Puts the same switches at the top of the page chosen above as your privacy policy, so visitors can change their mind without waiting to be asked again.</span>
+                </div>
+
+                {(consent.categoriesVersion ?? 0) > 0 && (
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
+                    Categories version: <strong>{consent.categoriesVersion}</strong> &mdash; visitors will be re-prompted when this number increases.
+                  </p>
+                )}
+                    </div>
+                  )}
+                </div>
+                {consent && (
+                  <div className="card">
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontWeight: 500, fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--color-text)' }}>
                     Cookie categories
@@ -2646,46 +2833,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label>Re-prompt after (days)</label>
-                    <input type="number" min={1} max={3650} value={consent.reConsentDays ?? 365} onChange={(e) => setConsent({ reConsentDays: parseInt(e.target.value) || 365 })} />
-                    <span className="field-hint">Visitors who consented more than this many days ago will be shown the banner again.</span>
                   </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label>Keep consent records for (days)</label>
-                    <input type="number" min={0} value={consent.consentLogRetentionDays ?? ''} onChange={(e) => setConsent({ consentLogRetentionDays: e.target.value ? parseInt(e.target.value) : null })} placeholder="Blank = keep indefinitely" />
-                    <span className="field-hint">Leave blank to keep records indefinitely (recommended for audit purposes).</span>
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label style={{ display: 'flex', gap: '0.5rem', cursor: 'pointer', alignItems: 'center' }}>
-                    <input
-                      type="checkbox"
-                      checked={consent.showPrivacyPagePanel ?? true}
-                      onChange={(e) => setConsent({ showPrivacyPagePanel: e.target.checked })}
-                    />
-                    Show a preferences panel on the privacy policy page
-                  </label>
-                  <span className="field-hint">Puts the same switches at the top of the page chosen above as your privacy policy, so visitors can change their mind without waiting to be asked again.</span>
-                </div>
-
-                {(consent.categoriesVersion ?? 0) > 0 && (
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
-                    Categories version: <strong>{consent.categoriesVersion}</strong> &mdash; visitors will be re-prompted when this number increases.
-                  </p>
                 )}
               </>
             )}
-
           </div>
         )
       })()}
 
       {/* The members GDPR dashboard carries its own key: a data-protection officer
           can be given it without the run of the site's settings. */}
-      {tab === 'gdpr' && canViewMembersGdpr && (
+      {tab === 'gdpr' && canViewMembersGdpr && activeSub === 'members' && (
         <>
           <MembersGdprClient />
           {membersGdprExtensions}
@@ -2710,9 +2868,32 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
             {envError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>{envError}</div>}
 
+            {/* Migrate / switch dialog after a change with stray rows */}
+            {pendingProvider && (
+              <div className="card" style={{ borderColor: 'var(--color-warning)', marginBottom: 'var(--space-6)' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Existing media on other providers</h3>
+                <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', marginBottom: '0.75rem' }}>
+                  Some images still live on a different provider. You can move them onto {PROVIDER_LABELS[pendingProvider]} now,
+                  or switch for new uploads only and migrate later.
+                </p>
+                <ul style={{ fontSize: '0.875rem', margin: '0 0 0.75rem 1rem' }}>
+                  {Object.entries(breakdown).filter(([p, n]) => p !== pendingProvider && n > 0).map(([p, n]) => (
+                    <li key={p}>{PROVIDER_LABELS[p as MediaProviderType] ?? p}: {n} item{n === 1 ? '' : 's'}</li>
+                  ))}
+                </ul>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={confirmMigrateNow}>Migrate now</button>
+                  <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={() => setPendingProvider(null)}>Switch without migrating</button>
+                </div>
+              </div>
+            )}
+
+            <div className="settings-cols">
+              <div className="settings-col">
             {/* Provider dropdown, grouped by kind */}
-            <div id="media-provider" className="field admin-anchor">
-              <label>Media provider</label>
+            <div id="media-provider" className="card admin-anchor">
+              <div className="card-title">Media provider</div>
+              <div className="field" style={{ margin: 0 }}>
               <select
                 value={selected ?? ''}
                 disabled={mediaBusy || !!jobActive}
@@ -2733,31 +2914,12 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <span className="field-hint">
                 Changing this only affects where new uploads land. Existing images stay put until you migrate them.
               </span>
-            </div>
-
-            {/* Migrate / switch dialog after a change with stray rows */}
-            {pendingProvider && (
-              <div className="card" style={{ marginBottom: '1rem', borderColor: 'var(--color-warning)' }}>
-                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Existing media on other providers</h3>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', marginBottom: '0.75rem' }}>
-                  Some images still live on a different provider. You can move them onto {PROVIDER_LABELS[pendingProvider]} now,
-                  or switch for new uploads only and migrate later.
-                </p>
-                <ul style={{ fontSize: '0.875rem', margin: '0 0 0.75rem 1rem' }}>
-                  {Object.entries(breakdown).filter(([p, n]) => p !== pendingProvider && n > 0).map(([p, n]) => (
-                    <li key={p}>{PROVIDER_LABELS[p as MediaProviderType] ?? p}: {n} item{n === 1 ? '' : 's'}</li>
-                  ))}
-                </ul>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={confirmMigrateNow}>Migrate now</button>
-                  <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={mediaBusy} onClick={() => setPendingProvider(null)}>Switch without migrating</button>
-                </div>
               </div>
-            )}
+            </div>
 
             {/* Env var checklist for the selected provider */}
             {selected && (
-              <div className="card" style={{ marginBottom: '1rem' }}>
+              <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <div>
                     <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{PROVIDER_LABELS[selected]} credentials</h3>
@@ -2933,23 +3095,15 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   </>
                 )}
                 {!localMode && (
-                  <>
-                    <button
-                      className="btn btn-primary"
-                      style={{ fontSize: '0.875rem' }}
-                      disabled={savingEnvId === `media-${selected}` || !envKeysForProvider(selected).some((k) => envFields[k]?.trim())}
-                      onClick={() => handleSaveEnv(`media-${selected}`, envKeysForProvider(selected))}
-                    >
-                      {savingEnvId === `media-${selected}` ? 'Saving…' : savedEnvId === `media-${selected}` ? '✓ Saved' : 'Save credentials'}
-                    </button>
-                    <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginLeft: '1rem' }}>{savedEnvId === `media-${selected}` ? 'Redeploying…' : 'Takes effect on next deployment'}</span>
-                  </>
+                  <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{envJustSaved ? 'Redeploying…' : 'Saved with the Save button at the top. Takes effect on next deployment'}</span>
                 )}
               </div>
             )}
 
+              </div>
+              <div className="settings-col">
             {/* Per-provider breakdown */}
-            <div className="card" style={{ marginBottom: '1rem' }}>
+            <div className="card">
               <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Where your media lives</h3>
               {Object.keys(breakdown).length === 0 ? (
                 <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>No media uploaded yet.</p>
@@ -2972,7 +3126,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
             {/* Live migration progress */}
             {jobActive && job && (
-              <div className="card" style={{ marginBottom: '1rem' }}>
+              <div className="card">
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>
                   Migrating to {PROVIDER_LABELS[job.toProvider]}…
                 </h3>
@@ -2996,7 +3150,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
             {/* Completed-with-failures retry */}
             {jobFailed && job && (
-              <div className="card" style={{ marginBottom: '1rem', borderColor: 'var(--color-destructive)' }}>
+              <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Migration finished with failures</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                   {job.migratedItems} of {job.totalItems} migrated, {job.failedItemIds.length} failed.
@@ -3013,7 +3167,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
             {/* Delivery — how images behave on the public site, as opposed to
                 where they are stored. Saved with the page's own Save button. */}
-            <div id="media-lazy-load" className="field admin-anchor" style={{ marginTop: '1.5rem' }}>
+            <div id="media-lazy-load" className="card admin-anchor">
               <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
@@ -3029,6 +3183,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 whether anyone scrolls that far or not.
               </span>
             </div>
+              </div>
+            </div>
           </div>
         )
       })()}
@@ -3038,14 +3194,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
             All credentials are stored directly in your Vercel project environment variables. Changes take effect on next deployment.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'stretch' }}>
+          <div className="settings-cols">
             {/* eslint-disable-next-line react-hooks/static-components -- GitHubAppCard and EnvSectionCard are render helpers; extracting them would require threading ~20 state values as props */}
-            <GitHubAppCard />
-            {INTEGRATION_SECTIONS.map((section) => (
-              // Plain function call (wrapped for the list key) rather than JSX so the
-              // inline-defined card isn't remounted - and inputs unfocused - every render.
-              <Fragment key={section.id}>{EnvSectionCard({ section })}</Fragment>
-            ))}
+            {activeSub === 'github' && <GitHubAppCard />}
+            {INTEGRATION_SUBS.find((d) => d.key === activeSub)?.anchors
+              .filter((a) => a.startsWith('section-'))
+              .map((a) => INTEGRATION_SECTIONS.find((section) => `section-${section.id}` === a))
+              .map((section) => section && (
+                // Plain function call (wrapped for the list key) rather than JSX so the
+                // inline-defined card isn't remounted - and inputs unfocused - every render.
+                <Fragment key={section.id}>{EnvSectionCard({ section })}</Fragment>
+              ))}
           </div>
         </div>
       )}
@@ -3056,6 +3215,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         return ModuleTab ? <ModuleTab key={t.id} hostedSettingsSlots={hostedSettingsSlots} hostedSettingsPanels={hostedSettingsPanels} /> : null
       })}
     </div>
+    </SettingsHeaderProvider>
   )
 }
 

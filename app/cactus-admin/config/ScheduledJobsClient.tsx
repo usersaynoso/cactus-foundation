@@ -11,6 +11,8 @@ import {
   type CronJobRow,
   type CronTick,
 } from '@/components/admin/CronScheduleField'
+import { TabStrip } from '@/components/admin/TabStrip'
+import { setUrlParams } from '@/lib/admin/tab-url'
 
 // Settings > Schedules. Every job this site runs on a timer, whether it came with the
 // site or with a module, and how often the owner would like each one to happen.
@@ -57,6 +59,9 @@ export default function ScheduledJobsClient() {
   const [runningPath, setRunningPath] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ message: string; tone: 'success' | 'warning' | 'danger' } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Which owner's jobs are showing - the site's own, or one module's. Kept in ?sub=
+  // so a refresh or a pasted link lands on the same list.
+  const [activeGroupKey, setActiveGroupKey] = useState('')
 
   useEffect(() => {
     let live = true
@@ -66,7 +71,11 @@ export default function ScheduledJobsClient() {
         if (!r.ok) throw new Error(body?.error ?? 'Could not load the schedules')
         return body as Payload
       })
-      .then((body) => live && setData(body))
+      .then((body) => {
+        if (!live) return
+        setData(body)
+        setActiveGroupKey(new URLSearchParams(window.location.search).get('sub') ?? '')
+      })
       .catch((err) => live && setError(err instanceof Error ? err.message : String(err)))
       .finally(() => live && setLoading(false))
     return () => {
@@ -92,6 +101,7 @@ export default function ScheduledJobsClient() {
       })
       .map(([module, jobs]) => ({
         module,
+        key: module ?? 'core',
         name: groupName(module),
         jobs: [...jobs].sort((a, b) => jobName(a.path).localeCompare(jobName(b.path))),
       }))
@@ -168,6 +178,8 @@ export default function ScheduledJobsClient() {
     }
   }, [])
 
+  const activeGroup = groups.find((g) => g.key === activeGroupKey) ?? groups[0]
+
   if (loading) return <div style={{ color: 'var(--color-text-muted)' }}>Loading…</div>
   if (error) return <div className="alert alert-danger">{error}</div>
   if (!data) return null
@@ -186,9 +198,23 @@ export default function ScheduledJobsClient() {
         </div>
       )}
 
-      {groups.map((group) => (
-        <div key={group.module ?? 'core'} className="card" style={{ marginBottom: '1.5rem' }}>
-          <div className="card-title">{group.name}</div>
+      {groups.length > 1 && (
+        <TabStrip
+          items={groups.map((group) => ({
+            key: group.key,
+            label: group.name,
+            active: group.key === activeGroup?.key,
+            onClick: () => {
+              setActiveGroupKey(group.key)
+              setUrlParams({ sub: group.key === groups[0]?.key ? null : group.key })
+            },
+          }))}
+        />
+      )}
+
+      {activeGroup && (
+        <div key={activeGroup.key} className="card" style={{ marginBottom: '1.5rem' }}>
+          <div className="card-title">{activeGroup.name}</div>
           <div className="table-wrapper">
             <table>
               <thead>
@@ -202,7 +228,7 @@ export default function ScheduledJobsClient() {
                 </tr>
               </thead>
               <tbody>
-                {group.jobs.map((job) => (
+                {activeGroup.jobs.map((job) => (
                   <tr key={job.path}>
                     <td>{jobName(job.path)}</td>
                     <td>
@@ -238,7 +264,7 @@ export default function ScheduledJobsClient() {
             </table>
           </div>
         </div>
-      ))}
+      )}
 
       {groups.length === 0 && (
         <div style={{ color: 'var(--color-text-muted)' }}>

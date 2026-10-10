@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { SettingsHeaderActions } from '@/components/admin/SettingsHeaderActions'
 import type { EditorNavSection, NavVisibilityMode, AdminMenuConfig } from '@/lib/nav/admin-menu'
 
 type Role = { id: string; name: string; isProtected: boolean }
@@ -186,16 +187,19 @@ export default function NavBuilder({ sections, roles }: Props) {
         arrows to move things. Administrators always see every item, so you can’t lock yourself out.
       </p>
 
-      <div className="navb-actionbar">
+      <SettingsHeaderActions>
+        {error && <span className="navb-status navb-status--err">{error}</span>}
+        {dirty && !saving && <span className="navb-status navb-status--dirty">Unsaved changes</span>}
+        {flash && <span className="navb-status navb-status--ok">Saved</span>}
         <button type="button" className="btn btn-primary" onClick={save} disabled={!dirty || saving}>
           {saving ? 'Saving…' : 'Save menu'}
         </button>
+      </SettingsHeaderActions>
+
+      <div className="navb-actionbar">
         <button type="button" className="btn btn-secondary" onClick={reset} disabled={saving}>
           {resetArmed ? 'Click again to reset everything' : 'Reset to defaults'}
         </button>
-        {dirty && !saving && <span className="navb-status navb-status--dirty">Unsaved changes</span>}
-        {flash && <span className="navb-status navb-status--ok">Saved</span>}
-        {error && <span className="navb-status navb-status--err">{error}</span>}
       </div>
 
       <div className="navb-sections">

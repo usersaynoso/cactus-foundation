@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { SettingsHeaderActions } from '@/components/admin/SettingsHeaderActions'
 
 // Every email the site sends, in one editor: core's member, sign-in and system
 // emails, plus whatever the installed modules have declared. Each one gets its
@@ -384,9 +385,11 @@ export default function EmailTemplatesClient() {
             )}
 
             <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-              <button className="btn btn-primary" disabled={saving} onClick={save}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
+              <SettingsHeaderActions>
+                <button className="btn btn-primary" disabled={saving} onClick={save}>
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </SettingsHeaderActions>
               <button className="btn btn-secondary" disabled={testing} onClick={testSend}>
                 {testing ? 'Sending…' : 'Send test to myself'}
               </button>

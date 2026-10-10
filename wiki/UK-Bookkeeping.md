@@ -65,7 +65,14 @@ You will want:
 You do not need HMRC to start, and it is worth not bothering with them until you
 have seen this working.
 
-Go to **Settings → Bookkeeping** and fill in your business name, VAT number,
+Settings → Bookkeeping is split into tabs: **Business**, **VAT and HMRC**, **Sales
+and records**, **Categories**, **Bank accounts** and **Ledger accounts**. The first
+three share one Save settings button; the last three save the moment you press a
+button. In **Bank accounts**, the up and down arrows set the order your accounts
+appear in every dropdown across Bookkeeping (it is no longer alphabetical once you
+have set one).
+
+Go to **Settings → Bookkeeping**, Business and VAT tabs, and fill in your business name, VAT number,
 scheme and how often you file, plus the dates your first VAT period starts *and
 ends* - both are on your HMRC registration letter and in your VAT account.
 

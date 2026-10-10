@@ -652,6 +652,37 @@ A module can add a tab to the core admin's **Settings** (`/config`) page instead
 
 Your tab's content renders with no extra chrome - no page title, no wrapping card - since it sits directly under the shared tab bar. Add your own heading only if the tab label alone wouldn't be enough context.
 
+### The Save button, sub-tabs and width
+
+The Settings page keeps its title, tab bar and Save button in one **sticky bar**, so Save is in reach however far down a long tab you have scrolled. Core's own tabs drive that button directly. Yours owns its state and its own save call, so it puts its button in the bar with `SettingsHeaderActions` instead of at the foot of the form:
+
+```tsx
+import { SettingsHeaderActions, SettingsHeaderStatus } from '@/components/admin/SettingsHeaderActions'
+
+<SettingsHeaderActions>
+  <SettingsHeaderStatus message={saved ? 'Saved' : null} error={error} />
+  <button type="button" className="btn btn-primary" disabled={saving} onClick={save}>
+    {saving ? 'Saving…' : 'Save changes'}
+  </button>
+</SettingsHeaderActions>
+```
+
+- The content is **portalled** into the bar but stays part of your React tree, so state, handlers and context all keep working. Use `type="button"` with an `onClick`: a submit button that lands outside its `<form>` submits nothing. Keep `onSubmit` on the form if you want Enter to save.
+- Outside the Settings page there is no bar and the content renders where you wrote it, so a panel that is reused elsewhere still has a working button.
+- A panel you keep mounted but hidden (to hold a half-typed form while another sub-tab is showing) must stop rendering its actions while hidden, or every hidden panel's Save button will sit in the bar at once. Render `SettingsHeaderActions` only for the active panel.
+- Anything that saves itself on the spot (a tick-box, a dropdown, a list row) needs no button. A row-level edit inside a list may keep its own small Save.
+- Name the button for what it saves. Where a tab has two different saves (settings, and credentials that go to the server's environment) give each its own label.
+
+A tab with more than a screen of settings is split into **sub-tabs** with `TabStrip` (`components/admin/TabStrip`), one job per sub-tab, and keeps the open one in the URL with `useTabParam` (`components/admin/useTabParam`). **Use a key other than `sub` if your panel is hosted inside Shop** (Shop owns `sub` and `pane`): the Google Shopping and Abandoned baskets panels use `view`.
+
+Do not cap your tab's width - there is nothing in the page to stop a form stretching, so a `maxWidth` on your outer wrapper just leaves a strip of empty page to the right. Lay content out in cards instead, using the classes in `app/globals.css`:
+
+| Class | What it does |
+|-------|--------------|
+| `settings-cols` | Two columns on a desktop screen, one on a phone or tablet. Never three, however wide the screen. Children needing the whole row take `settings-cols__full`. |
+| `settings-col` | A stack of cards that sits in one column of `settings-cols`, so a tall card does not leave a hole beside a short one. |
+| `settings-masonry` | Cards of any height flowed into two balanced columns, reading down the first and then the second. Each child stays in one piece. Best when the cards have no natural pairing. |
+
 ### Hosted settings panels
 
 Sometimes a settings panel belongs *inside another module's* settings, not as its own top-level tab. A GoCardless payment provider, for example, should sit on the Shop's **Payments** tab next to Stripe and PayPal, not float as a separate "Instant Bank Pay" tab. Set `host` on the `settingsTabs` entry to the name of the slot to render into:

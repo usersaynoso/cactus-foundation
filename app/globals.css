@@ -1481,7 +1481,12 @@ a:hover {
 .navb-status--dirty { color: var(--color-text-muted); }
 .navb-status--ok { color: var(--color-success); }
 .navb-status--err { color: var(--color-error); }
-.navb-sections { display: flex; flex-direction: column; gap: var(--space-3); }
+.navb-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(26rem, calc((100% - var(--space-3)) / 2))), 1fr));
+  gap: var(--space-3);
+  align-items: start;
+}
 .navb-section {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -2975,6 +2980,103 @@ tbody tr:hover {
   flex-wrap: wrap;
   gap: var(--space-3);
 }
+/* ============================================================
+   SETTINGS PAGE - sticky bar + two-column body
+   ============================================================ */
+/* The title, tab strip and Save button stay put while the settings scroll under
+   them. The bar is pulled up over the page's own top padding and given the same
+   padding back, so it covers the gap above it while stuck; `top` is the matching
+   negative so only that padding slides off-screen. Module tabs drop their Save
+   button into .settings-header-slot (see SettingsHeaderActions). */
+.settings-sticky {
+  --settings-pad-y: var(--space-8);
+  --settings-pad-x: var(--space-6);
+  position: sticky;
+  top: calc(-1 * var(--settings-pad-y));
+  z-index: 40;
+  margin: calc(-1 * var(--settings-pad-y)) calc(-1 * var(--settings-pad-x)) var(--space-6);
+  padding: var(--settings-pad-y) var(--settings-pad-x) 0;
+  background: var(--color-page-bg, var(--color-bg));
+}
+.settings-sticky .page-header {
+  margin-bottom: var(--space-3);
+  min-height: 2.5rem;
+}
+.settings-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+.settings-header-slot {
+  display: contents;
+}
+/* A deep link (#section) scrolls its target to the top of the viewport; the sticky
+   bar would sit on top of it, so leave room for the bar as well. */
+.settings-sticky ~ .admin-anchor,
+.settings-sticky ~ * .admin-anchor {
+  scroll-margin-top: 10rem;
+}
+@media (max-width: 768px) {
+  .settings-sticky {
+    --settings-pad-y: var(--space-4);
+    --settings-pad-x: var(--space-4);
+    /* Sits under the sticky mobile top bar rather than behind it. */
+    top: calc(var(--admin-mobile-topbar-height) - var(--settings-pad-y));
+  }
+}
+
+/* Two columns on a desktop screen, one on a tablet or phone. The track minimum is
+   the larger of 26rem and half the row, so a wide screen never goes to three
+   columns and a narrow one drops to one - and min(100%, ...) stops the minimum
+   itself overflowing a phone. Children that need the whole row take
+   .settings-cols__full. */
+.settings-cols {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, max(26rem, calc((100% - var(--space-6)) / 2))), 1fr)
+  );
+  gap: var(--space-6);
+  align-items: start;
+  margin-bottom: var(--space-6);
+}
+.settings-cols > * {
+  min-width: 0;
+}
+.settings-cols > .settings-cols__full {
+  grid-column: 1 / -1;
+}
+.settings-cols > .card,
+.settings-cols > .field {
+  margin-bottom: 0;
+}
+/* Cards of every height flowed into two balanced columns - for a tab whose cards
+   carry their own spacing and have no natural pairing. Reads down the first column,
+   then the second; one column below 26rem a column. Each child stays in one piece. */
+.settings-masonry {
+  column-count: 2;
+  column-width: 26rem;
+  column-gap: var(--space-6);
+}
+.settings-masonry > * {
+  break-inside: avoid;
+}
+
+/* A stack of cards that sits in one column of .settings-cols, so a tall card on one
+   side does not leave a hole beside a short one on the other. */
+.settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+.settings-col > .card {
+  margin-bottom: 0;
+}
+
 .page-title {
   font-size: var(--text-3xl);
   font-weight: var(--font-semibold);
@@ -3550,7 +3652,8 @@ a[data-eml] {
 }
 .emt-preview-pane {
   position: sticky;
-  top: var(--space-4);
+  /* Clear of the sticky Settings bar. */
+  top: 9rem;
 }
 
 /* A merge tag and its copy button read as one chip. */
