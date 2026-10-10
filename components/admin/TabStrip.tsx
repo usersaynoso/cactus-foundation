@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import Link from 'next/link'
+import { useSettingsNavStrip } from './SettingsNav'
 
 export type TabStripItem = {
   key: string
@@ -19,6 +20,7 @@ type Props = {
   /** Fixed content pinned to the right of the scroll area, e.g. a result count. */
   trailing?: ReactNode
   style?: CSSProperties
+  className?: string
 }
 
 const FADE_WIDTH = '2rem'
@@ -42,7 +44,11 @@ const tabStyle = (active: boolean): CSSProperties => ({
 
 /** Underline-style horizontal tab bar shared by every admin page with tabs. Scrolls
  * with edge fades and arrow buttons when the tab list overflows its container. */
-export function TabStrip({ items, trailing, style }: Props) {
+export function TabStrip({ items, trailing, style, className }: Props) {
+  // On the Settings page a module's sub-tabs are also listed in the sidebar, and
+  // can be hidden here in favour of it (see SettingsNav). Everywhere else this is
+  // always false.
+  const isSettingsSubTabs = useSettingsNavStrip(items)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -71,7 +77,7 @@ export function TabStrip({ items, trailing, style }: Props) {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border)', marginBottom: '1rem', ...style }}>
+    <div className={[className, isSettingsSubTabs && 'settings-sub-tabs'].filter(Boolean).join(' ') || undefined} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border)', marginBottom: '1rem', ...style }}>
       <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
         <div ref={scrollRef} className="no-scrollbar" style={{ display: 'flex', overflowX: 'auto' }}>
           {items.map((item) => item.href ? (

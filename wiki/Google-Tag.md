@@ -20,7 +20,7 @@ You can paste the whole thing Google gives you into either box - the two halves 
 ## Setting it up
 
 1. Install the module.
-2. Go to **Settings → Google Tag**.
+2. Go to **Settings → General → Google Tag**.
 3. Paste in whichever IDs you have.
 4. Tick **Send measurements to Google**.
 5. The **Google Tag** block goes onto your header layout on its own when you install the module. It shows nothing on the page - it just does the counting. Move it or delete it if you would rather, and it stays moved or deleted; nothing puts it back. If you installed the module before this was automatic, add it yourself: **Layouts → your header layout → Google Tag**. Without it, nothing is measured at all.

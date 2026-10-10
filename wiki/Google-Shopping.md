@@ -856,7 +856,7 @@ The one to know about is **"Unsupported image type"**. It sounds like the pictur
 
 What it usually means is that Google asked your storage for the picture, got a shrug instead, and took the shrug for the picture. Storage does that to a small share of requests - once or twice in a hundred - and Google is working through every image in your catalogue in one go, so a small share of a very large number is a lot of turned-down products. Variations bear the brunt simply because there are more of them.
 
-The cure is one click: **Settings → Media → Deploy Worker**. A current media service asks storage again before giving up, and answers the quick "is it there?" check Google makes before downloading anything, which older ones refused. Once it is redeployed, ask Merchant Center to fetch your feed again and the rejections clear on the next run.
+The cure is one click: **Settings → General → Media → Deploy Worker**. A current media service asks storage again before giving up, and answers the quick "is it there?" check Google makes before downloading anything, which older ones refused. Once it is redeployed, ask Merchant Center to fetch your feed again and the rejections clear on the next run.
 
 Genuinely broken pictures are a different message - Google says it could not find the image, not that it could not read it.
 

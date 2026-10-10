@@ -202,7 +202,7 @@ Provide either:
 - **SMTP**: add `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
 
 ### Image uploads (enables the media library)
-Choose a provider in Settings → Media and add the corresponding credentials. Supported options include Backblaze B2, Cloudflare R2, AWS S3, DigitalOcean Spaces, Wasabi, MinIO, Vercel Blob, Supabase Storage, Cloudinary, and ImageKit. For most of these, you'll also deploy a Cloudflare Worker from `workers/media-worker/` - full instructions are in the [Configuration reference](wiki/Configuration-reference.md).
+Choose a provider in Settings → General → Media and add the corresponding credentials. Supported options include Backblaze B2, Cloudflare R2, AWS S3, DigitalOcean Spaces, Wasabi, MinIO, Vercel Blob, Supabase Storage, Cloudinary, and ImageKit. For most of these, you'll also deploy a Cloudflare Worker from `workers/media-worker/` - full instructions are in the [Configuration reference](wiki/Configuration-reference.md).
 
 ### Module installs (enables installing extensions)
 Create a GitHub personal access token with `repo` scope, then add `GITHUB_API_TOKEN` and `GITHUB_REPO` (format: `owner/repo`, pointing at your Cactus fork).

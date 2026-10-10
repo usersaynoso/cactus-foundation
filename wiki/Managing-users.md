@@ -126,7 +126,7 @@ If email is set up on your site, you can also sign in with a password and a one-
 
 ## The admin menu
 
-The list of links down the left of your admin area is yours to arrange. Go to **Settings → Navigation**.
+The list of links down the left of your admin area is yours to arrange. Go to **Settings → General → Admin Menu**.
 
 For each item you can:
 

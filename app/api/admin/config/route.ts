@@ -13,6 +13,7 @@ import { errorResponse } from '@/lib/utils'
 import type { SiteStatus } from '@prisma/client'
 import { NECESSARY_CATEGORY_KEY, withNecessaryFirst } from '@/lib/consent/types'
 import type { ConsentBannerConfig, ConsentCategory } from '@/lib/consent/types'
+import { parseAdminMenuConfig } from '@/lib/nav/admin-menu'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -40,8 +41,15 @@ export async function GET() {
     lookup(config.webManifest512MediaId),
   ])
 
+  // The two Settings sidebar switches are stored in the admin menu blob (see
+  // lib/nav/admin-menu.ts) but edited on General > Site like any other setting, so
+  // they are handed over as plain fields of their own.
+  const adminMenu = parseAdminMenuConfig(config.adminMenuConfig)
+
   return NextResponse.json({
     ...config,
+    settingsSidebar: adminMenu.settingsSidebar === true,
+    settingsSidebarHideSubTabs: adminMenu.settingsSidebarHideSubTabs === true,
     logoUrl: logo?.url ?? null,
     logoDarkUrl: logoDark?.url ?? null,
     faviconUrl: favicon?.url ?? null,
@@ -225,6 +233,9 @@ const Patch = z.object({
   homepageId: z.string().optional().nullable(),
   consentBannerConfig: ConsentBannerConfigPatch.optional().nullable(),
   coreUpdateChannel: z.enum(['public', 'beta']).optional(),
+  // Written into adminMenuConfig, not columns of their own - see GET above.
+  settingsSidebar: z.boolean().optional(),
+  settingsSidebarHideSubTabs: z.boolean().optional(),
 })
 
 export async function PATCH(request: NextRequest) {
@@ -235,7 +246,7 @@ export async function PATCH(request: NextRequest) {
   const parsed = Patch.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { adminPath, status, mainMenuId, homepageId, consentBannerConfig: incomingConsent, ...rest } = parsed.data
+  const { adminPath, status, mainMenuId, homepageId, consentBannerConfig: incomingConsent, settingsSidebar, settingsSidebarHideSubTabs, ...rest } = parsed.data
 
   if (adminPath && isBlocklisted(adminPath)) {
     return errorResponse(`"${adminPath}" is a reserved path`)
@@ -246,6 +257,19 @@ export async function PATCH(request: NextRequest) {
   if (status) data.status = status
   if (mainMenuId !== undefined) data.mainMenuId = mainMenuId
   if (homepageId !== undefined) data.homepageId = homepageId
+
+  if (settingsSidebar !== undefined || settingsSidebarHideSubTabs !== undefined) {
+    const stored = await prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { adminMenuConfig: true },
+    })
+    const current = parseAdminMenuConfig(stored?.adminMenuConfig)
+    data.adminMenuConfig = {
+      ...current,
+      ...(settingsSidebar !== undefined ? { settingsSidebar } : {}),
+      ...(settingsSidebarHideSubTabs !== undefined ? { settingsSidebarHideSubTabs } : {}),
+    }
+  }
 
   if (incomingConsent !== undefined) {
     if (incomingConsent === null) {

@@ -3036,6 +3036,127 @@ tbody tr:hover {
   }
 }
 
+/* Settings sidebar (Settings > General > Site > "Show Settings tabs in a sidebar").
+   The tabs move from the strip in the sticky bar to a column on the left, with the
+   open tab unfolded into its pages and sub-tabs. Only on a screen with room for it:
+   below that the sidebar is not drawn and the strips come back, so a phone always
+   has a way round - including when the sub-tabs have been hidden in favour of the
+   sidebar, which also only applies while the sidebar is showing. */
+.settings-sidebar {
+  display: none;
+}
+@media (min-width: 900px) {
+  .settings-layout--sidebar {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-6);
+  }
+  .settings-layout--sidebar > .settings-main {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .settings-layout--sidebar > .settings-sidebar {
+    display: block;
+    flex: 0 0 14rem;
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: var(--space-2) var(--space-3) var(--space-6) 0;
+    border-right: 1px solid var(--color-border);
+  }
+  .settings-layout--sidebar .settings-top-tabs,
+  .settings-layout--hide-subtabs .settings-sub-tabs {
+    display: none !important;
+  }
+}
+.settings-sidebar__list,
+.settings-sidebar__tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.settings-sidebar__list > li + li {
+  margin-top: 2px;
+}
+.settings-sidebar__tree {
+  margin: 2px 0 var(--space-2) var(--space-3);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--color-border);
+}
+.settings-sidebar button:hover,
+.settings-sidebar a:hover {
+  background: var(--color-bg-subtle) !important;
+}
+.settings-sidebar button:focus-visible,
+.settings-sidebar a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+/* A card that folds shut (Settings > General > Schedules). A plain <details>, so it
+   opens with the keyboard and needs no script. */
+.settings-accordion {
+  padding: 0;
+  margin-bottom: var(--space-3);
+  overflow: hidden;
+}
+.settings-accordion__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.settings-accordion__summary::-webkit-details-marker {
+  display: none;
+}
+.settings-accordion__summary::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--color-text-muted);
+  border-bottom: 2px solid var(--color-text-muted);
+  transform: rotate(-45deg);
+  transition: transform var(--dur-base, 150ms);
+}
+.settings-accordion[open] > .settings-accordion__summary::before {
+  transform: rotate(45deg);
+}
+.settings-accordion__summary:hover {
+  background: var(--color-bg-subtle);
+}
+.settings-accordion__summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.settings-accordion__title {
+  flex: 1 1 auto;
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+}
+.settings-accordion__meta {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.settings-accordion__body {
+  border-top: 1px solid var(--color-border);
+}
+
+/* A heading between groups of cards on one settings page (GDPR & Legal's members'
+   data, say). */
+.settings-section-heading {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  margin: var(--space-2) 0 var(--space-4);
+  color: var(--color-text);
+}
+
 /* Settings layout. Two different shapes live under these classes:
 
    1. A tab made of CARDS (sections). Each card runs the full width of the page and
@@ -3077,11 +3198,15 @@ tbody tr:hover {
 .settings-masonry > * {
   break-inside: avoid;
 }
-/* Sections: stack them full width. */
+/* Sections: stack them full width. `stretch` is the important bit: the two-column
+   rule above lines its items up at the start, which in a column means every card
+   shrinks to the width of whatever is in it - the half-empty, quarter-width
+   sections this used to produce. */
 .settings-cols:has(> .card, > .settings-col),
 .settings-masonry:has(> .card) {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   column-count: auto;
   gap: var(--space-6);
 }
@@ -3107,16 +3232,24 @@ tbody tr:hover {
 }
 
 /* Fields in two columns. A section card is full width; its fields sit two across and
-   everything else in it (title, intro text, tables, buttons, alerts) takes the whole
-   row. Fields that cannot sit in half a row (a textarea, a code box, a picture
-   picker) take the row too, via .field--wide, or automatically when they hold a
-   textarea. Wrapper divs are NOT looked through: give a group of fields the
-   .settings-fields class and it becomes its own two-column grid. */
+   everything else in it (title, intro text, tables, alerts) takes the whole row.
+   Never more than two across: the track minimum is the larger of 18rem and half the
+   row, so a wide screen cannot grow a third and fourth column and leave most of the
+   card empty beside a couple of fields. A field with nobody to pair with - the only
+   one in its card, or the odd one out at the end - takes the whole row rather than
+   leaving a hole beside it. Fields that cannot sit in half a row (a textarea, a code
+   box, a picture picker) take the row too, via .field--wide, or automatically when
+   they hold a textarea. Buttons keep their own width instead of being stretched
+   across the card. Wrapper divs are NOT looked through: give a group of fields the
+   .settings-fields class and it becomes its own two-across grid. */
 .settings-cols .card,
 .settings-masonry .card,
 .settings-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, max(18rem, calc((100% - var(--space-6)) / 2))), 1fr)
+  );
   column-gap: var(--space-6);
   align-items: start;
 }
@@ -3134,6 +3267,9 @@ tbody tr:hover {
 .settings-fields > .settings-field {
   grid-column: auto;
 }
+.settings-cols .card > :is(.field, .settings-field):nth-child(odd of .field, .settings-field):nth-last-child(1 of .field, .settings-field),
+.settings-masonry .card > :is(.field, .settings-field):nth-child(odd of .field, .settings-field):nth-last-child(1 of .field, .settings-field),
+.settings-fields > :is(.field, .settings-field):nth-child(odd of .field, .settings-field):nth-last-child(1 of .field, .settings-field),
 .settings-cols .card > .field:has(textarea),
 .settings-masonry .card > .field:has(textarea),
 .settings-fields > .field:has(textarea),
@@ -3141,6 +3277,11 @@ tbody tr:hover {
 .settings-masonry .card > .field--wide,
 .settings-fields > .field--wide {
   grid-column: 1 / -1;
+}
+.settings-cols .card > :is(button, .btn),
+.settings-masonry .card > :is(button, .btn),
+.settings-fields > :is(button, .btn) {
+  justify-self: start;
 }
 .settings-fields {
   grid-column: 1 / -1;

@@ -59,7 +59,7 @@ Your pages, media, settings, users, orders and everything else come across exact
 
 There are two ways to stand up the media Worker.
 
-**Automatic (recommended for non-technical operators).** The admin **Settings → Media** panel has a **Set up the Worker automatically** box. The admin supplies a Cloudflare credential and Cactus deploys the Worker via the Cloudflare API - uploading the script, setting the provider secrets, enabling the `*.workers.dev` URL, and (when possible) attaching a `media.<your-domain>` Custom Domain - then writes the best public URL into `CLOUDFLARE_WORKER_URL` for them. No terminal required.
+**Automatic (recommended for non-technical operators).** The admin **Settings → General → Media** panel has a **Set up the Worker automatically** box. The admin supplies a Cloudflare credential and Cactus deploys the Worker via the Cloudflare API - uploading the script, setting the provider secrets, enabling the `*.workers.dev` URL, and (when possible) attaching a `media.<your-domain>` Custom Domain - then writes the best public URL into `CLOUDFLARE_WORKER_URL` for them. No terminal required.
 
 - Credential: either a scoped **API token** (recommended) with `Account · Workers Scripts · Edit` + `Account · Account Settings · Read` + `Zone · Zone · Read`, or the legacy **Global API Key** + account email. Both are obtained at <https://dash.cloudflare.com/profile/api-tokens>. `Zone · Zone · Read` is only needed for the Custom Domain step; without it the deploy still succeeds on the `*.workers.dev` URL.
 - The credential is stored back as Vercel env vars for future re-deploys: `CLOUDFLARE_API_TOKEN` **or** `CLOUDFLARE_GLOBAL_API_KEY` + `CLOUDFLARE_EMAIL` (the two keys are stored *sensitive*), plus `CLOUDFLARE_ACCOUNT_ID`.
@@ -121,7 +121,7 @@ wrangler secret put SUPABASE_STORAGE_BUCKET_NAME
 wrangler secret put ALLOWED_ORIGIN   # e.g. https://example.com
 
 # Signing keys. Only needed if you deploy the Worker by hand - the
-# "Deploy Worker" button in Settings > Media pushes both for you.
+# "Deploy Worker" button in Settings > General > Media pushes both for you.
 # Each is an HMAC-SHA256 of a fixed label under your SESSION_SECRET:
 #   UPLOAD_SIGNING_SECRET = HMAC(SESSION_SECRET, "cactus-media-upload-v1")
 #   ASSET_SIGNING_SECRET  = HMAC(SESSION_SECRET, "cactus-media-asset-v1")
@@ -154,7 +154,7 @@ DELETE FROM "WebAuthnChallenge" WHERE "expiresAt" < NOW();
 DELETE FROM "RateLimit" WHERE "windowStart" < NOW() - INTERVAL '1 hour';
 ```
 
-The retention periods are configurable on the GDPR & Legal tab of the config page. Schedule the cleanup SQL with your Postgres provider's scheduled jobs feature, a Vercel Cron job, or an external cron.
+The retention periods are configurable on Settings → General → GDPR & Legal. Schedule the cleanup SQL with your Postgres provider's scheduled jobs feature, a Vercel Cron job, or an external cron.
 
 ## Module update detection
 

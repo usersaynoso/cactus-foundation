@@ -45,13 +45,14 @@ export type AdminSearchEntry = {
 // requires value, so the table below stays readable.
 const S = {
   general: 'Settings › General',
-  speed: 'Settings › Speed',
+  speed: 'Settings › General › Speed',
   email: 'Settings › Email',
-  media: 'Settings › Media & storage',
-  gdpr: 'Settings › GDPR & Legal',
+  media: 'Settings › General › Media',
+  gdpr: 'Settings › General › GDPR & Legal',
+  backup: 'Settings › General › Backup & restore',
   integrations: 'Settings › Integrations',
   users: 'Users',
-  nav: 'Settings › Navigation',
+  nav: 'Settings › General › Admin Menu',
   styles: 'Appearance › Styles',
   appearance: 'Appearance',
 } as const
@@ -59,12 +60,14 @@ const S = {
 export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   // ── Settings: the tabs themselves ──────────────────────────────────────────
   { id: 'tab-general', label: 'General settings', section: 'Settings', path: '/config?tab=general', requires: '/config', keywords: ['basics', 'site details'] },
-  { id: 'tab-speed', label: 'Speed settings', section: 'Settings', path: '/config?tab=speed', requires: '/config', keywords: ['speed', 'cache', 'caching', 'performance', 'faster', 'cloudflare', 'cdn'] },
+  { id: 'tab-speed', label: 'Speed settings', section: S.general, path: '/config?tab=speed', requires: '/config', keywords: ['speed', 'cache', 'caching', 'performance', 'faster', 'cloudflare', 'cdn'] },
   { id: 'tab-email', label: 'Email settings', section: 'Settings', path: '/config?tab=email', requires: '/config', keywords: ['mail', 'smtp', 'brevo', 'sender'] },
-  { id: 'tab-media', label: 'Media & storage settings', section: 'Settings', path: '/config?tab=media', requires: '/config', keywords: ['storage', 'uploads', 'provider', 'images', 's3', 'r2', 'bucket'] },
-  { id: 'tab-gdpr', label: 'GDPR & Legal', section: 'Settings', path: '/config?tab=gdpr', requires: '/config', keywords: ['consent', 'cookies', 'privacy', 'legal', 'data protection'] },
+  { id: 'tab-media', label: 'Media & storage settings', section: S.general, path: '/config?tab=media', requires: '/config', keywords: ['storage', 'uploads', 'provider', 'images', 's3', 'r2', 'bucket'] },
+  { id: 'tab-gdpr', label: 'GDPR & Legal', section: S.general, path: '/config?tab=gdpr', requires: '/config', keywords: ['consent', 'cookies', 'privacy', 'legal', 'data protection'] },
   { id: 'tab-integrations', label: 'Integrations', section: 'Settings', path: '/config?tab=integrations', requires: '/config', keywords: ['github', 'sentry', 'turnstile', 'neon', 'webhook', 'connections', 'api keys'] },
-  { id: 'tab-navigation', label: 'Navigation & menu editor', section: 'Settings', path: '/config?tab=navigation', requires: '/config', keywords: ['sidebar', 'menu', 'reorder', 'rename', 'admin menu'] },
+  { id: 'tab-navigation', label: 'Admin menu editor', section: S.general, path: '/config?tab=navigation', requires: '/config', keywords: ['sidebar', 'menu', 'reorder', 'rename', 'admin menu', 'navigation'] },
+  { id: 'tab-schedules', label: 'Schedules (timed jobs)', section: S.general, path: '/config?tab=schedules', requires: '/config', keywords: ['cron', 'schedule', 'timer', 'jobs', 'run now', 'how often'] },
+  { id: 'general-settings-sidebar', label: 'Show Settings tabs in a sidebar', section: S.general, path: '/config?tab=general#general-settings-sidebar', requires: '/config', keywords: ['sidebar', 'settings layout', 'tabs', 'sub-tabs', 'hide tabs', 'tree'] },
 
   // ── General tab sections ───────────────────────────────────────────────────
   { id: 'general-updates', label: 'Core updates & release channel', section: S.general, path: '/config?tab=general#general-updates', requires: '/config', keywords: ['update', 'upgrade', 'version', 'beta', 'release notes'] },
@@ -72,7 +75,7 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   { id: 'general-homepage', label: 'Homepage & main menu', section: S.general, path: '/config?tab=general#general-homepage', requires: '/config', keywords: ['home page', 'front page', 'header menu'] },
   { id: 'general-status', label: 'Site status (live / coming soon / maintenance)', section: S.general, path: '/config?tab=general#general-status', requires: '/config', keywords: ['maintenance', 'coming soon', 'offline', 'take down', 'publish'] },
   { id: 'general-seo', label: 'Hide from search engines', section: S.general, path: '/config?tab=general#general-seo', requires: '/config', keywords: ['noindex', 'crawlers', 'robots', 'seo', 'google'] },
-  { id: 'general-speed-insights', label: 'Page speed measurement (Speed Insights)', section: S.general, path: '/config?tab=general#general-speed-insights', requires: '/config', keywords: ['speed insights', 'vercel', 'analytics', 'performance', 'web vitals', 'page speed', 'tracking'] },
+  { id: 'general-speed-insights', label: 'Page speed measurement (Speed Insights)', section: S.speed, path: '/config?tab=speed#general-speed-insights', requires: '/config', keywords: ['speed insights', 'vercel', 'analytics', 'performance', 'web vitals', 'page speed', 'tracking'] },
   { id: 'speed-page-cache', label: 'Keep ready-made copies of pages (page cache)', section: S.speed, path: '/config?tab=speed#speed-page-cache', requires: '/config', keywords: ['cache', 'caching', 'cdn', 'speed', 'faster', 'performance', 'gzip', 'compression', 'page cache', 'cloudflare', 'slow site'] },
   { id: 'speed-page-cache-window', label: 'How long to keep a copy (cache window)', section: S.speed, path: '/config?tab=speed#speed-page-cache-window', requires: '/config', keywords: ['cache', 'ttl', 'window', 'stale', 'expiry', 'how long', 'speed'] },
   { id: 'speed-cloudflare', label: 'Traffic goes through Cloudflare', section: S.speed, path: '/config?tab=speed#speed-cloudflare', requires: '/config', keywords: ['cloudflare', 'proxy', 'orange cloud', 'cdn', 'ip address', 'rate limit', 'lockout'] },
@@ -82,10 +85,10 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   { id: 'speed-purge-now', label: 'Purge everything now (Cloudflare)', section: S.speed, path: '/config?tab=speed#speed-purge-now', requires: '/config', keywords: ['purge', 'purge everything', 'clear cache now', 'flush cache', 'cloudflare', 'manual purge'] },
   { id: 'general-locale', label: 'Timezone, date & time format', section: S.general, path: '/config?tab=general#general-locale', requires: '/config', keywords: ['timezone', 'time zone', 'date format', 'locale', 'clock'] },
   { id: 'general-admin-path', label: 'Admin path & trusted-browser login', section: S.general, path: '/config?tab=general#general-admin-path', requires: '/config', keywords: ['admin url', 'login path', 'slug', 'trust device', 'remember me', 'otp'] },
-  { id: 'general-backup', label: 'Download a backup', section: S.general, path: '/config?tab=general#general-backup', requires: '/config', keywords: ['backup', 'export', 'download', 'save database', 'sql'] },
-  { id: 'general-restore', label: 'Restore from a backup', section: S.general, path: '/config?tab=general#general-restore', requires: '/config', keywords: ['restore', 'import', 'upload backup', 'recover'] },
-  { id: 'general-reset-db', label: 'Reset database', section: `${S.general} › Danger zone`, path: '/config?tab=general#general-danger', requires: '/config', keywords: ['reset', 'wipe', 'delete everything', 'danger zone', 'factory reset', 'start over'] },
-  { id: 'general-reset-all', label: 'Reset everything (environment variables)', section: `${S.general} › Danger zone`, path: '/config?tab=general#general-danger', requires: '/config', keywords: ['reset everything', 'danger zone', 'env vars', 'factory settings'] },
+  { id: 'general-backup', label: 'Download a backup', section: S.backup, path: '/config?tab=backup#general-backup', requires: '/config', keywords: ['backup', 'export', 'download', 'save database', 'sql'] },
+  { id: 'general-restore', label: 'Restore from a backup', section: S.backup, path: '/config?tab=backup#general-restore', requires: '/config', keywords: ['restore', 'import', 'upload backup', 'recover'] },
+  { id: 'general-reset-db', label: 'Reset database', section: `${S.general} › Danger zone`, path: '/config?tab=danger#general-danger', requires: '/config', keywords: ['reset', 'wipe', 'delete everything', 'danger zone', 'factory reset', 'start over'] },
+  { id: 'general-reset-all', label: 'Reset everything (environment variables)', section: `${S.general} › Danger zone`, path: '/config?tab=danger#general-danger', requires: '/config', keywords: ['reset everything', 'danger zone', 'env vars', 'factory settings'] },
 
   // ── Email tab sections ─────────────────────────────────────────────────────
   { id: 'email-provider', label: 'Email provider (Brevo / SMTP) credentials', section: S.email, path: '/config?tab=email#email-provider', requires: '/config', keywords: ['brevo', 'smtp', 'mail server', 'from address', 'sender'] },

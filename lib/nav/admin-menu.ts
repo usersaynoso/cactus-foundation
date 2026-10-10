@@ -118,9 +118,17 @@ const SectionOverrideSchema = z.object({
 export const AdminMenuConfigSchema = z.object({
   items: z.record(z.string(), ItemOverrideSchema).default({}),
   sections: z.record(z.string(), SectionOverrideSchema).default({}),
-  // Settings > Navigation: swap the sidebar's favicon + site name for the site logo
+  // Settings > General > Admin Menu: swap the sidebar's favicon + site name for the site logo
   // (light/dark pair from Appearance > Styles). Ignored while no logo is uploaded.
   useSiteLogo: z.boolean().optional(),
+  // Settings > General > Site: list the Settings tabs down a sidebar of their own
+  // instead of across the top, and (optionally) drop the sub-tab strips from each
+  // Settings page so the sidebar's tree is the only way round. Admin chrome like the
+  // logo switch above, so it lives in the same blob rather than a column of its own.
+  // Saved by the Settings page's own Save (PATCH /api/admin/config), never by the
+  // menu editor, which leaves both alone when it writes the rest of this blob.
+  settingsSidebar: z.boolean().optional(),
+  settingsSidebarHideSubTabs: z.boolean().optional(),
 })
 export type AdminMenuConfig = z.infer<typeof AdminMenuConfigSchema>
 
@@ -156,7 +164,7 @@ export type ModuleManifestNav = {
  * them: ungrouped links share one flat bucket (label null), a module can claim
  * its own labelled section via navGroupLabel, and labelled sections sort by
  * navGroupOrder (lowest first, unset last). Shared by the admin layout (which
- * renders the sidebar) and the Settings > Navigation editor (which lists every
+ * renders the sidebar) and the Settings > General > Admin Menu editor (which lists every
  * item) so the two never drift on where a module link belongs.
  *
  * `canSee` gates each entry by its permission (the layout passes the real check;
@@ -432,7 +440,7 @@ export type EditorNavSection = {
 }
 
 /**
- * Build the full menu for the Settings > Navigation editor: every section and
+ * Build the full menu for the Settings > General > Admin Menu editor: every section and
  * item (including hidden ones), in saved order, carrying their current overrides.
  * Unlike resolveAdminMenu this applies no visibility filtering — the editor shows
  * everything so an admin can see and change every rule.

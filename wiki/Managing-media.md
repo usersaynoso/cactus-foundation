@@ -1,12 +1,12 @@
 # Managing media
 
-Cactus stores your images and files with a cloud storage provider. Before you can upload anything, you need to connect a provider in **Settings → Media**.
+Cactus stores your images and files with a cloud storage provider. Before you can upload anything, you need to connect a provider in **Settings → General → Media**.
 
 ---
 
 ## Choosing a storage provider
 
-Go to **Settings → Media** and pick a provider from the dropdown. The options are:
+Go to **Settings → General → Media** and pick a provider from the dropdown. The options are:
 
 | Provider | Good for |
 |----------|----------|
@@ -67,11 +67,11 @@ The question is asked before a single byte leaves your computer, so nothing is o
 
 **Supported formats:** JPEG, PNG, WebP, GIF, SVG, the video formats MP4 and WebM, plus the 3D model formats GLB, glTF, OBJ, FBX and 3DS.
 
-**File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, with a 50 MB ceiling - roomy enough for the full-fat shot from a phone or camera several times over. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a photo well under 50 MB, your media connection just needs a quick refresh: pop to **Settings → Media** and redeploy. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
+**File size:** photos (JPEG, PNG, WebP, GIF) upload straight to your storage, with a 50 MB ceiling - roomy enough for the full-fat shot from a phone or camera several times over. SVGs have a modest 4 MB ceiling, which they never trouble in real life. If you ever see a "too big" note on a photo well under 50 MB, your media connection just needs a quick refresh: pop to **Settings → General → Media** and redeploy. Should a file ever be refused, you'll get a plain message saying so, rather than it vanishing without a word.
 
 The same 50 MB ceiling covers 3D model files. They go the same way photos do - browser straight to storage - and can be uploaded here in the media library as well as from a product's own 3D views tab, where [Product 3D views](Product-3D-views) files them with that product's pictures rather than off in a corner of their own. One thing worth knowing: 3D files need Cloudflare R2, Backblaze B2 or S3 storage with the media service deployed. On any other setup they'll be turned away with a note saying as much, rather than half-uploading and going quiet.
 
-> **Worth doing once:** if you set your Worker up before this release, go to **Settings → Media** and click **Deploy Worker** again. The new one is stricter about what it will accept and hand back - it checks that an upload really is the image it claims to be, and it refuses to serve anything back as a web page. Older Workers keep working, they just don't have those guards.
+> **Worth doing once:** if you set your Worker up before this release, go to **Settings → General → Media** and click **Deploy Worker** again. The new one is stricter about what it will accept and hand back - it checks that an upload really is the image it claims to be, and it refuses to serve anything back as a web page. Older Workers keep working, they just don't have those guards.
 >
 > **Necessary, not merely worth doing, if you want 3D models.** A Worker deployed before this release will turn every 3D file away, because accepting them is new and your Worker only learns new things when you send it a fresh copy. Redeploy and they upload as normal. Photos are unaffected either way.
 >
@@ -95,7 +95,7 @@ The **Media** page has a **Video** tab next to your library. It holds two things
 
 > **Scroll sequences have been retired.** Cactus used to be able to rebuild a video into a frame-by-frame "scroll sequence" with the studio background removed, played back as you scrolled. It was slow, fiddly and never quite good enough, so it has gone - along with the Scroll sequence block. Use **Feature video** instead: no conversion, no waiting, and the visitor scrolls the page as normal instead of the animation taking the wheel off them. Any sequence you built before now still sits in your library as a file, and can be deleted like anything else.
 
-> **You'll need to redeploy your media service once** before videos will upload. Pop to **Settings → Media** and click **Deploy Worker** - the same one-click refresh as for 3D models. Until then, videos are politely turned away rather than half-uploaded.
+> **You'll need to redeploy your media service once** before videos will upload. Pop to **Settings → General → Media** and click **Deploy Worker** - the same one-click refresh as for 3D models. Until then, videos are politely turned away rather than half-uploaded.
 
 ---
 
@@ -358,7 +358,7 @@ Click a file to open its details panel (or right-click and choose **Tags…**, w
 
 ## Switching providers
 
-You can switch to a different provider at any time from **Settings → Media**.
+You can switch to a different provider at any time from **Settings → General → Media**.
 
 When you switch:
 - **New uploads** go to the new provider immediately.
@@ -370,7 +370,7 @@ To move existing images to the new provider, click **Migrate now** on the Media 
 
 ## Loading images only when they're needed
 
-At the bottom of **Settings → Media** there's a switch: **Load images only as visitors scroll to them**. It's on to begin with, and for almost every site that's where it should stay.
+At the bottom of **Settings → General → Media** there's a switch: **Load images only as visitors scroll to them**. It's on to begin with, and for almost every site that's where it should stay.
 
 With it on, pictures wait until a visitor is nearly scrolled to them before they're fetched. Nobody downloads the eight photos at the bottom of a page they abandoned after the first paragraph - which is most people, most of the time.
 
@@ -614,7 +614,7 @@ If you have already compressed a video yourself before uploading it, use **Mark 
 
 > **Videos are optimised by a background service,** so it needs to be set up for this to appear (see the Video tab). It also needs Backblaze B2 storage, which is what the service writes to.
 
-> **Worth one click while you are at it:** pop to **Settings → Media** and press **Deploy Worker** once. Videos are now told to check back for a newer copy every few minutes rather than being trusted for a year, so a visitor who watched the heavy version picks up the slimmer one almost straight away instead of keeping the old one on their machine.
+> **Worth one click while you are at it:** pop to **Settings → General → Media** and press **Deploy Worker** once. Videos are now told to check back for a newer copy every few minutes rather than being trusted for a year, so a visitor who watched the heavy version picks up the slimmer one almost straight away instead of keeping the old one on their machine.
 
 ---
 

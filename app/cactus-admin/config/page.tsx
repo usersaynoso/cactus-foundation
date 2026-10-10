@@ -20,7 +20,8 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 // A settings tab with `host` set is not a top-level Settings tab. It renders
 // inside another module's UI slot named by `host` (e.g. the shop payments tab),
 // so a module can own its settings panel while placing it where it belongs.
-type ModuleSettingsTab = { id: string; label: string; permission?: string; host?: string }
+// `parent: 'general'` keeps it on this page but files it under General.
+type ModuleSettingsTab = { id: string; label: string; permission?: string; host?: string; parent?: string }
 type ExtensionPointEntry = { point: string; id: string; permission?: string }
 
 // Roles and the member/registration settings used to be the "Users" tab here.
@@ -79,7 +80,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
   // without the label - a tab strip needs it before it renders anything, and
   // there is no getting it back out of a merged node. Both shapes go down; see
   // lib/modules/hosted-settings.ts.
-  const moduleTabs: Array<{ id: string; label: string }> = []
+  const moduleTabs: Array<{ id: string; label: string; parent?: string }> = []
   const hostedSlotPanels: HostedSettingsPanels = {}
   for (const manifest of manifests) {
     if (!manifest?.settingsTabs) continue
@@ -89,7 +90,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
         const Panel = moduleSettingsTabComponents[t.id]
         if (Panel) (hostedSlotPanels[t.host] ??= []).push({ id: t.id, label: t.label, node: <Panel key={t.id} /> })
       } else {
-        moduleTabs.push({ id: t.id, label: t.label })
+        moduleTabs.push({ id: t.id, label: t.label, ...(t.parent === 'general' ? { parent: 'general' } : {}) })
       }
     }
   }
@@ -163,7 +164,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
     )
   }
 
-  // Settings > Navigation editor data. Gated by config.manage (same key that guards
+  // Settings > General > Admin Menu editor data. Gated by config.manage (same key that guards
   // the rest of System settings). The editor lists every menu item - core and every
   // module link, unfiltered by permission - so an admin can set rules on all of them.
   let navEditorData: {
@@ -196,6 +197,15 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
     }
   }
 
+  // Settings > General > Site: tabs down a sidebar. Read here so the page is drawn
+  // the right way round first time rather than jumping once the client has loaded.
+  const sidebarRow = await prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { adminMenuConfig: true } })
+  const sidebarConfig = parseAdminMenuConfig(sidebarRow?.adminMenuConfig)
+  const settingsSidebar = {
+    enabled: sidebarConfig.settingsSidebar === true,
+    hideSubTabs: sidebarConfig.settingsSidebar === true && sidebarConfig.settingsSidebarHideSubTabs === true,
+  }
+
   return (
     <Suspense fallback={<div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading…</div>}>
       <ConfigPageClient
@@ -210,6 +220,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
         navEditorData={navEditorData}
         membersGdprExtensions={membersGdprExtensions}
         backupExtensions={backupExtensions}
+        settingsSidebar={settingsSidebar}
       />
     </Suspense>
   )

@@ -12,6 +12,7 @@ import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@
 import { readJsonResponse } from '@/lib/updates/read-json-response'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { SettingsNavCapture, SettingsNavProvider, SettingsSidebar, type SettingsNavNode } from '@/components/admin/SettingsNav'
 import { SettingsHeaderActions, SettingsHeaderProvider, SettingsHeaderSlot } from '@/components/admin/SettingsHeaderActions'
 import { useScrollToHash } from '@/components/admin/useScrollToHash'
 import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
@@ -59,34 +60,39 @@ type SiteConfig = {
   mainMenuId: string | null;
   homepageId: string | null;
   consentBannerConfig: ConsentBannerConfig | null;
+  settingsSidebar: boolean; settingsSidebarHideSubTabs: boolean;
 }
 
 type InfoPage = { id: string; title: string }
 type MenuOption = { id: string; name: string }
-
-const TABS = ['general', 'speed', 'email', 'media', 'gdpr', 'integrations'] as const
-type Tab = typeof TABS[number]
 
 // Sub-tabs of the core tabs that have them. `anchors` lists the deep-link ids each
 // sub-tab renders, so a command-palette jump to #general-backup opens Backup &
 // restore first and then scrolls, instead of landing on a tab that does not hold it.
 type SubTabDef = { key: string; label: string; anchors: readonly string[] }
 
-const GENERAL_SUBS: readonly SubTabDef[] = [
-  { key: 'site', label: 'Site', anchors: ['general-updates', 'general-identity', 'general-homepage', 'general-status', 'general-seo', 'general-speed-insights', 'general-locale', 'general-admin-path'] },
+// General's pages, in order. Each is still addressed as ?tab=<key> - exactly as when
+// most of them were top-level tabs - so every old link, bookmark and palette entry
+// lands where it always did; only where it is drawn has changed. "general" itself is
+// the Site page. A module whose settings tab says `parent: "general"` slots in after
+// these, and Danger zone always comes last.
+const GENERAL_PAGES: readonly SubTabDef[] = [
+  { key: 'general', label: 'Site', anchors: ['general-updates', 'general-identity', 'general-homepage', 'general-status', 'general-seo', 'general-locale', 'general-admin-path', 'general-settings-sidebar'] },
+  { key: 'speed', label: 'Speed', anchors: ['speed-page-cache', 'speed-page-cache-window', 'speed-page-cache-long-window', 'speed-edge-window', 'speed-cloudflare', 'speed-image-resizing', 'speed-cloudflare-setup', 'speed-page-cache-purge', 'speed-purge-now', 'general-speed-insights'] },
+  { key: 'media', label: 'Media', anchors: ['media-provider', 'media-lazy-load'] },
+  { key: 'navigation', label: 'Admin Menu', anchors: [] },
+  { key: 'gdpr', label: 'GDPR & Legal', anchors: ['gdpr-legal', 'gdpr-retention', 'gdpr-banner', 'gdpr-members'] },
+  { key: 'schedules', label: 'Schedules', anchors: [] },
   { key: 'backup', label: 'Backup & restore', anchors: ['general-backup', 'general-restore'] },
-  { key: 'danger', label: 'Danger zone', anchors: ['general-danger'] },
 ]
+const DANGER_PAGE: SubTabDef = { key: 'danger', label: 'Danger zone', anchors: ['general-danger'] }
+
+// General's pages were briefly ?tab=general&sub=<key>. Still honoured.
+const LEGACY_GENERAL_SUBS: Record<string, string> = { site: 'general', backup: 'backup', danger: 'danger' }
 
 const EMAIL_SUBS: readonly SubTabDef[] = [
   { key: 'delivery', label: 'Delivery', anchors: ['email-provider', 'email-tracking', 'email-test', 'section-email-brevo', 'section-email-smtp'] },
   { key: 'templates', label: 'Templates', anchors: [] },
-]
-
-const GDPR_SUBS: readonly SubTabDef[] = [
-  { key: 'legal', label: 'Legal pages & retention', anchors: ['gdpr-legal', 'gdpr-retention'] },
-  { key: 'banner', label: 'Cookie banner', anchors: ['gdpr-banner'] },
-  { key: 'members', label: 'Members\u2019 data', anchors: [] },
 ]
 
 const INTEGRATION_SUBS: readonly SubTabDef[] = [
@@ -96,17 +102,18 @@ const INTEGRATION_SUBS: readonly SubTabDef[] = [
   { key: 'database', label: 'Database', anchors: ['section-neon'] },
 ]
 
-const SUBS_BY_TAB: Partial<Record<Tab, readonly SubTabDef[]>> = {
-  general: GENERAL_SUBS,
+const SUBS_BY_TAB: Record<string, readonly SubTabDef[] | undefined> = {
   email: EMAIL_SUBS,
-  gdpr: GDPR_SUBS,
   integrations: INTEGRATION_SUBS,
 }
 
-// Which sub-tab (of which core tab) renders a deep-link anchor, if any does.
-function locateAnchor(id: string): { tab: Tab; sub: string } | null {
-  for (const [tab, subs] of Object.entries(SUBS_BY_TAB) as Array<[Tab, readonly SubTabDef[]]>) {
-    const hit = subs.find((sub) => sub.anchors.includes(id))
+// Which page (and, on Email and Integrations, which sub-tab) renders a deep-link
+// anchor, if any does.
+function locateAnchor(id: string): { tab: string; sub: string } | null {
+  const page = [...GENERAL_PAGES, DANGER_PAGE].find((p) => p.anchors.includes(id))
+  if (page) return { tab: page.key, sub: '' }
+  for (const [tab, subs] of Object.entries(SUBS_BY_TAB)) {
+    const hit = subs?.find((sub) => sub.anchors.includes(id))
     if (hit) return { tab, sub: hit.key }
   }
   return null
@@ -645,7 +652,11 @@ function configFingerprint(c: Partial<SiteConfig>): string {
   return JSON.stringify(rest)
 }
 
-type ModuleTab = { id: string; label: string }
+// `parent: 'general'` files a module's tab as a page of General instead of a
+// top-level tab (see settingsTabs in lib/modules/manifest.ts).
+type ModuleTab = { id: string; label: string; parent?: string }
+// Settings > General > Site: tabs down a sidebar, and optionally no sub-tab strips.
+type SettingsSidebarPrefs = { enabled: boolean; hideSubTabs: boolean }
 type NavEditorData = { useSiteLogo: boolean; siteLogoUploaded: boolean; sections: EditorNavSection[]; roles: Array<{ id: string; name: string; isProtected: boolean }> }
 
 type ConfigPageInnerProps = {
@@ -677,9 +688,11 @@ type ConfigPageInnerProps = {
   // a module that runs its own external service with its own database) via the
   // "core.backup-page" extension point - resolved server-side in page.tsx.
   backupExtensions?: ReactNode
+  // As saved, read server-side so the page is drawn the right way round first time.
+  settingsSidebar: SettingsSidebarPrefs
 }
 
-function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageConfig, canManageEmailTemplates, canViewMembersGdpr, canManageNav, canManageSchedules, navEditorData, membersGdprExtensions, backupExtensions }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageConfig, canManageEmailTemplates, canViewMembersGdpr, canManageNav, canManageSchedules, navEditorData, membersGdprExtensions, backupExtensions, settingsSidebar }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -690,43 +703,62 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   const tabParam = searchParams.get('tab')
   const showNavTab = canManageNav && !!navEditorData
   const showSchedulesTab = canManageSchedules
-  // Which of the six core tabs this role may open. Email and GDPR each have a
-  // second key (emails.templates, members.gdpr) that opens their own half of the
-  // tab and nothing else; the other four are config.manage territory outright.
-  const visibleCoreTabs = TABS.filter(
-    (t) => canManageConfig || (t === 'email' && canManageEmailTemplates) || (t === 'gdpr' && canViewMembersGdpr)
-  )
+
+  // General's pages this role may open, in order: core's own, then any module filed
+  // under General, then Danger zone - always last. GDPR & Legal has a second key
+  // (members.gdpr) that opens its members' data section and nothing else.
+  const generalPages: SubTabDef[] = [
+    ...GENERAL_PAGES.filter((p) => {
+      if (p.key === 'navigation') return showNavTab
+      if (p.key === 'schedules') return showSchedulesTab
+      if (p.key === 'gdpr') return canManageConfig || canViewMembersGdpr
+      return canManageConfig
+    }),
+    ...moduleTabs.filter((t) => t.parent === 'general').map((t) => ({ key: t.id, label: t.label, anchors: [] })),
+    ...(canManageConfig ? [DANGER_PAGE] : []),
+  ]
+  const isGeneralPage = (t: string | null): boolean => !!t && generalPages.some((p) => p.key === t)
+  // The tabs along the top (or down the sidebar). Email has a second key
+  // (emails.templates) that opens its Templates half and nothing else.
+  const topTabs: Array<{ key: string; label: string }> = [
+    ...(generalPages.length > 0 ? [{ key: 'general', label: 'General' }] : []),
+    ...(canManageConfig || canManageEmailTemplates ? [{ key: 'email', label: 'Email' }] : []),
+    ...(canManageConfig ? [{ key: 'integrations', label: 'Integrations' }] : []),
+    ...moduleTabs.filter((t) => t.parent !== 'general').map((t) => ({ key: t.id, label: t.label })),
+  ]
+  const isModuleTab = (t: string): boolean => moduleTabs.some((mt) => mt.id === t)
+  // "general" is the Site page, but also what the General tab itself opens. A role
+  // that cannot see Site (here for a module page filed under General, say) gets the
+  // first General page it can.
+  const resolveTab = (t: string): string => (t === 'general' && !isGeneralPage('general') ? generalPages[0]?.key ?? t : t)
   const isVisibleTab = (t: string | null): boolean =>
-    !!t && (
-      visibleCoreTabs.includes(t as Tab) ||
-      moduleTabs.some((mt) => mt.id === t) ||
-      (showNavTab && t === 'navigation') ||
-      (showSchedulesTab && t === 'schedules')
-    )
+    !!t && (isGeneralPage(resolveTab(t)) || topTabs.some((x) => x.key === t))
+  // Which top-level tab a page belongs to.
+  const groupOf = (t: string): string => (isGeneralPage(t) ? 'general' : t)
   // General is only the default for a role that may see General. Anyone else
   // lands on the first tab they can actually open.
-  const fallbackTab =
-    visibleCoreTabs[0] ??
-    (showNavTab ? 'navigation' : showSchedulesTab ? 'schedules' : moduleTabs[0]?.id) ??
-    'general'
-  const initialTab = isVisibleTab(tabParam) ? (tabParam as string) : fallbackTab
+  const fallbackTab = generalPages[0]?.key ?? topTabs[0]?.key ?? 'general'
+  const initialTab = isVisibleTab(tabParam) ? resolveTab(tabParam as string) : fallbackTab
   const [tab, setTab] = useState<string>(initialTab)
-  // The open sub-tab of whichever core tab is showing. Email: "Delivery" is the
-  // from-address and provider settings that have always lived here, "Templates" is
-  // every email the site sends, core and module alike.
+  // The open sub-tab of Email or Integrations. Email: "Delivery" is the from-address
+  // and provider settings that have always lived here, "Templates" is every email the
+  // site sends, core and module alike.
   const [sub, setSub] = useState<string>('')
 
-  // The sub-tabs this role can open on a core tab. Email and GDPR each have a
-  // second permission key that opens their own half and nothing else.
+  // The sidebar switches as last saved. They change the shape of the whole page, so
+  // they follow the Save button rather than the tick boxes.
+  const [sidebarPrefs, setSidebarPrefs] = useState<SettingsSidebarPrefs>(settingsSidebar)
+
+  // The sub-tabs this role can open on Email or Integrations. Email has a second
+  // permission key that opens its Templates half and nothing else.
   const visibleSubsFor = useCallback((t: string): readonly SubTabDef[] => {
-    const defs = SUBS_BY_TAB[t as Tab]
+    const defs = SUBS_BY_TAB[t]
     if (!defs) return []
     return defs.filter((d) => {
       if (t === 'email') return d.key === 'delivery' ? canManageConfig : canManageEmailTemplates
-      if (t === 'gdpr') return d.key === 'members' ? canViewMembersGdpr : canManageConfig
       return canManageConfig
     })
-  }, [canManageConfig, canManageEmailTemplates, canViewMembersGdpr])
+  }, [canManageConfig, canManageEmailTemplates])
 
   const tabSubs = visibleSubsFor(tab)
   const activeSub = tabSubs.find((d) => d.key === sub)?.key ?? tabSubs[0]?.key ?? ''
@@ -736,13 +768,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   // Setting the tab it's already on is a no-op.
   useEffect(() => {
     const t = searchParams.get('tab')
-    if (t) {
-      const valid = isVisibleTab(t)
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab state to the URL param for deep links
-      if (valid) setTab(t)
-    }
-    const nextTab = t && isVisibleTab(t) ? t : 'general'
     const wanted = searchParams.get('sub')
+    // General's pages were sub-tabs (?tab=general&sub=backup) for a while.
+    const target = t === 'general' && wanted && LEGACY_GENERAL_SUBS[wanted] ? LEGACY_GENERAL_SUBS[wanted] : t
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab state to the URL param for deep links
+    if (target && isVisibleTab(target)) setTab(resolveTab(target))
     // ?sub= belongs to whichever tab is open - a module settings tab keeps its own
     // sub-tab there too - so only read it as a core sub-tab when a core tab is the
     // one in play. Without that, a module that happened to name a sub-tab "delivery"
@@ -758,19 +788,19 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     } else if (wanted === 'delivery' && emailIsTheTab) {
       setTab('email')
       setSub('delivery')
-    } else if (wanted && SUBS_BY_TAB[nextTab as Tab]) {
+    } else if (wanted && target && SUBS_BY_TAB[target]) {
       setSub(wanted)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react only to URL changes; the permission flags/tab lists are stable for a session
   }, [searchParams])
 
-  // A #section deep link names a card that may sit on a sub-tab other than the one
-  // showing - open the one that holds it before the scroll tries to find it.
+  // A #section deep link names a card that may sit on a page or sub-tab other than
+  // the one showing - open the one that holds it before the scroll tries to find it.
   useEffect(() => {
     function revealHash() {
       const found = locateAnchor(decodeURIComponent(window.location.hash.slice(1)))
       if (!found || !isVisibleTab(found.tab)) return
-      if (!visibleSubsFor(found.tab).some((d) => d.key === found.sub)) return
+      if (found.sub && !visibleSubsFor(found.tab).some((d) => d.key === found.sub)) return
       setTab(found.tab)
       setSub(found.sub)
     }
@@ -786,8 +816,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   // Clicking a tab writes it back into the URL, so a refresh (or a pasted link)
   // lands on the tab the admin was actually looking at instead of bouncing to
-  // General. General and each tab's first sub-tab are the defaults, so they carry
-  // no param.
+  // General. General's Site page and each tab's first sub-tab are the defaults, so
+  // they carry no param.
   const syncTabUrl = useCallback((nextTab: string, nextSub: string) => {
     const first = visibleSubsFor(nextTab)[0]?.key
     setUrlParams({
@@ -796,16 +826,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     }, { dropHash: true })
   }, [visibleSubsFor])
 
-  const selectTab = useCallback((next: string) => {
-    setTab(next)
+  const selectTab = (next: string) => {
+    const resolved = resolveTab(next)
+    setTab(resolved)
     setSub('')
-    syncTabUrl(next, '')
-  }, [syncTabUrl])
+    syncTabUrl(resolved, '')
+  }
 
-  const selectSub = useCallback((next: string) => {
+  const selectSub = (next: string) => {
     setSub(next)
     syncTabUrl(tab, next)
-  }, [syncTabUrl, tab])
+  }
 
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
@@ -1149,13 +1180,14 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   // What the Save button in the bar covers on the tab that is open. Credentials typed
   // into a card are saved by the same button as the settings around them - they used
   // to have a button of their own at the bottom of each card, which is exactly the
-  // sort of thing that gets scrolled past. Tabs that save themselves, row by row,
-  // or hold no fields at all (Backup, Updates, Schedules) have no page-level button.
+  // sort of thing that gets scrolled past. Pages that save themselves, row by row,
+  // or hold no fields at all (Backup, Danger zone, Schedules) have no page-level
+  // button; the admin menu editor and module pages put their own in the bar.
   function saveScope(): { config: boolean; envKeys: string[] } | null {
     if (!canManageConfig) return null
     const cardKeys = (sections: EnvSection[]) => sections.flatMap((section) => section.keys.map((f) => f.key))
     switch (tab) {
-      case 'general': return activeSub === 'site' ? { config: true, envKeys: [] } : null
+      case 'general': return { config: true, envKeys: [] }
       case 'speed': return { config: true, envKeys: cardKeys([PAGE_CACHE_PURGE_SECTION]) }
       case 'email':
         return activeSub === 'delivery'
@@ -1168,7 +1200,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           envKeys: provider ? [...envKeysForProvider(provider), CLOUDFLARE_WORKER_VAR.key] : [],
         }
       }
-      case 'gdpr': return activeSub === 'members' ? null : { config: true, envKeys: [] }
+      case 'gdpr': return { config: true, envKeys: [] }
       case 'integrations': return { config: false, envKeys: cardKeys(INTEGRATION_SECTIONS) }
       default: return null
     }
@@ -1223,6 +1255,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         if (!res.ok) throw new Error(d.error ?? 'Save failed')
         savedFingerprint.current = configFingerprint(config)
         dirtyRef.current = false
+        setSidebarPrefs({
+          enabled: config.settingsSidebar === true,
+          hideSubTabs: config.settingsSidebarHideSubTabs === true,
+        })
       }
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -1508,12 +1544,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   if (loading) return <p>Loading…</p>
 
-  const tabLabels: Record<Tab, string> = {
-    general: 'General',
-    speed: 'Speed',
-    email: 'Email', media: 'Media', gdpr: 'GDPR & Legal', integrations: 'Integrations',
-  }
-
   const isEnvSectionSet = (keys: string[]) => keys.some((k) => envStatus[k])
 
   function GitHubAppCard() {
@@ -1749,11 +1779,54 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   // Credentials cannot be saved from a local-development build (they come from
   // .env.local), so a tab that holds nothing else has nothing for the button to do.
   const showSave = scope !== null && !(localMode && !scope.config)
-  const showSubStrip = tabSubs.length > 1
+  const group = groupOf(tab)
+  // The strip under the bar: General's pages, or the open tab's own sub-tabs.
+  const subItems = group === 'general'
+    ? generalPages.map((p) => ({ key: p.key, label: p.label, active: p.key === tab, onClick: () => selectTab(p.key) }))
+    : tabSubs.map((d) => ({ key: d.key, label: d.label, active: d.key === activeSub, onClick: () => selectSub(d.key) }))
+  const showSubStrip = subItems.length > 1
+  const sidebarOn = sidebarPrefs.enabled
+  const hideSubStrips = sidebarOn && sidebarPrefs.hideSubTabs
+
+  // The same tabs as a tree for the sidebar. Only the open tab unfolds; a module's
+  // own sub-tabs hang off its node (see SettingsNav).
+  const sidebarNodes: SettingsNavNode[] = topTabs.map((t) => {
+    const active = t.key === group
+    const children: SettingsNavNode[] | undefined = t.key === 'general'
+      ? generalPages.map((p) => ({
+          key: p.key,
+          label: p.label,
+          active: p.key === tab,
+          onClick: () => selectTab(p.key),
+          capturesModuleTabs: isModuleTab(p.key),
+        }))
+      : visibleSubsFor(t.key).length > 1
+        ? visibleSubsFor(t.key).map((d) => ({
+            key: d.key,
+            label: d.label,
+            active: active && d.key === activeSub,
+            onClick: () => selectSubOf(t.key, d.key),
+          }))
+        : undefined
+    return { key: t.key, label: t.label, active, onClick: () => selectTab(t.key), children, capturesModuleTabs: isModuleTab(t.key) }
+  })
+
+  function selectSubOf(t: string, next: string) {
+    setTab(t)
+    setSub(next)
+    syncTabUrl(t, next)
+  }
+
+  const layoutClass = ['settings-layout', sidebarOn && 'settings-layout--sidebar', hideSubStrips && 'settings-layout--hide-subtabs']
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <SettingsHeaderProvider>
-    <div>
+    <SettingsNavProvider>
+    <div className={layoutClass}>
+      {sidebarOn && <SettingsSidebar nodes={sidebarNodes} />}
+    <div className="settings-main">
       {/* Title, Save button and tab strip share one sticky bar, so Save is in reach
           however far down a long tab you have scrolled. Module tabs put theirs in
           the slot beside the core button (see SettingsHeaderActions). */}
@@ -1770,14 +1843,12 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           </div>
         </div>
 
+        {/* With the sidebar on, this strip only shows on a screen too narrow for the
+            sidebar (see .settings-layout--sidebar in globals.css). */}
         <TabStrip
+          className="settings-top-tabs"
           style={{ marginBottom: 0 }}
-          items={[
-            ...visibleCoreTabs.map((t) => ({ key: t, label: tabLabels[t], active: t === tab, onClick: () => selectTab(t) })),
-            ...(showNavTab ? [{ key: 'navigation', label: 'Navigation', active: tab === 'navigation', onClick: () => selectTab('navigation') }] : []),
-            ...(showSchedulesTab ? [{ key: 'schedules', label: 'Schedules', active: tab === 'schedules', onClick: () => selectTab('schedules') }] : []),
-            ...moduleTabs.map((t) => ({ key: t.id, label: t.label, active: t.id === tab, onClick: () => selectTab(t.id) })),
-          ]}
+          items={topTabs.map((t) => ({ key: t.key, label: t.label, active: t.key === group, onClick: () => selectTab(t.key) }))}
         />
 
         {error && <div className="alert alert-danger" style={{ margin: '0.75rem 0 0.25rem' }}>{error}</div>}
@@ -1792,23 +1863,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         onSave={saveAndLeave}
       />
 
-      {showSubStrip && (
-        <TabStrip
-          items={tabSubs.map((d) => ({ key: d.key, label: d.label, active: d.key === activeSub, onClick: () => selectSub(d.key) }))}
-        />
-      )}
+      {showSubStrip && <TabStrip className="settings-sub-tabs" items={subItems} />}
 
       {tab === 'navigation' && showNavTab && navEditorData && (
         <NavBuilder sections={navEditorData.sections} roles={navEditorData.roles} useSiteLogo={navEditorData.useSiteLogo} siteLogoUploaded={navEditorData.siteLogoUploaded} />
       )}
 
-      {/* Saves each row on its own, like the navigation editor - hence no page-level
-          Save button (the header only shows one for the tabs listed in TABS). */}
+      {/* Saves each row on its own, like the admin menu editor - hence no page-level
+          Save button (see saveScope). */}
       {tab === 'schedules' && showSchedulesTab && <ScheduledJobsClient />}
 
       {tab === 'general' && canManageConfig && (
-        <div>
-          {activeSub === 'site' && (
             <>
               <div id="general-updates" className="admin-anchor"><UpdatesPanel /></div>
               <div className="settings-cols">
@@ -1877,24 +1942,15 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 </div>
                 <div className="settings-col">
                   <div className="card">
-                    <div className="card-title">Search engines &amp; measuring</div>
-          <label id="general-seo" className="admin-anchor" style={{ display: 'flex', gap: '0.5rem', marginBottom: 'var(--form-gap)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
-            Hide from search engines (noindex)
-          </label>
-          <div id="general-speed-insights" className="field admin-anchor">
+                    <div className="card-title">Search engines</div>
+          <div id="general-seo" className="field admin-anchor">
             <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.speedInsightsEnabled ?? true}
-                onChange={(e) => set('speedInsightsEnabled', e.target.checked)}
-              />
-              Measure how fast pages feel for real visitors
+              <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
+              Hide from search engines (noindex)
             </label>
             <span className="field-hint">
-              Adds a small piece of Vercel&apos;s Speed Insights to your pages, which times how quickly they load for the
-              people actually using them and reports it back to your Vercel dashboard. No cookies, nobody identified.
-              Turn it off if you would rather not send the measurements, or if your Vercel plan charges for them.
+              Asks search engines to leave the whole site out of their results. Handy while you are still building
+              it; rather less handy once you are open for business, so remember to untick it.
             </span>
           </div>
                   </div>
@@ -1938,12 +1994,54 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           </div>
 
                   </div>
+                  <div id="general-settings-sidebar" className="card admin-anchor">
+                    <div className="card-title">Settings page</div>
+                    <div className="field">
+                      <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={config.settingsSidebar ?? false}
+                          onChange={(e) => {
+                            set('settingsSidebar', e.target.checked)
+                            if (!e.target.checked) set('settingsSidebarHideSubTabs', false)
+                          }}
+                        />
+                        Show Settings tabs in a sidebar
+                      </label>
+                      <span className="field-hint">
+                        Lists General, Email, Integrations and the rest down the left of this page instead of across the
+                        top, with the open one unfolded to show its own sub-tabs. Easier on the eye once a few modules
+                        have each added a tab. On a phone the tabs stay along the top, as there is no room for a sidebar.
+                      </span>
+                    </div>
+                    <div className="field">
+                      <label
+                        style={{
+                          display: 'flex', gap: '0.5rem', alignItems: 'center',
+                          cursor: config.settingsSidebar ? 'pointer' : 'not-allowed',
+                          color: config.settingsSidebar ? undefined : 'var(--color-text-muted)',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!config.settingsSidebar}
+                          checked={(config.settingsSidebar ?? false) && (config.settingsSidebarHideSubTabs ?? false)}
+                          onChange={(e) => set('settingsSidebarHideSubTabs', e.target.checked)}
+                        />
+                        Also hide the sub-tabs on every settings page
+                      </label>
+                      <span className="field-hint">
+                        Takes the row of sub-tabs off the top of each settings page, so the sidebar is the only way
+                        round. Tidier, if you do not mind doing all your navigating down the side.
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>
           )}
 
-          {activeSub === 'backup' && (
+          {tab === 'backup' && canManageConfig && (
             <div className="settings-cols">
           <div id="general-backup" className="card admin-anchor">
             <div className="card-title">Backup</div>
@@ -2052,7 +2150,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </div>
           )}
 
-          {activeSub === 'danger' && (
+          {tab === 'danger' && canManageConfig && (
           <div id="general-danger" className="admin-anchor settings-cols">
             <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
             <div className="card-title" style={{ color: 'var(--color-destructive)' }}>Reset Database</div>
@@ -2183,15 +2281,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             )}
           </div>
           )}
-        </div>
-      )}
 
       {tab === 'speed' && canManageConfig && (
-        <div>
           <div className="settings-cols">
-            <div className="settings-col">
               <div className="card">
-                <div className="card-title">Page cache</div>
+                <div className="card-title">Speed</div>
           <div id="speed-page-cache" className="field admin-anchor">
             <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
               <input
@@ -2283,11 +2377,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </span>
             </div>
           )}
-              </div>
-            </div>
-            <div className="settings-col">
-              <div className="card">
-                <div className="card-title">Cloudflare</div>
           <div id="speed-cloudflare" className="field admin-anchor">
             <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
               <input
@@ -2324,6 +2413,21 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               Images, and on most plans it is a paid extra. We cannot check it for you, and if it is not on your
               pictures will stop loading rather than simply being large. Turn it off again and everything goes straight
               back to how it was.
+            </span>
+          </div>
+          <div id="general-speed-insights" className="field admin-anchor">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.speedInsightsEnabled ?? true}
+                onChange={(e) => set('speedInsightsEnabled', e.target.checked)}
+              />
+              Measure how fast pages feel for real visitors
+            </label>
+            <span className="field-hint">
+              Adds a small piece of Vercel&apos;s Speed Insights to your pages, which times how quickly they load for the
+              people actually using them and reports it back to your Vercel dashboard. No cookies, nobody identified.
+              Turn it off if you would rather not send the measurements, or if your Vercel plan charges for them.
             </span>
           </div>
               </div>
@@ -2397,9 +2501,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </button>
             </div>
           )}
-            </div>
           </div>
-        </div>
       )}
       {tab === 'email' && activeSub === 'templates' && canManageEmailTemplates && <EmailTemplatesClient />}
 
@@ -2527,7 +2629,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         </div>
       )}
 
-      {tab === 'gdpr' && canManageConfig && activeSub !== 'members' && (() => {
+      {tab === 'gdpr' && canManageConfig && (() => {
         const consent = config.consentBannerConfig ?? null
         // Normalised on the way in as well as on save, so a config written before
         // the order was settable shows the same list the visitor will see.
@@ -2562,9 +2664,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         const existingKeys = new Set(cats.map((c) => c.key))
         const availableSuggestions = gdprSuggestions.filter((s) => !existingKeys.has(s.key))
 
+        // Legal pages, retention, the cookie banner and (below, under its own key)
+        // members' data used to be three sub-tabs. One page now: none of them is long.
         return (
-          <div>
-            {activeSub === 'legal' && (
               <div className="settings-cols">
                 <div className="card">
                   <div className="card-title">Legal pages</div>
@@ -2609,12 +2711,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </div>
 
                 </div>
-              </div>
-            )}
-
-            {activeSub === 'banner' && (
-              <>
-                <div className="settings-cols">
                   <div className="card">
             <div id="gdpr-banner" className="card-title admin-anchor">Cookie consent banner</div>
 
@@ -2725,13 +2821,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 )}
                     </div>
                   )}
-                </div>
                 {consent && (
                   <div className="card">
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <label style={{ display: 'block', fontWeight: 500, fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--color-text)' }}>
-                    Cookie categories
-                  </label>
+                <div>
+                  <div className="card-title">Cookie categories</div>
                   <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
                     &ldquo;Necessary&rdquo; is pinned to the top and cannot be removed or moved. The rest appear on the site in the order you arrange them here. Adding or removing categories, or changing their defaults, will re-prompt existing visitors; reordering them will not.
                   </p>
@@ -2835,19 +2928,18 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
                   </div>
                 )}
-              </>
-            )}
-          </div>
+              </div>
         )
       })()}
 
       {/* The members GDPR dashboard carries its own key: a data-protection officer
           can be given it without the run of the site's settings. */}
-      {tab === 'gdpr' && canViewMembersGdpr && activeSub === 'members' && (
-        <>
+      {tab === 'gdpr' && canViewMembersGdpr && (
+        <div id="gdpr-members" className="admin-anchor">
+          <h2 className="settings-section-heading">Members&rsquo; data</h2>
           <MembersGdprClient />
           {membersGdprExtensions}
-        </>
+        </div>
       )}
 
       {tab === 'media' && canManageConfig && (() => {
@@ -3212,9 +3304,16 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       {moduleTabs.map((t) => {
         if (tab !== t.id) return null
         const ModuleTab = moduleSettingsTabComponents[t.id]
-        return ModuleTab ? <ModuleTab key={t.id} hostedSettingsSlots={hostedSettingsSlots} hostedSettingsPanels={hostedSettingsPanels} /> : null
+        // Captured, so the module's own sub-tabs can be listed in the sidebar.
+        return ModuleTab ? (
+          <SettingsNavCapture key={t.id}>
+            <ModuleTab hostedSettingsSlots={hostedSettingsSlots} hostedSettingsPanels={hostedSettingsPanels} />
+          </SettingsNavCapture>
+        ) : null
       })}
     </div>
+    </div>
+    </SettingsNavProvider>
     </SettingsHeaderProvider>
   )
 }

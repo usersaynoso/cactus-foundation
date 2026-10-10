@@ -284,7 +284,7 @@ The caveat: anything a browser can display, a determined person with the right t
 
 Your fabric swatch pictures are not covered by this, on purpose. They are photographs the shopper is already looking at in the colour picker, and they live in your media library alongside everything else, so locking them away would cause more bother than it saves.
 
-**One thing you need to do.** This only takes effect once your media Worker has been redeployed. Go to **Settings → Media** and press **Deploy Worker**. Until you do, everything carries on working exactly as before - nothing breaks, you simply do not have the protection yet.
+**One thing you need to do.** This only takes effect once your media Worker has been redeployed. Go to **Settings → General → Media** and press **Deploy Worker**. Until you do, everything carries on working exactly as before - nothing breaks, you simply do not have the protection yet.
 
 ---
 
@@ -370,11 +370,11 @@ If it is a GLB and it looks right when you open it on your own computer, the sit
 
 **"View in your room" opens and then the model doesn't appear.** On Android the phone asks permission to use the camera the first time; declining it closes AR with nothing shown. On iPhone, point at a clear patch of floor and give it a second to find it - very shiny or very dark floors are harder for it to lock onto. If the model lands far too big or too small, that is the **Real-world size** setting - see [Fine-tuning the viewer](#fine-tuning-the-viewer) - though a shopper can always pinch it to size in the meantime.
 
-**Nothing at all shows, on any product.** Check that a media provider is set up under **Settings → Media**. Models are stored the same way images are, so without one there is nowhere to put them.
+**Nothing at all shows, on any product.** Check that a media provider is set up under **Settings → General → Media**. Models are stored the same way images are, so without one there is nowhere to put them.
 
-**"Your media service needs updating before it will accept 3D files."** Exactly what it says, and the fix takes a minute. Go to **Settings → Media** and deploy the Worker again. Your media service is a small program that runs on Cloudflare and handles your files; it only learns new tricks when you send it a new copy, and accepting 3D models is a new trick. Once redeployed, upload as normal. Your existing images are untouched by this.
+**"Your media service needs updating before it will accept 3D files."** Exactly what it says, and the fix takes a minute. Go to **Settings → General → Media** and deploy the Worker again. Your media service is a small program that runs on Cloudflare and handles your files; it only learns new tricks when you send it a new copy, and accepting 3D models is a new trick. Once redeployed, upload as normal. Your existing images are untouched by this.
 
-**Uploads fail on a model over 4 MB, and mention passing through the site.** Some storage providers - Cloudinary, ImageKit, Vercel Blob and Supabase - cannot take a file straight from your browser, so it has to travel through the site itself, and there is a hard 4 MB ceiling on that journey that we do not control. Most real models are bigger. Switching to **Cloudflare R2**, **Backblaze B2** or **S3** under **Settings → Media** lifts the limit to the full 50 MB.
+**Uploads fail on a model over 4 MB, and mention passing through the site.** Some storage providers - Cloudinary, ImageKit, Vercel Blob and Supabase - cannot take a file straight from your browser, so it has to travel through the site itself, and there is a hard 4 MB ceiling on that journey that we do not control. Most real models are bigger. Switching to **Cloudflare R2**, **Backblaze B2** or **S3** under **Settings → General → Media** lifts the limit to the full 50 MB.
 
 ---
 

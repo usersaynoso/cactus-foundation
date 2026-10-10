@@ -11,14 +11,14 @@ import {
   type CronJobRow,
   type CronTick,
 } from '@/components/admin/CronScheduleField'
-import { TabStrip } from '@/components/admin/TabStrip'
-import { setUrlParams } from '@/lib/admin/tab-url'
 
 // Settings > Schedules. Every job this site runs on a timer, whether it came with the
 // site or with a module, and how often the owner would like each one to happen.
 //
 // Grouped by what owns the job rather than listed flat, because "why is my site doing
-// this at all" is answered by the group heading and nothing else on the row.
+// this at all" is answered by the group heading and nothing else on the row. Every
+// group is on the one page, folded shut to start with: a site with a dozen modules
+// has a lot of timers, and nobody wants to scroll past all of them to find one.
 
 type Payload = { tick: CronTick; frequencies: CronFrequencyOption[]; jobs: CronJobRow[] }
 
@@ -59,9 +59,6 @@ export default function ScheduledJobsClient() {
   const [runningPath, setRunningPath] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ message: string; tone: 'success' | 'warning' | 'danger' } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // Which owner's jobs are showing - the site's own, or one module's. Kept in ?sub=
-  // so a refresh or a pasted link lands on the same list.
-  const [activeGroupKey, setActiveGroupKey] = useState('')
 
   useEffect(() => {
     let live = true
@@ -74,7 +71,6 @@ export default function ScheduledJobsClient() {
       .then((body) => {
         if (!live) return
         setData(body)
-        setActiveGroupKey(new URLSearchParams(window.location.search).get('sub') ?? '')
       })
       .catch((err) => live && setError(err instanceof Error ? err.message : String(err)))
       .finally(() => live && setLoading(false))
@@ -178,8 +174,6 @@ export default function ScheduledJobsClient() {
     }
   }, [])
 
-  const activeGroup = groups.find((g) => g.key === activeGroupKey) ?? groups[0]
-
   if (loading) return <div style={{ color: 'var(--color-text-muted)' }}>Loading…</div>
   if (error) return <div className="alert alert-danger">{error}</div>
   if (!data) return null
@@ -198,73 +192,72 @@ export default function ScheduledJobsClient() {
         </div>
       )}
 
-      {groups.length > 1 && (
-        <TabStrip
-          items={groups.map((group) => ({
-            key: group.key,
-            label: group.name,
-            active: group.key === activeGroup?.key,
-            onClick: () => {
-              setActiveGroupKey(group.key)
-              setUrlParams({ sub: group.key === groups[0]?.key ? null : group.key })
-            },
-          }))}
-        />
-      )}
-
-      {activeGroup && (
-        <div key={activeGroup.key} className="card" style={{ marginBottom: '1.5rem' }}>
-          <div className="card-title">{activeGroup.name}</div>
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Job</th>
-                  <th style={{ width: '16rem' }}>How often</th>
-                  <th>Last run</th>
-                  <th style={{ width: '7rem' }}>
-                    <span className="sr-only">Run now</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeGroup.jobs.map((job) => (
-                  <tr key={job.path}>
-                    <td>{jobName(job.path)}</td>
-                    <td>
-                      <CronScheduleField
-                        job={job}
-                        frequencies={data.frequencies}
-                        disabled={savingPath === job.path}
-                        onChange={(frequency) => change(job, frequency)}
-                      />
-                    </td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>
-                      {lastRunText(job)}
-                      {job.lastStatus === 'failed' && job.lastError && (
-                        <div style={{ fontSize: '0.8125rem' }}>{job.lastError}</div>
-                      )}
-                    </td>
-                    <td>
-                      {/* Waits for the job rather than firing and forgetting, so
-                          the button says "Running…" for as long as it really is
-                          and the answer underneath it is the truth. */}
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        disabled={runningPath !== null}
-                        onClick={() => void runNow(job)}
-                      >
-                        {runningPath === job.path ? 'Running…' : 'Run now'}
-                      </button>
-                    </td>
+      {groups.map((group) => {
+        const failed = group.jobs.filter((job) => job.lastStatus === 'failed').length
+        return (
+          <details key={group.key} className="card settings-accordion">
+            <summary className="settings-accordion__summary">
+              <span className="settings-accordion__title">{group.name}</span>
+              <span className="settings-accordion__meta">
+                {failed > 0 && (
+                  <span className="badge badge-danger">{failed} did not finish</span>
+                )}
+                <span className="badge badge-default">
+                  {group.jobs.length} {group.jobs.length === 1 ? 'job' : 'jobs'}
+                </span>
+              </span>
+            </summary>
+            <div className="table-wrapper settings-accordion__body">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Job</th>
+                    <th style={{ width: '16rem' }}>How often</th>
+                    <th>Last run</th>
+                    <th style={{ width: '7rem' }}>
+                      <span className="sr-only">Run now</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                </thead>
+                <tbody>
+                  {group.jobs.map((job) => (
+                    <tr key={job.path}>
+                      <td>{jobName(job.path)}</td>
+                      <td>
+                        <CronScheduleField
+                          job={job}
+                          frequencies={data.frequencies}
+                          disabled={savingPath === job.path}
+                          onChange={(frequency) => change(job, frequency)}
+                        />
+                      </td>
+                      <td style={{ color: 'var(--color-text-muted)' }}>
+                        {lastRunText(job)}
+                        {job.lastStatus === 'failed' && job.lastError && (
+                          <div style={{ fontSize: '0.8125rem' }}>{job.lastError}</div>
+                        )}
+                      </td>
+                      <td>
+                        {/* Waits for the job rather than firing and forgetting, so
+                            the button says "Running…" for as long as it really is
+                            and the answer underneath it is the truth. */}
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={runningPath !== null}
+                          onClick={() => void runNow(job)}
+                        >
+                          {runningPath === job.path ? 'Running…' : 'Run now'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        )
+      })}
 
       {groups.length === 0 && (
         <div style={{ color: 'var(--color-text-muted)' }}>

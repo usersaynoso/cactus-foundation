@@ -237,7 +237,7 @@ Two blocks also appear in the page builder, for the pages that need to say somet
 - **Structured data (SEO)** - invisible on the page, very visible to search engines. Describes an *Organisation*, *Local business* (with address, phone and opening hours), *Website*, or any custom JSON-LD you paste in. Organisation fields pre-fill from your saved SEO settings. Now mainly for a page that describes somebody other than you - a partner, a venue, an event; the site-wide settings above handle your own details better.
 - **FAQ (SEO)** - a real, working FAQ accordion for visitors, with FAQPage markup underneath so the questions are eligible for rich results in search.
 
-## Settings → SEO
+## Settings → General → SEO
 
 - **Search engine visibility** - the master switch (this is the same setting that used to live in general settings; it has moved in with the rest of the SEO controls, and still works from either home).
 - **Organisation details** - name, legal name, logo, official profile links and X/Twitter handle. The profile links feed the site-wide structured data as well as pre-filling the page-builder block. The X/Twitter handle is now published as the `twitter:site` tag, so shared links credit your account - it was stored and used by nothing before 0.1.10.

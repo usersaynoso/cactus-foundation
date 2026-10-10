@@ -24,7 +24,7 @@ A cover with no small copy on file - one already small enough to need none - is 
 
 Out of the box a post sits under the Gazette, at `/gazette/your-post-title`. Some sites would rather posts sat straight off the front door instead, at `/your-post-title` - shorter, tidier, and one less word between a reader and the thing they came for.
 
-Pick which you want under **Settings → Gazette → Post links**:
+Pick which you want under **Settings → General → Gazette → Post links**:
 
 - **Under the gazette** - `yoursite.co.uk/gazette/staff-lockers-giving-everyone-a-spot-of-their-own`
 - **Straight off the home page** - `yoursite.co.uk/staff-lockers-giving-everyone-a-spot-of-their-own`
@@ -95,7 +95,7 @@ When editing a menu (see [Appearance and design](Appearance-and-design)), choose
 
 ## Comments
 
-Turn comments on or off, and choose how they're moderated, from **Settings → Gazette**:
+Turn comments on or off, and choose how they're moderated, from **Settings → General → Gazette**:
 
 - **Before publishing** - a comment sits as Pending until an Editor approves it.
 - **After publishing** - comments appear straight away and can be taken down afterwards if needed.
@@ -108,7 +108,7 @@ Editors moderate everything from **Gazette → Comments** - approve, reject, del
 
 ## Reactions and view counts
 
-Turn emoji reactions on or off, and pick which emoji show up, from **Settings → Gazette**. Visitors react anonymously - Gazette remembers who reacted to what using a small cookie (`cactus-gazette-vid`) rather than requiring a login.
+Turn emoji reactions on or off, and pick which emoji show up, from **Settings → General → Gazette**. Visitors react anonymously - Gazette remembers who reacted to what using a small cookie (`cactus-gazette-vid`) rather than requiring a login.
 
 View counts are tracked either way, but only shown publicly if you switch **Show view counts** on.
 
@@ -118,13 +118,13 @@ Both only count for posts the public can actually read. A draft, a private post 
 
 ## RSS feed
 
-Every Gazette install publishes an RSS feed at `/gazette/feed.xml`, ready to plug into a reader or a newsletter tool. Turn it off, and set its title and description, from **Settings → Gazette**.
+Every Gazette install publishes an RSS feed at `/gazette/feed.xml`, ready to plug into a reader or a newsletter tool. Turn it off, and set its title and description, from **Settings → General → Gazette**.
 
 ---
 
 ## Importing from somewhere else
 
-The importer, at the bottom of **Settings → Gazette**, can bring posts in from:
+Press **Import**, beside **New Post** at the top of the Gazette posts list, and a window opens that can bring posts in from (editors only):
 
 - **WordPress** - export your site as WordPress XML and upload the file directly.
 - **Medium** - request your data export from Medium, unzip it, and choose the HTML files from inside the `posts` folder.
@@ -175,7 +175,7 @@ The **Gazette: Entry List [Anchor]** block is the run of post cards itself. Sele
 
 | Setting | What it does |
 |---------|--------------|
-| **Posts per page** | How many cards before the listing stops for breath. Leave it at 0 to keep using the number in **Settings → Gazette**, which is what every listing did before this setting existed. 48 is the ceiling. |
+| **Posts per page** | How many cards before the listing stops for breath. Leave it at 0 to keep using the number in **Settings → General → Gazette**, which is what every listing did before this setting existed. 48 is the ceiling. |
 | **When there are more posts** | **Numbered pages** is the old behaviour. **"Load more" button** adds one more helping at a time without leaving the page. **Load as you scroll** fetches the next lot as the visitor nears the bottom. **Show nothing more** stops dead at the first page, handy for a "latest three posts" panel in a sidebar. |
 | **"Load more" label** | The words on the button. |
 | **Order** | Newest first, oldest first, most read first, or title A to Z. Pinned posts still come first whichever you pick, which is rather the point of pinning them. |

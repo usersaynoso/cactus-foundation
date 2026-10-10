@@ -129,7 +129,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   })
 
   // Resolve the sidebar for this user: apply the site owner's saved customisation
-  // (order/rename/visibility from Settings > Navigation) and filter to what this
+  // (order/rename/visibility from Settings > General > Admin Menu) and filter to what this
   // role may see. isProtected admins see every item so they can never hide the
   // screen that edits these rules from themselves.
   const availableCoreItemIds = new Set<string>()
@@ -148,7 +148,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // --color-primary family and --font-sans are injected (see buildAdminThemeStyles)
   // so admin spacing, radii and the mono/code font stay on the Cactus design system.
   // Optional: the site logo in place of favicon + name at the top of the sidebar
-  // (Settings > Navigation). Only looked up when switched on and a logo exists.
+  // (Settings > General > Admin Menu). Only looked up when switched on and a logo exists.
   const useSiteLogo = parseAdminMenuConfig(config?.adminMenuConfig).useSiteLogo === true
   const sidebarLogoIds = useSiteLogo && config?.logoMediaId
     ? [config.logoMediaId, config.logoDarkMediaId].filter((v): v is string => !!v)

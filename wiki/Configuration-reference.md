@@ -4,11 +4,17 @@ The configuration page lives at `/<your-admin-path>/config`. All settings are sa
 
 ---
 
-## General tab
+## How the page is laid out
+
+Along the top are **General**, **Email**, **Integrations**, and a tab for each module that has more than a couple of settings. General holds most of the site-wide plumbing as pages of its own, in this order: **Site**, **Speed**, **Media**, **Admin Menu**, **GDPR & Legal**, **Schedules**, **Backup & restore**, then any module that files its settings under General (Google Tag, SEO and Gazette do), and **Danger zone**, which is always last. Every one of those pages keeps the address it had when it was a tab of its own (`?tab=speed`, `?tab=media` and so on), so old bookmarks still land.
+
+**Show Settings tabs in a sidebar** (General → Site → Settings page) moves those tabs down the left of the page instead, with the open one unfolded to show its pages or sub-tabs - a module's own sub-tabs included. Tick **Also hide the sub-tabs on every settings page** as well and the rows of sub-tabs come off the top of each page, so the sidebar is the only way round. Both only apply on a screen wide enough for a sidebar; on a phone the tabs stay along the top. Both are saved with the page's Save button and stored in the same place as the admin menu customisations, so they need no database change.
+
+## General → Site
 
 ### Updates
 
-At the top of the General tab, Cactus checks whether a newer version is available. The check runs against the upstream Cactus Foundation repository and is cached for 10 minutes.
+At the top of the Site page, Cactus checks whether a newer version is available. The check runs against the upstream Cactus Foundation repository and is cached for 10 minutes.
 
 The panel shows "Checking for updates..." while a check is in flight, and only auto-checks once per visit - reloading the page or navigating back within 10 seconds reuses the last known result instead of checking again. A **Refresh** button forces an immediate re-check at any time, bypassing both the 10-second client-side window and the server's 10-minute cache.
 
@@ -43,17 +49,16 @@ The preference is saved immediately and the update check refreshes straight away
 | Dialling code | Which country a phone number typed without one belongs to. Somewhere in the site, somebody types 020 8138 0512 and means a whole number; this is the part a phone company needs and nobody says out loud. Anything typed in full, with its own + and country code, ignores this entirely. | `+44` |
 | Admin path | The secret URL prefix for the admin area. Changing it takes effect automatically. | Set during setup |
 | Trust this browser (days) | How long a "trust this browser" cookie lasts before asking for a one-time sign-in code again | `28` |
-| Measure how fast pages feel for real visitors | Adds Vercel's Speed Insights to your pages: it times how quickly they load for the people actually using them and reports it to your Vercel dashboard. No cookies, nobody identified. Untick it and the script is never sent at all, rather than sent and told to keep quiet - useful if your Vercel plan charges for the measurements. | On |
 
 **Site URL** is shown read-only. It comes from your hosting environment and cannot be changed here. Changing it requires updating your hosting settings and redeploying - and re-registering all passkeys, since they're tied to your domain.
 
 ### Danger zone - Reset Everything
 
-At the bottom of the General tab is a **Reset Everything** button. Confirming will permanently remove all the optional credentials you've entered through the admin (email, media, integration keys). Your core settings (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, and your Vercel connection) are not affected. The site redeploys automatically after the reset.
+On **General → Danger zone**, always the last of General's pages, is a **Reset Everything** button. Confirming will permanently remove all the optional credentials you've entered through the admin (email, media, integration keys). Your core settings (`DATABASE_URL`, `SESSION_SECRET`, `SITE_URL`, and your Vercel connection) are not affected. The site redeploys automatically after the reset.
 
 ### Speed settings
 
-A tab of its own, because these three belong together: they are the ones that decide how quickly a page reaches a visitor.
+**General → Speed**, one page, because these belong together: they are the ones that decide how quickly a page reaches a visitor, plus the one that measures it.
 
 | Field | Description | Default |
 |-------|-------------|---------|
@@ -61,6 +66,7 @@ A tab of its own, because these three belong together: they are the ones that de
 | How long to keep a copy | Only shown when the above is ticked. How long an old copy may be handed out before a fresh one is built: 1 minute, 5 minutes, 15 minutes, 1 hour, 6 hours or 24 hours. | `5 minutes` |
 | How long to keep the odds and ends | Only shown when the above is ticked. A second, longer window for the addresses nobody really browses - a product page with a colour and size already chosen in the address bar, a filtered list, and the files search engines read rather than people. A shop with a few hundred products can have twenty thousand of those, and they change far less often than the pages they came from. **Same as above** switches it off. | `Same as above` |
 | Second copy, closer to home | Only shown when the above is ticked, and only does anything when something else - Cloudflare, usually - is storing copies in front of your site. Lets your host keep a short-lived copy of its own underneath, so the times nobody else has one ready do not all land back on your site at once. The catch: editing a page throws the other stored copies away immediately, but this one waits out its own window first. | `1 minute` |
+| Measure how fast pages feel for real visitors | Adds Vercel's Speed Insights to your pages: it times how quickly they load for the people actually using them and reports it to your Vercel dashboard. No cookies, nobody identified. Untick it and the script is never sent at all, rather than sent and told to keep quiet - useful if your Vercel plan charges for the measurements. | On |
 | My site's traffic goes through Cloudflare | Tick only if visitors genuinely reach your site through Cloudflare - in Cloudflare's DNS settings your site's record shows an **orange** cloud, not a grey one. It tells Cactus where to find a visitor's real location, which is what stops one person getting their password wrong from locking out everyone else nearby. Ticking it when it isn't true is worse than leaving it alone. | Off |
 
 ---
@@ -79,7 +85,7 @@ Two things people usually ask for are already on, and there is no switch for eit
 
 Out of the box, every visit builds its page from scratch. A hundred people asking for the same page in the same minute means a hundred rebuilds and a hundred trips to the database, and each of those visitors waits for their own.
 
-**Settings → Speed → Keep ready-made copies of your pages** changes that. A finished page is kept for a short while and handed straight out to whoever asks next. It is usually the single biggest difference you can make to how quickly your site feels, and because a stored copy costs no work, it generally lowers your hosting bill rather than raising it.
+**Settings → General → Speed → Keep ready-made copies of your pages** changes that. A finished page is kept for a short while and handed straight out to whoever asks next. It is usually the single biggest difference you can make to how quickly your site feels, and because a stored copy costs no work, it generally lowers your hosting bill rather than raising it.
 
 **Who never gets a stored copy:**
 
@@ -116,9 +122,9 @@ The switch works with whatever sits in front of your site. If you would rather n
 1. In the Cloudflare dashboard, open your domain's **DNS** settings. Your site's main record probably shows a **grey** cloud, which means Cloudflare is only answering DNS questions and traffic goes straight past it. Click it so it turns **orange**.
 2. Under **SSL/TLS**, set the encryption mode to **Full (strict)**. Anything else and visitors get an endless redirect loop.
 3. Under **Caching → Cache Rules**, add a rule that applies to your whole site and sets it as **eligible for cache**. Cloudflare's free plan does not store pages by default, only images and scripts, so without this rule nothing changes.
-4. Back in Cactus, tick **My site's traffic goes through Cloudflare** in Settings → Speed. This one matters for safety rather than speed: without it, everyone arriving through the same Cloudflare location looks like a single visitor, and one person mistyping their password could lock the rest of them out of signing in.
+4. Back in Cactus, tick **My site's traffic goes through Cloudflare** in Settings → General → Speed. This one matters for safety rather than speed: without it, everyone arriving through the same Cloudflare location looks like a single visitor, and one person mistyping their password could lock the rest of them out of signing in.
 
-**Optional, but worth it.** Fill in `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_PURGE_API_TOKEN` in the **Clearing copies the moment you edit** card at the bottom of Settings → Speed, and editing a page clears Cloudflare's copy the instant you save, instead of waiting out the window. Like every credential entered through the admin, they take effect on the next deployment. Everything works without them; you just wait a bit longer to see your own changes.
+**Optional, but worth it.** Fill in `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_PURGE_API_TOKEN` in the **Clearing copies the moment you edit** card at the bottom of Settings → General → Speed, and editing a page clears Cloudflare's copy the instant you save, instead of waiting out the window. Like every credential entered through the admin, they take effect on the next deployment. Everything works without them; you just wait a bit longer to see your own changes.
 
 Once both are set (and live - after that next deployment) a **Purge everything now** button appears underneath, for anything that does not go through a page save: a new theme, a bulk price change. It throws away every stored copy of your pages - the site's own and Cloudflare's - and tells you straight away whether it worked, rather than waiting quietly for pages to age out.
 
@@ -199,7 +205,7 @@ There is no Conditions tab on an email wrapper. Which email uses which design is
 
 ---
 
-## Media tab
+## Media (General → Media)
 
 Choose your media storage provider from the dropdown. Options are grouped by type:
 
@@ -227,7 +233,9 @@ A **Preview as visitor** link opens the status page exactly as a real visitor wo
 
 ---
 
-## GDPR & Legal tab
+## GDPR & Legal (General → GDPR & Legal)
+
+One page: legal pages, data retention and the cookie banner first, then **Members' data** (deletion requests, exports, consent records and the processing log) underneath. Someone given only the members' data permission sees just that part.
 
 ### Legal pages and data retention
 
@@ -295,9 +303,9 @@ Running the wizard again always creates a new draft - it never overwrites the ex
 
 ---
 
-## Schedules tab
+## Schedules (General → Schedules)
 
-Everything your site does on a timer, in one list, grouped by what it belongs to - your website's own housekeeping first, then each add-on you have installed.
+Everything your site does on a timer, on one page, grouped by what it belongs to - your website's own housekeeping first, then each add-on you have installed. Each group starts folded shut, showing how many jobs it holds and whether any of them did not finish last time; click it to open it.
 
 Each job has a dropdown: **every minute, 5, 10, 15, 20 or 30 minutes, every hour, every 3, 6 or 12 hours, or once a day**. The first choice is always **Normal**, which is whatever the job was set up to do - a weekly search-engine audit stays weekly, at the time it was meant to run, unless you deliberately move it. Picking a new frequency keeps the time of day the job prefers wherever that still makes sense: a job that likes 3.40am, set to every 6 hours, runs at 3.40, 9.40, 15.40 and 21.40.
 

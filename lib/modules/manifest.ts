@@ -203,6 +203,12 @@ export const ModuleManifestSchema = z.object({
   // (see app/cactus-admin/config/page.tsx and lib/modules/hosted-settings.ts). A
   // panel whose host slot no module publishes simply doesn't render, so a `host`
   // pointing at an uninstalled module is inert rather than an error.
+  //
+  // `parent: "general"` keeps the tab on the Settings page but files it as a
+  // sub-tab of General (alongside Speed, Media and the like) rather than giving it
+  // a top-level tab of its own - for a module whose settings are a handful of
+  // site-wide switches, not a whole area. A core that predates `parent` ignores it
+  // and shows the tab at the top level, so it needs no requiresCoreVersion bump.
   settingsTabs: z.array(z.object({
     id: z.string().min(1),
     label: z.string().min(1),
@@ -210,6 +216,7 @@ export const ModuleManifestSchema = z.object({
     import: z.string().min(1),
     component: z.string().min(1),
     host: z.string().optional(),
+    parent: z.string().optional(),
   })).default([]),
   // Other modules (by name + minimum version) that must be installed and active
   // before this module can be installed. Enforced by the install/uninstall routes.

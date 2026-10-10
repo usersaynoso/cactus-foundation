@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { AdminMenuConfigSchema } from '@/lib/nav/admin-menu'
+import { AdminMenuConfigSchema, parseAdminMenuConfig } from '@/lib/nav/admin-menu'
 
-// Admin sidebar customisation (Settings > Navigation): per-item order, rename and
+// Admin sidebar customisation (Settings > General > Admin Menu): per-item order, rename and
 // per-role visibility rules, stored as one blob on the SiteConfig singleton. Gated
 // by config.manage - the same key that guards the rest of the System settings.
 
@@ -41,10 +41,24 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid menu configuration' }, { status: 400 })
   }
 
+  // The Settings sidebar switches share this blob but belong to Settings > General >
+  // Site, which saves them on its own. The builder never sends them, so carry the
+  // stored values across rather than quietly switching the sidebar off.
+  const stored = await prisma.siteConfig.findUnique({
+    where: { id: 'singleton' },
+    select: { adminMenuConfig: true },
+  })
+  const kept = parseAdminMenuConfig(stored?.adminMenuConfig)
+  const next = {
+    ...parsed.data,
+    settingsSidebar: parsed.data.settingsSidebar ?? kept.settingsSidebar,
+    settingsSidebarHideSubTabs: parsed.data.settingsSidebarHideSubTabs ?? kept.settingsSidebarHideSubTabs,
+  }
+
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
-    data: { adminMenuConfig: parsed.data },
+    data: { adminMenuConfig: next },
   })
 
-  return NextResponse.json({ config: parsed.data })
+  return NextResponse.json({ config: next })
 }
