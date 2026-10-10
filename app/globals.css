@@ -577,6 +577,23 @@ a:hover {
 .admin-sidebar-logo-link:hover .admin-sidebar-logo-text {
   text-decoration: underline;
 }
+/* The whole logo is the link, so the whole logo gets the hand. The pictures are
+   kept out of hit-testing (and out of drag and text selection): over an <img>
+   inside a link some browsers show the text cursor or start dragging the picture
+   instead, depending on exactly which pixel the pointer is over. */
+.admin-sidebar-logo-link,
+.admin-sidebar-logo-link * {
+  cursor: pointer;
+}
+.admin-sidebar-logo-link img {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.admin-sidebar-logo-link--full {
+  align-self: stretch;
+  justify-content: center;
+}
 
 /* Notification bell (sidebar header) */
 .admin-sidebar-bell {
@@ -1897,6 +1914,64 @@ a:hover {
   color: var(--color-text-secondary);
 }
 
+/* A tick box and its words, on one line (settings pages). */
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.settings-check > input {
+  flex-shrink: 0;
+}
+/* Numbered how-to steps inside a settings card. */
+.settings-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+.settings-steps > li + li {
+  margin-top: 0.375rem;
+}
+.settings-steps code {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.35rem;
+}
+
+/* The (i) beside a settings label (components/admin/InfoTip). */
+.info-tip {
+  vertical-align: middle;
+  margin-left: 0.375rem;
+  flex-shrink: 0;
+}
+.info-tip__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-muted);
+  font: italic var(--font-semibold) 10px/1 Georgia, 'Times New Roman', serif;
+  cursor: help;
+  transition: color var(--dur-base), border-color var(--dur-base);
+}
+.info-tip__btn:hover,
+.info-tip__btn:focus-visible {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.info-tip__btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 /* ============================================================
    COLLAPSED SIDEBAR NAV TOOLTIP
    Fixed-positioned (portal to <body>) so it escapes the nav
@@ -3185,7 +3260,9 @@ tbody tr:hover {
   grid-column: 1 / -1;
 }
 .settings-cols > .card,
-.settings-cols > .field {
+.settings-cols > .field,
+.settings-cols > * > .card:only-child,
+.settings-col > * > .card:only-child {
   margin-bottom: 0;
 }
 /* Flat fields flowed into two balanced columns - for a tab with no cards. Reads down
@@ -3251,7 +3328,20 @@ tbody tr:hover {
     minmax(min(100%, max(18rem, calc((100% - var(--space-6)) / 2))), 1fr)
   );
   column-gap: var(--space-6);
+  row-gap: var(--space-4);
   align-items: start;
+}
+/* Spacing inside a section is the grid's row gap and nothing else. Fields used to
+   bring their own bottom margin as well, so every card ended in a field's margin
+   sitting on top of the card's padding - twice the space below the last row as
+   above the first - and a wrapper with a margin of its own doubled it again.
+   The !important is deliberate: a good many sections were written with inline
+   margins on their parts, and those were exactly the ones adding to the gap. */
+.settings-cols .card > *,
+.settings-masonry .card > *,
+.settings-fields > * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 .settings-cols .card > *,
 .settings-masonry .card > *,
@@ -3267,9 +3357,9 @@ tbody tr:hover {
 .settings-fields > .settings-field {
   grid-column: auto;
 }
-.settings-cols .card > :is(.field, .settings-field):nth-child(odd of .field, .settings-field):nth-last-child(1 of .field, .settings-field),
-.settings-masonry .card > :is(.field, .settings-field):nth-child(odd of .field, .settings-field):nth-last-child(1 of .field, .settings-field),
-.settings-fields > :is(.field, .settings-field):nth-child(odd of .field, .settings-field):nth-last-child(1 of .field, .settings-field),
+.settings-cols .card > :is(.field, .settings-field):not(.field--wide, :has(textarea)):nth-child(odd of :is(.field, .settings-field):not(.field--wide, :has(textarea))):nth-last-child(1 of :is(.field, .settings-field):not(.field--wide, :has(textarea))),
+.settings-masonry .card > :is(.field, .settings-field):not(.field--wide, :has(textarea)):nth-child(odd of :is(.field, .settings-field):not(.field--wide, :has(textarea))):nth-last-child(1 of :is(.field, .settings-field):not(.field--wide, :has(textarea))),
+.settings-fields > :is(.field, .settings-field):not(.field--wide, :has(textarea)):nth-child(odd of :is(.field, .settings-field):not(.field--wide, :has(textarea))):nth-last-child(1 of :is(.field, .settings-field):not(.field--wide, :has(textarea))),
 .settings-cols .card > .field:has(textarea),
 .settings-masonry .card > .field:has(textarea),
 .settings-fields > .field:has(textarea),

@@ -12,6 +12,7 @@ import { looksLikeGitHubProblem, GITHUB_OUTAGE_HINT, GITHUB_STATUS_URL } from '@
 import { readJsonResponse } from '@/lib/updates/read-json-response'
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { InfoTip } from '@/components/admin/InfoTip'
 import { SettingsNavCapture, SettingsNavProvider, SettingsSidebar, type SettingsNavNode } from '@/components/admin/SettingsNav'
 import { SettingsHeaderActions, SettingsHeaderProvider, SettingsHeaderSlot } from '@/components/admin/SettingsHeaderActions'
 import { useScrollToHash } from '@/components/admin/useScrollToHash'
@@ -223,7 +224,7 @@ type MigrationJob = {
 const PAGE_CACHE_PURGE_SECTION: EnvSection = {
   id: 'page-cache-purge',
   label: 'Clearing copies the moment you edit',
-  description: 'Optional. With these, editing a page clears the stored copy straight away instead of waiting out the window above.',
+  description: 'Optional. Editing a page then clears Cloudflare\u2019s copy at once instead of waiting out the window.',
   keys: [
     { key: 'CLOUDFLARE_ZONE_ID', label: 'CLOUDFLARE_ZONE_ID', placeholder: 'On your domain\u2019s overview page in the Cloudflare dashboard' },
     { key: 'CLOUDFLARE_PURGE_API_TOKEN', label: 'CLOUDFLARE_PURGE_API_TOKEN', type: 'password', placeholder: 'API token with Zone \u2192 Cache Purge', hint: 'Needs the Zone \u2192 Cache Purge permission. The token made for your media files does not have it.' },
@@ -1709,7 +1710,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     const isTested = testedEnvId === section.id
 
     const fieldRows = section.keys.map((f) => (
-      <div className="field" key={f.key} style={section.columns ? { margin: 0 } : undefined}>
+      <div className="field" key={f.key}>
         <label style={{ fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
           <span>
             {f.label}
@@ -1732,7 +1733,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
     return (
       <div id={`section-${section.id}`} className="card admin-anchor">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
           <div>
             <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{section.label}</h3>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>{section.description}</p>
@@ -1745,7 +1746,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           </div>
         )}
         {section.columns ? (
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${section.columns}, 1fr)`, gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
+          <div className="settings-fields">
             {fieldRows}
           </div>
         ) : fieldRows}
@@ -1880,26 +1881,26 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 <div className="settings-col">
                   <div className="card">
                     <div className="card-title">Your site</div>
-          <div id="general-identity" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-            <div className="field" style={{ margin: 0 }}><label>Site name</label><input value={config.siteName ?? ''} onChange={(e) => set('siteName', e.target.value)} /></div>
-            <div className="field" style={{ margin: 0 }}><label>Tagline</label><input value={config.tagline ?? ''} onChange={(e) => set('tagline', e.target.value)} /></div>
+          <div id="general-identity" className="settings-fields admin-anchor">
+            <div className="field"><label>Site name</label><input value={config.siteName ?? ''} onChange={(e) => set('siteName', e.target.value)} /></div>
+            <div className="field"><label>Tagline</label><input value={config.tagline ?? ''} onChange={(e) => set('tagline', e.target.value)} /></div>
           </div>
           <div className="field"><label>Description</label><textarea value={config.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></div>
-          <div id="general-homepage" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-            <div className="field" style={{ margin: 0 }}>
+          <div id="general-homepage" className="settings-fields admin-anchor">
+            <div className="field">
               <label>Homepage</label>
               <select
                 value={config.homepageId ?? ''}
                 onChange={(e) => set('homepageId', e.target.value || null)}
               >
-                <option value="">— None —</option>
+                <option value="">None</option>
                 {pages.map((p) => (
                   <option key={p.id} value={p.id}>{p.title}</option>
                 ))}
               </select>
               <span className="field-hint">The info page shown at the root URL (/).</span>
             </div>
-            <div className="field" style={{ margin: 0 }}>
+            <div className="field">
               <label>Main menu</label>
               {menus.length === 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1915,7 +1916,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   value={config.mainMenuId ?? ''}
                   onChange={(e) => set('mainMenuId', e.target.value || null)}
                 >
-                  <option value="">— None (header will be empty) —</option>
+                  <option value="">None (header will be empty)</option>
                   {menus.map((m) => (
                     <option key={m.id} value={m.id}>{m.name}</option>
                   ))}
@@ -1944,20 +1945,20 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <div className="card">
                     <div className="card-title">Search engines</div>
           <div id="general-seo" className="field admin-anchor">
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+            <label className="settings-check">
               <input type="checkbox" checked={config.hideFromCrawlers ?? true} onChange={(e) => set('hideFromCrawlers', e.target.checked)} />
               Hide from search engines (noindex)
+              <InfoTip>
+                Asks search engines to leave the whole site out of their results. Handy while you are building it -
+                remember to untick it once you are open for business.
+              </InfoTip>
             </label>
-            <span className="field-hint">
-              Asks search engines to leave the whole site out of their results. Handy while you are still building
-              it; rather less handy once you are open for business, so remember to untick it.
-            </span>
           </div>
                   </div>
                   <div className="card">
                     <div className="card-title">Language &amp; time</div>
-          <div id="general-locale" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 11rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-            <div className="field" style={{ margin: 0 }}>
+          <div id="general-locale" className="settings-fields admin-anchor">
+            <div className="field">
               <label>Timezone</label>
               <select value={config.timezone ?? 'UTC'} onChange={(e) => set('timezone', e.target.value)}>
                 {['UTC','Europe/London','Europe/Paris','Europe/Berlin','America/New_York','America/Chicago','America/Los_Angeles','Asia/Tokyo','Australia/Sydney'].map((tz) => (
@@ -1966,9 +1967,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </select>
               <TimezoneClock timezone={config.timezone ?? 'UTC'} />
             </div>
-            <div className="field" style={{ margin: 0 }}><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
-            <div className="field" style={{ margin: 0 }}><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
-            <div className="field" style={{ margin: 0 }}>
+            <div className="field"><label>Date format</label><input value={config.dateFormat ?? 'DD/MM/YYYY'} onChange={(e) => set('dateFormat', e.target.value)} /></div>
+            <div className="field"><label>Time format</label><input value={config.timeFormat ?? 'HH:mm'} onChange={(e) => set('timeFormat', e.target.value)} /></div>
+            <div className="field">
               <label>Dialling code</label>
               <input value={config.diallingCode ?? '+44'} onChange={(e) => set('diallingCode', e.target.value)} />
               <span className="field-hint">
@@ -1980,13 +1981,13 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   </div>
                   <div className="card">
                     <div className="card-title">Admin access</div>
-          <div id="general-admin-path" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-            <div className="field" style={{ margin: 0 }}>
+          <div id="general-admin-path" className="settings-fields admin-anchor">
+            <div className="field">
               <label>Admin path</label>
               <input value={config.adminPath ?? ''} onChange={(e) => set('adminPath', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} />
               <span className="field-hint">Saving will take you to the admin at its new address.</span>
             </div>
-            <div className="field" style={{ margin: 0 }}>
+            <div className="field">
               <label>Trust this browser (days)</label>
               <input type="number" min={1} max={365} value={config.trustDeviceDays ?? 28} onChange={(e) => set('trustDeviceDays', parseInt(e.target.value))} />
               <span className="field-hint">How long an admin who ticks &quot;trust this browser&quot; at login skips the email code.</span>
@@ -1997,7 +1998,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <div id="general-settings-sidebar" className="card admin-anchor">
                     <div className="card-title">Settings page</div>
                     <div className="field">
-                      <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+                      <label className="settings-check">
                         <input
                           type="checkbox"
                           checked={config.settingsSidebar ?? false}
@@ -2007,17 +2008,16 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                           }}
                         />
                         Show Settings tabs in a sidebar
+                        <InfoTip>
+                          Lists the Settings tabs down the left instead of across the top, with the open one unfolded to
+                          show its sub-tabs. On a phone they stay along the top.
+                        </InfoTip>
                       </label>
-                      <span className="field-hint">
-                        Lists General, Email, Integrations and the rest down the left of this page instead of across the
-                        top, with the open one unfolded to show its own sub-tabs. Easier on the eye once a few modules
-                        have each added a tab. On a phone the tabs stay along the top, as there is no room for a sidebar.
-                      </span>
                     </div>
                     <div className="field">
                       <label
+                        className="settings-check"
                         style={{
-                          display: 'flex', gap: '0.5rem', alignItems: 'center',
                           cursor: config.settingsSidebar ? 'pointer' : 'not-allowed',
                           color: config.settingsSidebar ? undefined : 'var(--color-text-muted)',
                         }}
@@ -2029,11 +2029,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                           onChange={(e) => set('settingsSidebarHideSubTabs', e.target.checked)}
                         />
                         Also hide the sub-tabs on every settings page
+                        <InfoTip>
+                          Takes the row of sub-tabs off the top of each settings page, so the sidebar is the only way round.
+                        </InfoTip>
                       </label>
-                      <span className="field-hint">
-                        Takes the row of sub-tabs off the top of each settings page, so the sidebar is the only way
-                        round. Tidier, if you do not mind doing all your navigating down the side.
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -2155,10 +2154,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
             <div className="card-title" style={{ color: 'var(--color-destructive)' }}>Reset Database</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-              Permanently removes all data from the database — every user, page, layout, menu, and media record. The site returns to fresh-install state and you will be taken to the setup wizard.
+              Permanently removes all data from the database - every user, page, layout, menu, and media record. The site returns to fresh-install state and you will be taken to the setup wizard.
             </p>
             {!showDbResetConfirm && !dbResetDone && (
-              <button className="btn btn-danger" style={{ marginBottom: '1.5rem' }} onClick={() => setShowDbResetConfirm(true)}>
+              <button className="btn btn-danger" onClick={() => setShowDbResetConfirm(true)}>
                 Reset Database
               </button>
             )}
@@ -2166,7 +2165,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <div style={{ border: '1px solid var(--color-destructive)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: '1rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--color-destructive)' }}>Are you absolutely sure?</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-                  This will <strong>permanently delete all content</strong> from the database — every page, layout, menu, media record, and other user accounts. This cannot be undone.
+                  This will <strong>permanently delete all content</strong> from the database - every page, layout, menu, media record, and other user accounts. This cannot be undone.
                 </p>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '1rem', cursor: 'pointer', fontSize: '0.875rem' }}>
                   <input
@@ -2176,7 +2175,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                     onChange={(e) => setDbResetDeleteSetupData(e.target.checked)}
                   />
                   <span>
-                    <strong>Also delete setup data</strong> — removes your admin account, site name, admin path, and all settings. You will be taken to the setup wizard to start completely from scratch.
+                    <strong>Also delete setup data</strong> - removes your admin account, site name, admin path, and all settings. You will be taken to the setup wizard to start completely from scratch.
                   </span>
                 </label>
                 {dbResetError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>{dbResetError}</div>}
@@ -2199,7 +2198,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </div>
             )}
             {dbResetDone && (
-              <div className="alert alert-info" style={{ marginBottom: '1.5rem' }}>
+              <div className="alert alert-info" style={{ marginBottom: 0 }}>
                 {dbResetWasHard
                   ? 'Database reset successfully. Redirecting to setup…'
                   : 'All content cleared. Your admin account and site settings have been kept.'}
@@ -2223,7 +2222,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <div style={{ border: '1px solid var(--color-destructive)', borderRadius: 'var(--radius)', padding: '1rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--color-destructive)' }}>Are you sure?</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-                  This will <strong>permanently delete all environment variables</strong> from your Vercel project —
+                  This will <strong>permanently delete all environment variables</strong> from your Vercel project -
                   email credentials, media provider keys, integrations, and everything else.
                   A redeployment will be triggered automatically. You will need to reconfigure these settings afterwards.
                 </p>
@@ -2269,7 +2268,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   ? `${resetDeletedCount} environment variable${resetDeletedCount === 1 ? '' : 's'} removed.`
                   : 'No removable environment variables were found (they may have already been cleared).'
                 }{' '}
-                A redeployment has been triggered — your site will restart with factory settings in a few minutes.
+                A redeployment has been triggered - your site will restart with factory settings in a few minutes.
                 {resetPartialError && (
                   <div style={{ marginTop: '0.5rem', color: 'var(--color-warning)', fontSize: '0.875rem' }}>
                     Warning: {resetPartialError}
@@ -2283,199 +2282,172 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           )}
 
       {tab === 'speed' && canManageConfig && (
-          <div className="settings-cols">
-              <div className="card">
-                <div className="card-title">Speed</div>
-          <div id="speed-page-cache" className="field admin-anchor">
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.pageCacheEnabled ?? false}
-                onChange={(e) => set('pageCacheEnabled', e.target.checked)}
-              />
-              Keep ready-made copies of your pages
-            </label>
-            <span className="field-hint">
-              Normally every visitor waits while their page is built from scratch, even if a hundred people asked for the
-              same page a minute earlier. Turn this on and a copy is kept for a short while and handed straight out
-              instead, which is a good deal quicker for them and a good deal cheaper for you.
-              {' '}Anyone signed in - you, your staff, your members - always gets a freshly built page, so nobody is ever
-              handed somebody else&apos;s.
-            </span>
-          </div>
-          {(config.pageCacheEnabled ?? false) && (
-            <div id="speed-page-cache-window" className="field admin-anchor">
-              <label>How long to keep a copy</label>
-              {/* Mirrors PAGE_CACHE_TTL_OPTIONS in lib/cache/page-cache.ts, which is
-                  also what the save endpoint validates against. Listed here rather
-                  than imported so this client component doesn't pull a server-side
-                  module into the browser bundle. */}
-              <select
-                value={String(config.pageCacheTtl ?? 300)}
-                onChange={(e) => set('pageCacheTtl', Number(e.target.value))}
-              >
-                <option value="60">1 minute</option>
-                <option value="300">5 minutes (recommended)</option>
-                <option value="900">15 minutes</option>
-                <option value="3600">1 hour</option>
-                <option value="21600">6 hours</option>
-                <option value="86400">24 hours</option>
-              </select>
-              <span className="field-hint">
-                How long an old copy may be handed out before a fresh one is built. Editing a page clears its copy
-                straight away, so this is really about how long anything you change somewhere else - a price, a menu, a
-                product - might take to show up. When the window closes, the next visitor is still handed the old
-                copy instantly while a fresh one is built behind them, so a quiet page can lag a touch longer than
-                the window says. Five minutes suits most sites. Pick a longer window if your pages rarely change and
-                you want every last scrap of speed.
-              </span>
+        <div className="settings-cols">
+          {/* One section - Speed used to be two (page cache, and Cloudflare). */}
+          <div className="card">
+            <div className="card-title">Speed</div>
+            <div id="speed-page-cache" className="field field--wide admin-anchor">
+              <label className="settings-check">
+                <input
+                  type="checkbox"
+                  checked={config.pageCacheEnabled ?? false}
+                  onChange={(e) => set('pageCacheEnabled', e.target.checked)}
+                />
+                Keep ready-made copies of your pages
+                <InfoTip>
+                  Without this, every visitor waits while their page is built from scratch. With it, a copy is kept for
+                  a short while and handed straight out - quicker for visitors, cheaper for you. Anyone signed in always
+                  gets a freshly built page.
+                </InfoTip>
+              </label>
             </div>
-          )}
-          {(config.pageCacheEnabled ?? false) && (
-            <div id="speed-page-cache-long-window" className="field admin-anchor">
-              <label>How long to keep the odds and ends</label>
-              {/* Mirrors PAGE_CACHE_LONG_TTL_OPTIONS in lib/cache/page-cache.ts. Listed
-                  here rather than imported for the same reason as the window above. */}
-              <select
-                value={String(config.pageCacheLongTtl ?? 0)}
-                onChange={(e) => set('pageCacheLongTtl', Number(e.target.value))}
-              >
-                <option value="0">Same as above</option>
-                <option value="3600">1 hour</option>
-                <option value="21600">6 hours</option>
-                <option value="86400">24 hours (recommended)</option>
-                <option value="604800">A week</option>
-              </select>
-              <span className="field-hint">
-                Some addresses are not really pages anybody browses: a product page with a particular colour and size
-                already chosen in the address bar, a filtered list, and the files search engines read rather than
-                people. A shop with a few hundred products can easily have twenty thousand of those, every one of them
-                stored and rebuilt separately, and they change far less often than the pages they came from. This keeps
-                copies of that lot for longer. It does not affect your ordinary pages at all.
-              </span>
-            </div>
-          )}
-          {(config.pageCacheEnabled ?? false) && (
-            <div id="speed-edge-window" className="field admin-anchor">
-              <label>Second copy, closer to home</label>
-              <select
-                value={String(config.vercelEdgeTtl ?? 60)}
-                onChange={(e) => set('vercelEdgeTtl', Number(e.target.value))}
-              >
-                <option value="0">Don&apos;t keep one</option>
-                <option value="60">1 minute (recommended)</option>
-                <option value="300">5 minutes</option>
-                <option value="900">15 minutes</option>
-              </select>
-              <span className="field-hint">
-                Only does anything when something else - Cloudflare, usually - is storing copies in front of your site.
-                Your host can keep a short-lived copy of its own underneath, so the times nobody else has one ready do
-                not all land back on your site at once. The catch: when you edit a page, the stored copies are thrown
-                away immediately, but this one waits out its own window first. A minute is a fair trade. Choose
-                &ldquo;don&apos;t keep one&rdquo; if you want every change live absolutely everywhere the second you
-                save it.
-              </span>
-            </div>
-          )}
-          <div id="speed-cloudflare" className="field admin-anchor">
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.behindCloudflare ?? false}
-                onChange={(e) => set('behindCloudflare', e.target.checked)}
-              />
-              My site&apos;s traffic goes through Cloudflare
-            </label>
-            <span className="field-hint">
-              Only tick this if visitors genuinely reach your site through Cloudflare - in Cloudflare&apos;s own DNS
-              settings, your site&apos;s record shows an orange cloud rather than a grey one. It tells us where to look
-              for a visitor&apos;s real location, which is what stops one person getting their password wrong from
-              accidentally locking out everyone else in the same part of the country. Ticking it when it is not true is
-              worse than leaving it alone, so if you are not sure, leave it alone.
-            </span>
-          </div>
-          <div id="speed-image-resizing" className="field admin-anchor">
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.cloudflareImageResizing ?? false}
-                onChange={(e) => set('cloudflareImageResizing', e.target.checked)}
-              />
-              Send pictures at the size they are shown
-            </label>
-            <span className="field-hint">
-              A photograph uploaded at 2,000 pixels wide is often shown three centimetres across, and your visitors
-              download every one of those pixels. Tick this and Cloudflare shrinks each picture on its way out to the
-              size it is actually being shown at, and hands newer browsers a smaller modern format while it is at it.
-              On one real page a header photograph went from 46 KB to 15 KB, and the pictures further down the page do
-              rather better than that.
-              {' '}<strong>Only tick this if you have switched Transformations on in Cloudflare</strong> - it is under
-              Images, and on most plans it is a paid extra. We cannot check it for you, and if it is not on your
-              pictures will stop loading rather than simply being large. Turn it off again and everything goes straight
-              back to how it was.
-            </span>
-          </div>
-          <div id="general-speed-insights" className="field admin-anchor">
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={config.speedInsightsEnabled ?? true}
-                onChange={(e) => set('speedInsightsEnabled', e.target.checked)}
-              />
-              Measure how fast pages feel for real visitors
-            </label>
-            <span className="field-hint">
-              Adds a small piece of Vercel&apos;s Speed Insights to your pages, which times how quickly they load for the
-              people actually using them and reports it back to your Vercel dashboard. No cookies, nobody identified.
-              Turn it off if you would rather not send the measurements, or if your Vercel plan charges for them.
-            </span>
-          </div>
+            {(config.pageCacheEnabled ?? false) && (
+              <div id="speed-page-cache-window" className="field admin-anchor">
+                <label htmlFor="speed-ttl">
+                  How long to keep a copy
+                  <InfoTip>
+                    How long an old copy may be handed out before a fresh one is built. Editing a page clears its copy
+                    at once, so this is really how long changes made elsewhere - a price, a menu - take to show up. Five
+                    minutes suits most sites.
+                  </InfoTip>
+                </label>
+                {/* Mirrors PAGE_CACHE_TTL_OPTIONS in lib/cache/page-cache.ts, which is
+                    also what the save endpoint validates against. Listed here rather
+                    than imported so this client component doesn't pull a server-side
+                    module into the browser bundle. */}
+                <select
+                  id="speed-ttl"
+                  value={String(config.pageCacheTtl ?? 300)}
+                  onChange={(e) => set('pageCacheTtl', Number(e.target.value))}
+                >
+                  <option value="60">1 minute</option>
+                  <option value="300">5 minutes (recommended)</option>
+                  <option value="900">15 minutes</option>
+                  <option value="3600">1 hour</option>
+                  <option value="21600">6 hours</option>
+                  <option value="86400">24 hours</option>
+                </select>
               </div>
+            )}
+            {(config.pageCacheEnabled ?? false) && (
+              <div id="speed-page-cache-long-window" className="field admin-anchor">
+                <label htmlFor="speed-long-ttl">
+                  How long to keep the odds and ends
+                  <InfoTip>
+                    A longer window for addresses people rarely browse to directly: a product with options already
+                    picked in the address bar, filtered lists, and the files search engines read. A shop can have
+                    thousands of these and they change less often. Your ordinary pages are not affected.
+                  </InfoTip>
+                </label>
+                {/* Mirrors PAGE_CACHE_LONG_TTL_OPTIONS in lib/cache/page-cache.ts. Listed
+                    here rather than imported for the same reason as the window above. */}
+                <select
+                  id="speed-long-ttl"
+                  value={String(config.pageCacheLongTtl ?? 0)}
+                  onChange={(e) => set('pageCacheLongTtl', Number(e.target.value))}
+                >
+                  <option value="0">Same as above</option>
+                  <option value="3600">1 hour</option>
+                  <option value="21600">6 hours</option>
+                  <option value="86400">24 hours (recommended)</option>
+                  <option value="604800">A week</option>
+                </select>
+              </div>
+            )}
+            {(config.pageCacheEnabled ?? false) && (
+              <div id="speed-edge-window" className="field admin-anchor">
+                <label htmlFor="speed-edge-ttl">
+                  Second copy, closer to home
+                  <InfoTip>
+                    Only matters when Cloudflare (or similar) stores copies in front of your site. Your host keeps a
+                    short copy of its own too, so the moments nobody has one ready do not all land on your site at once.
+                    The catch: after you edit a page, this copy waits out its window. A minute is a fair trade.
+                  </InfoTip>
+                </label>
+                <select
+                  id="speed-edge-ttl"
+                  value={String(config.vercelEdgeTtl ?? 60)}
+                  onChange={(e) => set('vercelEdgeTtl', Number(e.target.value))}
+                >
+                  <option value="0">Don&apos;t keep one</option>
+                  <option value="60">1 minute (recommended)</option>
+                  <option value="300">5 minutes</option>
+                  <option value="900">15 minutes</option>
+                </select>
+              </div>
+            )}
+            <div id="speed-cloudflare" className="field admin-anchor">
+              <label className="settings-check">
+                <input
+                  type="checkbox"
+                  checked={config.behindCloudflare ?? false}
+                  onChange={(e) => set('behindCloudflare', e.target.checked)}
+                />
+                My site&apos;s traffic goes through Cloudflare
+                <InfoTip>
+                  Only tick this if your site&apos;s DNS record in Cloudflare shows an orange cloud, not a grey one. It
+                  tells Cactus where to find each visitor&apos;s real address, so one person getting their password
+                  wrong cannot lock out everyone nearby. Ticked when it is not true is worse than unticked.
+                </InfoTip>
+              </label>
+            </div>
+            <div id="speed-image-resizing" className="field admin-anchor">
+              <label className="settings-check">
+                <input
+                  type="checkbox"
+                  checked={config.cloudflareImageResizing ?? false}
+                  onChange={(e) => set('cloudflareImageResizing', e.target.checked)}
+                />
+                Send pictures at the size they are shown
+                <InfoTip>
+                  Cloudflare shrinks each picture to the size it is actually shown, in a smaller modern format where the
+                  browser allows - often a third of the original. If Transformations is not switched on in Cloudflare
+                  (under Images, usually a paid extra) your pictures stop loading, so check first. Untick it and
+                  everything goes straight back.
+                </InfoTip>
+              </label>
+              <span className="field-hint">Needs Transformations switched on in Cloudflare.</span>
+            </div>
+            <div id="general-speed-insights" className="field admin-anchor">
+              <label className="settings-check">
+                <input
+                  type="checkbox"
+                  checked={config.speedInsightsEnabled ?? true}
+                  onChange={(e) => set('speedInsightsEnabled', e.target.checked)}
+                />
+                Measure how fast pages feel for real visitors
+                <InfoTip>
+                  Adds Vercel&apos;s Speed Insights, which times how quickly pages load for real visitors and reports it to
+                  your Vercel dashboard. No cookies, nobody identified. Turn it off if your Vercel plan charges for it.
+                </InfoTip>
+              </label>
+            </div>
+          </div>
+
           {(config.pageCacheEnabled ?? false) && (
-            <div
-              id="speed-cloudflare-setup"
-              className="admin-anchor"
-              style={{
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius)',
-                background: 'var(--color-bg-subtle)',
-                padding: '1rem 1.25rem',
-                marginBottom: 'var(--form-gap)',
-              }}
-            >
-              <strong style={{ display: 'block', marginBottom: '0.5rem' }}>Setting Cloudflare up to do the storing</strong>
-              <p style={{ margin: '0 0 0.75rem', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                Ready-made copies work with whatever sits in front of your site, including your host&apos;s own setup, so
-                you can ignore all of this if you are happy as you are. Cloudflare will do the same job on its free plan,
-                which is worth knowing if you would rather not pay for the traffic. Four steps, all in the Cloudflare
-                dashboard bar the last.
+            <div id="speed-cloudflare-setup" className="card admin-anchor">
+              <div className="card-title">Setting Cloudflare up to do the storing</div>
+              <p className="field-hint">
+                Optional - copies work with whatever sits in front of your site. Cloudflare does the job on its free plan:
               </p>
-              <ol style={{ margin: 0, paddingLeft: '1.25rem', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-                <li style={{ marginBottom: '0.5rem' }}>
-                  <strong>DNS</strong> - find your site&apos;s record. It probably shows a <em>grey</em> cloud, which
-                  means Cloudflare answers questions about your address but your visitors never actually go through it.
-                  Click the cloud so it turns <em>orange</em>.
-                </li>
-                <li style={{ marginBottom: '0.5rem' }}>
-                  <strong>SSL/TLS</strong> - set the encryption mode to{' '}
-                  <code style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.1rem 0.4rem' }}>Full (strict)</code>.
-                  Miss this one and visitors get bounced back and forth until their browser gives up, so do it before
-                  step 1 if you would rather not have a wobbly minute.
-                </li>
-                <li style={{ marginBottom: '0.5rem' }}>
-                  <strong>Caching → Cache Rules</strong> - add a rule covering your whole site and set it to{' '}
-                  <code style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '0.1rem 0.4rem' }}>Eligible for cache</code>.
-                  Left alone, the free plan stores pictures and scripts but never pages, so without this rule nothing
-                  above actually happens.
+              <ol className="settings-steps">
+                <li>
+                  <strong>DNS</strong> - click your site&apos;s record so its cloud turns from grey to <em>orange</em>.
                 </li>
                 <li>
-                  <strong>Back here</strong> - tick the Cloudflare box above. That one is about safety rather than
-                  speed: without it everyone arriving through the same Cloudflare location looks like a single visitor.
+                  <strong>SSL/TLS</strong> - set the encryption mode to <code>Full (strict)</code>. Do this first, or
+                  visitors bounce back and forth until their browser gives up.
+                </li>
+                <li>
+                  <strong>Caching → Cache Rules</strong> - add a rule for your whole site set to{' '}
+                  <code>Eligible for cache</code>. Without it the free plan never stores pages.
+                </li>
+                <li>
+                  <strong>Back here</strong> - tick <em>My site&apos;s traffic goes through Cloudflare</em> above.
                 </li>
               </ol>
-              <p style={{ margin: '0.75rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                Optional afterwards: fill in the two boxes below and editing a page clears Cloudflare’s copy the
-                moment you save, instead of waiting out the window you chose above.
+              <p className="field-hint">
+                Then fill in the two boxes below, and editing a page clears Cloudflare&apos;s copy the moment you save.
               </p>
             </div>
           )}
@@ -2490,18 +2462,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           {(config.pageCacheEnabled ?? false) && !!envStatus['CLOUDFLARE_ZONE_ID'] && (!!envStatus['CLOUDFLARE_PURGE_API_TOKEN'] || !!envStatus['CLOUDFLARE_API_TOKEN']) && (
             <div id="speed-purge-now" className="card admin-anchor">
               <div className="card-title">Purge everything now</div>
-              <span className="field-hint" style={{ display: 'block', marginBottom: '0.5rem' }}>
-                Drops every stored copy of your pages straight away, rather than waiting for each one to age out on its
-                own. Useful right after a change that does not go through a page save - a new theme, a bulk price
-                update - anything the automatic clearing above would not have caught.
-              </span>
-              {purgeError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>{purgeError}</div>}
+              <p className="field-hint">
+                Drops every stored copy straight away. Handy after a change that does not go through a page save, such
+                as a new theme or a bulk price update.
+              </p>
+              {purgeError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', margin: 0 }}>{purgeError}</div>}
               <button className="btn btn-secondary" style={{ fontSize: '0.875rem' }} disabled={purging} onClick={handlePurgeEverything}>
                 {purging ? 'Purging…' : purged ? '✓ Purged' : 'Purge everything now'}
               </button>
             </div>
           )}
-          </div>
+        </div>
       )}
       {tab === 'email' && activeSub === 'templates' && canManageEmailTemplates && <EmailTemplatesClient />}
 
@@ -2510,18 +2481,16 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           <div className="settings-col">
             <div className="card">
               <div className="card-title">Sender</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: 'var(--form-gap)' }}>
-            <div className="field" style={{ margin: 0 }}><label>From name</label><input value={config.emailFromName ?? ''} onChange={(e) => set('emailFromName', e.target.value)} /></div>
-            <div className="field" style={{ margin: 0 }}><label>From address</label><input type="email" placeholder="Defaults to your admin email" value={config.emailFromAddress ?? ''} onChange={(e) => set('emailFromAddress', e.target.value)} /></div>
+          <div className="settings-fields">
+            <div className="field"><label>From name</label><input value={config.emailFromName ?? ''} onChange={(e) => set('emailFromName', e.target.value)} /></div>
+            <div className="field"><label>From address</label><input type="email" placeholder="Defaults to your admin email" value={config.emailFromAddress ?? ''} onChange={(e) => set('emailFromAddress', e.target.value)} /></div>
           </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0.5rem 0 1.25rem' }} />
           <div id="email-provider" className="admin-anchor" style={{ marginBottom: '1rem' }}>
             <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Send the site&apos;s email through</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
-              Both can be set up at once; this decides which one carries the mail. Saved with the Save button like
-              everything else here. The details themselves are stored in your Vercel project environment variables,
-              never in the database.
+              Both can be set up; this picks the one that sends. Their details live in your Vercel environment
+              variables, not the database.
             </p>
             {(() => {
               const available = { brevo: !!envStatus['BREVO_API_KEY'], smtp: !!envStatus['SMTP_HOST'] }
@@ -2579,23 +2548,23 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           </div>
             </div>
           <div id="email-tracking" className="card admin-anchor">
-            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+            <div className="card-title">Tracking</div>
+            <div className="field">
+            <label className="settings-check">
               <input
                 type="checkbox"
                 checked={config.emailTracking ?? true}
                 onChange={(e) => set('emailTracking', e.target.checked)}
               />
               Notice when emails are opened and links in them are followed
+              <InfoTip>
+                For mail sent over SMTP, the site adds an invisible picture and routes each link through itself, so it
+                can tell you what was opened and clicked. Brevo counts its own. Sign-in emails are never tracked. Opens
+                are a rough guide (Apple Mail and Outlook muddle them); clicks are the ones to trust. Mention it in your
+                privacy notice while it is on.
+              </InfoTip>
             </label>
-            <span className="field-hint">
-              For mail sent through an ordinary mail account (SMTP), the site adds an invisible picture and sends
-              each link through itself on the way to where it was going, so it can tell you when a message was
-              opened and which link was followed. Brevo counts its own, so mail sent through Brevo is left alone
-              rather than counted twice. Sign-in codes and links are never tracked. Opens are a rough guide at best -
-              Apple Mail fetches pictures on its own and Outlook often blocks them - so a followed link is the one
-              to trust. While it is on, your privacy notice should say so - the wiki page on email tracking has a
-              paragraph you can borrow.
-            </span>
+            </div>
           </div>
 
           </div>
@@ -2607,11 +2576,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
           <div id="email-test" className="card admin-anchor">
             <div className="card-title">Send a test email</div>
-            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
-              Sends using the settings above. Leave blank to send to your own admin address.
-            </p>
+            <div className="field field--wide">
+            <label htmlFor="email-test-to">Send to</label>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <input
+                id="email-test-to"
                 type="email"
                 placeholder="you@example.com"
                 value={testEmailTo}
@@ -2621,6 +2590,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <button className="btn btn-secondary" disabled={testEmailSending} onClick={handleSendTestEmail}>
                 {testEmailSending ? 'Sending…' : 'Send test email'}
               </button>
+            </div>
+            <span className="field-hint">Uses the settings above. Leave it blank to send to your own admin address.</span>
             </div>
             {testEmailSent && <div className="alert alert-success" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>Sent to {testEmailSent}.</div>}
             {testEmailError && <div className="alert alert-danger" style={{ marginTop: '0.75rem', fontSize: '0.875rem' }}>{testEmailError}</div>}
@@ -2670,23 +2641,23 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <div className="settings-cols">
                 <div className="card">
                   <div className="card-title">Legal pages</div>
-            <div id="gdpr-legal" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
-              <div className="field" style={{ margin: 0 }}>
+            <div id="gdpr-legal" className="settings-fields admin-anchor">
+              <div className="field">
                 <label>Privacy policy page</label>
                 <select value={config.privacyPolicyPageId ?? ''} onChange={(e) => set('privacyPolicyPageId', e.target.value || null as unknown as string)}>
-                  <option value="">— Not set —</option>
+                  <option value="">Not set</option>
                   {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
               </div>
-              <div className="field" style={{ margin: 0 }}>
+              <div className="field">
                 <label>Terms of service page</label>
                 <select value={config.termsPageId ?? ''} onChange={(e) => set('termsPageId', e.target.value || null as unknown as string)}>
-                  <option value="">— Not set —</option>
+                  <option value="">Not set</option>
                   {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
               </div>
             </div>
-            <div style={{ marginBottom: '1.25rem' }}>
+            <div>
               <a href={`/${config.adminPath ?? ''}/config/privacy-generator`} className="btn btn-secondary btn-sm">
                 {config.privacyPolicyPageId ? 'Generate a new privacy policy' : 'Generate a privacy policy'}
               </a>
@@ -2699,12 +2670,12 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 </div>
                 <div className="card">
                   <div className="card-title">Data retention</div>
-            <div id="gdpr-retention" className="admin-anchor" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
-              <div className="field" style={{ margin: 0 }}>
+            <div id="gdpr-retention" className="settings-fields admin-anchor">
+              <div className="field">
                 <label>Purge expired sessions after (days)</label>
                 <input type="number" min={1} max={365} value={config.sessionPurgeAfterDays ?? 30} onChange={(e) => set('sessionPurgeAfterDays', parseInt(e.target.value))} />
               </div>
-              <div className="field" style={{ margin: 0 }}>
+              <div className="field">
                 <label>Purge unused recovery requests after (days)</label>
                 <input type="number" min={1} max={30} value={config.recoveryPurgeAfterDays ?? 7} onChange={(e) => set('recoveryPurgeAfterDays', parseInt(e.target.value))} />
               </div>
@@ -2714,7 +2685,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <div className="card">
             <div id="gdpr-banner" className="card-title admin-anchor">Cookie consent banner</div>
 
-            <label style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', cursor: 'pointer', alignItems: 'center' }}>
+            <div className="field field--wide">
+            <label className="settings-check">
               <input
                 type="checkbox"
                 checked={consent?.enabled ?? false}
@@ -2728,18 +2700,19 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               />
               Enable cookie consent banner
             </label>
+            </div>
 
             {consent && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                  <div className="field" style={{ margin: 0 }}>
+                <div className="settings-fields">
+                  <div className="field">
                     <label>Banner style</label>
                     <select value={consent.style ?? 'bottom-bar'} onChange={(e) => setConsent({ style: e.target.value as 'bottom-bar' | 'modal' })}>
                       <option value="bottom-bar">Bottom bar</option>
                       <option value="modal">Modal (centred overlay)</option>
                     </select>
                   </div>
-                  <div className="field" style={{ margin: 0 }}>
+                  <div className="field">
                     <label>Banner title</label>
                     <input type="text" value={consent.title ?? ''} onChange={(e) => setConsent({ title: e.target.value })} placeholder="Cookie preferences" />
                   </div>
@@ -2751,20 +2724,20 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <span className="field-hint">Use <code>{'{privacyPolicy}'}</code> to insert a link to your configured privacy policy page.</span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 10rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                  <div className="field" style={{ margin: 0 }}>
+                <div className="settings-fields">
+                  <div className="field">
                     <label>Accept all label</label>
                     <input type="text" value={consent.acceptAllLabel ?? ''} onChange={(e) => setConsent({ acceptAllLabel: e.target.value })} placeholder="Accept all" />
                   </div>
-                  <div className="field" style={{ margin: 0 }}>
+                  <div className="field">
                     <label>Reject all label</label>
                     <input type="text" value={consent.rejectAllLabel ?? ''} onChange={(e) => setConsent({ rejectAllLabel: e.target.value })} placeholder="Reject all" />
                   </div>
-                  <div className="field" style={{ margin: 0 }}>
+                  <div className="field">
                     <label>Manage label</label>
                     <input type="text" value={consent.manageLabel ?? ''} onChange={(e) => setConsent({ manageLabel: e.target.value })} placeholder="Manage preferences" />
                   </div>
-                  <div className="field" style={{ margin: 0 }}>
+                  <div className="field">
                     <label>Dismiss button label</label>
                     <input type="text" value={consent.dismissLabel ?? ''} onChange={(e) => setConsent({ dismissLabel: e.target.value })} placeholder="Got it" />
                     <span className="field-hint">Shown only when no optional categories are configured.</span>
@@ -2772,15 +2745,19 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 </div>
 
                 <div className="field">
-                  <label style={{ display: 'flex', gap: '0.5rem', cursor: 'pointer', alignItems: 'center' }}>
+                  <label className="settings-check">
                     <input
                       type="checkbox"
                       checked={consent.hideRejectUntilManage ?? false}
                       onChange={(e) => setConsent({ hideRejectUntilManage: e.target.checked })}
                     />
                     Hide &ldquo;Reject all&rdquo; until the visitor opens &ldquo;Manage preferences&rdquo;
+                    <InfoTip>
+                      The banner opens with just &ldquo;Accept all&rdquo; and &ldquo;Manage preferences&rdquo;; &ldquo;Reject
+                      all&rdquo; appears with the switches. UK and EU regulators expect rejecting to be as easy as
+                      accepting, so check with your own legal advice first.
+                    </InfoTip>
                   </label>
-                  <span className="field-hint">The banner opens with just &ldquo;Accept all&rdquo; and &ldquo;Manage preferences&rdquo;. &ldquo;Reject all&rdquo; appears alongside the switches once they have been opened. Worth knowing: the UK and EU regulators expect rejecting to be as easy as accepting, so check this suits your own legal advice before switching it on.</span>
                 </div>
 
               </>
@@ -2789,13 +2766,13 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   {consent && (
                     <div className="card">
                       <div className="card-title">When to ask again</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                  <div className="field" style={{ margin: 0 }}>
+                <div className="settings-fields">
+                  <div className="field">
                     <label>Re-prompt after (days)</label>
                     <input type="number" min={1} max={3650} value={consent.reConsentDays ?? 365} onChange={(e) => setConsent({ reConsentDays: parseInt(e.target.value) || 365 })} />
                     <span className="field-hint">Visitors who consented more than this many days ago will be shown the banner again.</span>
                   </div>
-                  <div className="field" style={{ margin: 0 }}>
+                  <div className="field">
                     <label>Keep consent records for (days)</label>
                     <input type="number" min={0} value={consent.consentLogRetentionDays ?? ''} onChange={(e) => setConsent({ consentLogRetentionDays: e.target.value ? parseInt(e.target.value) : null })} placeholder="Blank = keep indefinitely" />
                     <span className="field-hint">Leave blank to keep records indefinitely (recommended for audit purposes).</span>
@@ -2803,19 +2780,22 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 </div>
 
                 <div className="field">
-                  <label style={{ display: 'flex', gap: '0.5rem', cursor: 'pointer', alignItems: 'center' }}>
+                  <label className="settings-check">
                     <input
                       type="checkbox"
                       checked={consent.showPrivacyPagePanel ?? true}
                       onChange={(e) => setConsent({ showPrivacyPagePanel: e.target.checked })}
                     />
                     Show a preferences panel on the privacy policy page
+                    <InfoTip>
+                      Puts the same switches at the top of your privacy policy page, so visitors can change their mind
+                      without waiting to be asked again.
+                    </InfoTip>
                   </label>
-                  <span className="field-hint">Puts the same switches at the top of the page chosen above as your privacy policy, so visitors can change their mind without waiting to be asked again.</span>
                 </div>
 
                 {(consent.categoriesVersion ?? 0) > 0 && (
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>
                     Categories version: <strong>{consent.categoriesVersion}</strong> &mdash; visitors will be re-prompted when this number increases.
                   </p>
                 )}
@@ -2953,10 +2933,6 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
         return (
           <div>
-            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-              Choose where uploaded images are stored. Provider selection is saved to your site config; the credentials
-              themselves live only in your Vercel environment variables.
-            </p>
 
             {envError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>{envError}</div>}
 
@@ -2985,13 +2961,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             {/* Provider dropdown, grouped by kind */}
             <div id="media-provider" className="card admin-anchor">
               <div className="card-title">Media provider</div>
-              <div className="field" style={{ margin: 0 }}>
+              <div className="field field--wide">
+              <p className="field-hint" style={{ margin: '0 0 0.25rem' }}>
+                Where uploaded images are stored. The choice is saved here; the credentials live in your Vercel
+                environment variables.
+              </p>
               <select
                 value={selected ?? ''}
                 disabled={mediaBusy || !!jobActive}
                 onChange={(e) => { if (e.target.value) handleProviderSelect(e.target.value as MediaProviderType) }}
               >
-                <option value="">— Select a provider —</option>
+                <option value="">Select a provider</option>
                 <optgroup label="Object storage (served via your Worker)">
                   {PROXIED_PROVIDERS.map((p) => (
                     <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
@@ -3014,9 +2994,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <div>
-                    <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>{PROVIDER_LABELS[selected]} credentials</h3>
+                    <div className="card-title" style={{ margin: '0 0 0.25rem' }}>{PROVIDER_LABELS[selected]} credentials</div>
                     <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                      Stored in your Vercel project environment variables — never in the database.
+                      Stored in your Vercel project environment variables, never in the database.
                     </p>
                   </div>
                   <StatusBadge set={envKeysForProvider(selected).every((k) => envStatus[k])} />
@@ -3196,11 +3176,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <div className="settings-col">
             {/* Per-provider breakdown */}
             <div className="card">
-              <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Where your media lives</h3>
+              <div className="card-title">Where your media lives</div>
               {Object.keys(breakdown).length === 0 ? (
                 <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>No media uploaded yet.</p>
               ) : (
-                <ul style={{ fontSize: '0.875rem', margin: '0 0 0.5rem 1rem' }}>
+                <ul style={{ fontSize: '0.875rem', paddingLeft: '1.25rem' }}>
                   {Object.entries(breakdown).map(([p, n]) => (
                     <li key={p}>
                       {PROVIDER_LABELS[p as MediaProviderType] ?? p}: {n} item{n === 1 ? '' : 's'}
@@ -3260,20 +3240,21 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             {/* Delivery — how images behave on the public site, as opposed to
                 where they are stored. Saved with the page's own Save button. */}
             <div id="media-lazy-load" className="card admin-anchor">
-              <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer' }}>
+              <div className="card-title">Loading</div>
+              <div className="field">
+              <label className="settings-check">
                 <input
                   type="checkbox"
                   checked={config.lazyLoadImages ?? true}
                   onChange={(e) => set('lazyLoadImages', e.target.checked)}
                 />
                 Load images only as visitors scroll to them
+                <InfoTip>
+                  Images wait until they are nearly in view, so nobody downloads pictures they never reach. It applies to
+                  every image, the big one at the top included - if that feels slow to appear, turn this off.
+                </InfoTip>
               </label>
-              <span className="field-hint">
-                Images wait until they are nearly in view, so nobody downloads pictures they never scroll to. This applies
-                to every image on your pages, including the big one at the top - if the first thing a visitor sees feels
-                slow to appear, that is the setting to turn off. Off means every image on a page is fetched at once,
-                whether anyone scrolls that far or not.
-              </span>
+              </div>
             </div>
               </div>
             </div>

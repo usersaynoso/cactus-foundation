@@ -111,7 +111,7 @@ export const CLOUDFLARE_WORKER_VAR: ProviderEnvVar = {
   key: 'CLOUDFLARE_WORKER_URL',
   label: 'CLOUDFLARE_WORKER_URL',
   placeholder: 'https://media.example.com',
-  hint: 'Shared URL for your Cloudflare Worker — all proxied providers use the same Worker.',
+  hint: 'Shared URL for your Cloudflare Worker - all proxied providers use the same Worker.',
 }
 
 export type SetupLink = { label: string; url: string }
