@@ -36,6 +36,9 @@ export type RecordedOutboundEmail = {
   moduleName: string
   /** Registry key when it came from a template in Settings > Emails. */
   templateKey?: string
+  /** The conversation the sending module says this belongs to, when it names
+   *  one. A recorder files emails sharing a key together. */
+  threadKey?: string
   from: EmailSender
   replyTo?: string
   to: string[]

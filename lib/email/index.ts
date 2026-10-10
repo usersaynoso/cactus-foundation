@@ -55,6 +55,11 @@ export type EmailPayload = {
   templateKey?: string
   /** Which module asked for this email, for the email log. Core leaves it unset. */
   moduleName?: string
+  /** Names the conversation this email belongs to, for a module whose emails
+   *  about one thing (a shop's order) each carry a subject of their own. Passed
+   *  to any recorder keeping a copy, which files every email with the same key
+   *  together. Opaque to core; only meaningful alongside `moduleName`. */
+  threadKey?: string
   /** The site's own open and click tracking, which only ever applies to mail
    *  going out over SMTP (see lib/email/tracking/plan.ts). Left unset, the
    *  site's rules decide - which is right for nearly everything. `false` keeps
@@ -162,6 +167,7 @@ async function keepCopyForModule(
     await recordOutboundModuleEmail({
       moduleName: message.moduleName,
       ...(message.templateKey ? { templateKey: message.templateKey } : {}),
+      ...(message.threadKey ? { threadKey: message.threadKey } : {}),
       from: { name: sender.fromName, address: sender.fromAddress },
       ...(message.replyTo ? { replyTo: message.replyTo } : {}),
       to: [message.to],

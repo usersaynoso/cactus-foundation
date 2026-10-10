@@ -1102,6 +1102,20 @@ Somebody the post introduced us to may only ever have had one name, read off the
 
 **One address belongs to one person.** If you type in an address that somebody else here already has, it stays with them and the card tells you so, rather than quietly moving it. Two people holding one mailbox is a merge for you to decide on - see the section above.
 
+### Several numbers and addresses, each with a label
+
+A contact can have as many phone numbers and postal addresses as they need, and each can say what it is for: **Order** and **Delivery** for a customer's two numbers, **Billing** and **Delivery** for their two addresses, or anything else you type (Head office, Site, Mobile). On the card, **Phone numbers** is a list with a label box beside each number and **Add another number** under it; under **Where they are**, the ordinary address boxes take a **What for** label and **Add another address** adds a further one, with its own label, below.
+
+Saving the card means "this is the whole list": a number or further address you take off the card is taken off the contact. (An import, or a paid order, only ever adds - they never remove anything.) A number somebody else already holds stays with them and the card says so, the same as for email addresses.
+
+When a customer's order is paid and they are added to the address book, the card is filled in the same way: the order's number is labelled **Order**, the delivery address's number **Delivery**, the billing address **Billing** and a different delivery address **Delivery** too. A card you have already typed is never rewritten - an order only adds what the card does not hold.
+
+Their page shows each address with its label above it and each number with its label beside it, and **Download everything we hold** includes both. A contact found by searching a postcode is found by any of their addresses.
+
+### The order of the list
+
+The sort button in the contacts toolbar orders by **date added**, newest first to begin with, and flips to oldest first. Searching is still how you find a particular name. The import button is the circle to the left of the filter and sort buttons.
+
 ### Organisations
 
 The second half of the tab. Most appear on their own, one per company that writes in from its own domain. Each has a card with a name, a mail domain, an address, a phone number, a website and a note, and says how many contacts are in it - which is what makes **Acme Ltd** with fourteen contacts and **Acme Limited** with one obvious enough to tidy up.
@@ -1112,7 +1126,7 @@ You can add one yourself, which is the only way the haulier who only ever teleph
 
 ### Categories
 
-The labels you file contacts under: **Supplier**, **Trade customer**, **Haulier**, **Do not ring** - whatever suits how you actually work. A row of them sits above the list, and pressing one narrows the list to it. Pressing it again takes the filter off.
+The labels you file contacts under: **Supplier**, **Trade customer**, **Haulier**, **Do not ring** - whatever suits how you actually work. The filter button in the contacts toolbar (the three lines, beside the sort button) opens a list of them with ticks: tick one or several and the list shows everybody who wears **any** of the ticked labels. **Everybody** at the top of the list clears it. The choice is held in the address, so a filtered view can be sent to a colleague.
 
 A contact can be in several at once, on purpose. Somebody can genuinely be a supplier and a customer, and a field that only allows one would have you picking which of two true things to record.
 
@@ -1124,7 +1138,7 @@ One thing said plainly, because it is the line this feature must not cross: **a 
 
 ### Adding one by hand
 
-**New contact**, at the right-hand end of the Contacts row. Fill in what you know - a phone number on its own is a perfectly good contact - and save. Anybody who can reply to the post can do this; you do not have to look after the site.
+**Contact**, in the menu beside the new email button (the little arrow, under Discussion, Call and SMS). It opens the new contact form in a dialog over whatever you were looking at. Fill in what you know - a phone number on its own is a perfectly good contact - and save. Anybody who can reply to the post can do this; you do not have to look after the site.
 
 ### Bringing an address book in from a file
 
