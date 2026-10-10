@@ -791,7 +791,17 @@ Open **Reconcile** and pick the account. Any account of the **cash** kind gets a
 
 **Save this check** keeps a note of what was compared, on which date and by
 whom, with an optional note of your own. The last one is shown beneath the panel.
-It moves no money and reaches no report; it is a record that someone looked. A
+It moves no money and reaches no report; it is a record that someone looked.
+
+**This is how bills paid from the account get reconciled.** A bill taken out of a
+prepaid balance has no statement line to tick off. When you save a check that
+**agrees**, every entry paid from that account, paid on or before the check's
+date, is covered by it, and stops being counted as an entry with no statement line
+behind it. A check that is out by anything covers nothing, because the gap could
+be any of them. The panel tells you how many entries are still waiting for a check.
+
+A bill paid from one account is also no longer offered against another account's
+statement lines, including under **It paid several invoices**. A
 fold-out under it lists the latest movements in the account, which is usually
 enough to find the one that is missing.
 
