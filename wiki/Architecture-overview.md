@@ -115,7 +115,20 @@ That fallback read is deliberately failure-tolerant. The in-memory cache only li
 
 The admin section also has a render error boundary (`app/cactus-admin/error.tsx`), covering the sign-in page as well as the rest of admin. It replaces the framework's default "Internal Server Error" screen with a card explaining the request did not load and a **Try again** button that re-runs the render. Errors thrown by the admin *layout* itself go to the parent boundary rather than this one, so the layout guards its own reads inline instead: the session read falls back to a redirect to the (resilient) login page, and the config, module-list, unread-count and permission reads each fall back to an empty value the shell already tolerates, so a passing blip loses a corner of the chrome rather than the whole frame.
 
+## Hosting platforms (Vercel or Netlify)
+
+Cactus runs on either platform. `lib/hosting/provider.ts` decides which: `VERCEL=1` means Vercel; `CACTUS_HOSTING_PROVIDER=netlify` (baked in at build by `next.config.ts` from Netlify's `NETLIFY=true`, because Netlify does not promise that variable to its functions at runtime) means Netlify; neither means local-development mode. Every control-plane job goes through one layer and never names a platform:
+
+- **Env vars** - `lib/hosting/env.ts` → `lib/vercel/env.ts` (project env API, `sensitive` type for secrets) or `lib/netlify/env.ts` (team env API scoped with `?site_id=`, `is_secret` written per deploy context). The secret list is shared: `lib/hosting/sensitive-keys.ts`.
+- **Builds** - `lib/hosting/deploy.ts` → Vercel's redeploy-from-latest with `withLatestCommit`, or Netlify's `POST /sites/{id}/builds` (which always builds the linked branch's HEAD). States are normalised to READY / ERROR / CANCELED / BUILDING / UNKNOWN, so `lib/deploy/in-flight.ts`, `lib/deploy/redeploy.ts` and `getLatestDeploymentStatus` work unchanged on both.
+- **Credentials** - `VERCEL_API_TOKEN` + `VERCEL_PROJECT_ID`, or `NETLIFY_API_TOKEN` + `NETLIFY_SITE_ID`. `getHostingCredentials()` returns the pair for the detected platform only.
+- **Scheduled jobs** - the dispatcher is woken by the one entry in `vercel.json` on Vercel, and by the scheduled function `netlify/functions/cactus-cron.mts` on Netlify, whose schedule is in `netlify.toml`. `lib/cron/host-file.ts` picks which file the module registry sync and core update write; both are install-owned (`isSkippedCorePath`).
+- **Edge caching** - the page cache's vendor header is sent as `Vercel-CDN-Cache-Control`, and also as `Netlify-CDN-Cache-Control` on Netlify.
+- **Vercel-only** - Edge Config, deployment webhooks and Speed Insights; the admin hides them on Netlify. Netlify's build progress has no log-lines API, so `/api/setup/deployment-logs` returns its state plus milestone lines there.
+
 ## Vercel project and domain connection (setup wizard)
+
+Step 1 of the wizard first asks which platform the site is on (the detected one is preselected), then talks to `/api/setup/vercel-connect` or `/api/setup/netlify-connect`. The two routes speak the same protocol (same actions, same domain-state shape), so one panel drives both. On Netlify a domain counts as ready once Netlify has issued its certificate for it, which it only does after DNS points at the site. The rest of this section describes Vercel.
 
 Before database provisioning, the wizard connects to Vercel and attaches a domain to the project:
 

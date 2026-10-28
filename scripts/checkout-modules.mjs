@@ -39,7 +39,10 @@ if (entries.length === 0) {
   process.exit(0)
 }
 
-const isVercel = process.env.VERCEL === '1'
+// A hosted build - Vercel or Netlify. Both start every build from a fresh clone and
+// must honour a module pin exactly, so they get the strict behaviour below; a local
+// build gets the forgiving one. The name predates Netlify support.
+const isVercel = process.env.VERCEL === '1' || process.env.NETLIFY === 'true'
 
 // Clone credential for private module repos, resolved lazily on the FIRST
 // failed clone and then shared by every module (see module-clone-auth.mjs for
@@ -133,7 +136,7 @@ async function cloneModule(log, name, repoUrl, moduleDir, version) {
     if (isVercel) {
       // Retry the pinned clone once - a transient blip shouldn't sink the build,
       // but an unpinned HEAD clone must never replace a pin here.
-      log(`${name}: pinned clone at ${version} failed — retrying (Vercel never falls back to HEAD for a pinned entry)`)
+      log(`${name}: pinned clone at ${version} failed — retrying (a hosted build never falls back to HEAD for a pinned entry)`)
       try { rmSync(moduleDir, { recursive: true, force: true }) } catch {}
       const retry = await attemptClone(version)
       if (retry.status === 0) return true

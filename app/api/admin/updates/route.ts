@@ -13,7 +13,7 @@ import {
 import { recordDeploymentNeeded } from '@/lib/notifications/deployment'
 import { recordCoreUpdate, clearAlert } from '@/lib/notifications/alerts'
 import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
-import { ensureCronSecret } from '@/lib/vercel/cron-secret'
+import { ensureCronSecret } from '@/lib/hosting/cron-secret'
 import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, LOCK_RACE_MESSAGE } from '@/lib/deploy/lock'
 import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
 import { settleFinishedDeploy } from '@/lib/deploy/reconcile'

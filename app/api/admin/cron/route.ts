@@ -108,7 +108,7 @@ export async function PATCH(request: NextRequest) {
       // next update - it is not a reason to refuse the change or to lose it.
       deploy = 'unavailable'
       deployError = err instanceof Error ? err.message : String(err)
-      console.warn(`[cron] saved ${path} but could not update vercel.json: ${deployError}`)
+      console.warn(`[cron] saved ${path} but could not update the cron file: ${deployError}`)
     }
   }
 

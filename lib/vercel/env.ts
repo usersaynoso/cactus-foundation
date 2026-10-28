@@ -1,7 +1,9 @@
+import { isSensitiveEnvKey } from '@/lib/hosting/sensitive-keys'
+
 const VERCEL_API = 'https://api.vercel.com'
 
-type VercelEnvTarget = 'production' | 'preview' | 'development'
-type VercelEnvType = 'plain' | 'sensitive'
+export type VercelEnvTarget = 'production' | 'preview' | 'development'
+export type VercelEnvType = 'plain' | 'sensitive'
 
 type VercelEnvVar = {
   id: string
@@ -18,31 +20,10 @@ const DEFAULT_TARGETS: VercelEnvTarget[] = ['production', 'preview', 'developmen
 const SENSITIVE_TARGETS: VercelEnvTarget[] = ['production', 'preview']
 
 // Sensitive type marks the value write-only (hidden from the dashboard after
-// creation) for secret-bearing keys; plain for everything else.
-const SENSITIVE_KEYS = new Set([
-  'DATABASE_URL',
-  'SESSION_SECRET',
-  'CRON_SECRET',
-  'VERCEL_API_TOKEN',
-  'BREVO_API_KEY',
-  'SMTP_PASS',
-  'B2_APPLICATION_KEY',
-  'GITHUB_API_TOKEN',
-  'ENCRYPTION_KEY',
-  'NEON_API_KEY',
-  'EDGE_CONFIG',
-  'VERCEL_WEBHOOK_SECRET',
-  'TURNSTILE_SECRET_KEY',
-  'CLOUDFLARE_API_TOKEN',
-  'CLOUDFLARE_GLOBAL_API_KEY',
-  // Same kind of secret as CLOUDFLARE_API_TOKEN above, just scoped to cache
-  // purging. Left plain it would be readable in the Vercel dashboard while its
-  // sibling was not, which is the sort of inconsistency nobody notices.
-  'CLOUDFLARE_PURGE_API_TOKEN',
-])
-
+// creation) for secret-bearing keys; plain for everything else. The list itself is
+// shared with Netlify - see lib/hosting/sensitive-keys.ts.
 function envType(key: string): VercelEnvType {
-  return SENSITIVE_KEYS.has(key) ? 'sensitive' : 'plain'
+  return isSensitiveEnvKey(key) ? 'sensitive' : 'plain'
 }
 
 function envTargets(type: VercelEnvType): VercelEnvTarget[] {
@@ -96,7 +77,7 @@ export async function getVercelEnvVarKeys(token: string, projectId: string): Pro
 // built, so process.env doesn't have it yet.
 //
 // Vercel only hands back the values of `plain` vars. Anything stored `sensitive`
-// (see SENSITIVE_KEYS) is write-only and decrypts to an empty string, so it maps
+// (see lib/hosting/sensitive-keys.ts) is write-only and decrypts to an empty string, so it maps
 // to null here: "this key is set, but its value cannot be recovered". Keys absent
 // from the result are not set on the project at all. Only process.env - i.e. a
 // redeploy - can supply a sensitive value.

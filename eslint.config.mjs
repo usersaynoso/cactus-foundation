@@ -14,6 +14,8 @@ const config = [
       // Vercel's local build output. Gitignored, not project code, and full of
       // minified chunks that trip source-level rules with nothing to fix in them.
       '.vercel/**',
+      // Netlify's local build output, for the same reason.
+      '.netlify/**',
       'node_modules/**',
       '.claude/**',
       'cactus-foundation/**',

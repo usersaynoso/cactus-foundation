@@ -1,5 +1,6 @@
 import { cacheBypassCookieNames, cdnCacheControlForWindow } from '@/lib/cache/page-cache'
 import { getPageCacheCached } from '@/lib/config/site'
+import { detectHostingProvider } from '@/lib/hosting/provider'
 
 // Shared-cache headers for a module's own public API responses.
 //
@@ -96,10 +97,10 @@ export async function applyModuleApiCache(
   // see the long note in lib/cache/page-cache.ts. Same asymmetry as the pages.
   headers.set('CDN-Cache-Control', cdnCacheControlForWindow(ttl))
   if (behindCloudflare) {
-    headers.set(
-      'Vercel-CDN-Cache-Control',
-      vercelEdgeTtl > 0 ? `public, s-maxage=${Math.min(vercelEdgeTtl, ttl)}` : 'public, s-maxage=0, must-revalidate',
-    )
+    const edge = vercelEdgeTtl > 0 ? `public, s-maxage=${Math.min(vercelEdgeTtl, ttl)}` : 'public, s-maxage=0, must-revalidate'
+    headers.set('Vercel-CDN-Cache-Control', edge)
+    // Netlify's edge reads its own vendor header the same way.
+    if (detectHostingProvider() === 'netlify') headers.set('Netlify-CDN-Cache-Control', edge)
   }
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
 }

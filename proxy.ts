@@ -24,6 +24,7 @@ import {
   isFirstRunComplete,
   refreshFirstRunComplete,
 } from '@/lib/config/site'
+import { detectHostingProvider } from '@/lib/hosting/provider'
 import { carriesAccessKey, cdnCacheControlForWindow, hasPageShapingQuery, pageCacheControl, resolveCacheWindow, vercelCdnCacheControl } from '@/lib/cache/page-cache'
 import { isCdnPurgeConfigured } from '@/lib/cache/cdn-purge'
 import { validateSession } from '@/lib/auth/session-core'
@@ -277,7 +278,11 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
     // isCdnPurgeConfigured() is still honoured, for a site that set the
     // credentials without ticking the box.
     if (behindCloudflare || isCdnPurgeConfigured()) {
-      res.headers.set('Vercel-CDN-Cache-Control', vercelCdnCacheControl(vercelEdgeTtl, window))
+      const edge = vercelCdnCacheControl(vercelEdgeTtl, window)
+      res.headers.set('Vercel-CDN-Cache-Control', edge)
+      // Netlify's edge has the same habit under its own header name, and the
+      // same setting (despite its Vercel-flavoured name) governs both.
+      if (detectHostingProvider() === 'netlify') res.headers.set('Netlify-CDN-Cache-Control', edge)
     }
   }
   return res

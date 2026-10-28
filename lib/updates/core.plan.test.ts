@@ -21,6 +21,8 @@ describe('isSkippedCorePath', () => {
     // The install's own cron registration - written explicitly by the sync, never by
     // the generic reconcile, which would otherwise delete it on any tag that lacks it.
     expect(isSkippedCorePath('vercel.json')).toBe(true)
+    // Its Netlify twin, for the same reason.
+    expect(isSkippedCorePath('netlify.toml')).toBe(true)
     // A GitHub App may only write under .github/workflows/ with the Workflows
     // permission, which installs do not grant. The update is one create-a-tree call,
     // so a single workflow file in the target tag 403s the WHOLE transaction and the

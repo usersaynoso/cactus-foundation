@@ -1,41 +1,41 @@
 import { after } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { triggerVercelRedeploy, ensureVercelRedeploy } from '@/lib/vercel/deploy'
+import { triggerRedeploy, ensureRedeploy, listDeployments } from '@/lib/hosting/deploy'
+import { getHostingCredentials } from '@/lib/hosting/provider'
 import { syncModulesJson } from '@/lib/modules/github'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { isLocalMode } from '@/lib/config/env'
 
 // Arms the redeploy gate (pendingRedeployId drives the admin deploy status bar
 // and the notification bell's live section while set), then in an after()
-// callback ships the current module registry: commit modules.json (the git push triggers a Vercel build) and
+// callback ships the current module registry: commit modules.json (the git push triggers a build on the host) and
 // capture that build's id, falling back to an explicit env-var redeploy when there's
 // nothing to commit. Shared by the module lifecycle routes and the "Redeploy now"
-// notification action. Returns { triggered: false } when Vercel creds are missing so
+// notification action. Returns { triggered: false } when hosting creds are missing so
 // callers can fall back to the deferred-notification path.
 //
 // Pass `committedSince` when the caller has ALREADY pushed a commit (e.g. a core
-// update via syncCoreFromUpstream) that triggered a Vercel build. In that mode the
+// update via syncCoreFromUpstream) that triggered a build on the host. In that mode the
 // helper skips the module sync and just arms the gate and adopts the build the
 // existing push created, avoiding a double-deploy.
 export async function startDeferredRedeploy(
   opts: { committedSince?: number } = {}
 ): Promise<{ triggered: boolean }> {
-  // Local-development mode has no git-push deploy or Vercel redeploy: report
+  // Local-development mode has no git-push deploy or hosted redeploy: report
   // not-triggered so callers fall back to the deferred-notification path.
   if (isLocalMode()) {
     return { triggered: false }
   }
 
-  const token = process.env.VERCEL_API_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) {
+  const creds = getHostingCredentials()
+  if (!creds) {
     return { triggered: false }
   }
 
   const deployStartedAt = opts.committedSince ?? Date.now()
 
   // Sentinel written synchronously so the admin deploy status surfaces show up
-  // immediately; the real Vercel deployment id is resolved below via after().
+  // immediately; the real deployment id is resolved below via after().
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
     data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
@@ -72,22 +72,14 @@ export async function startDeferredRedeploy(
       }
     }
 
-    // Poll Vercel for the deployment created after we started (used when we don't
+    // Poll the host for the deployment created after we started (used when we don't
     // get an id back directly — e.g. a git-push-triggered build).
     const pollForDeploymentId = async (): Promise<string | undefined> => {
       for (let i = 0; i < 8; i++) {
         await new Promise((r) => setTimeout(r, 5_000))
-        try {
-          const res = await fetch(
-            `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&limit=5`,
-            { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8_000) }
-          )
-          if (res.ok) {
-            const data = (await res.json()) as { deployments?: Array<{ uid: string; created: number }> }
-            const uid = data.deployments?.find((d) => d.created > deployStartedAt)?.uid
-            if (uid) return uid
-          }
-        } catch { /* ignore */ }
+        const recent = await listDeployments(creds, { limit: 5 })
+        const id = recent?.find((d) => d.createdAt > deployStartedAt)?.id
+        if (id) return id
       }
       return undefined
     }
@@ -104,7 +96,7 @@ export async function startDeferredRedeploy(
     // pushes again by chance. That is not hypothetical: it stranded a core update
     // carrying two module bumps, and the only clue was a manifest one version behind.
     //
-    // ensureVercelRedeploy rather than triggerVercelRedeploy: if a build did start,
+    // ensureRedeploy rather than triggerRedeploy: if a build did start,
     // just late, this adopts it instead of stacking a second one on top.
     const captureOrTrigger = async () => {
       const pushed = await pollForDeploymentId()
@@ -113,7 +105,7 @@ export async function startDeferredRedeploy(
         return
       }
       console.warn('[redeploy] Push produced no deployment - triggering one explicitly')
-      const result = await ensureVercelRedeploy(token, projectId)
+      const result = await ensureRedeploy(creds)
       if (result.triggered && result.deploymentId) {
         await persistDeploymentId(result.deploymentId)
         return
@@ -124,7 +116,7 @@ export async function startDeferredRedeploy(
 
     if (opts.committedSince !== undefined) {
       // The caller already pushed a commit (e.g. a core update) that triggered a
-      // Vercel build. Adopt it - do NOT sync modules.
+      // build on the host. Adopt it - do NOT sync modules.
       await captureOrTrigger()
       return
     }
@@ -168,14 +160,14 @@ export async function startDeferredRedeploy(
     }
 
     if (committed) {
-      // The git push should have triggered a Vercel build - adopt that one rather
+      // The git push should have triggered a build on the host - adopt that one rather
       // than double-deploying, and only start one ourselves if it never appeared.
       await captureOrTrigger()
       return
     }
 
     // No module changes to commit: rebuild current HEAD to pick up env-var changes.
-    const result = await triggerVercelRedeploy(token, projectId)
+    const result = await triggerRedeploy(creds)
     if (result.triggered && result.deploymentId) {
       await persistDeploymentId(result.deploymentId)
     } else {

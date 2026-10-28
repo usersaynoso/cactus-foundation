@@ -42,11 +42,19 @@ export const stalePlanRetryExtension = Prisma.defineExtension({
 // number of live instances instead of multiplying by the per-instance pool.
 // This is Prisma's own guidance for serverless. An operator who has already set
 // connection_limit on their URL (e.g. pointing at their own PgBouncer) keeps
-// their choice - we only fill in the gap. Left untouched off Vercel, where a
-// single long-lived process on the default pool is exactly what you want.
+// their choice - we only fill in the gap. Netlify's functions fan out the same
+// way, so they get the same cap. Left untouched elsewhere, where a single
+// long-lived process on the default pool is exactly what you want.
+// Vercel sets VERCEL at runtime; on Netlify the build-time answer is inlined by
+// next.config.ts. Read directly rather than via lib/hosting/provider so this file
+// keeps its import list to Prisma alone.
+function isServerlessHost(): boolean {
+  return !!process.env.VERCEL || process.env.CACTUS_HOSTING_PROVIDER === 'netlify' || process.env.NETLIFY === 'true'
+}
+
 function runtimeDatabaseUrl(): string | undefined {
   const raw = process.env.DATABASE_URL
-  if (!raw || !process.env.VERCEL) return raw
+  if (!raw || !isServerlessHost()) return raw
   try {
     const url = new URL(raw)
     if (!url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', '1')

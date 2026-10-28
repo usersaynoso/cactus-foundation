@@ -36,5 +36,11 @@ export function translateLogLine(rawLine: string): string | null {
   if (line.includes('Creating build cache')) return 'Just tidying up and putting things away neatly...'
   if (line.includes('Build cache uploaded')) return 'Bish bash bosh. You\'re live.'
 
+  // Netlify milestones (app/api/setup/deployment-logs/route.ts writes these itself,
+  // since Netlify has no log-lines endpoint to read).
+  if (line.startsWith('Building on Netlify')) return "Netlify's on it. The full blow-by-blow lives in your Netlify dashboard."
+  if (line === 'Deploy is live.') return 'Bish bash bosh. You\'re live.'
+  if (line.startsWith('Deploy failed') || line.startsWith('Deploy was cancelled')) return line
+
   return null
 }

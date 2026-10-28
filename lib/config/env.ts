@@ -5,6 +5,13 @@ import {
   envKeysForProvider,
   isProxied,
 } from '@/lib/media/providers'
+import {
+  detectHostingProvider,
+  getHostingCredentials,
+  HOSTING_CREDENTIAL_KEYS,
+  HOSTING_PROVIDER_LABELS,
+  type HostingProvider,
+} from '@/lib/hosting/provider'
 
 export type EnvVarStatus = {
   name: string
@@ -14,14 +21,15 @@ export type EnvVarStatus = {
   gates?: string
 }
 
-// True when the app is NOT running on Vercel. Vercel injects VERCEL=1 into both
-// build and runtime; it is never set locally. We use its absence as the signal
-// for "local-development mode", where the Vercel control plane (env-var writes,
-// redeploys, core/module updates) is unavailable and config comes from .env.local.
-// A real Vercel deployment that simply hasn't connected its API token yet still
-// has VERCEL=1, so it is never misclassified as local.
+// True when the app is running on neither Vercel nor Netlify. Each platform marks
+// its own builds and runtime (see lib/hosting/provider.ts); neither is ever set
+// locally. Their absence is the signal for "local-development mode", where the
+// hosting control plane (env-var writes, redeploys, core/module updates) is
+// unavailable and config comes from .env.local. A real deployment that simply
+// hasn't connected its API token yet is still detected, so it is never
+// misclassified as local.
 export function isLocalMode(): boolean {
-  return process.env.VERCEL !== '1'
+  return detectHostingProvider() === null
 }
 
 // All environment variables the application reads, grouped by category.
@@ -42,20 +50,30 @@ export function getEnvStatus(): {
     required: true,
     set: !!process.env.DATABASE_URL,
   }
-  const vercelApiToken: EnvVarStatus = {
-    name: 'VERCEL_API_TOKEN',
-    description:
-      'Vercel REST API token. Entered during setup - used for writing env vars, triggering redeployments, and provisioning databases. Not used in local-development mode.',
-    required: !local,
-    set: !!process.env.VERCEL_API_TOKEN,
+  // The credential pair for the platform this site runs on. Locally (no platform
+  // detected) both pairs are listed as optional, since neither is used.
+  const host: HostingProvider | null = detectHostingProvider()
+  const hostingVars = (provider: HostingProvider): EnvVarStatus[] => {
+    const label = HOSTING_PROVIDER_LABELS[provider]
+    const keys = HOSTING_CREDENTIAL_KEYS[provider]
+    const required = !local && host === provider
+    return [
+      {
+        name: keys.token,
+        description: `${label} REST API token. Entered during setup - used for writing env vars, triggering redeployments, and provisioning databases. Not used in local-development mode.`,
+        required,
+        set: !!process.env[keys.token],
+      },
+      {
+        name: keys.siteId,
+        description: `${label} ${provider === 'netlify' ? 'site' : 'project'} ID. Selected during setup - identifies which ${provider === 'netlify' ? 'site' : 'project'} to configure. Not used in local-development mode.`,
+        required,
+        set: !!process.env[keys.siteId],
+      },
+    ]
   }
-  const vercelProjectId: EnvVarStatus = {
-    name: 'VERCEL_PROJECT_ID',
-    description:
-      'Vercel project ID. Selected during setup - identifies which project to configure. Not used in local-development mode.',
-    required: !local,
-    set: !!process.env.VERCEL_PROJECT_ID,
-  }
+  const hostingRequired = host ? hostingVars(host) : []
+  const hostingOptional = host ? [] : [...hostingVars('vercel'), ...hostingVars('netlify')]
   const sessionSecret: EnvVarStatus = {
     name: 'SESSION_SECRET',
     description: local
@@ -68,17 +86,17 @@ export function getEnvStatus(): {
     name: 'SITE_URL',
     description: local
       ? 'Canonical public URL - also the WebAuthn relying party ID. Set it to http://localhost:3000 in .env.local.'
-      : 'Canonical public domain - also used as the WebAuthn relying party ID. Auto-detected from your Vercel project during setup.',
+      : 'Canonical public domain - also used as the WebAuthn relying party ID. Auto-detected from your hosting project during setup.',
     required: local,
     set: !!process.env.SITE_URL,
   }
 
   const required: EnvVarStatus[] = local
     ? [databaseUrl, sessionSecret, siteUrl]
-    : [databaseUrl, vercelApiToken, vercelProjectId]
+    : [databaseUrl, ...hostingRequired]
 
   const optional: EnvVarStatus[] = [
-    ...(local ? [vercelApiToken, vercelProjectId] : [sessionSecret, siteUrl]),
+    ...(local ? hostingOptional : [sessionSecret, siteUrl]),
     {
       name: 'BREVO_API_KEY',
       description: 'Brevo transactional email API key',
@@ -175,7 +193,7 @@ export function getEnvStatus(): {
     {
       name: 'CRON_SECRET',
       description:
-        'Bearer token Vercel attaches to its own scheduled requests. Created automatically during setup, and again on the next update if this site predates that. Nothing to fetch from anywhere - it only ever means something to this site.',
+        'Bearer token attached to every scheduled request (by Vercel itself, or by the Netlify scheduled function). Created automatically during setup, and again on the next update if this site predates that. Nothing to fetch from anywhere - it only ever means something to this site.',
       required: false,
       set: !!process.env.CRON_SECRET,
       gates: 'Every scheduled job, core and module (they answer 503 without it)',
@@ -221,7 +239,7 @@ export function getEnvStatus(): {
       description: 'Sentry DSN for error reporting',
       required: false,
       set: !!process.env.SENTRY_DSN,
-      gates: 'Error reporting via Sentry (errors log to Vercel functions if unset)',
+      gates: 'Error reporting via Sentry (errors log to the hosting platform\u2019s function logs if unset)',
     },
   ]
 
@@ -306,8 +324,8 @@ export async function getGitHubConfigStatus(): Promise<GitHubConfigStatus> {
   return 'configured'
 }
 
-export function isVercelConfigured(): boolean {
-  return !!(process.env.VERCEL_API_TOKEN && process.env.VERCEL_PROJECT_ID)
+export function isHostingConfigured(): boolean {
+  return getHostingCredentials() !== null
 }
 
 export function isNeonConfigured(): boolean {
@@ -325,9 +343,12 @@ export function isTurnstileConfigured(): boolean {
 }
 
 export function getSiteUrl(): string {
+  // VERCEL_URL is per-deployment on Vercel; URL is the site's main address on
+  // Netlify. Both are fallbacks for the window before setup has written SITE_URL.
   const url =
     process.env.SITE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    (detectHostingProvider() === 'netlify' && process.env.URL ? process.env.URL : null)
   if (!url) throw new Error('SITE_URL environment variable is not set')
   return url.replace(/\/$/, '')
 }
@@ -344,7 +365,7 @@ export function getWebAuthnRpId(): string {
   if (process.env.NODE_ENV === 'development') {
     return 'localhost'
   }
-  // Must use SITE_URL only — VERCEL_URL changes per deployment and would break
+  // Must use SITE_URL only — VERCEL_URL (and Netlify's deploy URLs) change per deployment and would break
   // passkey authentication after the first deployment.
   const siteUrl = process.env.SITE_URL
   if (!siteUrl) throw new Error('SITE_URL is required for WebAuthn')

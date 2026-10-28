@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { getLatestDeploymentStatus } from '@/lib/modules/github'
+import { getHostingCredentials } from '@/lib/hosting/provider'
+import { listDeployments, type HostDeployment } from '@/lib/hosting/deploy'
 
 // Is a build the site started still running?
 //
@@ -20,13 +22,13 @@ import { getLatestDeploymentStatus } from '@/lib/modules/github'
 //
 // So the gate has to be the build, not the request.
 //
-// Fails open throughout. A site with no Vercel credentials never deploys this
+// Fails open throughout. A site with no hosting credentials never deploys this
 // way in the first place, and an API that won't answer must not lock the owner
 // out of their own admin.
 
 // How long the 'pending' sentinel is believed on its own. startDeferredRedeploy
 // writes it synchronously and pushes the commit afterwards in an after()
-// callback, so for a few seconds there is genuinely nothing to ask Vercel about.
+// callback, so for a few seconds there is genuinely nothing to ask the host about.
 // Past this we ask anyway - a run that died between writing the sentinel and
 // pushing must not gate anything for ever.
 export const SENTINEL_TRUST_MS = 2 * 60_000
@@ -68,33 +70,16 @@ export async function getDeployInFlight(): Promise<DeployInFlight | null> {
   return (await newestProductionBuildRunning()) ? { deploymentId: 'latest', startedAt } : null
 }
 
-type ProductionDeployment = { uid: string; created: number; readyState?: string }
-
-async function newestProductionDeployment(): Promise<ProductionDeployment | null> {
-  const token = process.env.VERCEL_API_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) return null
-
-  try {
-    const res = await fetch(
-      `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectId)}&target=production&limit=1`,
-      { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) }
-    )
-    if (!res.ok) return null
-    const data = (await res.json()) as { deployments?: ProductionDeployment[] }
-    return data.deployments?.[0] ?? null
-  } catch {
-    // An API that will not answer must not lock the owner out of their own admin.
-    return null
-  }
-}
-
-function isRunning(state: string | undefined): boolean {
-  return state === 'BUILDING' || state === 'QUEUED' || state === 'INITIALIZING'
+async function newestProductionDeployment(): Promise<HostDeployment | null> {
+  const creds = getHostingCredentials()
+  if (!creds) return null
+  // listDeployments answers null rather than throwing: an API that will not answer
+  // must not lock the owner out of their own admin.
+  return (await listDeployments(creds, { productionOnly: true, limit: 1 }))?.[0] ?? null
 }
 
 async function newestProductionBuildRunning(): Promise<boolean> {
-  return isRunning((await newestProductionDeployment())?.readyState)
+  return (await newestProductionDeployment())?.state === 'BUILDING'
 }
 
 // The deployment status a RECONCILE decision may act on - promoting a module's
@@ -127,11 +112,11 @@ export async function deploymentStatusForReconcile(args: {
 
   const newest = await newestProductionDeployment()
   if (!newest) return 'UNKNOWN'
-  if (args.since && newest.created <= args.since.getTime()) return 'UNKNOWN'
+  if (args.since && newest.createdAt <= args.since.getTime()) return 'UNKNOWN'
 
-  if (isRunning(newest.readyState)) return 'BUILDING'
-  if (newest.readyState === 'READY') return 'READY'
-  if (newest.readyState === 'ERROR' || newest.readyState === 'CANCELED') return 'ERROR'
+  if (newest.state === 'BUILDING') return 'BUILDING'
+  if (newest.state === 'READY') return 'READY'
+  if (newest.state === 'ERROR' || newest.state === 'CANCELED') return 'ERROR'
   return 'UNKNOWN'
 }
 

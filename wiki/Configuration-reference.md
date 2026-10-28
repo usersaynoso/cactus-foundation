@@ -344,8 +344,10 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `DATABASE_URL` | Yes | Connection string for your PostgreSQL database. Provisioned automatically if `NEON_API_KEY` is set. |
 | `SESSION_SECRET` | Yes | A secret key (at least 32 random characters) used to secure sign-in sessions. |
 | `SITE_URL` | Yes | Your site's full public address (e.g. `https://example.com`). Tied to passkey sign-in and cannot change after the first passkey is registered. |
-| `VERCEL_API_TOKEN` | Yes | Vercel API token. Create one at Vercel → Account Settings → Tokens. |
-| `VERCEL_PROJECT_ID` | Yes | Your Vercel project ID. Find it at Vercel → your project → Settings → General. |
+| `VERCEL_API_TOKEN` | Yes, on Vercel | Vercel API token. Create one at Vercel → Account Settings → Tokens. |
+| `VERCEL_PROJECT_ID` | Yes, on Vercel | Your Vercel project ID. Find it at Vercel → your project → Settings → General. |
+| `NETLIFY_API_TOKEN` | Yes, on Netlify | Netlify personal access token. Create one at Netlify → User settings → Applications → Personal access tokens. Entered in the setup wizard. |
+| `NETLIFY_SITE_ID` | Yes, on Netlify | Your Netlify site ID (Site configuration → General). Picked in the setup wizard. |
 | `NEON_API_KEY` | No | Neon database API key. Enables one-click database setup during the setup wizard. Leave unset if you supply your own `DATABASE_URL`. |
 | `BREVO_API_KEY` | No | Brevo email API key. Enables email sign-in, verification, and account recovery. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | No | SMTP email credentials. Alternative to Brevo. |

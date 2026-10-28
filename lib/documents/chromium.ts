@@ -38,9 +38,15 @@ const LINUX_CHROME = '/usr/bin/google-chrome'
 const LINUX_CHROMIUM = '/usr/bin/chromium'
 
 /** True on a serverless/Linux deployment, where the packaged chromium is the one
- *  to use. AWS_LAMBDA_FUNCTION_NAME is set on Vercel's Node runtime. */
+ *  to use. AWS_LAMBDA_FUNCTION_NAME is set on Vercel's and Netlify's Node runtimes;
+ *  the others are each platform's own marker, belt and braces. */
 export function isServerless(): boolean {
-  return Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.VERCEL)
+  return Boolean(
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.VERCEL ||
+      process.env.CACTUS_HOSTING_PROVIDER === 'netlify' ||
+      process.env.NETLIFY
+  )
 }
 
 async function localChromePath(): Promise<string | null> {

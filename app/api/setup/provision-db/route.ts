@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { isLocalMode } from '@/lib/config/env'
 import { NEON_REGIONS, type NeonRegionId } from '@/lib/config/neon-regions'
-import { triggerVercelRedeploy, ensureVercelRedeploy, getVercelProjectName, type RedeployResult } from '@/lib/vercel/deploy'
-import { upsertVercelEnvVars } from '@/lib/vercel/env'
+import { triggerRedeploy, ensureRedeploy, getHostSiteName, type RedeployResult } from '@/lib/hosting/deploy'
+import { getHostEnvVarKeys, upsertHostEnvVars } from '@/lib/hosting/env'
+import { missingCredentialsMessage, resolveHostingCredentials, type HostingCredentials } from '@/lib/hosting/provider'
 import { Client } from 'pg'
 
 const NEON_API = 'https://console.neon.tech/api/v2'
-const VERCEL_API = 'https://api.vercel.com'
 
 // Shape of the Neon create-project response we care about.
 type NeonProjectResponse = {
@@ -145,37 +145,31 @@ async function getPooledUriForProject(
   return { pooledUri: url.toString(), project: projectData.project }
 }
 
-// Checks the Vercel project env vars to detect if DATABASE_URL is already written
+// Checks the hosting project's env vars to detect if DATABASE_URL is already written
 // (idempotency: provisioning was done in a prior request).
-async function vercelDbUrlExists(token: string, projectId: string): Promise<boolean> {
-  const res = await fetch(
-    `${VERCEL_API}/v10/projects/${encodeURIComponent(projectId)}/env`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(8_000),
-    }
-  )
-  if (!res.ok) return false
-  const data = (await res.json()) as { envs?: Array<{ key: string }> }
-  return data.envs?.some((e) => e.key === 'DATABASE_URL') ?? false
+async function hostDbUrlExists(creds: HostingCredentials): Promise<boolean> {
+  try {
+    return (await getHostEnvVarKeys(creds)).includes('DATABASE_URL')
+  } catch {
+    return false
+  }
 }
 
-// Writes DATABASE_URL (and optionally NEON_PROJECT_ID) to the Vercel project env
-// vars via the shared upsert helper: overwrites stale values from prior attempts
-// and skips the "development" target on sensitive vars, which Vercel rejects.
-async function writeVercelEnvVars(
-  token: string,
-  projectId: string,
+// Writes DATABASE_URL (and optionally NEON_PROJECT_ID) to the hosting project's env
+// vars via the shared upsert helper, which overwrites stale values from prior
+// attempts and stores the connection string write-only.
+async function writeDatabaseEnvVars(
+  creds: HostingCredentials,
   databaseUrl: string,
   neonProjectId?: string
 ): Promise<void> {
-  const vars: Array<{ key: string; value: string; type?: 'plain' | 'sensitive' }> = [
-    { key: 'DATABASE_URL', value: databaseUrl, type: 'sensitive' },
+  const vars: Array<{ key: string; value: string; secret?: boolean }> = [
+    { key: 'DATABASE_URL', value: databaseUrl, secret: true },
   ]
   if (neonProjectId) {
-    vars.push({ key: 'NEON_PROJECT_ID', value: neonProjectId, type: 'plain' })
+    vars.push({ key: 'NEON_PROJECT_ID', value: neonProjectId, secret: false })
   }
-  await upsertVercelEnvVars(token, projectId, vars)
+  await upsertHostEnvVars(creds, vars)
 }
 
 // Shapes the redeploy portion of a provisioning response: the connection string
@@ -242,7 +236,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
   }
 
-  // Database provisioning writes DATABASE_URL to Vercel and triggers a redeploy -
+  // Database provisioning writes DATABASE_URL to the host and triggers a redeploy -
   // neither exists in local-development mode. Set DATABASE_URL in .env.local instead.
   if (isLocalMode()) {
     return NextResponse.json(
@@ -252,7 +246,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Parse action and optional credential overrides from body.
-  // Credentials may be supplied in the body when the Vercel redeploy that picks
+  // Credentials may be supplied in the body when the redeploy that picks
   // them up as env vars hasn't happened yet (combined first-redeploy flow).
   let body: {
     action?: string
@@ -261,6 +255,11 @@ export async function POST(req: NextRequest) {
     databaseUrl?: string
     destroyData?: boolean
     neonApiKey?: string
+    hostProvider?: string
+    hostToken?: string
+    hostSiteId?: string
+    // Pre-Netlify names for the same two fields, still accepted from a wizard tab
+    // that was open across an update.
     vercelToken?: string
     vercelProjectId?: string
   } = {}
@@ -274,8 +273,12 @@ export async function POST(req: NextRequest) {
   // Resolve credentials: body params override env vars to support the single-redeploy
   // setup flow where bootstrap vars haven't been picked up by a redeploy yet.
   const neonApiKey = body.neonApiKey?.trim() || process.env.NEON_API_KEY
-  const vercelToken = body.vercelToken || process.env.VERCEL_API_TOKEN
-  const vercelProjectId = body.vercelProjectId || process.env.VERCEL_PROJECT_ID
+  const legacyVercel = !body.hostProvider && (body.vercelToken || body.vercelProjectId)
+  const host = resolveHostingCredentials({
+    provider: legacyVercel ? 'vercel' : body.hostProvider,
+    token: body.hostToken || body.vercelToken,
+    siteId: body.hostSiteId || body.vercelProjectId,
+  })
 
   // ── Action: list ──────────────────────────────────────────────────────────
   if (action === 'list') {
@@ -328,7 +331,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Action: check-existing ────────────────────────────────────────────────
-  // Must be handled before any DATABASE_URL or Vercel credential guards, since
+  // Must be handled before any DATABASE_URL or hosting credential guards, since
   // it only needs the Neon API key and must not short-circuit on already_set.
   if (action === 'check-existing') {
     if (!neonApiKey) {
@@ -348,12 +351,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── Actions that need Vercel credentials ─────────────────────────────────
-  if (!vercelToken || !vercelProjectId) {
-    return NextResponse.json(
-      { error: 'VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required' },
-      { status: 400 }
-    )
+  // ── Actions that need hosting credentials ────────────────────────────────
+  if (!host) {
+    return NextResponse.json({ error: missingCredentialsMessage() }, { status: 400 })
   }
 
   // ── Action: save-url (user-supplied DATABASE_URL) ─────────────────────────
@@ -369,10 +369,8 @@ export async function POST(req: NextRequest) {
       )
     }
     try {
-      await upsertVercelEnvVars(vercelToken, vercelProjectId, [
-        { key: 'DATABASE_URL', value: databaseUrl, type: 'sensitive' },
-      ])
-      const deployResult0 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
+      await writeDatabaseEnvVars(host, databaseUrl)
+      const deployResult0 = await triggerRedeploy(host)
       return NextResponse.json({ status: 'provisioned', ...redeployFields(deployResult0) })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -386,21 +384,21 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Action: ensure-redeploy ───────────────────────────────────────────────
-  // Called when the wizard finds DATABASE_URL already written to Vercel but not
+  // Called when the wizard finds DATABASE_URL already written to the host but not
   // yet in the runtime env. Guarantees a redeploy is actually in flight: reuses
   // a running deployment if there is one, otherwise triggers a fresh one. This
   // self-heals the stuck state where an earlier trigger failed (or the deploy
   // errored) and the UI would otherwise wait forever on a redeploy that never runs.
   if (action === 'ensure-redeploy') {
-    if (!(await vercelDbUrlExists(vercelToken, vercelProjectId))) {
+    if (!(await hostDbUrlExists(host))) {
       // Nothing provisioned after all — send the wizard back to the choice panel.
       return NextResponse.json({ status: 'missing' })
     }
-    const ensureResult = await ensureVercelRedeploy(vercelToken, vercelProjectId)
+    const ensureResult = await ensureRedeploy(host)
     return NextResponse.json({ status: 'provisioned', ...redeployFields(ensureResult) })
   }
 
-  // Note: no short-circuit on DATABASE_URL already existing in the Vercel project
+  // Note: no short-circuit on DATABASE_URL already existing in the hosting project
   // env vars. A stale value from a prior attempt must not turn an explicit
   // provisioning request into a silent no-op — the upsert overwrites it and a
   // fresh redeploy picks it up.
@@ -421,8 +419,8 @@ export async function POST(req: NextRequest) {
       if (body.destroyData) {
         await dropAllSchemas(pooledUri)
       }
-      await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUri, project.id)
-      const deployResult1 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
+      await writeDatabaseEnvVars(host, pooledUri, project.id)
+      const deployResult1 = await triggerRedeploy(host)
       return NextResponse.json({ status: 'provisioned', neonProjectId: project.id, ...redeployFields(deployResult1) })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -441,10 +439,10 @@ export async function POST(req: NextRequest) {
 
   // Derive a stable, identifiable name for the Neon project so we can detect
   // duplicate attempts via the name-search endpoint (idempotency). Leads with
-  // the Vercel project's own name so it's recognisable in the Neon dashboard;
+  // the hosting project's own name so it's recognisable in the Neon dashboard;
   // the id suffix guarantees uniqueness even if that name isn't available.
-  const vercelProjectName = await getVercelProjectName(vercelToken, vercelProjectId)
-  const neonProjectName = `${vercelProjectName ?? 'cactus'}-${vercelProjectId}`
+  const hostSiteName = await getHostSiteName(host)
+  const neonProjectName = `${hostSiteName ?? 'cactus'}-${host.siteId}`
 
   try {
     const orgId = await getNeonOrgId(neonApiKey)
@@ -453,8 +451,8 @@ export async function POST(req: NextRequest) {
     if (existingId) {
       // Reuse the existing project — fetch pooled URI via pooled=true endpoint.
       const { pooledUri, project } = await getPooledUriForProject(neonApiKey, existingId)
-      await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUri, project.id)
-      const deployResult2 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
+      await writeDatabaseEnvVars(host, pooledUri, project.id)
+      const deployResult2 = await triggerRedeploy(host)
       return NextResponse.json({
         status: 'provisioned',
         neonProjectId: project.id,
@@ -466,8 +464,8 @@ export async function POST(req: NextRequest) {
     // Create a new Neon project — the create response includes connection_parameters.
     const neonData = await createNeonProject(neonApiKey, neonProjectName, regionId, orgId)
     const pooledUrl = buildPooledUri(neonData)
-    await writeVercelEnvVars(vercelToken, vercelProjectId, pooledUrl, neonData.project.id)
-    const deployResult3 = await triggerVercelRedeploy(vercelToken, vercelProjectId)
+    await writeDatabaseEnvVars(host, pooledUrl, neonData.project.id)
+    const deployResult3 = await triggerRedeploy(host)
     return NextResponse.json({
       status: 'provisioned',
       neonProjectId: neonData.project.id,

@@ -161,3 +161,43 @@ async function createRedeploy(
   const deployData = (await deployRes.json()) as { id?: string; uid?: string }
   return { triggered: true, deploymentId: deployData.id ?? deployData.uid }
 }
+
+export type VercelDeploymentSummary = { uid: string; created: number; readyState?: string; state?: string }
+
+// Newest deployments for the project, newest first. `productionOnly` scopes it to
+// target=production - previews are not something an install or update can collide
+// with. Returns null when the API will not answer, so callers can fail open.
+export async function listVercelDeployments(
+  token: string,
+  projectId: string,
+  opts: { productionOnly?: boolean; limit?: number } = {}
+): Promise<VercelDeploymentSummary[] | null> {
+  const target = opts.productionOnly ? '&target=production' : ''
+  try {
+    const res = await fetch(
+      `${VERCEL_API}/v6/deployments?projectId=${encodeURIComponent(projectId)}${target}&limit=${opts.limit ?? 5}`,
+      { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) }
+    )
+    if (!res.ok) return null
+    const data = (await res.json()) as { deployments?: VercelDeploymentSummary[] }
+    return data.deployments ?? []
+  } catch {
+    return null
+  }
+}
+
+// One deployment's readyState, or null when the id is unknown (stale, or from
+// another project) or the API will not answer.
+export async function getVercelDeploymentState(token: string, deploymentId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${VERCEL_API}/v13/deployments/${encodeURIComponent(deploymentId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { readyState?: string; status?: string }
+    return data.readyState ?? data.status ?? null
+  } catch {
+    return null
+  }
+}

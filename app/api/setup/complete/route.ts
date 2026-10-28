@@ -5,9 +5,10 @@ import { syncToEdgeConfig } from '@/lib/config/edge-config'
 import { getSessionFromCookie, createSession, setSessionCookie } from '@/lib/auth/session'
 import { seedDefaultLayouts } from '@/lib/setup/starterLayouts'
 import { upsertStylesInfoPage } from '@/lib/setup/stylesInfoPage'
-import { upsertVercelEnvVar } from '@/lib/vercel/env'
-import { ensureCronSecret } from '@/lib/vercel/cron-secret'
-import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
+import { upsertHostEnvVar } from '@/lib/hosting/env'
+import { ensureCronSecret } from '@/lib/hosting/cron-secret'
+import { triggerRedeploy } from '@/lib/hosting/deploy'
+import { getHostingCredentials } from '@/lib/hosting/provider'
 import { isLocalMode } from '@/lib/config/env'
 import { DEFAULT_DESIGN_TOKENS } from '@/lib/design/tokens'
 import pkg from '@/package.json'
@@ -71,35 +72,34 @@ export async function POST() {
     siteStatus: 'comingSoon',
   }).catch(() => {})
 
-  // Same story as SESSION_SECRET below: the Vercel connect step mints CRON_SECRET,
-  // and that step is skipped when VERCEL_API_TOKEN was already in the environment.
+  // Same story as SESSION_SECRET below: the hosting connect step mints CRON_SECRET,
+  // and that step is skipped when the hosting token was already in the environment.
   // Deliberately NOT part of the needsRedeploy condition underneath - a site that has
   // its other secrets should keep its auto-login, and a scheduled job that starts one
   // deploy later than it might have costs nobody anything.
   await ensureCronSecret()
 
-  // SESSION_SECRET is generated during the Vercel connect step, but that step is
-  // skipped when VERCEL_API_TOKEN is already in the environment before setup.
-  // If it's missing, generate it now, write it to Vercel, and trigger a redeploy
+  // SESSION_SECRET is generated during the hosting connect step, but that step is
+  // skipped when the hosting token is already in the environment before setup.
+  // If it's missing, generate it now, write it to the host, and trigger a redeploy
   // so the new deployment picks it up. Auto-login is skipped because the current
   // process won't see the new env var until redeployed.
   //
-  // In local-development mode there is no Vercel project to write to and no
+  // In local-development mode there is no hosting project to write to and no
   // redeploy: SESSION_SECRET / ENCRYPTION_KEY are expected in .env.local, so skip
   // this block entirely and proceed to auto-login.
   if (!isLocalMode() && (!process.env.SESSION_SECRET || !process.env.ENCRYPTION_KEY)) {
-    const vercelToken = process.env.VERCEL_API_TOKEN
-    const projectId = process.env.VERCEL_PROJECT_ID
-    if (vercelToken && projectId) {
+    const creds = getHostingCredentials()
+    if (creds) {
       if (!process.env.SESSION_SECRET) {
         const secret = randomBytes(48).toString('hex')
-        await upsertVercelEnvVar(vercelToken, projectId, 'SESSION_SECRET', secret).catch(() => {})
+        await upsertHostEnvVar(creds, 'SESSION_SECRET', secret).catch(() => {})
       }
       if (!process.env.ENCRYPTION_KEY) {
         const key = randomBytes(32).toString('hex')
-        await upsertVercelEnvVar(vercelToken, projectId, 'ENCRYPTION_KEY', key).catch(() => {})
+        await upsertHostEnvVar(creds, 'ENCRYPTION_KEY', key).catch(() => {})
       }
-      const redeploy = await triggerVercelRedeploy(vercelToken, projectId).catch(
+      const redeploy = await triggerRedeploy(creds).catch(
         (err: unknown) => ({ triggered: false as const, error: err instanceof Error ? err.message : 'Unknown error' })
       )
       if (!redeploy.triggered) {

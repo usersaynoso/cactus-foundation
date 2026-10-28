@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse, after } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
-import { getVercelEnvVarKeys, upsertVercelEnvVars, deleteVercelEnvVars } from '@/lib/vercel/env'
-import { triggerVercelRedeploy } from '@/lib/vercel/deploy'
+import { getHostEnvVarKeys, upsertHostEnvVars, deleteHostEnvVars } from '@/lib/hosting/env'
+import { triggerRedeploy } from '@/lib/hosting/deploy'
+import { getHostingCredentials, missingCredentialsMessage } from '@/lib/hosting/provider'
 import { isLocalMode } from '@/lib/config/env'
 import { errorResponse } from '@/lib/utils'
 import { ALL_PROVIDERS, envKeysForProvider, ALL_CLOUDFLARE_CREDENTIAL_KEYS } from '@/lib/media/providers'
@@ -16,7 +17,8 @@ export const maxDuration = 60
 
 // The env vars that can be managed via the UI.
 // Strictly protected infra vars that must never be deleted:
-//   DATABASE_URL, SESSION_SECRET, SITE_URL, VERCEL_API_TOKEN, VERCEL_PROJECT_ID
+//   DATABASE_URL, SESSION_SECRET, SITE_URL, and the hosting credential pair
+//   (VERCEL_API_TOKEN / VERCEL_PROJECT_ID or NETLIFY_API_TOKEN / NETLIFY_SITE_ID)
 const ALLOWED_KEYS = new Set([
   // Email
   'BREVO_API_KEY',
@@ -62,6 +64,8 @@ const PROTECTED_KEYS = new Set([
   'SITE_URL',
   'VERCEL_API_TOKEN',
   'VERCEL_PROJECT_ID',
+  'NETLIFY_API_TOKEN',
+  'NETLIFY_SITE_ID',
 ])
 
 // Installed modules declare their env vars via the manifest's requiredEnvVars;
@@ -93,9 +97,9 @@ export async function GET() {
   if (!user) return errorResponse('Not authenticated', 401)
   if (!isAdmin(user)) return errorResponse('Forbidden', 403)
 
-  // Local-development mode: config lives in .env.local, not a Vercel project.
+  // Local-development mode: config lives in .env.local, not a hosting project.
   // Report which managed vars are present in the running process (read-only) so
-  // the UI can show status without ever calling the Vercel API.
+  // the UI can show status without ever calling the hosting API.
   if (isLocalMode()) {
     const vars: Record<string, boolean> = {}
     for (const key of await getManagedKeys()) {
@@ -104,14 +108,13 @@ export async function GET() {
     return NextResponse.json({ vars, localMode: true })
   }
 
-  const token = process.env.VERCEL_API_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) {
-    return errorResponse('VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required', 503)
+  const creds = getHostingCredentials()
+  if (!creds) {
+    return errorResponse(missingCredentialsMessage(), 503)
   }
 
   try {
-    const keys = await getVercelEnvVarKeys(token, projectId)
+    const keys = await getHostEnvVarKeys(creds)
     const keySet = new Set(keys)
     const vars: Record<string, boolean> = {}
     for (const key of await getManagedKeys()) {
@@ -124,7 +127,7 @@ export async function GET() {
   }
 }
 
-// POST — writes supplied vars to Vercel project env vars.
+// POST — writes supplied vars to the hosting project's env vars.
 // Body: { vars: Array<{ key: string; value: string }> }
 // Empty/blank values are skipped.
 export async function POST(req: NextRequest) {
@@ -136,10 +139,9 @@ export async function POST(req: NextRequest) {
     return errorResponse('Environment variables are managed via .env.local in local-development mode. Edit the file and restart the dev server.', 503)
   }
 
-  const token = process.env.VERCEL_API_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) {
-    return errorResponse('VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required', 503)
+  const creds = getHostingCredentials()
+  if (!creds) {
+    return errorResponse(missingCredentialsMessage(), 503)
   }
 
   let body: { vars?: Array<{ key: string; value: string }> }
@@ -182,7 +184,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await upsertVercelEnvVars(token, projectId, toWrite)
+    await upsertHostEnvVars(creds, toWrite)
     await recordDeploymentNeeded({ label: await labelForEnvKeys(toWrite.map((v) => v.key)) })
     return NextResponse.json({ ok: true, written: toWrite.length, skipped })
   } catch (err: unknown) {
@@ -203,18 +205,17 @@ export async function DELETE() {
     return errorResponse('Environment variables are managed via .env.local in local-development mode. There is nothing to reset here.', 503)
   }
 
-  const token = process.env.VERCEL_API_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) {
-    return errorResponse('VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required', 503)
+  const creds = getHostingCredentials()
+  if (!creds) {
+    return errorResponse(missingCredentialsMessage(), 503)
   }
 
   let deleted: string[] = []
   let failed: Array<{ key: string; error: string }> = []
 
   try {
-    const allKeys = await getVercelEnvVarKeys(token, projectId)
-    const result = await deleteVercelEnvVars(token, projectId, allKeys)
+    const allKeys = await getHostEnvVarKeys(creds)
+    const result = await deleteHostEnvVars(creds, allKeys)
     deleted = result.deleted
     failed = result.failed
     console.log(`[reset] deleted ${deleted.length} vars:`, deleted)
@@ -223,7 +224,7 @@ export async function DELETE() {
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    console.error('[reset] deleteVercelEnvVars threw:', message)
+    console.error('[reset] deleteHostEnvVars threw:', message)
     return errorResponse(`Failed to delete env vars: ${message}`, 502)
   }
 
@@ -242,7 +243,7 @@ export async function DELETE() {
   // Trigger the redeploy after the response is sent so it never blocks or
   // races against the function timeout.
   after(async () => {
-    const result = await triggerVercelRedeploy(token, projectId)
+    const result = await triggerRedeploy(creds)
     if (result.triggered && result.deploymentId) {
       try {
         await prisma.siteConfig.updateMany({

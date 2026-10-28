@@ -1,0 +1,17 @@
+# Netlify configuration for a Cactus site.
+#
+# Written by Cactus: the schedule below is rewritten whenever the site needs its
+# scheduled-job dispatcher woken more or less often, so edits to this file are
+# overwritten. See lib/cron/netlify-file.ts.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# Netlify does not read package.json "engines"; this keeps the build on the same
+# Node major as the rest of the estate.
+[build.environment]
+  NODE_VERSION = "24"
+
+[functions."cactus-cron"]
+  schedule = "*/30 * * * *"

@@ -40,6 +40,8 @@ next-env.d.ts
 
 # Vercel
 .vercel
+# Netlify CLI / local build output
+.netlify
 
 # Coverage
 coverage/

@@ -1,25 +1,26 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import type { EnvVarStatus } from '@/lib/config/env'
 import type { DatabaseState } from '@/app/api/setup/env-check/route'
 import { NEON_REGIONS } from '@/lib/config/neon-regions'
 import DeployLogViewer from '@/components/admin/DeployLogViewer'
+import { HOSTING_CREDENTIAL_KEYS, type HostingProvider } from '@/lib/hosting/provider'
 
 type Step = 'connect' | 'database' | 'configure'
 
 // Sub-states within the 'env' step.
 type DbSubStep =
   | 'loading'              // env-check in flight
-  | 'vercel-config'        // VERCEL_API_TOKEN/PROJECT_ID not set → collect them
-  | 'vercel-listing'       // fetching project list from Vercel API
-  | 'vercel-configuring'   // writing bootstrap env vars to Vercel
+  | 'host-config'          // hosting token + project/site id not set → collect them
+  | 'host-listing'         // fetching the project/site list from the host's API
+  | 'host-configuring'     // writing bootstrap env vars to the host
   | 'block'                // unexpected required var missing → hard block
   | 'ready'                // all required vars set (DATABASE_URL present)
   | 'db-choice'            // DATABASE_URL absent, NEON_API_KEY present → offer auto or manual
   | 'db-manual'            // DATABASE_URL absent, NEON_API_KEY absent → manual instructions only
   | 'db-provisioning'      // Neon API call in flight
-  | 'db-redeploying'       // DATABASE_URL written, waiting for Vercel redeploy + DB reachable
+  | 'db-redeploying'       // DATABASE_URL written, waiting for the redeploy + DB reachable
   | 'db-error'             // Neon API call failed — show error + fall back to manual
   | 'db-local'             // local mode, DATABASE_URL absent → show .env.local instructions
 
@@ -29,7 +30,9 @@ type EnvCheckData = {
   missingRequired: string[]
   databaseState: DatabaseState
   neonAvailable: boolean
-  vercelConfigured: boolean
+  hostingConfigured: boolean
+  detectedHost: HostingProvider | null
+  hostingProvider: HostingProvider | null
   localMode: boolean
   siteUrl: string | null
 }
@@ -42,13 +45,13 @@ type ExistingDbState = {
   admin: { username: string; email: string } | null
 }
 
-type VercelDomain = { name: string; verified: boolean }
-type VercelProject = { id: string; name: string; domains: VercelDomain[] }
+type HostDomain = { name: string; verified: boolean }
+type HostProject = { id: string; name: string; domains: HostDomain[] }
 type DomainChallenge = { type: string; domain: string; value: string; reason: string }
 
 // Two independent things can be outstanding on a domain, and either one stops the
-// site serving: `misconfigured` means DNS isn't pointing at Vercel yet, `!verified`
-// means Vercel hasn't accepted proof of ownership (the TXT challenge) yet. A domain
+// site serving: `misconfigured` means DNS isn't pointing at the host yet, `!verified`
+// means the host hasn't accepted proof of ownership (Vercel's TXT challenge) yet. A domain
 // can be pointed correctly and still be unverified, so both are tracked separately.
 type DomainState = {
   name: string
@@ -59,6 +62,41 @@ type DomainState = {
 }
 type DomainStateResult = { ok: true; state: DomainState } | { ok: false; error: string }
 
+// Everything the wizard says that differs between hosting platforms.
+type HostCopy = {
+  label: string
+  unit: 'project' | 'site'
+  tagline: string
+  tokenPlaceholder: string
+  tokenUrl: string
+  tokenWhere: string
+  platformSuffix: string
+  redeployHint: string
+}
+
+const HOST_COPY: Record<HostingProvider, HostCopy> = {
+  vercel: {
+    label: 'Vercel',
+    unit: 'project',
+    tagline: 'Serverless hosting from the people who make Next.js.',
+    tokenPlaceholder: 'vcp_… or ve_…',
+    tokenUrl: 'https://vercel.com/account/tokens',
+    tokenWhere: 'Vercel dashboard → Account Settings → Tokens',
+    platformSuffix: '.vercel.app',
+    redeployHint: 'Trigger a redeploy from the Vercel dashboard (Deployments → ⋯ → Redeploy)',
+  },
+  netlify: {
+    label: 'Netlify',
+    unit: 'site',
+    tagline: 'Git-driven hosting with builds, functions and a global CDN.',
+    tokenPlaceholder: 'nfp_…',
+    tokenUrl: 'https://app.netlify.com/user/applications#personal-access-tokens',
+    tokenWhere: 'Netlify → User settings → Applications → Personal access tokens',
+    platformSuffix: '.netlify.app',
+    redeployHint: 'Trigger a deploy from the Netlify dashboard (Deploys → Trigger deploy → Deploy site)',
+  },
+}
+
 function toDomainState(data: Partial<DomainState>, fallbackName: string): DomainState {
   return {
     name: data.name ?? fallbackName,
@@ -67,6 +105,20 @@ function toDomainState(data: Partial<DomainState>, fallbackName: string): Domain
     misconfigured: data.misconfigured ?? true,
     recommended: data.recommended ?? { type: 'A', host: '@', value: '76.76.21.21' },
   }
+}
+
+// The database panels below the connect step only need the platform's wording, so
+// they read it from here rather than having it threaded through every prop list.
+const HostCopyContext = createContext<HostCopy>(HOST_COPY.vercel)
+
+// Vars the wizard collects itself, so their absence is a step to complete rather
+// than a hard block: the database URL and either platform's credential pair.
+const WIZARD_HANDLED_VARS = new Set([
+  'DATABASE_URL',
+  ...Object.values(HOSTING_CREDENTIAL_KEYS).flatMap((k) => [k.token, k.siteId]),
+])
+function isWizardHandledVar(name: string): boolean {
+  return WIZARD_HANDLED_VARS.has(name)
 }
 
 // Polls /api/health until the database is reachable, then calls onReady.
@@ -99,10 +151,10 @@ function startHealthPolling(onReady: () => void): () => void {
   }
 }
 
-// Polls /api/setup/env-check until vercelConfigured is true, then calls onReady
+// Polls /api/setup/env-check until hostingConfigured is true, then calls onReady
 // with the data from that same response (avoids a second fetch racing the old/new deployment).
 // Returns a cancel function.
-function startVercelConfiguredPolling(onReady: (data: EnvCheckData) => void): () => void {
+function startHostingConfiguredPolling(onReady: (data: EnvCheckData) => void): () => void {
   let cancelled = false
   let timer: ReturnType<typeof setTimeout>
 
@@ -112,7 +164,7 @@ function startVercelConfiguredPolling(onReady: (data: EnvCheckData) => void): ()
       const res = await fetch('/api/setup/env-check')
       if (res.ok) {
         const data = (await res.json()) as EnvCheckData
-        if (data.vercelConfigured) {
+        if (data.hostingConfigured) {
           if (!cancelled) onReady(data)
           return
         }
@@ -157,13 +209,18 @@ export default function SetupPage() {
   const [deployLogs, setDeployLogs] = useState<string[]>([])
   const [deployState, setDeployState] = useState('')
 
-  // Vercel config
-  const [vercelToken, setVercelToken] = useState('')
-  const [vercelNeonKey, setVercelNeonKey] = useState('')
-  const [vercelProjects, setVercelProjects] = useState<VercelProject[]>([])
+  // Hosting platform config. The platform this site is running on is preselected
+  // once env-check reports it; the owner can still pick the other.
+  const [hostProvider, setHostProvider] = useState<HostingProvider>('vercel')
+  const [detectedHost, setDetectedHost] = useState<HostingProvider | null>(null)
+  const hostCopy = HOST_COPY[hostProvider]
+  const connectEndpoint = `/api/setup/${hostProvider}-connect`
+  const [hostToken, setHostToken] = useState('')
+  const [setupNeonKey, setSetupNeonKey] = useState('')
+  const [hostProjects, setHostProjects] = useState<HostProject[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
-  const [vercelError, setVercelError] = useState('')
-  const [vercelConfiguring, setVercelConfiguring] = useState(false)
+  const [hostError, setHostError] = useState('')
+  const [hostConfiguring, setHostConfiguring] = useState(false)
 
   // Account fields
   const [username, setUsername] = useState('')
@@ -208,7 +265,7 @@ export default function SetupPage() {
     window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''))
   }, [])
 
-  // ── Step 1: Vercel connection check ───────────────────────────────────────
+  // ── Step 1: hosting connection check ──────────────────────────────────────
 
   useEffect(() => {
     if (step !== 'connect') return
@@ -219,30 +276,31 @@ export default function SetupPage() {
       .then((r) => r.json())
       .then((d: EnvCheckData) => {
         setEnvData(d)
+        setDetectedHost(d.detectedHost)
+        const knownHost = d.hostingProvider ?? d.detectedHost
+        if (knownHost) setHostProvider(knownHost)
 
-        // Local-development mode: there is no Vercel project to connect, so skip
+        // Local-development mode: there is no hosting project to connect, so skip
         // the connect step entirely and go straight to the database step.
         if (d.localMode) {
           setStep('database')
           return
         }
 
-        // Vercel not configured → show vercel-config panel
-        if (!d.vercelConfigured) {
-          setDbSubStep('vercel-config')
+        // Hosting not configured → show the connect panel
+        if (!d.hostingConfigured) {
+          setDbSubStep('host-config')
           return
         }
 
         // Any other required var missing that the wizard doesn't handle → hard block
-        const unexpectedMissing = d.missingRequired.filter(
-          (v) => v !== 'DATABASE_URL' && v !== 'VERCEL_API_TOKEN' && v !== 'VERCEL_PROJECT_ID'
-        )
+        const unexpectedMissing = d.missingRequired.filter((v) => !isWizardHandledVar(v))
         if (unexpectedMissing.length > 0) {
           setDbSubStep('block')
           return
         }
 
-        // Vercel is configured — connect step is done, advance immediately
+        // Hosting is configured — connect step is done, advance immediately
         setStep('database')
       })
       .catch(() => {
@@ -272,15 +330,15 @@ export default function SetupPage() {
           }
         } else if (d.localMode) {
           // Local mode never writes DATABASE_URL or redeploys - the user sets it
-          // in .env.local. Show plain instructions rather than the Neon/Vercel panels.
+          // in .env.local. Show plain instructions rather than the Neon/hosting panels.
           setDbSubStep('db-local')
         } else if (d.databaseState === 'provisioned-redeploying') {
-          // DATABASE_URL is written to Vercel but not in the runtime yet. Don't
+          // DATABASE_URL is written to the host but not in the runtime yet. Don't
           // just sit on a spinner — make sure a redeploy is actually in flight
           // (an earlier trigger may have failed, or the deploy may have errored).
           setDbSubStep('db-redeploying')
           handleEnsureRedeploy(d)
-        } else if (d.neonAvailable || !!vercelNeonKey) {
+        } else if (d.neonAvailable || !!setupNeonKey) {
           setDbSubStep('db-choice')
         } else {
           setDbSubStep('db-manual')
@@ -311,8 +369,9 @@ export default function SetupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'ensure-redeploy',
-          vercelToken: vercelToken || undefined,
-          vercelProjectId: selectedProjectId || undefined,
+          hostToken: hostToken || undefined,
+          hostSiteId: selectedProjectId || undefined,
+          hostProvider,
         }),
       })
       const result = (await res.json()) as {
@@ -328,7 +387,7 @@ export default function SetupPage() {
       if (result.status === 'missing') {
         // Nothing provisioned after all — back to the database options.
         const d = data ?? envData
-        setDbSubStep(d?.neonAvailable || !!vercelNeonKey ? 'db-choice' : 'db-manual')
+        setDbSubStep(d?.neonAvailable || !!setupNeonKey ? 'db-choice' : 'db-manual')
         return
       }
       if (!res.ok || result.status === 'error') {
@@ -343,7 +402,7 @@ export default function SetupPage() {
         setDeployLogs([])
         setDeploymentId(result.deploymentId)
         cancelDeployLogPollRef.current?.()
-        cancelDeployLogPollRef.current = startDeployLogPolling(result.deploymentId, vercelToken)
+        cancelDeployLogPollRef.current = startDeployLogPolling(result.deploymentId, hostToken)
       }
       startRedeployPolling()
     } catch (err: unknown) {
@@ -360,14 +419,14 @@ export default function SetupPage() {
     async function poll() {
       if (cancelled) return
       try {
-        const projectParam = selectedProjectId ? `&projectId=${encodeURIComponent(selectedProjectId)}` : ''
+        const projectParam = `&provider=${hostProvider}${selectedProjectId ? `&siteId=${encodeURIComponent(selectedProjectId)}` : ''}`
         const url = lastSeen
           ? `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}&since=${lastSeen}${projectParam}`
           : `/api/setup/deployment-logs?deploymentId=${encodeURIComponent(id)}${projectParam}`
-        // The Vercel token goes in a header, not the query string - a URL ends up
+        // The hosting token goes in a header, not the query string - a URL ends up
         // in access logs and browser history, and this is a live API credential.
         const res = await fetch(url, {
-          headers: token ? { 'x-vercel-token': token } : undefined,
+          headers: token ? { 'x-host-token': token } : undefined,
         })
         if (res.ok) {
           const data = (await res.json()) as { state?: string; logLines?: string[]; latestTimestamp?: number | null }
@@ -404,28 +463,38 @@ export default function SetupPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- step and handleSmartContinue are stable; only dbReady transition should trigger this
   }, [dbReady])
 
-  // ── Vercel config handlers ─────────────────────────────────────────────────
+  // ── Hosting config handlers ────────────────────────────────────────────────
 
-  async function handleVercelListProjects() {
-    setVercelError('')
-    setDbSubStep('vercel-listing')
-    setVercelProjects([])
+  // Switching platform throws away anything read from the other one.
+  function handleChooseHost(provider: HostingProvider) {
+    if (provider === hostProvider) return
+    setHostProvider(provider)
+    setHostToken('')
+    setHostProjects([])
+    setSelectedProjectId('')
+    setHostError('')
+  }
+
+  async function handleHostListProjects() {
+    setHostError('')
+    setDbSubStep('host-listing')
+    setHostProjects([])
     setSelectedProjectId('')
     try {
-      const res = await fetch('/api/setup/vercel-connect', {
+      const res = await fetch(connectEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list-projects', token: vercelToken }),
+        body: JSON.stringify({ action: 'list-projects', token: hostToken }),
       })
-      const data = (await res.json()) as { projects?: VercelProject[]; error?: string }
+      const data = (await res.json()) as { projects?: HostProject[]; error?: string }
       if (!res.ok || data.error) {
-        setVercelError(data.error ?? 'Failed to list projects')
-        setDbSubStep('vercel-config')
+        setHostError(data.error ?? 'Failed to list projects')
+        setDbSubStep('host-config')
         return
       }
       const projects = data.projects ?? []
-      setVercelProjects(projects)
-      setDbSubStep('vercel-config')
+      setHostProjects(projects)
+      setDbSubStep('host-config')
       // Auto-select: prefer the project whose domain matches the current hostname,
       // otherwise fall back to selecting the only project if there's just one.
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
@@ -438,19 +507,19 @@ export default function SetupPage() {
         setSelectedProjectId(projects[0]?.id ?? '')
       }
     } catch (err: unknown) {
-      setVercelError(err instanceof Error ? err.message : 'Network error')
-      setDbSubStep('vercel-config')
+      setHostError(err instanceof Error ? err.message : 'Network error')
+      setDbSubStep('host-config')
     }
   }
 
-  async function handleListAccountDomains(): Promise<{ ok: boolean; domains?: VercelDomain[]; error?: string }> {
+  async function handleListAccountDomains(): Promise<{ ok: boolean; domains?: HostDomain[]; error?: string }> {
     try {
-      const res = await fetch('/api/setup/vercel-connect', {
+      const res = await fetch(connectEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list-account-domains', token: vercelToken, projectId: selectedProjectId }),
+        body: JSON.stringify({ action: 'list-account-domains', token: hostToken, projectId: selectedProjectId }),
       })
-      const data = (await res.json()) as { domains?: VercelDomain[]; error?: string }
+      const data = (await res.json()) as { domains?: HostDomain[]; error?: string }
       if (!res.ok || data.error) {
         return { ok: false, error: data.error ?? 'Failed to list domains' }
       }
@@ -460,20 +529,20 @@ export default function SetupPage() {
     }
   }
 
-  async function handleVercelConfigure(domain?: string) {
+  async function handleHostConfigure(domain?: string) {
     if (!selectedProjectId) return
-    setVercelError('')
-    setVercelConfiguring(true)
-    setDbSubStep('vercel-configuring')
+    setHostError('')
+    setHostConfiguring(true)
+    setDbSubStep('host-configuring')
     try {
-      const res = await fetch('/api/setup/vercel-connect', {
+      const res = await fetch(connectEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'configure',
-          token: vercelToken,
+          token: hostToken,
           projectId: selectedProjectId,
-          neonApiKey: vercelNeonKey || undefined,
+          neonApiKey: setupNeonKey || undefined,
           domain: domain || undefined,
         }),
       })
@@ -483,29 +552,29 @@ export default function SetupPage() {
         error?: string
       }
       if (!res.ok || data.error) {
-        setVercelError(data.error ?? 'Failed to configure project')
-        setDbSubStep('vercel-config')
-        setVercelConfiguring(false)
+        setHostError(data.error ?? 'Failed to configure project')
+        setDbSubStep('host-config')
+        setHostConfiguring(false)
         return
       }
-      // Vercel is now configured — connect step is complete, advance immediately.
+      // Hosting is now configured — connect step is complete, advance immediately.
       setStep('database')
     } catch (err: unknown) {
-      setVercelError(err instanceof Error ? err.message : 'Network error')
-      setDbSubStep('vercel-config')
+      setHostError(err instanceof Error ? err.message : 'Network error')
+      setDbSubStep('host-config')
     } finally {
-      setVercelConfiguring(false)
+      setHostConfiguring(false)
     }
   }
 
   async function handleAddDomain(projectId: string, domain: string): Promise<DomainStateResult> {
     try {
-      const res = await fetch('/api/setup/vercel-connect', {
+      const res = await fetch(connectEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'add-domain',
-          token: vercelToken,
+          token: hostToken,
           projectId,
           domain,
         }),
@@ -515,11 +584,11 @@ export default function SetupPage() {
         return { ok: false, error: data.error ?? 'Failed to add domain' }
       }
       const state = toDomainState(data, domain)
-      setVercelProjects((prev) =>
+      setHostProjects((prev) =>
         prev.map((p) => {
           if (p.id !== projectId) return p
-          const entry: VercelDomain = { name: state.name, verified: state.verified }
-          // Vercel treats a re-add of an already-attached domain as a no-op, so this
+          const entry: HostDomain = { name: state.name, verified: state.verified }
+          // Both hosts treat a re-add of an already-attached domain as a no-op, so this
           // has to update in place rather than blindly appending a duplicate.
           const known = p.domains.some((d) => d.name === state.name)
           return {
@@ -538,17 +607,17 @@ export default function SetupPage() {
 
   async function handleDomainStatus(projectId: string, domain: string): Promise<DomainStateResult> {
     try {
-      const res = await fetch('/api/setup/vercel-connect', {
+      const res = await fetch(connectEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'domain-status', token: vercelToken, projectId, domain }),
+        body: JSON.stringify({ action: 'domain-status', token: hostToken, projectId, domain }),
       })
       const data = (await res.json()) as Partial<DomainState> & { error?: string }
       if (!res.ok || data.error) {
         return { ok: false, error: data.error ?? 'Failed to check domain status' }
       }
       const state = toDomainState(data, domain)
-      setVercelProjects((prev) =>
+      setHostProjects((prev) =>
         prev.map((p) => ({
           ...p,
           domains: p.domains.map((d) => (d.name === state.name ? { ...d, verified: state.verified } : d)),
@@ -574,7 +643,7 @@ export default function SetupPage() {
       setDeployLogs([])
       setDeploymentId(data.deploymentId)
       cancelDeployLogPollRef.current?.()
-      cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId, vercelToken)
+      cancelDeployLogPollRef.current = startDeployLogPolling(data.deploymentId, hostToken)
     }
     startRedeployPolling()
   }
@@ -591,9 +660,10 @@ export default function SetupPage() {
           action: 'use-existing',
           projectId,
           destroyData: destroyFirst,
-          neonApiKey: vercelNeonKey || undefined,
-          vercelToken: vercelToken || undefined,
-          vercelProjectId: selectedProjectId || undefined,
+          neonApiKey: setupNeonKey || undefined,
+          hostToken: hostToken || undefined,
+          hostSiteId: selectedProjectId || undefined,
+          hostProvider,
         }),
       })
       const data = (await res.json()) as { status?: string; error?: string; deploymentId?: string; redeployError?: string }
@@ -623,8 +693,9 @@ export default function SetupPage() {
         body: JSON.stringify({
           action: 'save-url',
           databaseUrl: url,
-          vercelToken: vercelToken || undefined,
-          vercelProjectId: selectedProjectId || undefined,
+          hostToken: hostToken || undefined,
+          hostSiteId: selectedProjectId || undefined,
+          hostProvider,
         }),
       })
       const data = (await res.json()) as { status?: string; error?: string; deploymentId?: string; redeployError?: string }
@@ -649,9 +720,10 @@ export default function SetupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           region: neonRegion,
-          neonApiKey: vercelNeonKey || undefined,
-          vercelToken: vercelToken || undefined,
-          vercelProjectId: selectedProjectId || undefined,
+          neonApiKey: setupNeonKey || undefined,
+          hostToken: hostToken || undefined,
+          hostSiteId: selectedProjectId || undefined,
+          hostProvider,
         }),
       })
       const data = (await res.json()) as {
@@ -900,7 +972,7 @@ export default function SetupPage() {
       if (!res.ok) throw new Error('Failed to complete setup')
       const data = (await res.json()) as { adminPath: string; needsRedeploy?: boolean; redeployError?: string }
       if (data.needsRedeploy) {
-        // SESSION_SECRET was just written to Vercel — wait for the redeploy that
+        // SESSION_SECRET was just written to the host — wait for the redeploy that
         // picks it up, then send the user to the login page.
         setFinalisingDeploy(data.adminPath)
         if (data.redeployError) setFinalisingWarning(data.redeployError)
@@ -927,6 +999,7 @@ export default function SetupPage() {
   }
 
   return (
+    <HostCopyContext.Provider value={hostCopy}>
     <div className="setup-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.75rem' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -981,7 +1054,7 @@ export default function SetupPage() {
           </div>
           <p style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '1.0625rem' }}>Almost there!</p>
           <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: 0 }}>
-            Vercel is applying the final configuration. You&apos;ll be redirected to
+            {hostCopy.label} is applying the final configuration. You&apos;ll be redirected to
             your login page automatically once the deployment is ready.
           </p>
           {finalisingWarning && (
@@ -989,7 +1062,7 @@ export default function SetupPage() {
               <strong>The automatic redeploy could not be started.</strong>
               <div style={{ fontSize: '0.8125rem', marginTop: '0.25rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>{finalisingWarning}</div>
               <div style={{ marginTop: '0.5rem' }}>
-                Trigger a redeploy from the Vercel dashboard (Deployments → ⋯ → Redeploy) — this page
+                {hostCopy.redeployHint} — this page
                 will continue automatically once it finishes.
               </div>
             </div>
@@ -1001,9 +1074,9 @@ export default function SetupPage() {
       {/* ── Step: CONNECT ── */}
       {step === 'connect' && (
         <div>
-          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Connect your project</h2>
+          <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem' }}>Connect your hosting</h2>
           <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: '0 0 1.5rem' }}>
-            Link Cactus Foundation to your Vercel project — no environment variables need to be set manually.
+            Link Cactus Foundation to your Vercel project or Netlify site — no environment variables need to be set manually.
           </p>
 
           {dbSubStep === 'loading' && (
@@ -1013,31 +1086,41 @@ export default function SetupPage() {
             </div>
           )}
 
-          {/* ── Vercel not yet configured ── */}
-          {(dbSubStep === 'vercel-config' || dbSubStep === 'vercel-listing') && (
-            <VercelConfigPanel
-              token={vercelToken}
-              setToken={setVercelToken}
-              neonApiKey={vercelNeonKey}
-              setNeonApiKey={setVercelNeonKey}
-              projects={vercelProjects}
+          {/* ── Hosting not yet configured ── */}
+          {(dbSubStep === 'host-config' || dbSubStep === 'host-listing') && (
+            <HostChooser
+              value={hostProvider}
+              detected={detectedHost}
+              disabled={dbSubStep === 'host-listing'}
+              onChange={handleChooseHost}
+            />
+          )}
+          {(dbSubStep === 'host-config' || dbSubStep === 'host-listing') && (
+            <HostConfigPanel
+              key={hostProvider}
+              copy={hostCopy}
+              token={hostToken}
+              setToken={setHostToken}
+              neonApiKey={setupNeonKey}
+              setNeonApiKey={setSetupNeonKey}
+              projects={hostProjects}
               selectedProjectId={selectedProjectId}
               setSelectedProjectId={setSelectedProjectId}
-              listing={dbSubStep === 'vercel-listing'}
-              error={vercelError}
-              onConnect={handleVercelListProjects}
-              onConfigure={handleVercelConfigure}
+              listing={dbSubStep === 'host-listing'}
+              error={hostError}
+              onConnect={handleHostListProjects}
+              onConfigure={handleHostConfigure}
               onAddDomain={handleAddDomain}
               onDomainStatus={handleDomainStatus}
               onListAccountDomains={handleListAccountDomains}
             />
           )}
 
-          {/* ── Writing Vercel env vars ── */}
-          {dbSubStep === 'vercel-configuring' && (
+          {/* ── Writing hosting env vars ── */}
+          {dbSubStep === 'host-configuring' && (
             <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span className="setup-spinner" />
-              <span>Writing environment variables to your Vercel project…</span>
+              <span>Writing environment variables to your {hostCopy.label} {hostCopy.unit}…</span>
             </div>
           )}
 
@@ -1065,10 +1148,10 @@ export default function SetupPage() {
                 Unexpected missing variables:{' '}
                 <strong>
                   {envData.missingRequired
-                    .filter((v) => v !== 'DATABASE_URL' && v !== 'VERCEL_API_TOKEN' && v !== 'VERCEL_PROJECT_ID')
+                    .filter((v) => !isWizardHandledVar(v))
                     .join(', ')}
                 </strong>.
-                Add them to your Vercel project environment variables and redeploy.
+                Add them to your {hostCopy.label} {hostCopy.unit}&apos;s environment variables and redeploy.
               </div>
             </>
           )}
@@ -1150,7 +1233,7 @@ npm run dev`}
               onDestroyExisting={(id) => handleUseExistingNeon(id, false, true)}
               onUseExistingWithData={(id) => handleUseExistingNeon(id, true)}
               onSaveManualUrl={handleManualDbSave}
-              neonApiKey={vercelNeonKey}
+              neonApiKey={setupNeonKey}
             />
           )}
 
@@ -1355,6 +1438,7 @@ npm run dev`}
         v{process.env.NEXT_PUBLIC_APP_VERSION}
       </div>
     </div>
+    </HostCopyContext.Provider>
   )
 }
 
@@ -1497,9 +1581,79 @@ function RestoreBackupPanel() {
   )
 }
 
-// ── Vercel config panel ────────────────────────────────────────────────────────
+// ── Hosting platform chooser ──────────────────────────────────────────────────
 
-function VercelConfigPanel({
+function HostChooser({
+  value,
+  detected,
+  disabled,
+  onChange,
+}: {
+  value: HostingProvider
+  detected: HostingProvider | null
+  disabled: boolean
+  onChange: (provider: HostingProvider) => void
+}) {
+  const options: HostingProvider[] = ['vercel', 'netlify']
+  return (
+    <fieldset style={{ border: 0, padding: 0, margin: '0 0 1.5rem' }}>
+      <legend style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Where is this site hosted?</legend>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem' }}>
+        {options.map((provider) => {
+          const copy = HOST_COPY[provider]
+          const selected = value === provider
+          return (
+            <label
+              key={provider}
+              style={{
+                display: 'flex',
+                gap: '0.625rem',
+                alignItems: 'flex-start',
+                padding: '0.75rem 0.875rem',
+                borderRadius: 8,
+                border: `2px solid ${selected ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                background: selected ? 'var(--color-primary-subtle)' : 'var(--color-bg)',
+                cursor: disabled ? 'default' : 'pointer',
+                fontWeight: 400,
+              }}
+            >
+              <input
+                type="radio"
+                name="hostProvider"
+                value={provider}
+                checked={selected}
+                disabled={disabled}
+                onChange={() => onChange(provider)}
+                style={{ marginTop: '0.2rem' }}
+              />
+              <span>
+                <span style={{ display: 'block', fontWeight: 600, fontSize: '0.9375rem' }}>
+                  {copy.label}
+                  {detected === provider && (
+                    <span style={{ marginLeft: '0.375rem', fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-success)' }}>
+                      (this site is running here)
+                    </span>
+                  )}
+                </span>
+                <span style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--color-muted)' }}>{copy.tagline}</span>
+              </span>
+            </label>
+          )
+        })}
+      </div>
+      {detected && value !== detected && (
+        <div className="alert alert-warning" style={{ marginTop: '0.75rem', fontSize: '0.8125rem' }}>
+          This copy of Cactus is running on {HOST_COPY[detected].label}. Setup will configure the {HOST_COPY[value].label} {HOST_COPY[value].unit} you pick below, so finish the rest of setup from that {HOST_COPY[value].unit}&apos;s own address once it has deployed.
+        </div>
+      )}
+    </fieldset>
+  )
+}
+
+// ── Hosting config panel ──────────────────────────────────────────────────────
+
+function HostConfigPanel({
+  copy,
   token, setToken,
   neonApiKey, setNeonApiKey,
   projects,
@@ -1512,11 +1666,12 @@ function VercelConfigPanel({
   onDomainStatus,
   onListAccountDomains,
 }: {
+  copy: HostCopy
   token: string
   setToken: (v: string) => void
   neonApiKey: string
   setNeonApiKey: (v: string) => void
-  projects: VercelProject[]
+  projects: HostProject[]
   selectedProjectId: string
   setSelectedProjectId: (v: string) => void
   listing: boolean
@@ -1525,7 +1680,7 @@ function VercelConfigPanel({
   onConfigure: (domain?: string) => void
   onAddDomain: (projectId: string, domain: string) => Promise<DomainStateResult>
   onDomainStatus: (projectId: string, domain: string) => Promise<DomainStateResult>
-  onListAccountDomains: () => Promise<{ ok: boolean; domains?: VercelDomain[]; error?: string }>
+  onListAccountDomains: () => Promise<{ ok: boolean; domains?: HostDomain[]; error?: string }>
 }) {
   const hasProjects = projects.length > 0
   const selectedProject = projects.find((p) => p.id === selectedProjectId)
@@ -1540,7 +1695,7 @@ function VercelConfigPanel({
   const [checkingStatus, setCheckingStatus] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [statusError, setStatusError] = useState('')
-  const [accountDomains, setAccountDomains] = useState<VercelDomain[]>([])
+  const [accountDomains, setAccountDomains] = useState<HostDomain[]>([])
   const [loadingAccountDomains, setLoadingAccountDomains] = useState(false)
   const [accountDomainsError, setAccountDomainsError] = useState('')
 
@@ -1573,7 +1728,8 @@ function VercelConfigPanel({
     void refreshDomainState(domain)
   }
 
-  // Default to a non-vercel.app domain if one exists, otherwise the vercel.app alias.
+  // Default to a custom domain if one exists, otherwise the platform's own alias
+  // (<name>.vercel.app / <name>.netlify.app).
   // Also eagerly loads the account's full domain list so any domain already bought
   // or attached elsewhere shows up right away, not just after clicking "add".
   useEffect(() => {
@@ -1586,8 +1742,8 @@ function VercelConfigPanel({
       setSelectedDomain('')
       return
     }
-    const custom = selectedProject.domains.find((d) => !d.name.endsWith('.vercel.app'))
-    const fallback = selectedProject.domains.find((d) => d.name.endsWith('.vercel.app'))
+    const custom = selectedProject.domains.find((d) => !d.name.endsWith(copy.platformSuffix))
+    const fallback = selectedProject.domains.find((d) => d.name.endsWith(copy.platformSuffix))
     const initial = custom ?? fallback
     setSelectedDomain(initial?.name ?? '')
     setShowAddDomain(false)
@@ -1609,7 +1765,7 @@ function VercelConfigPanel({
     if (initial) void refreshDomainState(initial.name)
   }, [selectedProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // No optimistic fallback: until Vercel itself has told us the domain is both owned and
+  // No optimistic fallback: until the host itself has told us the domain is both owned and
   // pointing here, it is not ready. SITE_URL becomes the WebAuthn relying-party ID and
   // cannot be changed once a passkey exists, so a domain that never resolves must not be
   // allowed to reach the account step. An unread or failed check counts as not ready.
@@ -1621,7 +1777,7 @@ function VercelConfigPanel({
   const unattachedAccountDomains = accountDomains.filter((d) => !attachedNames.has(d.name))
 
   // Every record the user still has to add: the A/CNAME only while DNS isn't pointing
-  // here, plus any ownership challenge Vercel is waiting on. The two are independent -
+  // here, plus any ownership challenge the host is waiting on. The two are independent -
   // a domain registered under someone else's Vercel account can point at us perfectly
   // and still refuse to serve until the TXT record proves it's ours.
   const pendingRecords = domainState
@@ -1712,13 +1868,13 @@ function VercelConfigPanel({
   return (
     <div>
       <div className="alert alert-info" style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        Cactus Foundation needs to connect to your Vercel project to store environment variables and trigger redeployments during setup. No env vars need to be set manually.
+        Cactus Foundation needs to connect to your {copy.label} {copy.unit} to store environment variables and trigger redeployments during setup. No env vars need to be set manually.
       </div>
 
       <div className="field">
-        <label htmlFor="vercelToken">Vercel API token</label>
+        <label htmlFor="hostToken">{copy.label} {copy.unit === 'site' ? 'personal access token' : 'API token'}</label>
         <input
-          id="vercelToken"
+          id="hostToken"
           type="text"
           autoComplete="off"
           autoCorrect="off"
@@ -1726,14 +1882,14 @@ function VercelConfigPanel({
           spellCheck={false}
           value={token}
           onChange={(e) => setToken(e.target.value.trim())}
-          placeholder="vcp_… or ve_…"
+          placeholder={copy.tokenPlaceholder}
           disabled={listing}
           style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
         />
         <span className="field-hint">
           Create at:{' '}
-          <a href="https://vercel.com/account/tokens" target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary)' }}>
-            Vercel dashboard → Account Settings → Tokens
+          <a href={copy.tokenUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary)' }}>
+            {copy.tokenWhere}
           </a>
         </span>
       </div>
@@ -1774,20 +1930,20 @@ function VercelConfigPanel({
           disabled={!token || listing}
           onClick={onConnect}
         >
-          {listing ? 'Connecting…' : 'Connect to Vercel →'}
+          {listing ? 'Connecting…' : `Connect to ${copy.label} →`}
         </button>
       )}
 
       {hasProjects && (
         <>
           <div className="field">
-            <label htmlFor="projectSelect">Select your Vercel project</label>
+            <label htmlFor="projectSelect">Select your {copy.label} {copy.unit}</label>
             <select
               id="projectSelect"
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
             >
-              <option value="">— choose a project —</option>
+              <option value="">— choose a {copy.unit} —</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}{p.domains.length > 0 ? ` (${p.domains[0]?.name})` : ''}
@@ -1801,7 +1957,7 @@ function VercelConfigPanel({
               <label>Domain</label>
               {selectedProject.domains.length === 0 && (
                 <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
-                  No domain is assigned to this project yet.
+                  No domain is assigned to this {copy.unit} yet.
                 </div>
               )}
               {selectedProject.domains.map((d) => (
@@ -1821,7 +1977,7 @@ function VercelConfigPanel({
 
               {loadingAccountDomains && (
                 <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', margin: '0.5rem 0' }}>
-                  Checking your Vercel account for other domains…
+                  Checking your {copy.label} account for other domains…
                 </div>
               )}
               {accountDomainsError && (
@@ -1830,7 +1986,7 @@ function VercelConfigPanel({
               {unattachedAccountDomains.length > 0 && (
                 <div style={{ margin: '0.5rem 0' }}>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '0.375rem' }}>
-                    Also in your Vercel account:
+                    Also in your {copy.label} account:
                   </div>
                   {unattachedAccountDomains.map((d) => (
                     <div key={d.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
@@ -1889,7 +2045,7 @@ function VercelConfigPanel({
                   {!domainState ? (
                     <div>
                       {statusError
-                        ? `Could not check ${selectedDomain} with Vercel, so it cannot be used yet.`
+                        ? `Could not check ${selectedDomain} with ${copy.label}, so it cannot be used yet.`
                         : `Checking what ${selectedDomain} needs…`}
                     </div>
                   ) : (
@@ -1899,7 +2055,7 @@ function VercelConfigPanel({
                           ? 'This domain needs two things before it will work.'
                           : domainState.misconfigured
                             ? 'Domain added, but it is not pointing here yet.'
-                            : 'Domain added, but Vercel needs proof that it is yours.'}
+                            : `Domain added, but ${copy.label} needs proof that it is yours.`}
                       </strong>{' '}
                       {pendingRecords.length > 0 ? (
                         <>
@@ -1924,16 +2080,22 @@ function VercelConfigPanel({
                           </table>
                         </>
                       ) : (
-                        <>Vercel has not said which records it wants, so open the domain in your Vercel dashboard and follow the steps there.</>
+                        <>{copy.label} has not said which records it wants, so open the domain in your {copy.label} dashboard and follow the steps there.</>
                       )}
                       {ownershipPending && (
                         <div style={{ marginTop: '0.5rem', color: 'var(--color-muted)' }}>
-                          Vercel has seen this domain registered under another account, so the verification record is how you prove it is yours. Every record above is needed.
+                          {copy.label} has seen this domain registered under another account, so the verification record is how you prove it is yours. Every record above is needed.
                         </div>
                       )}
-                      <div style={{ marginTop: '0.5rem' }}>
-                        Alternative: point the domain&apos;s nameservers at Vercel instead (<code>ns1.vercel-dns.com</code>, <code>ns2.vercel-dns.com</code>) and skip the records above.
-                      </div>
+                      {copy.unit === 'project' ? (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          Alternative: point the domain&apos;s nameservers at Vercel instead (<code>ns1.vercel-dns.com</code>, <code>ns2.vercel-dns.com</code>) and skip the records above.
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          Alternative: let Netlify DNS run the domain (Domains → Add or register domain in your Netlify team) and skip the records above. Netlify also shows the exact record on the domain&apos;s own page if the one above looks off - a domain like example.co.uk counts as an apex there.
+                        </div>
+                      )}
                     </>
                   )}
                   <div style={{ marginTop: '0.5rem', color: 'var(--color-muted)' }}>
@@ -1980,7 +2142,7 @@ function VercelConfigPanel({
               disabled={!canConfigure}
               onClick={() => onConfigure(selectedDomain)}
             >
-              Configure project →
+              Configure {copy.unit} →
             </button>
           </div>
         </>
@@ -2010,6 +2172,7 @@ function DbChoicePanel({
   onSaveManualUrl: (url: string) => void
   neonApiKey: string
 }) {
+  const hostCopy = useContext(HostCopyContext)
   const [selectedOption, setSelectedOption] = useState<null | 'create' | 'existing' | 'manual'>(null)
   const [neonProjects, setNeonProjects] = useState<{ id: string; name: string }[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
@@ -2144,7 +2307,7 @@ function DbChoicePanel({
             {neonProjects.length === 1 && (
               <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--color-fg)' }}>
                 Project: <strong>{neonProjects[0]?.name}</strong>
-                <span className="field-hint" style={{ display: 'block' }}>Cactus Foundation will read the default branch connection URI and write it to Vercel.</span>
+                <span className="field-hint" style={{ display: 'block' }}>Cactus Foundation will read the default branch connection URI and write it to {hostCopy.label}.</span>
               </div>
             )}
             {neonProjects.length > 1 && (
@@ -2161,7 +2324,7 @@ function DbChoicePanel({
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
-                <span className="field-hint">Cactus Foundation will read the default branch connection URI and write it to Vercel.</span>
+                <span className="field-hint">Cactus Foundation will read the default branch connection URI and write it to {hostCopy.label}.</span>
               </div>
             )}
             {neonProjects.length > 0 && !existingDataWarning && (
@@ -2224,7 +2387,7 @@ function DbChoicePanel({
         >
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>I&apos;ll supply my own DATABASE_URL</div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Paste a PostgreSQL connection string — Cactus Foundation saves it to Vercel and redeploys.</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Paste a PostgreSQL connection string — Cactus Foundation saves it to {hostCopy.label} and redeploys.</div>
           </div>
           <span style={{ color: 'var(--color-muted)', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'manual' ? '▲' : '▼'}</span>
         </button>
@@ -2268,6 +2431,7 @@ function DbManualPanel({
   onSaveUrl: (url: string) => void
   onBack?: () => void
 }) {
+  const hostCopy = useContext(HostCopyContext)
   const [url, setUrl] = useState('')
 
   return (
@@ -2294,7 +2458,7 @@ function DbManualPanel({
           placeholder="postgresql://user:pass@host/db?sslmode=require"
           style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
         />
-        <span className="field-hint">Use a pooled connection string from Neon, Supabase, or any PostgreSQL provider. Cactus Foundation saves it to Vercel and redeploys automatically.</span>
+        <span className="field-hint">Use a pooled connection string from Neon, Supabase, or any PostgreSQL provider. Cactus Foundation saves it to {hostCopy.label} and redeploys automatically.</span>
       </div>
 
       <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -2329,6 +2493,7 @@ function DbRedeployingPanel({
   redeployError: string
   onRetryRedeploy: () => void
 }) {
+  const hostCopy = useContext(HostCopyContext)
   const stateLabel =
     deployState === 'BUILDING' ? 'Building…' :
     deployState === 'READY' ? 'Done' :
@@ -2343,7 +2508,7 @@ function DbRedeployingPanel({
         <span style={{ color: 'var(--color-success)', fontWeight: 700, flexShrink: 0 }}>✓</span>
         <div>
           <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--color-success)' }}>Database connection string written to Vercel</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-success)' }}>Database connection string written to {hostCopy.label}</div>
         </div>
       </div>
 
@@ -2354,9 +2519,8 @@ function DbRedeployingPanel({
             {redeployError}
           </div>
           <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
-            You can retry below, or trigger a redeploy from the Vercel dashboard
-            (Deployments → ⋯ → Redeploy). Setup continues automatically once the
-            new deployment is up.
+            You can retry below, or {hostCopy.redeployHint.charAt(0).toLowerCase() + hostCopy.redeployHint.slice(1)}.
+            Setup continues automatically once the new deployment is up.
           </div>
           <button
             type="button"

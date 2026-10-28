@@ -6,8 +6,10 @@ import { parseGitHubRepo } from './manifest'
 import { getGithubClient } from '@/lib/github/client'
 import { retryTransient, createReplicatedBlob } from '@/lib/github/retry'
 import { applyPinFloor, formatHeldPins } from './pin-floor'
-import { buildVercelJson, VERCEL_JSON_PATH } from '@/lib/cron/vercel-file'
+import { hostCronFile } from '@/lib/cron/host-file'
 import { resolveDispatchSchedule } from '@/lib/cron/jobs'
+import { getHostingCredentials } from '@/lib/hosting/provider'
+import { getDeploymentState, listDeployments, type NormalisedDeployState } from '@/lib/hosting/deploy'
 
 function getMainRepo(): { owner: string; repo: string } {
   const raw = process.env.GITHUB_REPO ?? ''
@@ -222,7 +224,8 @@ export async function syncModulesJson(
   const { entries: floored, held } = applyPinFloor(desired, content.modules)
   if (held.length > 0) console.warn(`[modules] ${formatHeldPins(held)}`)
 
-  // vercel.json has to BE in the commit Vercel builds, because that is when Vercel reads
+  // The cron file (vercel.json, or netlify.toml on Netlify - see lib/cron/host-file.ts)
+  // has to BE in the commit the host builds, because that is when the host reads
   // it - a file the build generates is a file nothing registers. Checked here rather than
   // in a migration because it is the repository, not the database, that is missing it.
   //
@@ -230,11 +233,11 @@ export async function syncModulesJson(
   // is actually running (lib/cron/jobs.ts). Installing a module with a five-minute job,
   // or removing the last one, therefore moves the tick in the same commit that moves the
   // module registry - which is the only commit either of them gets.
-  const desiredVercelJson = buildVercelJson(await resolveDispatchSchedule())
-  const currentVercelJson = await readRepoTextFile(octokit, owner, repo, VERCEL_JSON_PATH)
-  const vercelJsonStale = currentVercelJson !== desiredVercelJson
+  const cronFile = hostCronFile(await resolveDispatchSchedule())
+  const currentCronFile = await readRepoTextFile(octokit, owner, repo, cronFile.path)
+  const cronFileStale = currentCronFile !== cronFile.content
 
-  if (normaliseModules(content.modules) === normaliseModules(floored) && !vercelJsonStale) {
+  if (normaliseModules(content.modules) === normaliseModules(floored) && !cronFileStale) {
     return { committed: false }
   }
 
@@ -259,15 +262,15 @@ export async function syncModulesJson(
     updated,
     'chore: sync module registry\n\n[cactus-deploy]',
     deleteGitmodules,
-    vercelJsonStale ? [{ path: VERCEL_JSON_PATH, content: desiredVercelJson }] : []
+    cronFileStale ? [cronFile] : []
   )
   return { committed: true, commitSha }
 }
 
-function readyStateToStatus(state: string | undefined): 'READY' | 'ERROR' | 'BUILDING' | 'UNKNOWN' {
+function toDeployStatus(state: NormalisedDeployState | null | undefined): 'READY' | 'ERROR' | 'BUILDING' | 'UNKNOWN' {
   if (state === 'READY') return 'READY'
   if (state === 'ERROR' || state === 'CANCELED') return 'ERROR'
-  if (state === 'BUILDING' || state === 'QUEUED' || state === 'INITIALIZING') return 'BUILDING'
+  if (state === 'BUILDING') return 'BUILDING'
   return 'UNKNOWN'
 }
 
@@ -287,55 +290,36 @@ function readyStateToStatus(state: string | undefined): 'READY' | 'ERROR' | 'BUI
 export async function getLatestDeploymentStatus(
   deploymentId?: string | null
 ): Promise<'READY' | 'ERROR' | 'BUILDING' | 'UNKNOWN'> {
-  const token = process.env.VERCEL_API_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) return 'UNKNOWN'
+  const creds = getHostingCredentials()
+  if (!creds) return 'UNKNOWN'
 
-  const headers = { Authorization: `Bearer ${token}` }
-
-  try {
-    if (deploymentId && deploymentId !== 'pending') {
-      const res = await fetch(`https://api.vercel.com/v13/deployments/${deploymentId}`, {
-        headers,
-        signal: AbortSignal.timeout(10_000),
-      })
-      if (res.ok) {
-        const data = (await res.json()) as { readyState?: string; status?: string }
-        return readyStateToStatus(data.readyState ?? data.status)
-      }
-      // A 404 means the id is stale or from another project. Fall through rather
-      // than reporting UNKNOWN forever.
-    }
-
-    const res = await fetch(
-      `https://api.vercel.com/v6/deployments?projectId=${projectId}&limit=1`,
-      { headers, signal: AbortSignal.timeout(10_000) }
-    )
-    if (!res.ok) return 'UNKNOWN'
-    const data = (await res.json()) as {
-      deployments?: Array<{ readyState: string }>
-    }
-    return readyStateToStatus(data.deployments?.[0]?.readyState)
-  } catch {
-    return 'UNKNOWN'
+  if (deploymentId && deploymentId !== 'pending') {
+    const state = await getDeploymentState(creds, deploymentId)
+    if (state !== null) return toDeployStatus(state)
+    // An unknown id is stale or from another project/site. Fall through rather
+    // than reporting UNKNOWN forever.
   }
+
+  const latest = await listDeployments(creds, { limit: 1 })
+  return toDeployStatus(latest?.[0]?.state)
 }
 
-// Write vercel.json on its own, when the tick the site needs has changed but nothing
-// else has - which is what happens when an admin picks a new frequency for a job.
+// Write the cron file (vercel.json, or netlify.toml on Netlify) on its own, when the
+// tick the site needs has changed but nothing else has - which is what happens when
+// an admin picks a new frequency for a job. The name predates Netlify support.
 //
 // Vercel reads vercel.json when it CREATES a deployment, so a tick change is not a
 // setting that takes effect on save: it takes effect on the next deploy, and this is
 // what causes one. modules.json is written back exactly as found, so the commit carries
 // the cron file and nothing else.
 export async function syncVercelJson(): Promise<{ committed: boolean; commitSha?: string }> {
-  const desiredVercelJson = buildVercelJson(await resolveDispatchSchedule())
+  const cronFile = hostCronFile(await resolveDispatchSchedule())
 
   const octokit = await getGithubClient()
   const { owner, repo } = getMainRepo()
 
-  const currentVercelJson = await readRepoTextFile(octokit, owner, repo, VERCEL_JSON_PATH)
-  if (currentVercelJson === desiredVercelJson) return { committed: false }
+  const currentCronFile = await readRepoTextFile(octokit, owner, repo, cronFile.path)
+  if (currentCronFile === cronFile.content) return { committed: false }
 
   const { content } = await readModulesJson(octokit, owner, repo)
   const { commitSha } = await commitModulesJson(
@@ -345,7 +329,7 @@ export async function syncVercelJson(): Promise<{ committed: boolean; commitSha?
     content,
     'chore: update the scheduled job tick\n\n[cactus-deploy]',
     false,
-    [{ path: VERCEL_JSON_PATH, content: desiredVercelJson }]
+    [cronFile]
   )
   return { committed: true, commitSha }
 }

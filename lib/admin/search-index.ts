@@ -57,7 +57,7 @@ const S = {
   appearance: 'Appearance',
 } as const
 
-export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
+const ALL_ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   // ── Settings: the tabs themselves ──────────────────────────────────────────
   { id: 'tab-general', label: 'General settings', section: 'Settings', path: '/config?tab=general', requires: '/config', keywords: ['basics', 'site details'] },
   { id: 'tab-speed', label: 'Speed settings', section: S.general, path: '/config?tab=speed', requires: '/config', keywords: ['speed', 'cache', 'caching', 'performance', 'faster', 'cloudflare', 'cdn'] },
@@ -141,3 +141,13 @@ export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   { id: 'account', label: 'Your account & security', section: 'Account', path: '/account', keywords: ['profile', 'password', 'passkey', 'security', 'my account', 'change email'] },
   { id: 'notifications', label: 'Notifications', section: 'Account', path: '/notifications', keywords: ['alerts', 'inbox', 'deploy status'] },
 ]
+
+// Speed Insights, Edge Config and deployment webhooks are Vercel services, and the
+// config page does not show them on a Netlify site (CACTUS_HOSTING_PROVIDER is
+// inlined at build by next.config.ts), so search must not point at them either.
+const VERCEL_ONLY_ENTRIES = new Set(['general-speed-insights', 'integrations-edge', 'integrations-webhook'])
+
+export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] =
+  process.env.CACTUS_HOSTING_PROVIDER === 'netlify'
+    ? ALL_ADMIN_SEARCH_ENTRIES.filter((entry) => !VERCEL_ONLY_ENTRIES.has(entry.id))
+    : ALL_ADMIN_SEARCH_ENTRIES

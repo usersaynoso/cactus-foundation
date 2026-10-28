@@ -1,6 +1,6 @@
 # Getting started
 
-Cactus Foundation is deployed to [Vercel](https://vercel.com) - a hosting platform that handles the technical side for you. If someone is setting up Cactus on your behalf, point them to the technical sections below. If you're setting it up yourself and comfortable with a terminal, read on.
+Cactus Foundation is deployed to [Vercel](https://vercel.com) or [Netlify](https://www.netlify.com) - hosting platforms that handle the technical side for you. The setup wizard asks which one you are using. If someone is setting up Cactus on your behalf, point them to the technical sections below. If you're setting it up yourself and comfortable with a terminal, read on.
 
 Once your site is up and running, you don't need any of the information on this page for day-to-day use. Head to [Managing pages](Managing-pages), [Appearance and design](Appearance-and-design), or the [Configuration reference](Configuration-reference) instead.
 
@@ -13,7 +13,7 @@ Once your site is up and running, you don't need any of the information on this 
 ## Prerequisites
 
 - Node.js ≥ 22
-- A Vercel account (Hobby is fine for most features; Pro/Enterprise unlocks Vercel webhooks for automatic deployment status updates)
+- A Vercel account (Hobby is fine for most features; Pro/Enterprise unlocks Vercel webhooks for automatic deployment status updates) **or** a Netlify account (see [Deploying to Netlify](#first-deploy-to-netlify) for what differs)
 - `npm` - this project uses npm only. Do not use yarn or pnpm.
 - A PostgreSQL database **or** a Neon API key to have one created automatically (see below)
 
@@ -42,6 +42,8 @@ cp .env.example .env.local
 | `SITE_URL` | The canonical public domain, e.g. `https://example.com`. **This is also the WebAuthn relying party ID and cannot be changed after the first passkey is registered.** |
 | `VERCEL_API_TOKEN` | Vercel REST API token. Create at: Vercel dashboard → Account Settings → Tokens. Required for Edge Config writes, deployment status checks, and writing `DATABASE_URL` during automatic provisioning. |
 | `VERCEL_PROJECT_ID` | Vercel project ID. Find it at: Vercel dashboard → your project → Settings → General. Must be set and the project redeployed before setup can proceed. |
+| `NETLIFY_API_TOKEN` | **Netlify sites only, instead of the two `VERCEL_*` vars.** Netlify personal access token (User settings → Applications → Personal access tokens). Entered in the setup wizard. |
+| `NETLIFY_SITE_ID` | **Netlify sites only.** The Netlify site ID (Site configuration → General). Picked in the setup wizard. |
 
 ### Optional - feature is disabled until set
 
@@ -83,7 +85,7 @@ npm run dev
 
 Open http://localhost:3000. If the database is empty (no `SiteConfig` row), you'll be redirected to `/_setup` to run the setup wizard.
 
-When Cactus runs off Vercel it switches into **local-development mode** (detected by the absence of Vercel's `VERCEL=1` variable). The setup wizard skips the Vercel connect step and reads config from `.env.local`; the `VERCEL_API_TOKEN`/`VERCEL_PROJECT_ID` variables can be left unset, and you set `DATABASE_URL`, `SESSION_SECRET`, and `SITE_URL`/`NEXT_PUBLIC_SITE_URL=http://localhost:3000` instead. Some admin features (the env editor, core/module updates, the redeploy buttons) are read-only or hidden locally. See **[Running locally](Running-locally)** for the full picture.
+When Cactus runs on neither Vercel nor Netlify it switches into **local-development mode** (detected by the absence of Vercel's `VERCEL=1` and of Netlify's build marker, which `next.config.ts` bakes in as `CACTUS_HOSTING_PROVIDER`). The setup wizard skips the hosting connect step and reads config from `.env.local`; the `VERCEL_*`/`NETLIFY_*` credential variables can be left unset, and you set `DATABASE_URL`, `SESSION_SECRET`, and `SITE_URL`/`NEXT_PUBLIC_SITE_URL=http://localhost:3000` instead. Some admin features (the env editor, core/module updates, the redeploy buttons) are read-only or hidden locally. See **[Running locally](Running-locally)** for the full picture.
 
 ## First deploy to Vercel
 
@@ -93,11 +95,25 @@ When Cactus runs off Vercel it switches into **local-development mode** (detecte
 4. Deploy. The build runs `prisma migrate deploy` automatically - but if `DATABASE_URL` isn't set yet, the build will fail at that step. If you're using automatic provisioning, let setup handle the database creation first (see below), then the next redeploy will succeed.
 5. Visit your production URL - you'll be redirected to `/_setup`.
 
+## First deploy to Netlify
+
+1. Push your repo to GitHub.
+2. In Netlify, **Add new site → Import an existing project** and pick the repo. The tracked `netlify.toml` sets the build command (`npm run build`), the publish directory (`.next`) and Node 24, and Netlify adds its Next.js runtime on its own.
+3. Deploy, then visit the site's `<name>.netlify.app` address - you'll be redirected to `/_setup`. In step 1 choose **Netlify** (it is preselected when the site is running there), paste a personal access token and pick the site. The wizard writes every bootstrap variable to the site for you, exactly as it does on Vercel.
+
+What is different on Netlify:
+
+- **Scheduled jobs** run from a Netlify scheduled function (`netlify/functions/cactus-cron.mts`) instead of `vercel.json`. Its schedule lives in `netlify.toml`, which Cactus rewrites when a job needs a faster tick. Netlify only runs scheduled functions on the published production deploy.
+- **Build progress** in the wizard and the admin shows the state and the outcome, not live log lines - Netlify has no API for those. The full log is in the Netlify dashboard under Deploys.
+- **Vercel-only extras are hidden**: Edge Config, Vercel deployment webhooks (status is polled instead, as on Vercel Hobby) and Speed Insights.
+- **Function limits are Netlify's**, not Vercel's. Netlify's synchronous functions have a shorter time limit than Vercel's and AWS Lambda caps a function's environment variables at 4 KB in total - a site with many integrations configured can run into that. Neither has been tried on a real Netlify site yet.
+- **Custom domains**: the wizard can attach one to the site. A domain is accepted once Netlify has issued its certificate, which it only does after DNS points at Netlify (an `A` record to `75.2.60.5` for the apex, or a `CNAME` to `<name>.netlify.app` for a subdomain).
+
 ## The setup wizard
 
 The wizard runs once, at `/_setup`, and completes in three steps:
 
-1. **Connect your project** - confirms required variables are set and your Vercel project is linked. If `DATABASE_URL` is absent, you will be offered one of the three paths below.
+1. **Connect your hosting** - asks whether the site is on Vercel or Netlify, then confirms required variables are set and your Vercel project or Netlify site is linked. If `DATABASE_URL` is absent, you will be offered one of the three paths below.
 2. **Database** - provisions or connects your PostgreSQL database and runs the schema migration.
 3. **Account & configure** - enter a username and email, then either register a passkey (fingerprint, Face ID, or security key) or, via the **"Use Token instead of Passkeys"** link, set up an authenticator app (TOTP) instead - both are equally valid ways to sign in. Then choose your secret admin path, site name, and timezone.
 

@@ -78,6 +78,11 @@ type SubTabDef = { key: string; label: string; anchors: readonly string[] }
 // lands where it always did; only where it is drawn has changed. "general" itself is
 // the Site page. A module whose settings tab says `parent: "general"` slots in after
 // these, and Danger zone always comes last.
+// The hosting platform this build is running on (inlined by next.config.ts), for
+// wording and for hiding the Vercel-only extras on a Netlify site.
+const ON_NETLIFY = process.env.CACTUS_HOSTING_PROVIDER === 'netlify'
+const HOST_LABEL = ON_NETLIFY ? 'Netlify' : 'Vercel'
+
 const GENERAL_PAGES: readonly SubTabDef[] = [
   { key: 'general', label: 'Site', anchors: ['general-updates', 'general-identity', 'general-homepage', 'general-status', 'general-seo', 'general-locale', 'general-admin-path', 'general-settings-sidebar'] },
   { key: 'speed', label: 'Speed', anchors: ['speed-page-cache', 'speed-page-cache-window', 'speed-page-cache-long-window', 'speed-edge-window', 'speed-cloudflare', 'speed-image-resizing', 'speed-cloudflare-setup', 'speed-page-cache-purge', 'speed-purge-now', 'general-speed-insights'] },
@@ -100,7 +105,11 @@ const EMAIL_SUBS: readonly SubTabDef[] = [
 
 const INTEGRATION_SUBS: readonly SubTabDef[] = [
   { key: 'github', label: 'GitHub', anchors: ['integrations-github'] },
-  { key: 'hosting', label: 'Vercel & database', anchors: ['section-edge-config', 'section-webhook', 'section-neon'] },
+  {
+    key: 'hosting',
+    label: `${HOST_LABEL} & database`,
+    anchors: ON_NETLIFY ? ['section-neon'] : ['section-edge-config', 'section-webhook', 'section-neon'],
+  },
   { key: 'protection', label: 'Protection & monitoring', anchors: ['section-turnstile', 'section-sentry'] },
 ]
 
@@ -232,7 +241,9 @@ const PAGE_CACHE_PURGE_SECTION: EnvSection = {
   ],
 }
 
-const INTEGRATION_SECTIONS: EnvSection[] = [
+// Edge Config and deployment webhooks are Vercel services, so a Netlify site does
+// not offer them (see the filter at the end).
+const ALL_INTEGRATION_SECTIONS: EnvSection[] = [
   {
     id: 'edge-config',
     label: 'Edge Config',
@@ -262,7 +273,7 @@ const INTEGRATION_SECTIONS: EnvSection[] = [
   {
     id: 'sentry',
     label: 'Sentry',
-    description: 'Error reporting; logs to Vercel functions if unset',
+    description: `Error reporting; logs to ${HOST_LABEL} functions if unset`,
     keys: [
       { key: 'SENTRY_DSN', label: 'SENTRY_DSN', placeholder: 'https://…@sentry.io/…' },
     ],
@@ -276,6 +287,10 @@ const INTEGRATION_SECTIONS: EnvSection[] = [
     ],
   },
 ]
+
+const INTEGRATION_SECTIONS: EnvSection[] = ON_NETLIFY
+  ? ALL_INTEGRATION_SECTIONS.filter((section) => section.id !== 'edge-config' && section.id !== 'webhook')
+  : ALL_INTEGRATION_SECTIONS
 
 function StatusBadge({ set }: { set: boolean }) {
   return (
@@ -439,7 +454,7 @@ function UpdatesPanel() {
     subtitle = `Running v${status.currentVersion}`
     body = (
       <div className="alert alert-info" style={{ fontSize: 'var(--text-sm)' }}>
-        You&rsquo;re running in local-development mode. Core updates ship via git and a Vercel redeploy, so
+        You&rsquo;re running in local-development mode. Core updates ship via git and a {HOST_LABEL} redeploy, so
         they&rsquo;re managed outside the admin here - pull the latest Cactus Foundation release and redeploy
         to update.
       </div>
@@ -860,7 +875,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   const [envStatus, setEnvStatus] = useState<Record<string, boolean>>({})
   const [envFields, setEnvFields] = useState<Record<string, string>>({})
   // Local-development mode: env vars come from .env.local, so the editor is
-  // read-only and the Vercel-only "Reset Everything" action is hidden.
+  // read-only and the hosted-only "Reset Everything" action is hidden.
   const [localMode, setLocalMode] = useState(false)
   // True for a few seconds after credentials were saved and a redeploy began, so the
   // cards can say so beside the "takes effect on next deployment" note.
@@ -988,11 +1003,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     if (github === 'error') {
       const reason = searchParams.get('reason')
       if (reason === 'encrypt_key_missing') {
-        setGhError('ENCRYPTION_KEY is not set. Add it to your Vercel environment variables (Settings → Environment Variables) then redeploy.')
+        setGhError(`ENCRYPTION_KEY is not set. Add it to your ${HOST_LABEL} environment variables then redeploy.`)
       } else if (reason === 'encrypt_key_format') {
         setGhError('ENCRYPTION_KEY is set but has the wrong format. It must be a 64-character hex string - generate one with: openssl rand -hex 32')
       } else if (reason === 'encrypt_error') {
-        setGhError('GitHub App credentials could not be encrypted. Check that ENCRYPTION_KEY is correctly set in Vercel and redeploy.')
+        setGhError(`GitHub App credentials could not be encrypted. Check that ENCRYPTION_KEY is correctly set in ${HOST_LABEL} and redeploy.`)
       } else if (reason === 'state_mismatch') {
         setGhError('GitHub connection failed: the security state token did not match. Please try again.')
       } else if (reason === 'conversion_failed') {
@@ -1057,7 +1072,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   // A credential saved by an earlier deploy stands in for a blank field, so
   // re-running the setup needs nothing retyped. The values themselves are
-  // write-only in Vercel and never come back to the browser - only their
+  // write-only on the host and never come back to the browser - only their
   // set/not-set status does.
   const cfSavedToken = !!envStatus[CLOUDFLARE_CREDENTIAL_KEYS.apiToken]
   const cfSavedGlobal = !!envStatus[CLOUDFLARE_CREDENTIAL_KEYS.globalKey] && !!envStatus[CLOUDFLARE_CREDENTIAL_KEYS.email]
@@ -1245,7 +1260,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     const savedKeys = vars.map((v) => v.key)
     setEnvStatus((prev) => ({ ...prev, ...Object.fromEntries(savedKeys.map((k) => [k, true])) }))
 
-    // Clear saved fields (they're now stored in Vercel)
+    // Clear saved fields (they're now stored on the host)
     setEnvFields((prev) => ({ ...prev, ...Object.fromEntries(savedKeys.map((k) => [k, ''])) }))
 
     setEnvJustSaved(true)
@@ -1647,7 +1662,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         {gh && gh.encryptionKeySet && !gh.encryptionKeyValid && (
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-destructive)', marginBottom: 0 }}>
             ENCRYPTION_KEY is set but has the wrong format. It must be a 64-character hex string.
-            Generate a valid one with <code>openssl rand -hex 32</code> and save it in your Vercel
+            Generate a valid one with <code>openssl rand -hex 32</code> and save it in your {HOST_LABEL}
             environment variables, then redeploy.
           </p>
         )}
@@ -2211,12 +2226,12 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             )}
             </div>
 
-            {/* Reset Everything deletes Vercel env vars - irrelevant in local mode. */}
+            {/* Reset Everything deletes the host's env vars - irrelevant in local mode. */}
             {!localMode && (
             <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
             <div className="card-title" style={{ color: 'var(--color-destructive)' }}>Reset Everything</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-              Permanently removes all environment variables from your Vercel project and resets the site to factory settings.
+              Permanently removes all environment variables from your {HOST_LABEL} {ON_NETLIFY ? 'site' : 'project'} and resets the site to factory settings.
             </p>
             {!showResetConfirm && !resetDone && (
               <button className="btn btn-danger" onClick={() => setShowResetConfirm(true)}>
@@ -2227,7 +2242,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <div style={{ border: '1px solid var(--color-destructive)', borderRadius: 'var(--radius)', padding: '1rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--color-destructive)' }}>Are you sure?</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-                  This will <strong>permanently delete all environment variables</strong> from your Vercel project -
+                  This will <strong>permanently delete all environment variables</strong> from your {HOST_LABEL} {ON_NETLIFY ? 'site' : 'project'} -
                   email credentials, media provider keys, integrations, and everything else.
                   A redeployment will be triggered automatically. You will need to reconfigure these settings afterwards.
                 </p>
@@ -2413,6 +2428,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </label>
               <span className="field-hint">Needs Transformations switched on in Cloudflare.</span>
             </div>
+            {/* Speed Insights is a Vercel service; the layout never loads it on Netlify. */}
+            {!ON_NETLIFY && (
             <div id="general-speed-insights" className="field admin-anchor">
               <label className="settings-check">
                 <input
@@ -2427,6 +2444,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 </InfoTip>
               </label>
             </div>
+            )}
           </div>
 
           {(config.pageCacheEnabled ?? false) && (
@@ -2496,7 +2514,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           <div id="email-provider" className="admin-anchor" style={{ marginBottom: '1rem' }}>
             <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Send the site&apos;s email through</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 0.75rem' }}>
-              Both can be set up; this picks the one that sends. Their details live in your Vercel environment
+              Both can be set up; this picks the one that sends. Their details live in your {HOST_LABEL} environment
               variables, not the database.
             </p>
             {(() => {
@@ -2972,7 +2990,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <label>
                 Provider
                 <InfoTip>
-                  Where uploaded images are stored. The choice is saved here; the credentials live in your Vercel
+                  Where uploaded images are stored. The choice is saved here; the credentials live in your {HOST_LABEL}
                   environment variables.
                 </InfoTip>
               </label>
@@ -3040,7 +3058,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <div>
                     <div className="card-title" style={{ margin: '0 0 0.25rem' }}>{PROVIDER_LABELS[selected]} credentials</div>
                     <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                      Stored in your Vercel project environment variables, never in the database.
+                      Stored in your {HOST_LABEL} environment variables, never in the database.
                     </p>
                   </div>
                   <StatusBadge set={envKeysForProvider(selected).every((k) => envStatus[k])} />
@@ -3101,7 +3119,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                         <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.9rem' }}>Set up the Worker automatically <InfoTip>Paste a Cloudflare credential and Cactus creates and configures the Worker for you - no terminal, no dashboard hunting. Cloudflare&apos;s free plan is fine. {' '}Your {PROVIDER_LABELS[selected]} credentials are picked up from your saved settings, so there&apos;s nothing to re-enter here.</InfoTip></h4>
                         {localMode ? (
                           <div className="alert alert-info" style={{ fontSize: '0.8125rem', margin: 0 }}>
-                            Automatic deployment runs on your live site, not in local development (credentials are written to your Vercel project). Deploy from your deployed admin and the credential fields appear here.
+                            Automatic deployment runs on your live site, not in local development (credentials are written to your {HOST_LABEL} {ON_NETLIFY ? 'site' : 'project'}). Deploy from your deployed admin and the credential fields appear here.
                           </div>
                         ) : (
                         <>
@@ -3266,7 +3284,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       {tab === 'integrations' && canManageConfig && (
         <div>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
-            All credentials are stored directly in your Vercel project environment variables. Changes take effect on next deployment.
+            All credentials are stored directly in your {HOST_LABEL} environment variables. Changes take effect on next deployment.
           </p>
           <div className="settings-cols">
             {/* eslint-disable-next-line react-hooks/static-components -- GitHubAppCard and EnvSectionCard are render helpers; extracting them would require threading ~20 state values as props */}

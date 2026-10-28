@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { resolveVercelTeamId } from '@/lib/vercel/deploy'
+import { getHostingCredentials, resolveHostingCredentials, type HostingCredentials } from '@/lib/hosting/provider'
+import { getNetlifyDeploy, netlifyStateToNormalised } from '@/lib/netlify/deploy'
 
 const VERCEL_API = 'https://api.vercel.com'
 
@@ -25,40 +27,47 @@ export async function GET(req: NextRequest) {
     setupComplete = false
   }
 
-  let token: string
+  let creds: HostingCredentials | null
   if (setupComplete) {
     // Post-setup: this is a real admin action (viewing a redeploy triggered from
     // Settings), so require an authenticated, permitted session and never accept
-    // a caller-supplied token — only the server's own Vercel credential is used.
+    // a caller-supplied token — only the server's own hosting credential is used.
     const user = await getSessionFromCookie()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     if (!await hasPermission(user, 'config.manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    token = process.env.VERCEL_API_TOKEN ?? ''
+    creds = getHostingCredentials()
   } else {
-    // Pre-auth wizard flow: no admin account exists yet, so the "Connect Vercel"
-    // step passes the user-pasted token directly since VERCEL_API_TOKEN isn't
-    // saved to the environment until later in the wizard.
+    // Pre-auth wizard flow: no admin account exists yet, so the connect step
+    // passes the user-pasted token directly since it isn't saved to the
+    // environment until later in the wizard. The project/site id rides along for
+    // the same reason, and Vercel needs it to resolve a team.
     //
-    // It arrives in a header, never a query string. A live API token in a URL is
-    // written to the platform's access logs, the browser's history and any
+    // The token arrives in a header, never a query string. A live API token in a
+    // URL is written to the platform's access logs, the browser's history and any
     // Referer sent onward - none of which the operator can clear afterwards.
-    token =
-      process.env.VERCEL_API_TOKEN ??
-      req.headers.get('x-vercel-token')?.trim() ??
-      ''
+    // `x-vercel-token` is the header's name from before Netlify was an option.
+    const params = req.nextUrl.searchParams
+    creds =
+      getHostingCredentials() ??
+      resolveHostingCredentials({
+        provider: params.get('provider') ?? undefined,
+        token: req.headers.get('x-host-token')?.trim() || req.headers.get('x-vercel-token')?.trim(),
+        siteId: params.get('siteId') ?? params.get('projectId'),
+      })
   }
-  if (!token) {
-    return NextResponse.json({ error: 'VERCEL_API_TOKEN not configured' }, { status: 500 })
+  if (!creds) {
+    return NextResponse.json({ error: 'Hosting credentials not configured' }, { status: 500 })
   }
 
-  // Team-owned deployments need an explicit teamId on the API calls. In the
-  // pre-setup wizard flow VERCEL_PROJECT_ID isn't in the runtime env yet, so
-  // the client passes the selected project ID alongside its token.
-  const vercelProjectId =
-    process.env.VERCEL_PROJECT_ID ?? req.nextUrl.searchParams.get('projectId') ?? undefined
-  const teamId = vercelProjectId ? await resolveVercelTeamId(token, vercelProjectId) : null
+  if (creds.provider === 'netlify') {
+    return netlifyDeployProgress(creds, deploymentId, req.nextUrl.searchParams.get('since'))
+  }
+
+  const token = creds.token
+  // Team-owned deployments need an explicit teamId on the API calls.
+  const teamId = await resolveVercelTeamId(token, creds.siteId)
   const teamParam = teamId ? `teamId=${encodeURIComponent(teamId)}` : ''
 
   const since = req.nextUrl.searchParams.get('since')
@@ -102,4 +111,37 @@ export async function GET(req: NextRequest) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: message }, { status: 500 })
   }
+}
+
+// Netlify has no REST endpoint for a build's log lines (its dashboard streams them
+// over a separate realtime channel), so the wizard gets the state plus a line at
+// each milestone instead. `latestTimestamp` doubles as a milestone counter here so
+// the client's existing `since` round-trip stops each line being sent twice:
+// 1 = the opening note has been sent, 2 = the closing one has.
+async function netlifyDeployProgress(
+  creds: HostingCredentials,
+  deploymentId: string,
+  sinceRaw: string | null
+): Promise<NextResponse> {
+  const since = Number(sinceRaw) || 0
+  const deploy = await getNetlifyDeploy(creds.token, deploymentId).catch(() => null)
+  const normalised = netlifyStateToNormalised(deploy?.state)
+  const state = normalised === 'UNKNOWN' ? '' : normalised
+  const logLines: string[] = []
+  let latestTimestamp = since
+
+  if (since < 1) {
+    logLines.push('Building on Netlify. The full build log is in your Netlify dashboard under Deploys.')
+    latestTimestamp = 1
+  }
+  if (since < 2 && (state === 'READY' || state === 'ERROR' || state === 'CANCELED')) {
+    logLines.push(
+      state === 'READY'
+        ? 'Deploy is live.'
+        : `Deploy ${state === 'CANCELED' ? 'was cancelled' : 'failed'}${deploy?.error_message ? `: ${deploy.error_message}` : '.'}`
+    )
+    latestTimestamp = 2
+  }
+
+  return NextResponse.json({ state, logLines, latestTimestamp })
 }

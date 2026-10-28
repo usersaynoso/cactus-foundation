@@ -7,6 +7,7 @@ import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { isLocalMode } from '@/lib/config/env'
+import { isHostingConfigured, missingCredentialsMessage } from '@/lib/hosting/provider'
 
 export const maxDuration = 60
 
@@ -18,13 +19,11 @@ export async function POST(_request: NextRequest, { params }: Params) {
   if (!await hasPermission(user, 'config.manage')) return errorResponse('Forbidden', 403)
 
   if (isLocalMode()) {
-    return errorResponse('Redeploys are not available in local-development mode. Deploy your changes via git + Vercel.', 503)
+    return errorResponse('Redeploys are not available in local-development mode. Deploy your changes via git and your hosting platform.', 503)
   }
 
-  const token = process.env.VERCEL_API_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) {
-    return errorResponse('VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required', 503)
+  if (!isHostingConfigured()) {
+    return errorResponse(missingCredentialsMessage(), 503)
   }
 
   const { id } = await params

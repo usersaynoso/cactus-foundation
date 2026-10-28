@@ -15,7 +15,8 @@ import { deployMediaWorker, type CloudflareAuth, type WorkerSecret } from '@/lib
 import { rebaseProxiedMediaUrls } from '@/lib/media/upload'
 import { deriveUploadSigningKey } from '@/lib/media/upload-token'
 import { deriveAssetSigningKey } from '@/lib/media/asset-token'
-import { upsertVercelEnvVars, getVercelEnvValues } from '@/lib/vercel/env'
+import { upsertHostEnvVars, getHostEnvValues } from '@/lib/hosting/env'
+import { getHostingCredentials, missingCredentialsMessage } from '@/lib/hosting/provider'
 import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
 
 // Account lookup + Worker upload + subdomain enable can chain several Cloudflare
@@ -47,10 +48,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const vercelToken = process.env.VERCEL_API_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!vercelToken || !projectId) {
-    return errorResponse('VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required', 503)
+  const creds = getHostingCredentials()
+  if (!creds) {
+    return errorResponse(missingCredentialsMessage(), 503)
   }
 
   let body: Body
@@ -66,16 +66,16 @@ export async function POST(req: NextRequest) {
     return errorResponse(`${provider} is served directly and does not use a Cloudflare Worker.`, 400)
   }
 
-  // Everything the deploy needs is already stored on the Vercel project once the
+  // Everything the deploy needs is already stored on the hosting project once the
   // admin has set it up once, so nothing here should have to be retyped. Read the
-  // saved values back: the Vercel API is the freshest source (it sees values saved
-  // since this deployment was built), but it only returns `plain` vars - sensitive
-  // ones decrypt to nothing and are only reachable via process.env, i.e. after a
-  // redeploy. A Vercel hiccup is non-fatal: process.env alone still covers a site
+  // saved values back: the hosting API is the freshest source (it sees values saved
+  // since this deployment was built), but it only returns plain vars - secret
+  // ones come back empty and are only reachable via process.env, i.e. after a
+  // redeploy. A hosting API hiccup is non-fatal: process.env alone still covers a site
   // that has redeployed since its credentials were saved.
   let stored: Record<string, string | null> = {}
   try {
-    stored = await getVercelEnvValues(vercelToken, projectId, [
+    stored = await getHostEnvValues(creds, [
       ...WORKER_SECRET_KEYS[provider],
       ...ALL_CLOUDFLARE_CREDENTIAL_KEYS,
     ])
@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Persist the Worker URL (plain) plus the Cloudflare credentials (the two keys
-  // are sensitive per lib/vercel/env.ts) so a later provider switch can redeploy
+  // are secret per lib/hosting/sensitive-keys.ts) so a later provider switch can redeploy
   // without re-entering anything.
   const toWrite: Array<{ key: string; value: string }> = [
     { key: CLOUDFLARE_WORKER_VAR.key, value: url },
@@ -210,7 +210,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await upsertVercelEnvVars(vercelToken, projectId, toWrite)
+    await upsertHostEnvVars(creds, toWrite)
     await recordDeploymentNeeded({ label: await labelForEnvKeys(toWrite.map((v) => v.key)) })
   } catch (err: unknown) {
     // The Worker itself deployed fine; only saving the settings failed. Hand the

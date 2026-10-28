@@ -8,7 +8,9 @@
 export function resolveSiteUrl(): string | null {
   const explicit = process.env.SITE_URL?.trim()
   const vercel = process.env.VERCEL_URL?.trim()
-  const raw = explicit || (vercel ? `https://${vercel}` : '')
+  // Netlify's main site address, for the window before setup writes SITE_URL.
+  const netlify = process.env.CACTUS_HOSTING_PROVIDER === 'netlify' ? process.env.URL?.trim() : ''
+  const raw = explicit || (vercel ? `https://${vercel}` : '') || netlify || ''
   if (!raw) return null
 
   // SITE_URL is admin-entered, so it may arrive without a scheme or with a

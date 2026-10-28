@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { isLocalMode } from '@/lib/config/env'
-import { upsertVercelEnvVars } from '@/lib/vercel/env'
+import { upsertHostEnvVars } from '@/lib/hosting/env'
+import { getHostingCredentials, missingCredentialsMessage } from '@/lib/hosting/provider'
 
 const ALLOWED_KEYS = new Set([
   'BREVO_API_KEY',
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
   }
 
-  // This route writes env vars to a Vercel project. In local-development mode
+  // This route writes env vars to the hosting project. In local-development mode
   // there is no project: configuration lives in .env.local and is edited there.
   if (isLocalMode()) {
     return NextResponse.json(
@@ -51,13 +52,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const token = process.env.VERCEL_API_TOKEN
-  const projectId = process.env.VERCEL_PROJECT_ID
-  if (!token || !projectId) {
-    return NextResponse.json(
-      { error: 'VERCEL_API_TOKEN and VERCEL_PROJECT_ID are required' },
-      { status: 503 }
-    )
+  const creds = getHostingCredentials()
+  if (!creds) {
+    return NextResponse.json({ error: missingCredentialsMessage() }, { status: 503 })
   }
 
   let body: { vars?: Array<{ key: string; value: string }> }
@@ -84,7 +81,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await upsertVercelEnvVars(token, projectId, toWrite)
+    await upsertHostEnvVars(creds, toWrite)
     return NextResponse.json({ ok: true, written: toWrite.length })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
