@@ -1,4 +1,4 @@
-import { isBlocklisted } from '@/lib/config/site'
+import { isBlocklisted } from '@/lib/config/path-blocklist'
 
 // Internal prefix the member-area pages live under (app/(public)/cactus-account).
 // proxy.ts rewrites /<memberAreaPath>/* here and blocks direct access, mirroring

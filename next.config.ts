@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import path from 'path'
 import pkg from './package.json'
 
 // Prefer an explicit CLOUDFLARE_WORKER_HOSTNAME, else derive it from
@@ -41,7 +42,32 @@ function hostingProvider(): string {
   return ''
 }
 
+// On Netlify, proxy.ts runs as an edge function, and Netlify's edge loader cannot
+// load Prisma: its generated client resolves itself through the
+// `#main-entry-point` package import, which that loader does not support. So a
+// Netlify build swaps the proxy's data seam for the version that asks a Node
+// route over HTTP instead (lib/proxy/data.ts explains the seam). Both bundlers
+// are covered: Turbopack for builds, webpack for `next dev` and `--webpack`.
+// Vercel and local builds get neither key, so their config is exactly as before.
+const PROXY_DATA_SEAM = '@/lib/proxy/data'
+const PROXY_DATA_NETLIFY = './lib/proxy/data.netlify.ts'
+
+function netlifyProxyAliases(): Pick<NextConfig, 'turbopack' | 'webpack'> {
+  return {
+    turbopack: { resolveAlias: { [PROXY_DATA_SEAM]: PROXY_DATA_NETLIFY } },
+    webpack: (webpackConfig: { resolve?: { alias?: Record<string, string> } }) => {
+      webpackConfig.resolve ??= {}
+      webpackConfig.resolve.alias = {
+        ...webpackConfig.resolve.alias,
+        [`${PROXY_DATA_SEAM}$`]: path.resolve(process.cwd(), PROXY_DATA_NETLIFY),
+      }
+      return webpackConfig
+    },
+  }
+}
+
 const config: NextConfig = {
+  ...(hostingProvider() === 'netlify' ? netlifyProxyAliases() : {}),
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
     NEXT_TELEMETRY_DISABLED: '1',

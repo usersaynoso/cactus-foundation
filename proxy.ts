@@ -1,5 +1,5 @@
-// Next.js 16 proxy.ts — runs on the Node.js runtime only (no Edge).
-// Replaces middleware.ts; can use Prisma directly.
+// Next.js 16 proxy.ts — Node.js runtime on Vercel; an edge function on Netlify.
+// Replaces middleware.ts. Database reads go through lib/proxy/data (see below).
 //
 // Responsibilities:
 //   1. First-run redirect: send everything to /setup until setupCompleted.
@@ -12,27 +12,34 @@
 //      unless the requester has an admin session.
 //
 // Admin path and site status are read from Edge Config when write credentials are
-// present; otherwise from a direct Prisma read briefly cached in memory (safe here
-// because proxy.ts runs on the Node.js runtime, not Edge).
+// present; otherwise from a database read briefly cached in memory. On Vercel that
+// read is direct Prisma (Node runtime); on Netlify, where this runs as an edge
+// function, it is an HTTP call to a Node route - see lib/proxy/data.ts.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminPathFromEdgeConfig, getSiteStatusFromEdgeConfig } from '@/lib/config/edge-config'
+// Every database read goes through lib/proxy/data, never straight to Prisma: on
+// Netlify this file runs as an edge function and next.config.ts swaps that module
+// for an HTTP-backed one. Do not import anything here that reaches lib/db/prisma.
 import {
+  gateFailureMeansUnconfigured,
   getAdminPathCached,
+  getMembersConfigCached,
+  getModuleRouteTiersCached,
   getPageCacheCached,
   getSiteStatusCached,
+  isEdgeConfigWritable,
   isFirstRunComplete,
   refreshFirstRunComplete,
-} from '@/lib/config/site'
+  rememberRequestOrigin,
+  validateMemberSession,
+  validateSession,
+} from '@/lib/proxy/data'
+import { PROXY_DATA_PATH } from '@/lib/proxy/protocol'
 import { detectHostingProvider } from '@/lib/hosting/provider'
 import { carriesAccessKey, cdnCacheControlForWindow, hasPageShapingQuery, pageCacheControl, resolveCacheWindow, vercelCdnCacheControl } from '@/lib/cache/page-cache'
 import { isCdnPurgeConfigured } from '@/lib/cache/cdn-purge'
-import { validateSession } from '@/lib/auth/session-core'
-import { isEdgeConfigWritable } from '@/lib/config/env'
 import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
-import { getMembersConfigCached } from '@/lib/members/config'
-import { validateMemberSession } from '@/lib/members/session-core'
-import { getModuleRouteTiersCached } from '@/lib/modules/member-extensions'
 import { isPathExcepted, resolveRouteTier } from '@/lib/members/access'
 import { moduleCspOrigins, type ModuleCspDirective } from '@/lib/modules/csp-origins'
 import { originMismatch } from '@/lib/security/origin-check'
@@ -288,25 +295,9 @@ async function withPageCache(request: NextRequest, res: NextResponse): Promise<N
   return res
 }
 
-// Which kind of failure just happened: "no site here yet" or "the database is
-// having a moment". Only the first may be answered with the setup wizard.
-//
-// Two failures mean genuinely unconfigured, both of them first-run states the
-// wizard exists to get a site out of:
-//   - no DATABASE_URL at all - nothing has been provisioned yet;
-//   - a connection that works but has no schema behind it - the wizard has
-//     written the connection string and the migration runs on the next deploy.
-// Anything else (refused, timed out, pool exhausted, server restarted) is an
-// outage on a site that is already set up, and the wizard is the last thing it
-// should be showing.
-function gateFailureMeansUnconfigured(err: unknown): boolean {
-  if (!process.env.DATABASE_URL?.trim()) return true
-  const code = (err as { code?: unknown } | null)?.code
-  // P2021 table does not exist, P2022 column does not exist.
-  if (code === 'P2021' || code === 'P2022') return true
-  const message = err instanceof Error ? err.message : ''
-  return /does not exist in the current database|relation "[^"]*" does not exist/i.test(message)
-}
+// gateFailureMeansUnconfigured (lib/proxy/data) decides which kind of failure a
+// throwing first-run read was: "no site here yet" or "the database is having a
+// moment". Only the first may be answered with the setup wizard.
 
 // Answer for a request that arrived while the database was unreachable.
 //
@@ -411,9 +402,12 @@ function sessionToken(request: NextRequest): string | null {
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
+  rememberRequestOrigin(request.nextUrl.origin)
 
   // ── Always-pass paths ──────────────────────────────────────────────────────
-  if (ALWAYS_PASS.some((p) => pathname.startsWith(p))) {
+  // The proxy's own data route (Netlify) must never come back through the proxy,
+  // or every lookup would recurse. It authenticates its callers itself.
+  if (pathname === PROXY_DATA_PATH || ALWAYS_PASS.some((p) => pathname.startsWith(p))) {
     return withSecurity(NextResponse.next())
   }
 

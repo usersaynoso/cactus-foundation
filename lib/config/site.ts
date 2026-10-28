@@ -261,64 +261,10 @@ export async function refreshFirstRunComplete(): Promise<boolean> {
   return cachedFirstRunComplete
 }
 
-// Slug/path blocklist — same pattern used for admin path and usernames
-const BLOCKLIST = new Set([
-  'admin',
-  'administrator',
-  'root',
-  'support',
-  'moderator',
-  'mod',
-  'system',
-  'owner',
-  'staff',
-  'api',
-  'setup',
-  'login',
-  'logout',
-  'register',
-  'auth',
-  // Members system: default member-area path, public profile prefix, and
-  // the verification holding page (see MEMBERS_SPEC.md)
-  'account',
-  'members',
-  'verify-email',
-  'health',
-  'sitemap',
-  'robots',
-  'favicon',
-  'static',
-  'public',
-  'assets',
-  'images',
-  'img',
-  'uploads',
-  'media',
-  'cdn',
-  'www',
-  'mail',
-  'email',
-  'help',
-  'about',
-  'contact',
-  'privacy',
-  'terms',
-  'legal',
-  'dmca',
-  'news',
-  'blog',
-  'feed',
-  'rss',
-  'atom',
-  'null',
-  'undefined',
-  'true',
-  'false',
-])
-
-export function isBlocklisted(value: string): boolean {
-  return BLOCKLIST.has(value.toLowerCase())
-}
+// The slug/path blocklist lives in its own database-free file so proxy.ts can
+// reach it (via lib/members/paths.ts) without pulling Prisma along. Re-exported
+// here for the callers that have always imported it from this file.
+export { isBlocklisted } from './path-blocklist'
 
 // The admin URL is meant to be unguessable - that obscurity is the whole point
 // of suggesting a random one. Math.random() is a predictable PRNG: sample a few
