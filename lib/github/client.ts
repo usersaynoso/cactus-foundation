@@ -1,6 +1,7 @@
 import { Octokit } from '@octokit/rest'
 import { createAppAuth } from '@octokit/auth-app'
 import { isEncryptionKeyUsable, tryDecryptSecret } from '@/lib/crypto/secrets'
+import { writeAccessProblem, type WriteAccessProbe } from './write-access'
 
 // A GithubAppConnection row is worth exactly nothing unless this install's
 // ENCRYPTION_KEY can read the private key inside it - and there is a perfectly
@@ -133,6 +134,39 @@ export async function getGithubToken(): Promise<string | null> {
   }
 
   return process.env.GITHUB_API_TOKEN ?? null
+}
+
+// What the connection getGithubClient() would use is allowed to do to owner/repo.
+// The installation token is minted with its permissions attached, so for an App this
+// costs one token exchange and no repo call; for a PAT it is one
+// repos.get. Any failure here reads as 'unknown' - the probe is advice, not a gate.
+export async function probeRepoWriteAccess(owner: string, repo: string): Promise<WriteAccessProbe> {
+  try {
+    const conn = await loadConnection()
+    if (conn.state === 'ready' && conn.appId && conn.privateKey && conn.installationId) {
+      const auth = createAppAuth({
+        appId: conn.appId,
+        privateKey: conn.privateKey,
+        installationId: conn.installationId,
+      })
+      const result = (await auth({ type: 'installation' })) as { permissions?: Record<string, string> }
+      return { kind: 'app', contents: result.permissions?.contents }
+    }
+    if (process.env.GITHUB_API_TOKEN) {
+      const { data } = await new Octokit({ auth: process.env.GITHUB_API_TOKEN }).rest.repos.get({ owner, repo })
+      return { kind: 'token', push: data.permissions?.push }
+    }
+  } catch (err) {
+    console.warn('[github] could not read write permissions - carrying on:', err)
+  }
+  return { kind: 'unknown' }
+}
+
+// Throws the owner-facing permissions message before a write sequence starts, rather
+// than letting it fail halfway with "Resource not accessible by integration".
+export async function assertCanWriteRepo(owner: string, repo: string): Promise<void> {
+  const problem = writeAccessProblem(await probeRepoWriteAccess(owner, repo), owner, repo)
+  if (problem) throw new Error(problem)
 }
 
 // Returns an app-level Octokit (JWT auth, not installation token).

@@ -3,7 +3,7 @@
 // Module registry is stored in modules.json at the repo root (plain JSON, no git submodule machinery).
 
 import { parseGitHubRepo } from './manifest'
-import { getGithubClient } from '@/lib/github/client'
+import { getGithubClient, assertCanWriteRepo } from '@/lib/github/client'
 import { retryTransient, createReplicatedBlob } from '@/lib/github/retry'
 import { applyPinFloor, formatHeldPins } from './pin-floor'
 import { hostCronFile } from '@/lib/cron/host-file'
@@ -240,6 +240,9 @@ export async function syncModulesJson(
   if (normaliseModules(content.modules) === normaliseModules(floored) && !cronFileStale) {
     return { committed: false }
   }
+
+  // Same preflight as the core update: the reads above work on a read-only App.
+  await assertCanWriteRepo(owner, repo)
 
   // Sorted by name, because the order this arrives in is whatever the Module table's
   // findMany happened to return - physical row order, which shuffles as rows are

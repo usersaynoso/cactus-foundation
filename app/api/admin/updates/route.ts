@@ -21,6 +21,7 @@ import { findModuleUpdates } from '@/lib/modules/updates'
 import { fetchModuleRequirements, resolveUpdateBatch } from '@/lib/modules/compat'
 import { deadlineFromNow, isDeadlineError, ROUTE_WORK_BUDGET_MS } from '@/lib/updates/deadline'
 import { gitHubOutageNote } from '@/lib/github/health'
+import { isWritePermissionError } from '@/lib/github/write-access'
 
 export const maxDuration = 60
 
@@ -304,9 +305,12 @@ export async function POST(request: NextRequest) {
     // Best effort - a status page that won't answer never changes the outcome here.
     const base = err instanceof Error ? err.message : 'Unknown error'
     let note = ''
-    try {
-      note = await gitHubOutageNote()
-    } catch { /* status page unreachable: report the raw failure alone */ }
+    // A missing write permission is the owner's to fix, whatever GitHub's day is like.
+    if (!isWritePermissionError(base)) {
+      try {
+        note = await gitHubOutageNote()
+      } catch { /* status page unreachable: report the raw failure alone */ }
+    }
 
     return errorResponse(
       note ? `Update failed: ${base} ${note}` : `Update failed: ${base}`,

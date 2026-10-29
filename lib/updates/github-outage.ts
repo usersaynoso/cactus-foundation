@@ -6,8 +6,13 @@
  *
  * "Resource not accessible by integration" is the awkward one: normally it means the
  * GitHub App genuinely lacks write access, but GitHub also returns it while their
- * App auth or permissions service is degraded. The hint is worded to cover both.
+ * App auth or permissions service is degraded. Updates now check write access before
+ * pushing (assertCanWriteRepo in lib/github/client.ts) and fail with a permissions
+ * message instead, so this signature only reaches the owner once that check has passed -
+ * when an outage is the likelier story. The permissions message itself never gets the hint.
  */
+import { isWritePermissionError } from '@/lib/github/write-access'
+
 export const GITHUB_STATUS_URL = 'https://www.githubstatus.com/'
 
 const OUTAGE_SIGNATURES = [
@@ -47,7 +52,7 @@ const STATUS_CODE_SIGNATURES = [
 
 /** True when an update failure looks like it came from GitHub's end, not the install's. */
 export function looksLikeGitHubProblem(message: string | null | undefined): boolean {
-  if (!message) return false
+  if (!message || isWritePermissionError(message)) return false
   const text = message.toLowerCase()
   return (
     OUTAGE_SIGNATURES.some((s) => text.includes(s)) ||

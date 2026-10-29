@@ -5,7 +5,7 @@
 
 import { Octokit } from '@octokit/rest'
 import pkg from '@/package.json'
-import { getGithubClient } from '@/lib/github/client'
+import { getGithubClient, assertCanWriteRepo } from '@/lib/github/client'
 import { retryTransient, createReplicatedBlob } from '@/lib/github/retry'
 import { isGitHubConfigured, isLocalMode } from '@/lib/config/env'
 import { markdownToHtml } from '@/lib/sanitize'
@@ -394,6 +394,11 @@ export async function syncCoreFromUpstream(
   if (plan.writes.length === 0 && plan.deletes.length === 0 && !modulesJson && !cronFileStale) {
     return { commitSha: initialBase.headSha, fromVersion, toVersion, fileCount: 0 }
   }
+
+  // Everything above was a read, and reads succeed on a read-only App. Check the
+  // connection can write before the first createBlob, so a missing Contents permission
+  // is reported as that rather than as a GitHub outage from createTree.
+  await assertCanWriteRepo(adminOwner, adminRepo)
 
   // Fetch target content for each write. Text is inlined via the tree's `content` field
   // (GitHub makes the blob atomically inside createTree - no replication race); genuinely

@@ -1728,6 +1728,15 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             </p>
           </div>
         )}
+
+        {/* Reads work on a read-only App, so this only bites at the first update - say it up front. */}
+        {gh && gh.encryptionKeySet && gh.encryptionKeyValid && !gh.unreadable && (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: '0.75rem', marginBottom: 0 }}>
+            Core and module updates write to your repository, so the App needs Repository permissions -&gt; Contents
+            set to <strong>Read and write</strong>. An App connected from here gets that already; if you changed it on
+            GitHub, set it back in the App&apos;s settings and accept the permission update on the installation.
+          </p>
+        )}
       </div>
     )
   }
