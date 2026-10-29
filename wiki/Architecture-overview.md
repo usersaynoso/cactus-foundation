@@ -244,6 +244,29 @@ Browser ──── Next.js <Image> ────▶ Custom loader (lib/media/lo
                                           └── returns with cache headers (1 year, immutable)
 ```
 
+### Direct serving mode (S3-compatible providers without a Worker)
+
+`MEDIA_SERVING_MODE=direct` (lib/media/serving-mode.ts) takes the Worker out for B2, R2, S3, Spaces, Wasabi and MinIO. Worker mode stays the default, and an install without the variable behaves exactly as before: same urls, loader output, CSP and preconnect.
+
+```
+Browser ──── <img src="https://site/api/media/<key>"> ────▶ app/api/media/[...key]/route.ts
+                                          │
+                                          ├── provider from key prefix (lib/media/serve-rules.ts, mirrors the Worker)
+                                          ├── 3D models: same Origin check + signed ?t= token as the Worker
+                                          └── 302 to a presigned GET/HEAD on the bucket (lib/media/presign.ts)
+                                                signed at the top of the hour, valid 3h, so the url is stable
+                                                for an hour and browser caching works; redirect cached 1h
+Browser ──── follows redirect ────▶ bucket (no file bytes pass through a function)
+```
+
+- **Urls.** `Media.url` = `${SITE_URL}/api/media/<key>`, built by `requireMediaUrl()` / `mediaServeBase()` (lib/media/direct-serving.ts). The route answers in either mode, so a picture keeps loading between an owner switching mode and the redeploy that applies it.
+- **Switching.** The mode is an env var, live only after a redeploy, so stored urls are moved by the owner afterwards: `GET/POST /api/admin/media/serving-mode` -> `countMediaUrlsOffServingMode()` / `rebaseMediaUrlsToServingMode({ deadline })`. Row by row (cursor on `id`): `rewriteMediaReferencesInContent(oldUrl, newUrl, key, key, { revalidate: false })` swaps the url in `InfoPage`/`Layout` builder JSON and runs every `core.media-reference-rewriters` entry, then `Media.url` is updated (guarded on the url read). References before the row, so a throwing rewriter leaves that row pending. POST stops taking rows after 40s (`maxDuration` 60) and returns `{ moved, remaining }`; the card calls again until `remaining` is 0 or a pass moves nothing. Pages are revalidated once per pass. Only urls are rewritten, from the immutable `key`. Going back to the Worker only rewrites rows in the direct shape, so a never-switched install is untouched. `rebaseProxiedMediaUrls()` (Worker deploy) skips providers being served directly.
+- **Uploads.** The serverless path as before; for direct-upload types `upload-url` returns a presigned PUT with `presigned: true` (no `Authorization` header from the client; content type and length signed; checksums off via `getS3PresignConfig`). `/record` and replace re-check the stored size against `MAX_DIRECT_UPLOAD_BYTES` and delete an oversized object. An in-place replace (plan key = current key) takes the serverless path, since a bucket PUT would overwrite the original before anything checked it.
+- **Resizing.** The custom loader returns direct urls untouched. `MEDIA_DIRECT_RESIZE=platform` makes `next.config.ts` drop the custom loader (which otherwise turns `/_next/image` off) and allow the site host under `/api/media/**`.
+- **CSP.** `lib/media/bucket-origins.ts` adds each configured bucket host (and its `*.` twin) to img-src, media-src and connect-src, because CSP applies to where a redirect lands. Empty in Worker mode.
+- **Bucket CORS** is the owner's job; `POST/DELETE /api/admin/media/cors-check` hands the browser a presigned PUT+GET for a probe under `<prefix>.cors-check/` and removes it afterwards.
+- **Not covered:** content references (Puck JSON, module tables) keep the url they were saved with; the gate `isMediaProviderConfigured()` stops requiring `CLOUDFLARE_WORKER_URL` for these providers via `envKeysForProvider()`, and `mediaNotConfiguredMessage()` names what is missing.
+
 ### Direct providers (Cloudinary, ImageKit)
 
 These have their own CDN and URL-based transformation systems. The Worker is never involved. The Next.js loader detects a Cloudinary or ImageKit URL and builds that provider's own transformation URL directly. Images go: browser → provider CDN.

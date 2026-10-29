@@ -18,6 +18,30 @@ function workerImageHost(): string | undefined {
   }
 }
 
+// Direct serving mode (lib/media/serving-mode.ts), read at build time because the
+// image config below is fixed at build. Both default to the Worker set-up every
+// install had before the option existed, and produce exactly that config.
+function mediaServingMode(): string {
+  return (process.env.MEDIA_SERVING_MODE ?? '').trim().toLowerCase() === 'direct' ? 'direct' : ''
+}
+
+function mediaDirectResize(): string {
+  return (process.env.MEDIA_DIRECT_RESIZE ?? '').trim().toLowerCase() === 'platform' ? 'platform' : ''
+}
+
+// The site's own host, which serves /api/media/<key> in direct mode. The
+// platform's optimiser fetches pictures from there (and follows the redirect to
+// the bucket), so it has to be on the remote allowlist.
+function siteImageHost(): string | undefined {
+  const url = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '').trim()
+  if (!url) return undefined
+  try {
+    return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname
+  } catch {
+    return undefined
+  }
+}
+
 // The Turbopack build cache is the one part of the build that cannot be debugged
 // from here: when it goes wrong the symptom is a build that produces no output at
 // all and is killed by Vercel's 45-minute limit, which is also long enough to make
@@ -72,6 +96,10 @@ const config: NextConfig = {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
     NEXT_TELEMETRY_DISABLED: '1',
     CACTUS_HOSTING_PROVIDER: hostingProvider(),
+    // Inlined so the browser-side image loader and the Media settings page see the
+    // same serving mode the server does. Empty on every Worker-mode install.
+    CACTUS_MEDIA_SERVING_MODE: mediaServingMode(),
+    CACTUS_MEDIA_DIRECT_RESIZE: mediaDirectResize(),
   },
   images: {
     remotePatterns: [
@@ -85,9 +113,18 @@ const config: NextConfig = {
       { protocol: 'https', hostname: 'res.cloudinary.com' },
       { protocol: 'https', hostname: 'ik.imagekit.io' },
       { protocol: 'https', hostname: '*.imagekit.io' },
+      // Direct serving mode: pictures come from this site's own /api/media.
+      ...(mediaServingMode() === 'direct' && siteImageHost()
+        ? [{ protocol: 'https' as const, hostname: siteImageHost()!, pathname: '/api/media/**' }]
+        : []),
     ],
-    loader: 'custom',
-    loaderFile: './lib/media/loader.ts',
+    // The custom loader turns Next's own optimiser off entirely (it answers 404).
+    // An owner serving straight from the bucket who has asked for the platform's
+    // resizing gets Next's default loader instead, which is the only way to reach
+    // it. Every other install keeps the custom loader exactly as before.
+    ...(mediaServingMode() === 'direct' && mediaDirectResize() === 'platform'
+      ? {}
+      : { loader: 'custom' as const, loaderFile: './lib/media/loader.ts' }),
   },
   async rewrites() {
     return {

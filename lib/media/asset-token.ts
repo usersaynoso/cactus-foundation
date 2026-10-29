@@ -1,10 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { getSessionSecret } from '@/lib/config/env'
 import { MODEL_EXTENSION_TYPES } from '@/lib/media/limits'
-// From the leaf module, not '@/lib/media/upload': this file signs the media urls
+// From the light module, not '@/lib/media/upload': this file signs the media urls
 // on every public page, and upload.ts brings sharp, the S3 client, the glTF
 // optimiser and jsdom with it. See lib/media/worker-url.ts.
-import { workerUrl } from '@/lib/media/worker-url'
+import { ownMediaBases } from '@/lib/media/direct-serving'
 
 // Signed read tokens for the media assets that are worth stealing.
 //
@@ -121,18 +121,22 @@ export function verifyAssetToken(objectKey: string, token: string, now: number =
  * signing off again needs no data migration.
  */
 export function signAssetUrl(url: string): string {
-  const base = workerUrl()
-  if (!base || !url.startsWith(`${base}/`)) return url
+  // A Worker url, or one served by the site's own /api/media in direct serving
+  // mode. Either is checked against the same token, over the same object key.
+  const base = ownMediaBases().find((b) => url.startsWith(`${b}/`))
+  if (!base) return url
 
-  // The key is the path, which is what the Worker signs against. Parsed rather
-  // than sliced so a url that already carries a query (an image resize) keeps it.
+  // The key is the path after the base, which is what the Worker (and /api/media)
+  // signs against. Parsed rather than sliced so a url that already carries a
+  // query (an image resize) keeps it.
   let parsed: URL
   try {
     parsed = new URL(url)
   } catch {
     return url
   }
-  const key = parsed.pathname.slice(1)
+  const basePath = new URL(base).pathname.replace(/\/+$/, '')
+  const key = parsed.pathname.slice(basePath.length + 1)
   if (!isProtectedAssetKey(key)) return url
 
   try {

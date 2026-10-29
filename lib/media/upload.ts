@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, CopyObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { nanoid } from 'nanoid'
 import { revalidatePath } from 'next/cache'
 import sharp, { type Sharp } from 'sharp'
@@ -10,10 +10,13 @@ import { loadMediaUsageIndex, isMediaInContent } from '@/lib/media/references'
 import { recordFormerMediaAddress, type MediaMoveReason } from '@/lib/media/former-addresses'
 import { retireMediaBlob } from '@/lib/media/retired-blobs'
 import { sanitizeSvg } from '@/lib/sanitize'
-import { MAX_UPLOAD_BYTES, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isVideoDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
+import { MAX_UPLOAD_BYTES, MAX_DIRECT_UPLOAD_BYTES, MAX_DIRECT_UPLOAD_MB, tooLargeReason, extensionForModelType, isModelDirectType, isOptimisableType, isRasterDirectType, isVideoDirectType, OPTIMISABLE_MODEL_TYPES } from '@/lib/media/limits'
 import { exactBaseName, nanoidLabel, isExactNameKey, keyDirectory } from '@/lib/media/keys'
 import { planAspectChange, ratioLabel } from '@/lib/media/aspect-plan'
 import { workerUrl } from '@/lib/media/worker-url'
+import { getS3Config, isS3Provider } from '@/lib/media/s3-config'
+import { directMediaBase, mediaServeBase } from '@/lib/media/direct-serving'
+import { canServeDirect, mediaServingMode, servesDirect, DIRECT_MEDIA_PATH } from '@/lib/media/serving-mode'
 import { planResize, sizeLabel, type ResizeBox } from '@/lib/media/resize-plan'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']
@@ -190,9 +193,24 @@ export function requireWorkerUrl(): string {
   return parsed.origin
 }
 
+// The serving url for `key` on `provider`, under the Worker or - in direct
+// serving mode - the site's own /api/media. Throws a clear, user-facing error
+// when the address it needs is missing, for the same reason requireWorkerUrl()
+// does: a row saved with a half-built url is a blank thumbnail nobody can explain.
+export function requireMediaUrl(provider: MediaProviderType, key: string): string {
+  if (!servesDirect(provider)) return `${requireWorkerUrl()}/${key}`
+  const base = mediaServeBase(provider)
+  if (!base) {
+    throw new Error('The site address (SITE_URL) is not set, so a media address cannot be built for direct serving. Set it and redeploy before uploading.')
+  }
+  return `${base}/${key}`
+}
+
 // Rewrite every proxied provider's stored Media.url so it sits under `base` (the
 // active Worker origin), rebuilt from the immutable storage key. Direct providers
-// (Cloudinary, ImageKit) serve from their own CDN and keep their url untouched.
+// (Cloudinary, ImageKit) serve from their own CDN and keep their url untouched,
+// and so does any provider the owner currently serves straight from its bucket -
+// deploying a Worker must not pull those rows back behind it uninvited.
 // Called after a Worker deploy so existing images move onto the new address (e.g.
 // media.<your-domain>) alongside new uploads, instead of only future uploads
 // picking it up. Idempotent - the guard skips rows already on `base`. Returns the
@@ -200,7 +218,7 @@ export function requireWorkerUrl(): string {
 export async function rebaseProxiedMediaUrls(base: string): Promise<number> {
   const origin = base.replace(/\/$/, '')
   if (!origin) return 0
-  const proxied = ALL_PROVIDERS.filter(isProxied)
+  const proxied = ALL_PROVIDERS.filter((p) => isProxied(p) && !servesDirect(p))
   if (proxied.length === 0) return 0
   return prisma.$executeRaw`
     UPDATE "Media"
@@ -210,118 +228,131 @@ export async function rebaseProxiedMediaUrls(base: string): Promise<number> {
   `
 }
 
-// User-supplied S3-compatible endpoints (B2, MinIO) are routinely pasted the way
-// the provider's console shows them - without a scheme, e.g.
-// "s3.eu-central-003.backblazeb2.com". The AWS SDK runs new URL() on the endpoint
-// internally and throws "Invalid URL" for a scheme-less value, which fails every
-// upload before it leaves the box. Prepend https:// when no scheme is present; an
-// explicit http:// is preserved so a self-hosted MinIO over plain HTTP still works.
-function normalizeS3Endpoint(endpoint: string | undefined): string | undefined {
-  const trimmed = endpoint?.trim().replace(/\/+$/, '')
-  if (!trimmed) return undefined
-  return /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+// Bringing stored urls into line with the serving mode the RUNNING deployment is
+// in, after the owner has switched it and redeployed. Only urls are rewritten -
+// Media.url, rebuilt from the immutable `key`, and every reference to it - and no
+// object is moved, copied or deleted, so switching back the other way restores
+// exactly the urls there were before.
+//
+//   direct - every row on a provider that can be served directly moves to
+//            `${SITE_URL}/api/media/<key>`.
+//   worker - only rows currently in the direct shape move back under the Worker.
+//            A Worker-mode install that never switched has no such rows, so this
+//            touches nothing on it, whatever its urls look like.
+//
+// Run on the owner's say-so from Settings → Media, never on an update: the env
+// change only reaches the code after a redeploy, and rewriting rows before then
+// would point pictures at an address the live deployment cannot yet serve.
+export type ServingModeRebase = { mode: 'worker' | 'direct'; pending: number }
+
+function directShapedProviders(): MediaProviderType[] {
+  return ALL_PROVIDERS.filter(canServeDirect)
 }
 
-// ---------------------------------------------------------------------------
-// S3-compatible client construction (B2, R2, S3, Spaces, Wasabi, MinIO)
-// ---------------------------------------------------------------------------
-
-type S3Config = { client: S3Client; bucket: string }
-
-// Read an S3 credential from the environment, stripping surrounding whitespace.
-// Keys, secrets and bucket names pasted from a provider console routinely arrive
-// with a trailing space or newline; S3 request signing then rejects the tainted
-// value ("Malformed Access Key Id" for the key id, "SignatureDoesNotMatch" for
-// the secret). Trimming at the point of use also heals a value that was already
-// stored with a stray space, without the admin having to spot and re-enter it.
-// (Endpoints go through normalizeS3Endpoint, which trims separately.)
-function s3Env(key: string): string {
-  return (process.env[key] ?? '').trim()
-}
-
-function getS3Config(provider: MediaProviderType): S3Config {
-  switch (provider) {
-    case 'B2':
-      return {
-        client: new S3Client({
-          endpoint: normalizeS3Endpoint(process.env.B2_ENDPOINT),
-          region: 'auto',
-          credentials: {
-            accessKeyId: s3Env('B2_APPLICATION_KEY_ID'),
-            secretAccessKey: s3Env('B2_APPLICATION_KEY'),
-          },
-        }),
-        bucket: s3Env('B2_BUCKET_NAME'),
-      }
-    case 'R2':
-      return {
-        client: new S3Client({
-          endpoint: `https://${s3Env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`,
-          region: 'auto',
-          credentials: {
-            accessKeyId: s3Env('R2_ACCESS_KEY_ID'),
-            secretAccessKey: s3Env('R2_SECRET_ACCESS_KEY'),
-          },
-        }),
-        bucket: s3Env('R2_BUCKET_NAME'),
-      }
-    case 'S3':
-      return {
-        client: new S3Client({
-          region: s3Env('S3_REGION') || 'us-east-1',
-          credentials: {
-            accessKeyId: s3Env('S3_ACCESS_KEY_ID'),
-            secretAccessKey: s3Env('S3_SECRET_ACCESS_KEY'),
-          },
-        }),
-        bucket: s3Env('S3_BUCKET_NAME'),
-      }
-    case 'SPACES':
-      return {
-        client: new S3Client({
-          endpoint: `https://${s3Env('SPACES_REGION')}.digitaloceanspaces.com`,
-          region: s3Env('SPACES_REGION') || 'us-east-1',
-          credentials: {
-            accessKeyId: s3Env('SPACES_ACCESS_KEY_ID'),
-            secretAccessKey: s3Env('SPACES_SECRET_ACCESS_KEY'),
-          },
-        }),
-        bucket: s3Env('SPACES_BUCKET_NAME'),
-      }
-    case 'WASABI':
-      return {
-        client: new S3Client({
-          endpoint: `https://s3.${s3Env('WASABI_REGION') || 'us-east-1'}.wasabisys.com`,
-          region: s3Env('WASABI_REGION') || 'us-east-1',
-          credentials: {
-            accessKeyId: s3Env('WASABI_ACCESS_KEY_ID'),
-            secretAccessKey: s3Env('WASABI_SECRET_ACCESS_KEY'),
-          },
-        }),
-        bucket: s3Env('WASABI_BUCKET_NAME'),
-      }
-    case 'MINIO':
-      return {
-        client: new S3Client({
-          endpoint: normalizeS3Endpoint(process.env.MINIO_ENDPOINT),
-          region: 'us-east-1',
-          forcePathStyle: true,
-          credentials: {
-            accessKeyId: s3Env('MINIO_ACCESS_KEY_ID'),
-            secretAccessKey: s3Env('MINIO_SECRET_ACCESS_KEY'),
-          },
-        }),
-        bucket: s3Env('MINIO_BUCKET_NAME'),
-      }
-    default:
-      throw new Error(`Provider ${provider} is not S3-compatible`)
+export async function countMediaUrlsOffServingMode(): Promise<ServingModeRebase> {
+  const providers = directShapedProviders()
+  const suffix = `${DIRECT_MEDIA_PATH}/`
+  if (mediaServingMode() === 'direct') {
+    const base = directMediaBase()
+    if (!base) return { mode: 'direct', pending: 0 }
+    const rows = await prisma.$queryRaw<Array<{ n: bigint }>>`
+      SELECT count(*)::bigint AS n FROM "Media"
+      WHERE "provider"::text IN (${Prisma.join(providers)})
+        AND "url" <> ${base} || '/' || "key"
+    `
+    return { mode: 'direct', pending: Number(rows[0]?.n ?? 0) }
   }
+  const rows = await prisma.$queryRaw<Array<{ n: bigint }>>`
+    SELECT count(*)::bigint AS n FROM "Media"
+    WHERE "provider"::text IN (${Prisma.join(providers)})
+      AND right("url", length(${suffix} || "key")) = ${suffix} || "key"
+  `
+  return { mode: 'worker', pending: Number(rows[0]?.n ?? 0) }
 }
 
-const S3_PROVIDERS: MediaProviderType[] = ['B2', 'R2', 'S3', 'SPACES', 'WASABI', 'MINIO']
-export function isS3Provider(provider: MediaProviderType): boolean {
-  return S3_PROVIDERS.includes(provider)
+export type ServingModeRebaseBatch = { mode: 'worker' | 'direct'; moved: number; remaining: number }
+
+// One Media row and the url it is moving to.
+type ServingModeMove = { id: string; key: string; url: string; target: string }
+
+// The next rows (by id, after `afterId`) whose url is off the running mode's shape.
+async function nextServingModeMoves(afterId: string, limit: number): Promise<ServingModeMove[]> {
+  const providers = directShapedProviders()
+  const suffix = `${DIRECT_MEDIA_PATH}/`
+  if (mediaServingMode() === 'direct') {
+    const base = directMediaBase()
+    if (!base) throw new Error('The site address (SITE_URL) is not set, so there is no address to move pictures to.')
+    return prisma.$queryRaw<ServingModeMove[]>`
+      SELECT "id", "key", "url", ${base} || '/' || "key" AS "target" FROM "Media"
+      WHERE "provider"::text IN (${Prisma.join(providers)})
+        AND "url" <> ${base} || '/' || "key"
+        AND "id" > ${afterId}
+      ORDER BY "id" LIMIT ${limit}
+    `
+  }
+  const base = requireWorkerUrl()
+  return prisma.$queryRaw<ServingModeMove[]>`
+    SELECT "id", "key", "url", ${base} || '/' || "key" AS "target" FROM "Media"
+    WHERE "provider"::text IN (${Prisma.join(providers)})
+      AND right("url", length(${suffix} || "key")) = ${suffix} || "key"
+      AND "id" > ${afterId}
+    ORDER BY "id" LIMIT ${limit}
+  `
 }
+
+/**
+ * Move stored urls onto the running serving mode, and every reference to them
+ * with them: page and layout content, and each module's own copy through the
+ * core.media-reference-rewriters extension point (the shop's product images,
+ * variation swatches, downloads and the rest). Without that second half an owner
+ * who moved across and then took the Worker down would find the media library
+ * fine and the shop full of broken pictures.
+ *
+ * One row at a time, because a rewriter's contract is one old url and one new
+ * one. References go first and the Media row last, so a rewriter that throws
+ * leaves that row still pending and still serving from where it was; running
+ * again picks it up, and a reference already moved is simply not found twice.
+ *
+ * Stops at `deadline` (epoch ms) and says how many are left, so the caller can
+ * come back for the rest without outliving its function's time limit.
+ */
+export async function rebaseMediaUrlsToServingMode(
+  opts: { deadline?: number; batchSize?: number } = {},
+): Promise<ServingModeRebaseBatch> {
+  const mode = mediaServingMode()
+  const batchSize = opts.batchSize ?? 100
+  const deadline = opts.deadline ?? Number.POSITIVE_INFINITY
+  let moved = 0
+  let contentChanged = false
+  let afterId = ''
+  try {
+    while (Date.now() < deadline) {
+      const batch = await nextServingModeMoves(afterId, batchSize)
+      if (batch.length === 0) break
+      for (const row of batch) {
+        if (Date.now() >= deadline) break
+        afterId = row.id
+        // The key never changes on a mode switch, so only the url is swapped.
+        if (await rewriteMediaReferencesInContent(row.url, row.target, row.key, row.key, { revalidate: false })) {
+          contentChanged = true
+        }
+        // Guarded on the url it was read with: a row somebody re-uploaded in the
+        // meantime already has the url it should have.
+        const { count } = await prisma.media.updateMany({ where: { id: row.id, url: row.url }, data: { url: row.target } })
+        moved += count
+      }
+    }
+  } finally {
+    if (contentChanged) revalidateRenderedPages()
+  }
+  const { pending: remaining } = await countMediaUrlsOffServingMode()
+  return { mode, moved, remaining }
+}
+
+// S3-compatible client construction lives in lib/media/s3-config.ts, so the public
+// media route can presign a read without importing this file. Re-exported here so
+// every existing `isS3Provider` import keeps working.
+export { isS3Provider }
 
 // Object key for a new upload. B2 keeps the legacy `media/<id>.ext` form for
 // backward compatibility; every other proxied provider is namespaced with its
@@ -420,7 +451,7 @@ export async function uploadMedia(
         ACL: 'private',
       })
     )
-    return { key, url: `${workerUrl()}/${key}`, mimeType, sizeBytes: buffer.length }
+    return { key, url: `${mediaServeBase(provider)}/${key}`, mimeType, sizeBytes: buffer.length }
   }
 
   if (provider === 'VERCEL_BLOB') {
@@ -917,7 +948,7 @@ export async function relocateMediaBlob(
           ACL: 'private',
         })
       )
-      return { key, url: `${workerUrl()}/${key}`, mimeType: media.mimeType, sizeBytes: media.sizeBytes }
+      return { key, url: `${mediaServeBase(provider)}/${key}`, mimeType: media.mimeType, sizeBytes: media.sizeBytes }
     } catch (err) {
       // Server-side copy is the fast path, but it can fail for a single object
       // where a plain re-upload of the same bytes still succeeds (a provider-side
@@ -971,12 +1002,13 @@ export async function saveMediaRecord(data: {
   // catch up on.
   dimensions?: Dimensions | null
 }): Promise<Media> {
-  // For proxied providers the canonical serving url is always the Worker url.
-  // requireWorkerUrl() (not workerUrl()) so a missing or malformed worker
+  // For proxied providers the canonical serving url is the Worker url, or the
+  // site's own /api/media in direct serving mode.
+  // requireMediaUrl() (not workerUrl()) so a missing or malformed worker
   // address aborts the upload with a clear reason here, rather than saving a
   // row whose url is a browser-rejected "bad URL" that surfaces days later as a
   // blank thumbnail no one can explain.
-  const url = isProxied(data.provider) ? `${requireWorkerUrl()}/${data.key}` : data.url
+  const url = isProxied(data.provider) ? requireMediaUrl(data.provider, data.key) : data.url
   return prisma.media.create({
     data: {
       key: data.key,
@@ -1623,7 +1655,7 @@ export async function applyOptimisedVideo(
   const media = await prisma.media.findUnique({ where: { id: mediaId } })
   if (!media) return null
 
-  const url = isProxied(media.provider) ? `${requireWorkerUrl()}/${written.key}` : media.url
+  const url = isProxied(media.provider) ? requireMediaUrl(media.provider, written.key) : media.url
   // The display name follows the bytes: a "demo.webm" that is now MP4 would
   // otherwise download as a .webm that isn't one.
   const originalName = written.key !== media.key && media.originalName
@@ -1747,15 +1779,34 @@ export async function adoptReplacementBlob(
   originalName: string | null,
 ): Promise<Media> {
   // The direct path is only ever signed for the S3-compatible family, whose
-  // canonical serving url is the Worker's.
+  // canonical serving url is the Worker's - or the site's own /api/media when the
+  // owner serves straight from the bucket.
   if (!isS3Provider(media.provider)) throw new Error('This item is not stored on a provider the direct upload path can write to.')
+  const stored = await confirmedSizeBytes(media.provider, key, sizeBytes)
+  await refuseOversizedBucketUpload(media.provider, key, stored)
   const result: UploadResult = {
     key,
-    url: `${workerUrl()}/${key}`,
+    url: requireMediaUrl(media.provider, key),
     mimeType,
-    sizeBytes: await confirmedSizeBytes(media.provider, key, sizeBytes),
+    sizeBytes: stored,
   }
   return repointMediaToBlob(media, result, { optimised: false, reason: 'replace', originalName })
+}
+
+/**
+ * Direct serving mode only: a file PUT straight to the bucket had no Worker in
+ * front of it to enforce the upload ceiling. The signed length normally does that
+ * job, but not every S3-style provider holds a presigned url to it, so the stored
+ * size is checked once more here. An object over the ceiling is removed and the
+ * upload refused. In Worker mode the Worker has already refused it, and this does
+ * nothing at all.
+ */
+export class OversizedUploadError extends Error {}
+
+export async function refuseOversizedBucketUpload(provider: MediaProviderType, key: string, storedBytes: number): Promise<void> {
+  if (!servesDirect(provider) || storedBytes <= MAX_DIRECT_UPLOAD_BYTES) return
+  await deleteMedia(provider, key).catch((err) => console.error(`[media] could not remove oversized upload ${key}:`, err))
+  throw new OversizedUploadError(tooLargeReason(storedBytes, MAX_DIRECT_UPLOAD_MB))
 }
 
 /**
@@ -2067,16 +2118,21 @@ export async function rewriteMediaReferencesInContent(
   newUrl: string,
   oldKey: string,
   newKey: string,
-): Promise<void> {
+  // `revalidate: false` is for a caller rewriting many items in a row, which lets
+  // go of the rendered pages once at the end instead of once per item.
+  opts: { revalidate?: boolean } = {},
+): Promise<boolean> {
   // A needle is only worth swapping when it actually moved. Empty means "nothing
   // to do for this pair", which the statement below reads as a no-op rather than
   // needing a shape of its own.
   const urlFrom = oldUrl && oldUrl !== newUrl ? oldUrl : ''
   const keyFrom = oldKey && oldKey !== newKey ? oldKey : ''
+  let contentChanged = false
   if (urlFrom || keyFrom) {
     const pages = await swapInBuilderJson('InfoPage', urlFrom, newUrl, keyFrom, newKey)
     const layouts = await swapInBuilderJson('Layout', urlFrom, newUrl, keyFrom, newKey)
-    if (pages > 0 || layouts > 0) revalidateRenderedPages()
+    contentChanged = pages > 0 || layouts > 0
+    if (contentChanged && opts.revalidate !== false) revalidateRenderedPages()
   }
 
   // Puck content is core's own. A module may also hold this media's url in its own
@@ -2091,4 +2147,5 @@ export async function rewriteMediaReferencesInContent(
   for (const rewrite of getMediaReferenceRewriters()) {
     await rewrite({ oldUrl, newUrl, oldKey, newKey })
   }
+  return contentChanged
 }

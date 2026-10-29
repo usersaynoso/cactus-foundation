@@ -22,6 +22,7 @@ import {
   tooLargeReason,
   uploadErrorMessage,
 } from '@/lib/media/limits'
+import { directUploadHeaders } from '@/lib/media/direct-upload-headers'
 
 // A picked File is backed by the file on disk and read lazily. Safari grants a
 // web page read access to only a prefix of a very large multi-file selection
@@ -64,7 +65,7 @@ export const UNREADABLE_FILE_MESSAGE =
   'the browser could not read this file. Safari limits how many files a page may open at once, so the tail of a very large selection cannot be read - upload in smaller batches, or use Chrome or Edge for very large uploads'
 
 type UploadUrlResponse =
-  | { available: true; uploadUrl: string; key: string; token: string }
+  | { available: true; uploadUrl: string; key: string; token: string; presigned?: boolean }
   | { available: false }
 
 // The Media row both upload paths end up creating. Callers that only want the
@@ -188,7 +189,7 @@ async function directUpload(file: File, contentType: string, folderId: string | 
     const res = await fetch('/api/admin/media/upload-url', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ filename: file.name, contentType, folderId }),
+      body: JSON.stringify({ filename: file.name, contentType, folderId, sizeBytes: file.size }),
     })
     if (!res.ok) return { fallback: `the signing call failed (HTTP ${res.status})` }
     info = await res.json()
@@ -199,13 +200,7 @@ async function directUpload(file: File, contentType: string, folderId: string | 
 
   // PUT the bytes straight to the Worker. If the Worker is old (no PUT support)
   // or rejects the token, fall back rather than hard-failing.
-  const put = await sendWithRetry(
-    'PUT',
-    info.uploadUrl,
-    file,
-    { 'content-type': contentType, authorization: `Bearer ${info.token}` },
-    onProgress,
-  )
+  const put = await sendWithRetry('PUT', info.uploadUrl, file, directUploadHeaders(info, contentType), onProgress)
   if (!put.ok) {
     return {
       fallback: put.status === 0
@@ -324,7 +319,7 @@ async function directReplace(mediaId: string, file: File, contentType: string, o
     res = await fetch('/api/admin/media/upload-url', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ filename: file.name, contentType, replaceId: mediaId }),
+      body: JSON.stringify({ filename: file.name, contentType, replaceId: mediaId, sizeBytes: file.size }),
     })
   } catch {
     return { fallback: 'the signing call never reached the server' }
@@ -343,13 +338,7 @@ async function directReplace(mediaId: string, file: File, contentType: string, o
   }
   if (!info.available) return { fallback: 'direct uploads are not enabled for this storage set-up' }
 
-  const put = await sendWithRetry(
-    'PUT',
-    info.uploadUrl,
-    file,
-    { 'content-type': contentType, authorization: `Bearer ${info.token}` },
-    onProgress,
-  )
+  const put = await sendWithRetry('PUT', info.uploadUrl, file, directUploadHeaders(info, contentType), onProgress)
   if (!put.ok) {
     return {
       fallback: put.status === 0

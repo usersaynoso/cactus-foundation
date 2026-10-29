@@ -5,7 +5,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { isVideoDirectType } from '@/lib/media/limits'
 import { getSiteUrl, isMediaWorkerConfigured } from '@/lib/config/env'
-import { requireWorkerUrl } from '@/lib/media/upload'
+import { requireMediaUrl } from '@/lib/media/upload'
 import { joinJobRef } from '@/lib/media/video-optimise'
 import { enqueueVideoJob, signVideoContext, VideoWorkerError } from '@/lib/media/video-optimise'
 import {
@@ -72,9 +72,10 @@ export async function POST(request: NextRequest, { params }: Ctx) {
 
   const name = media.originalName?.trim() || media.key.split('/').pop() || 'Video'
 
-  // The worker fetches the source over the public media Worker url. Video is not
-  // a token-protected type, so the plain worker url is fetchable as-is.
-  const videoUrl = `${requireWorkerUrl()}/${media.key}`
+  // The worker fetches the source over the public media url - the Worker's, or in
+  // direct serving mode the site's own /api/media, which redirects to the bucket.
+  // Video is not a token-protected type, so the plain url is fetchable as-is.
+  const videoUrl = requireMediaUrl(media.provider, media.key)
   const callbackUrl = `${getSiteUrl()}/api/webhooks/video-optimise`
 
   // With a Fly token configured every job gets a machine of its own - so a whole

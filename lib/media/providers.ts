@@ -10,6 +10,7 @@
 //            (Cloudinary, ImageKit).
 
 import type { MediaProviderType } from '@prisma/client'
+import { servesDirect } from '@/lib/media/serving-mode'
 
 export type ProviderKind = 'PROXIED' | 'DIRECT'
 
@@ -224,9 +225,11 @@ export function isDirect(provider: MediaProviderType): boolean {
 }
 
 // The full set of env var keys a given provider needs configured. For proxied
-// providers, CLOUDFLARE_WORKER_URL is included.
+// providers, CLOUDFLARE_WORKER_URL is included - unless the owner has chosen to
+// serve this provider straight from its bucket (lib/media/serving-mode.ts), in
+// which case there is no Worker to point at and none is asked for.
 export function envKeysForProvider(provider: MediaProviderType): string[] {
   const keys = PROVIDER_ENV_VARS[provider].map((v) => v.key)
-  if (isProxied(provider)) keys.push(CLOUDFLARE_WORKER_VAR.key)
+  if (isProxied(provider) && !servesDirect(provider)) keys.push(CLOUDFLARE_WORKER_VAR.key)
   return keys
 }

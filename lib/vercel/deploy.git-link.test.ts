@@ -4,12 +4,14 @@ vi.mock('@/lib/config/env', () => ({ isLocalMode: () => false }))
 
 import { ensureVercelRedeploy, vercelProjectHasGitLink } from './deploy'
 
-// A Vercel project deployed by `vercel deploy --prod` uploads has `link: null`.
+// A Vercel project deployed by `vercel deploy --prod` uploads has no Git link. The
+// real API leaves the `link` key OUT (it does not send `link: null`) - a test that
+// only stubbed null passed while production read the missing key as linked.
 // Redeploying its latest deployment replays the previous upload's files, so a
 // commit Cactus pushed can never ship that way - and must never be reported as if
 // it had. Seen on a Hobby site: v0.5.1894 -> v0.5.1895 "succeeded", ran 1894.
 
-type Project = { link: unknown; accountId?: string } | 'fail'
+type Project = { link?: unknown; accountId?: string } | 'fail'
 
 function stubVercel(project: Project) {
   const calls: { url: string; method: string }[] = []
@@ -19,7 +21,9 @@ function stubVercel(project: Project) {
     calls.push({ url, method })
     if (url.includes('/v9/projects/')) {
       if (project === 'fail') return new Response('nope', { status: 500 })
-      return Response.json({ accountId: project.accountId ?? 'user_1', link: project.link })
+      const body: Record<string, unknown> = { accountId: project.accountId ?? 'user_1' }
+      if ('link' in project) body.link = project.link
+      return Response.json(body)
     }
     if (url.includes('/v6/deployments')) {
       return Response.json({ deployments: [{ uid: 'dpl_old', name: 'site', state: 'READY' }] })
@@ -37,9 +41,14 @@ beforeEach(() => vi.unstubAllGlobals())
 afterEach(() => vi.unstubAllGlobals())
 
 describe('vercelProjectHasGitLink', () => {
+  it('is false for a CLI-uploaded project (no link key - the shape Vercel sends)', async () => {
+    stubVercel({})
+    expect(await vercelProjectHasGitLink('t', 'prj-nokey')).toBe(false)
+  })
+
   it('is false for a CLI-uploaded project (link: null)', async () => {
     stubVercel({ link: null })
-    expect(await vercelProjectHasGitLink('t', 'prj')).toBe(false)
+    expect(await vercelProjectHasGitLink('t', 'prj-null')).toBe(false)
   })
 
   it('is true for a Git-linked project', async () => {
@@ -49,35 +58,42 @@ describe('vercelProjectHasGitLink', () => {
 
   it('fails open when the project API will not answer', async () => {
     stubVercel('fail')
-    expect(await vercelProjectHasGitLink('t', 'prj')).toBe(true)
+    expect(await vercelProjectHasGitLink('t', 'prj-never-seen')).toBe(true)
+  })
+
+  it('on failure, keeps the last answer it got for that project', async () => {
+    stubVercel({})
+    expect(await vercelProjectHasGitLink('t', 'prj-cached')).toBe(false)
+    stubVercel('fail')
+    expect(await vercelProjectHasGitLink('t', 'prj-cached')).toBe(false)
   })
 })
 
 describe('ensureVercelRedeploy with requireLatestCommit', () => {
   it('refuses without POSTing on a project with no Git link', async () => {
-    const v = stubVercel({ link: null })
-    const result = await ensureVercelRedeploy('t', 'prj', { requireLatestCommit: true })
+    const v = stubVercel({})
+    const result = await ensureVercelRedeploy('t', 'prj-ensure-nolink', { requireLatestCommit: true })
     expect(result).toEqual({ triggered: false, error: 'no-git-link' })
     expect(v.posts()).toHaveLength(0)
   })
 
   it('POSTs as before on a Git-linked project', async () => {
     const v = stubVercel({ link: { type: 'github' } })
-    const result = await ensureVercelRedeploy('t', 'prj', { requireLatestCommit: true })
+    const result = await ensureVercelRedeploy('t', 'prj-ensure-linked', { requireLatestCommit: true })
     expect(result).toEqual({ triggered: true, deploymentId: 'dpl_new' })
     expect(v.posts()).toHaveLength(1)
   })
 
   it('POSTs as before when the project fetch fails (fail open)', async () => {
     const v = stubVercel('fail')
-    const result = await ensureVercelRedeploy('t', 'prj', { requireLatestCommit: true })
+    const result = await ensureVercelRedeploy('t', 'prj-ensure-fail', { requireLatestCommit: true })
     expect(result.triggered).toBe(true)
     expect(v.posts()).toHaveLength(1)
   })
 
   it('still replays on a no-link project when no commit needs shipping (env-var redeploy)', async () => {
-    const v = stubVercel({ link: null })
-    const result = await ensureVercelRedeploy('t', 'prj')
+    const v = stubVercel({})
+    const result = await ensureVercelRedeploy('t', 'prj-ensure-envvar')
     expect(result.triggered).toBe(true)
     expect(v.posts()).toHaveLength(1)
   })

@@ -6,7 +6,8 @@ import { triggerRedeploy } from '@/lib/hosting/deploy'
 import { getHostingCredentials, missingCredentialsMessage } from '@/lib/hosting/provider'
 import { isLocalMode } from '@/lib/config/env'
 import { errorResponse } from '@/lib/utils'
-import { ALL_PROVIDERS, envKeysForProvider, ALL_CLOUDFLARE_CREDENTIAL_KEYS } from '@/lib/media/providers'
+import { ALL_PROVIDERS, envKeysForProvider, ALL_CLOUDFLARE_CREDENTIAL_KEYS, CLOUDFLARE_WORKER_VAR } from '@/lib/media/providers'
+import { MEDIA_SERVING_MODE_VAR, MEDIA_DIRECT_RESIZE_VAR } from '@/lib/media/serving-mode'
 import { prisma } from '@/lib/db/prisma'
 import { INSTALLED_MODULE_STATUSES } from '@/lib/modules/live-status'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
@@ -28,6 +29,12 @@ const ALLOWED_KEYS = new Set([
   'SMTP_PASS',
   // Media — all providers (derived from providers.ts so this stays in sync)
   ...ALL_PROVIDERS.flatMap(envKeysForProvider),
+  // Named on its own as well: in direct serving mode the S3-style providers stop
+  // asking for it, and it must stay editable regardless.
+  CLOUDFLARE_WORKER_VAR.key,
+  // Media — serving through the Worker or straight from the bucket
+  MEDIA_SERVING_MODE_VAR,
+  MEDIA_DIRECT_RESIZE_VAR,
   // Media — Cloudflare credentials for auto-deploying the media Worker
   ...ALL_CLOUDFLARE_CREDENTIAL_KEYS,
   // Speed - clearing stored page copies the instant a page is edited

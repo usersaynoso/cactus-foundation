@@ -23,6 +23,8 @@ import EmailTemplatesClient from './EmailTemplatesClient'
 import NavBuilder from './NavBuilder'
 import ScheduledJobsClient from './ScheduledJobsClient'
 import NotificationsSettingsClient from './NotificationsSettingsClient'
+import MediaServingModeCard from './MediaServingModeCard'
+import { MEDIA_SERVING_MODE_VAR, MEDIA_DIRECT_RESIZE_VAR, canServeDirect, mediaServingMode } from '@/lib/media/serving-mode'
 import { MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual-message'
 import type { EditorNavSection, SidebarPrefs } from '@/lib/nav/admin-menu'
 import {
@@ -1245,7 +1247,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         const provider = config.mediaProvider ?? null
         return {
           config: true,
-          envKeys: provider ? [...envKeysForProvider(provider), CLOUDFLARE_WORKER_VAR.key] : [],
+          envKeys: provider ? [...envKeysForProvider(provider), CLOUDFLARE_WORKER_VAR.key, MEDIA_SERVING_MODE_VAR, MEDIA_DIRECT_RESIZE_VAR] : [],
         }
       }
       case 'gdpr': return { config: true, envKeys: [] }
@@ -3011,6 +3013,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         const jobActive = job && (job.status === 'running' || job.status === 'pending')
         const jobFailed = job && job.status === 'failed'
         const straysExist = Object.entries(breakdown).some(([p, n]) => p !== selected && n > 0)
+        // Serving straight from the bucket (picked, or already live) needs no
+        // Worker, so its address and set-up are not asked for.
+        const directChosen = !!selected && canServeDirect(selected)
+          && (envFields[MEDIA_SERVING_MODE_VAR] || mediaServingMode()) === 'direct'
 
         return (
           <div>
@@ -3107,6 +3113,20 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </div>
             </div>
 
+            {/* Worker or straight from the bucket - S3-style storage only */}
+            {selected && canServeDirect(selected) && (
+              <MediaServingModeCard
+                provider={selected}
+                hostLabel={HOST_LABEL}
+                localMode={localMode}
+                modeField={envFields[MEDIA_SERVING_MODE_VAR] ?? ''}
+                resizeField={envFields[MEDIA_DIRECT_RESIZE_VAR] ?? ''}
+                onModeChange={(mode) => setEnvField(MEDIA_SERVING_MODE_VAR, mode)}
+                onResizeChange={(resize) => setEnvField(MEDIA_DIRECT_RESIZE_VAR, resize)}
+                workerUrlSet={!!envStatus[CLOUDFLARE_WORKER_VAR.key]}
+              />
+            )}
+
             {/* Env var checklist for the selected provider */}
             {selected && (
               <div className="card">
@@ -3153,7 +3173,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                     {f.hint && <span className="field-hint">{f.hint}</span>}
                   </div>
                 ))}
-                {isProxiedSel && (
+                {isProxiedSel && !directChosen && (
                   <>
                     <div className="field">
                       <label style={{ fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>

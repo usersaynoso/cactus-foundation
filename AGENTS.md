@@ -196,7 +196,7 @@ Every module API route is served through the single core dispatcher `app/api/m/[
 
 - `VERCEL_API_TOKEN` - Vercel API token. **Note the name is `VERCEL_API_TOKEN`, not `VERCEL_TOKEN`** (older docs/memory say `VERCEL_TOKEN` and are wrong).
 - `DATABASE_URL` / `DIRECT_URL` - **the live Deskwell customer database**, not a sandbox. Not set in this repo; if exported for a run: reads fine, writes only when asked that turn, nothing destructive, no DDL by hand (reconcile files only).
-- `OVH_SERVER` / `OVH_USER` / `OVH_PASSWORD` - the OVH VPS SSH credentials (used by the backup round-trip test, which provisions throwaway `cactus_rt_*` databases there).
+- `OVH_SERVER` / `OVH_USER` / `OVH_SSH_KEY` (or `OVH_PASSWORD`, which the server has refused for SSH since 2026-10-28) - the OVH VPS SSH credentials (used by the backup round-trip test, which provisions throwaway `cactus_rt_*` databases there).
 - `B2_BUCKET_NAME` / `B2_ENDPOINT` / `B2_KEY_ID` / `B2_KEY` - Backblaze B2 media storage credentials.
 - `psql` binary lives at `/opt/homebrew/opt/libpq/bin/psql`.
 

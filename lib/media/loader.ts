@@ -13,6 +13,16 @@
 //
 // Direct-provider requests go straight to that provider's CDN; the Worker is
 // never involved.
+//
+//   - An S3-style provider in DIRECT SERVING mode (lib/media/serving-mode.ts)
+//     stores `<site>/api/media/<key>`, which redirects to the bucket. There is no
+//     Worker to resize it, so the original is served at every width. (When the
+//     owner turns on the platform's own optimisation instead, next.config swaps
+//     this loader out for Next's default one at build time and nothing here runs.)
+//     Recognised by its path, so a Worker url can never be mistaken for one and
+//     keeps exactly the handling below.
+
+import { isDirectMediaUrl } from '@/lib/media/serving-mode'
 
 type LoaderParams = {
   src: string
@@ -38,6 +48,9 @@ export default function mediaLoader({ src, width, quality = 80 }: LoaderParams):
     const separator = src.includes('?') ? '&' : '?'
     return `${src}${separator}tr=w-${width},q-${quality}`
   }
+
+  // Directly served from the bucket — no resizer in front of it.
+  if (isDirectMediaUrl(src)) return src
 
   // Proxied providers — Worker url with width/quality params.
   const workerUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL?.replace(/\/$/, '') ?? ''

@@ -9,8 +9,9 @@ import {
   adoptReplacementBlob,
   planMediaReplacement,
   MediaReplaceTypeError,
+  OversizedUploadError,
 } from '@/lib/media/upload'
-import { isMediaProviderConfigured } from '@/lib/config/env'
+import { isMediaProviderConfigured, mediaNotConfiguredMessage } from '@/lib/config/env'
 import { verifyUploadToken } from '@/lib/media/upload-token'
 import {
   contentTypeForKey,
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   // The new blob goes where the row already lives, not to the active selection -
   // so it's that provider's credentials that have to be present.
   if (!isMediaProviderConfigured(media.provider)) {
-    return errorResponse('The storage this item lives on is not configured. Add its credentials in Settings → Media.', 503)
+    return errorResponse(`The storage this item lives on is not ready. ${mediaNotConfiguredMessage(media.provider)}`, 503)
   }
 
   try {
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     return NextResponse.json({ ok: true, item })
   } catch (err: unknown) {
     if (err instanceof MediaReplaceTypeError) return errorResponse(err.message, 409)
+    if (err instanceof OversizedUploadError) return errorResponse(err.message, 413)
     if (err instanceof BadRequest) return errorResponse(err.message, err.status)
     return errorResponse(`Replace failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 500)
   }

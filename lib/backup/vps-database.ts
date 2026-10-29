@@ -17,7 +17,10 @@ import { randomBytes } from 'crypto'
 export type VpsConfig = {
   host: string
   user: string
-  password: string
+  /** Private key for a key login. The server has refused passwords since
+   *  2026-10-28, so this is the one that works; password is the fallback. */
+  keyFile?: string
+  password?: string
 }
 
 export type TestDatabase = {
@@ -104,13 +107,14 @@ function runScoped(name: string): string {
 export function vpsConfigFromEnv(): VpsConfig {
   const host = process.env.OVH_SERVER
   const user = process.env.OVH_USER
-  const password = process.env.OVH_PASSWORD
-  if (!host || !user || !password) {
+  const keyFile = process.env.OVH_SSH_KEY || undefined
+  const password = process.env.OVH_PASSWORD || undefined
+  if (!host || !user || (!keyFile && !password)) {
     throw new Error(
-      'The backup round-trip needs the database server: set OVH_SERVER, OVH_USER and OVH_PASSWORD (checked .env)',
+      'The backup round-trip needs the database server: set OVH_SERVER, OVH_USER and OVH_SSH_KEY (or OVH_PASSWORD) (checked .env)',
     )
   }
-  return { host, user, password }
+  return { host, user, keyFile, password }
 }
 
 function assertSafeName(name: string): void {
@@ -191,33 +195,60 @@ async function sshWithRetry(
   throw last
 }
 
-/** Runs a command on the VPS over SSH. The password goes via SSHPASS in the
- *  environment rather than argv, so it never shows up in the process list. */
+/** Runs a command on the VPS over SSH, with the key when there is one. A
+ *  password goes via SSHPASS in the environment rather than argv, so it never
+ *  shows up in the process list. */
 function sshOnce(cfg: VpsConfig, command: string, stdin?: string, timeoutMs = 120_000): Promise<string> {
+  const common = [
+    '-o',
+    'StrictHostKeyChecking=no',
+    '-o',
+    'UserKnownHostsFile=/dev/null',
+    '-o',
+    'LogLevel=ERROR',
+    '-o',
+    'ConnectTimeout=20',
+  ]
+  const [file, args]: [string, string[]] = cfg.keyFile
+    ? [
+        'ssh',
+        [
+          ...common,
+          // Only this key: an agent full of others would use up the server's
+          // MaxAuthTries (3) before reaching it.
+          '-i',
+          cfg.keyFile,
+          '-o',
+          'IdentitiesOnly=yes',
+          '-o',
+          'BatchMode=yes',
+          '-o',
+          'PreferredAuthentications=publickey',
+          `${cfg.user}@${cfg.host}`,
+          command,
+        ],
+      ]
+    : [
+        'sshpass',
+        [
+          '-e',
+          'ssh',
+          ...common,
+          // This is a password login by design. Left to itself ssh offers every key
+          // in the agent first, and a dev machine with a handful of them burns
+          // through the server's MaxAuthTries before it ever reaches the password.
+          '-o',
+          'PubkeyAuthentication=no',
+          '-o',
+          'PreferredAuthentications=password',
+          `${cfg.user}@${cfg.host}`,
+          command,
+        ],
+      ]
   return new Promise((resolve, reject) => {
     const child = execFile(
-      'sshpass',
-      [
-        '-e',
-        'ssh',
-        '-o',
-        'StrictHostKeyChecking=no',
-        '-o',
-        'UserKnownHostsFile=/dev/null',
-        '-o',
-        'LogLevel=ERROR',
-        '-o',
-        'ConnectTimeout=20',
-        // This is a password login by design. Left to itself ssh offers every key
-        // in the agent first, and a dev machine with a handful of them burns
-        // through the server's MaxAuthTries before it ever reaches the password.
-        '-o',
-        'PubkeyAuthentication=no',
-        '-o',
-        'PreferredAuthentications=password',
-        `${cfg.user}@${cfg.host}`,
-        command,
-      ],
+      file,
+      args,
       {
         // SSH_ASKPASS_REQUIRE=never: the test runner has no controlling terminal,
         // and with DISPLAY set (any Mac with XQuartz installed) ssh would rather

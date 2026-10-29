@@ -42,26 +42,37 @@ export async function getVercelProjectName(token: string, projectId: string): Pr
 
 // Whether the project is connected to a Git repository, i.e. whether a commit pushed
 // to the site's repo can ever become a build on it. A project deployed by uploading
-// files (`vercel deploy --prod`) has `link: null`: nothing watches the repo, and a
+// files (`vercel deploy --prod`) has no link: nothing watches the repo, and a
 // redeploy of its latest deployment replays the previous upload's files, whatever
 // `withLatestCommit` says - that flag only means something on a deployment with a
 // gitSource. Hobby cannot link an organisation-owned repo, so this is the only free
 // way to host one.
 //
-// Fails OPEN: an API that will not answer reports true, so a Git-linked site is never
+// Only a link OBJECT counts. The real API leaves the `link` key out entirely on an
+// unlinked project rather than sending `link: null` (checked against a live Hobby
+// project 2026-10-29); `undefined !== null` read that as linked, and module updates
+// on such a site replayed the old upload and reported success.
+//
+// Fails OPEN: an API that will not answer reports the last answer this instance got
+// for the project, or true if it never got one, so a Git-linked site is never
 // downgraded to "deploy it yourself" by a network blip.
+const lastKnownGitLink = new Map<string, boolean>()
+
 export async function vercelProjectHasGitLink(token: string, projectId: string): Promise<boolean> {
+  const fallback = lastKnownGitLink.get(projectId) ?? true
   try {
     const teamId = await resolveVercelTeamId(token, projectId)
     const res = await fetch(
       `${VERCEL_API}/v9/projects/${encodeURIComponent(projectId)}${teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''}`,
       { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) }
     )
-    if (!res.ok) return true
+    if (!res.ok) return fallback
     const data = (await res.json()) as { link?: unknown }
-    return data.link !== null
+    const linked = typeof data.link === 'object' && data.link !== null
+    lastKnownGitLink.set(projectId, linked)
+    return linked
   } catch {
-    return true
+    return fallback
   }
 }
 

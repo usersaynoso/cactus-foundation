@@ -36,6 +36,25 @@ Not sure where a particular value comes from? The credentials panel shows a **Wh
 >
 > Prefer to do it by hand? The same box has a **Prefer to set it up yourself?** section with step-by-step dashboard instructions, and there's more technical detail in [Self-hosting and operations](Self-hosting-and-operations).
 
+### Doing without Cloudflare altogether
+
+Rather not have a Cloudflare account at all? Backblaze B2, Cloudflare R2, AWS S3, DigitalOcean Spaces, Wasabi and MinIO can serve your pictures straight from the bucket instead. On the Media tab, the **How pictures are served** card has two choices:
+
+- **Serve through Cloudflare Worker (recommended)** - what every site does unless told otherwise. Pictures are cached close to your visitors and resized to fit each screen.
+- **Serve directly from the bucket** - no Worker, no Cloudflare. Each picture's address points at your own site, which hands the visitor a short-lived signed link to the file in your bucket. Private buckets are fine.
+
+What you give up by going direct, in plain terms:
+
+- **No cache in front of the bucket.** Every view is a download from your bucket, so the bucket's own download charges apply.
+- **Limited resizing.** Pick either **Send pictures at their original size** (costs nothing, but pages carry heavier pictures than they need) or **Use Vercel's image optimisation** (the card names your own host). The second has a monthly allowance, and on Vercel's free Hobby plan it is a small one - check your plan before leaving it on, and switch back if pictures stop appearing.
+- **Bucket CORS for big files.** Pictures under 4.5 MB upload as normal. Anything bigger (up to 50 MB) goes from your browser straight into the bucket, and 3D models are read straight back out of it - both need the bucket's CORS rules to let your site in. The card shows a ready-made rule and a **Test CORS** button that tries a real upload and read-back, then tidies up after itself.
+
+Choose, click **Save**, then redeploy from the Status tab. Nothing changes until the redeploy.
+
+**Already have pictures?** After the redeploy, the card tells you how many pictures still carry the old style of address and offers to **Move them across**. The address changes everywhere the site keeps it: the media library, your pages and layouts, and the products, swatches, downloads and anything else your modules show. Nothing in your bucket is moved, copied or deleted, and switching back later puts every address back exactly as it was. A big library takes a few minutes, so keep the page open until it says it has finished; if it stops part way, press the button again and it carries on from where it was. Pages visitors already have saved may show the old address for a while, so if you are leaving a Worker you have been using, keep it running for a day or two.
+
+If uploads ever fail with "Media storage is not configured", the message now names what is actually missing - a particular credential, or the media Worker - rather than asking for credentials you have already typed in perfectly well.
+
 ---
 
 ## Uploading images

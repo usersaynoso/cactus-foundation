@@ -13,7 +13,7 @@ import {
 } from '@/lib/media/upload'
 import { detachMediaReferences } from '@/lib/media/detach'
 import { discardRenditionsOfDeleted } from '@/lib/media/renditions'
-import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
+import { getActiveMediaProvider, isMediaProviderConfigured, mediaNotConfiguredMessage } from '@/lib/config/env'
 import { queryMediaLibrary, parseLibraryQuery } from '@/lib/media/library-query'
 import { dimensionsFromBuffer, isMeasurableImageType } from '@/lib/media/dimensions'
 import { signAssetUrl } from '@/lib/media/asset-token'
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
   const provider = await getActiveMediaProvider()
   if (!provider || !isMediaProviderConfigured(provider)) {
-    return errorResponse('Media storage is not configured. Select a provider and add its credentials in Settings → Media.', 503)
+    return errorResponse(mediaNotConfiguredMessage(provider), 503)
   }
 
   const formData = await request.formData()

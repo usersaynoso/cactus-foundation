@@ -117,3 +117,25 @@ describe('asset read tokens', () => {
     })
   })
 })
+
+describe('signing urls served straight from the bucket (direct serving mode)', () => {
+  it('signs a model under /api/media against the same object key the Worker would', () => {
+    const { signAssetUrl, verifyAssetToken, ASSET_TOKEN_PARAM } = mod
+    const before = process.env.SITE_URL
+    process.env.SITE_URL = 'https://shop.example'
+    try {
+      const key = 'media/B2/Shop/Chairs/ada.glb'
+      const signed = new URL(signAssetUrl(`https://shop.example/api/media/${key}`))
+      expect(signed.pathname).toBe(`/api/media/${key}`)
+      expect(verifyAssetToken(key, signed.searchParams.get(ASSET_TOKEN_PARAM) ?? '')).toBe(true)
+      // A Worker url keeps signing exactly as before.
+      const worker = new URL(signAssetUrl(`https://media.example.com/${key}`))
+      expect(verifyAssetToken(key, worker.searchParams.get(ASSET_TOKEN_PARAM) ?? '')).toBe(true)
+      // Somebody else's url is still left alone.
+      expect(signAssetUrl(`https://elsewhere.example/api/media/${key}`)).toBe(`https://elsewhere.example/api/media/${key}`)
+    } finally {
+      if (before === undefined) delete process.env.SITE_URL
+      else process.env.SITE_URL = before
+    }
+  })
+})

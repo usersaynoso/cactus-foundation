@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
-import { saveMediaRecord, confirmedSizeBytes, autoOptimiseNewUpload } from '@/lib/media/upload'
+import { saveMediaRecord, confirmedSizeBytes, autoOptimiseNewUpload, refuseOversizedBucketUpload, OversizedUploadError } from '@/lib/media/upload'
 import { prisma } from '@/lib/db/prisma'
-import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
+import { getActiveMediaProvider, isMediaProviderConfigured, mediaNotConfiguredMessage } from '@/lib/config/env'
 import { isDirectUploadType, contentTypeForKey, MAX_DIRECT_UPLOAD_BYTES, tooLargeReason, MAX_DIRECT_UPLOAD_MB } from '@/lib/media/limits'
 import { verifyUploadToken } from '@/lib/media/upload-token'
 import { isMeasurableImageType, probeDimensionsByUrl, setMediaDimensions } from '@/lib/media/dimensions'
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   const provider = await getActiveMediaProvider()
   if (!provider || !isMediaProviderConfigured(provider)) {
-    return errorResponse('Media storage is not configured.', 503)
+    return errorResponse(mediaNotConfiguredMessage(provider), 503)
   }
 
   const body = await request.json().catch(() => null)
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
     // client understating its size cannot smuggle an oversized object past it —
     // the Worker enforces the same cap on the PUT).
     const storedSize = await confirmedSizeBytes(provider, key, sizeBytes)
+    await refuseOversizedBucketUpload(provider, key, storedSize)
     const record = await saveMediaRecord({
       key,
       url: '', // saveMediaRecord rebuilds the Worker url for proxied providers
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
     // draw rather than after the next refresh.
     return NextResponse.json({ ...record, ...(measured ?? {}) }, { status: 201 })
   } catch (err: unknown) {
+    if (err instanceof OversizedUploadError) return errorResponse(err.message, 413)
     // Two files whose names sanitise to the same storage key can both be signed
     // before either has a row (the key is only claimed at this point), so the
     // second lands here on the unique constraint. Rare, but "Save failed:

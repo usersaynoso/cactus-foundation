@@ -1,5 +1,6 @@
 import type { MediaProviderType } from '@prisma/client'
 import {
+  CLOUDFLARE_WORKER_VAR,
   PROVIDER_ENV_VARS,
   PROVIDER_LABELS,
   envKeysForProvider,
@@ -142,6 +143,20 @@ export function getEnvStatus(): {
       set: !!process.env.CLOUDFLARE_WORKER_URL,
       gates: 'Media serving via Cloudflare Worker (proxied providers)',
     },
+    {
+      name: 'MEDIA_SERVING_MODE',
+      description: 'How S3-compatible media is served: "worker" (default) or "direct" (straight from the bucket, no Cloudflare Worker)',
+      required: false,
+      set: !!process.env.MEDIA_SERVING_MODE,
+      gates: 'Whether CLOUDFLARE_WORKER_URL is required for B2, R2, S3, Spaces, Wasabi and MinIO',
+    },
+    {
+      name: 'MEDIA_DIRECT_RESIZE',
+      description: 'Picture resizing when media is served directly: "off" (default, originals) or "platform" (the hosting platform\u2019s image optimisation)',
+      required: false,
+      set: !!process.env.MEDIA_DIRECT_RESIZE,
+      gates: 'Image resizing in direct serving mode',
+    },
     // Page cache (Settings → Speed). Both optional and both only used
     // when the site sits behind Cloudflare: without them the cache still works,
     // an edited page just waits out its window instead of being cleared at once.
@@ -274,9 +289,34 @@ function MEDIA_PROVIDER_ENV_STATUS(): EnvVarStatus[] {
 }
 
 // True when every env var the given provider needs is present. For proxied
-// providers this includes CLOUDFLARE_WORKER_URL.
+// providers this includes CLOUDFLARE_WORKER_URL, unless the owner has chosen to
+// serve the provider straight from its bucket (see lib/media/serving-mode.ts).
 export function isMediaProviderConfigured(provider: MediaProviderType): boolean {
-  return envKeysForProvider(provider).every((k) => !!process.env[k])
+  return missingMediaEnvKeys(provider).length === 0
+}
+
+// The env vars `provider` still needs, in the order the settings page lists them.
+export function missingMediaEnvKeys(provider: MediaProviderType): string[] {
+  return envKeysForProvider(provider).filter((k) => !process.env[k])
+}
+
+// What to tell someone whose upload was refused because storage is not ready -
+// naming the actual gap rather than asking for credentials that may well all be
+// present. The usual surprise is the Worker: every S3-style provider needs it
+// unless the owner has switched to serving straight from the bucket, and an
+// owner who has typed in four correct keys cannot be expected to guess that.
+export function mediaNotConfiguredMessage(provider: MediaProviderType | null): string {
+  if (!provider) return 'Media storage is not configured. Choose a storage provider in Settings → Media.'
+  const missing = missingMediaEnvKeys(provider)
+  const label = PROVIDER_LABELS[provider]
+  const credentials = missing.filter((k) => k !== CLOUDFLARE_WORKER_VAR.key)
+  if (credentials.length > 0) {
+    return `Media storage is not configured: ${label} still needs ${credentials.join(', ')}. Add ${credentials.length === 1 ? 'it' : 'them'} in Settings → Media, then redeploy.`
+  }
+  if (missing.includes(CLOUDFLARE_WORKER_VAR.key)) {
+    return `Media storage is not configured: ${label} is set up, but the media Worker is not (${CLOUDFLARE_WORKER_VAR.key} is missing). Deploy the media Worker from Settings → Media, or choose "Serve directly from the bucket" there.`
+  }
+  return 'Media storage is not configured. Select a provider and add its credentials in Settings → Media.'
 }
 
 // Resolves the active media provider from SiteConfig. Imported lazily to keep

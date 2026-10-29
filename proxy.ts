@@ -43,6 +43,7 @@ import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
 import { isPathExcepted, resolveRouteTier } from '@/lib/members/access'
 import { moduleCspOrigins, type ModuleCspDirective } from '@/lib/modules/csp-origins'
 import { originMismatch } from '@/lib/security/origin-check'
+import { directBucketCspSources } from '@/lib/media/bucket-origins'
 
 // The media Worker's hostname for the img-src allowlist. Prefer an explicit
 // CLOUDFLARE_WORKER_HOSTNAME, but fall back to the hostname of
@@ -105,11 +106,17 @@ function buildCsp(): string {
   const extraScript = extras.map((o) => ` ${o}`).join('')
   const extraConnect = extras.map((o) => ` ${o} ${o.replace(/^https:/, 'wss:')}`).join('')
   const extraFrame = extraScript
+  // Direct serving mode only (lib/media/bucket-origins.ts): where /api/media's
+  // redirect lands, and where a large upload is PUT. Empty on a Worker-mode
+  // install, so its policy is unchanged.
+  const buckets = directBucketCspSources()
+  const bucketSrc = buckets.map((o) => ` ${o}`).join('')
   const imgSrc = [
     "'self'", 'data:', 'blob:',
     // Style guide demo images
     'https://picsum.photos', 'https://fastly.picsum.photos',
     workerHost ? `https://${workerHost}` : '',
+    ...buckets,
     ...extras,
     ...moduleCspOrigins.img,
   ].filter(Boolean).join(' ')
@@ -146,7 +153,7 @@ function buildCsp(): string {
     // media-src otherwise falls back to default-src 'self', which would block it
     // exactly the way img-src once blocked Worker-served images. blob: is included
     // for any client-generated clip a future feature might play back.
-    `media-src 'self' blob:${workerHost ? ` https://${workerHost}` : ''}${moduleOrigins('media')}`,
+    `media-src 'self' blob:${workerHost ? ` https://${workerHost}` : ''}${bucketSrc}${moduleOrigins('media')}`,
     `font-src 'self' https://fonts.gstatic.com${moduleOrigins('font')}`,
     // https://api.stripe.com - Shop module Stripe Elements checkout (PROTECTED, Q6)
     // workerHost - direct-to-Worker PUT upload (admin > Media) fetches the Worker directly from the browser
@@ -165,7 +172,7 @@ function buildCsp(): string {
     // https://cloudflareinsights.com - where that same beacon posts its timings.
     // Allowing the script but not its report just moves the console error along
     // one line.
-    `connect-src 'self' blob: https://api.stripe.com https://cloudflareinsights.com${workerHost ? ` https://${workerHost}` : ''}${extraConnect}${moduleOrigins('connect')}`,
+    `connect-src 'self' blob: https://api.stripe.com https://cloudflareinsights.com${workerHost ? ` https://${workerHost}` : ''}${bucketSrc}${extraConnect}${moduleOrigins('connect')}`,
     // Stripe Elements renders card fields and 3D Secure challenges in hidden iframes
     // As with form-action below: a declared bare wildcard collapses the
     // directive, since `*` already matches everything a list beside it could.
