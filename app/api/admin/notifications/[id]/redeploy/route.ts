@@ -7,7 +7,9 @@ import { startDeferredRedeploy } from '@/lib/deploy/redeploy'
 import { getDeployInFlight, deployInFlightMessage } from '@/lib/deploy/in-flight'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { isLocalMode } from '@/lib/config/env'
-import { isHostingConfigured, missingCredentialsMessage } from '@/lib/hosting/provider'
+import { getHostingCredentials, isHostingConfigured, missingCredentialsMessage } from '@/lib/hosting/provider'
+import { canBuildCommits } from '@/lib/hosting/deploy'
+import { MANUAL_DEPLOY_LABEL, MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual'
 
 export const maxDuration = 60
 
@@ -39,6 +41,14 @@ export async function POST(_request: NextRequest, { params }: Params) {
   // pending_deploy module into 'deploying' - so the build already running lands,
   // and markModulesDeploySucceeded() promotes the lot, including modules whose
   // code is only in the commit this request is about to push.
+  // A commit this host cannot build. "Redeploy now" here could only replay the
+  // previous upload, which goes READY on the old code - so say what will work.
+  const reasons = (notification.reasons as Array<{ label?: string }> | null) ?? []
+  const creds = getHostingCredentials()
+  if (creds && reasons.some((r) => r.label === MANUAL_DEPLOY_LABEL) && !(await canBuildCommits(creds))) {
+    return errorResponse(MANUAL_DEPLOY_MESSAGE, 409)
+  }
+
   const inFlight = await getDeployInFlight()
   if (inFlight) return errorResponse(deployInFlightMessage(inFlight), 409)
 
@@ -59,7 +69,10 @@ export async function POST(_request: NextRequest, { params }: Params) {
 
   // Opens the redeploy gate and ships the registry (commit modules.json + capture
   // the build, or env-var redeploy fallback) in an after() callback.
-  await startDeferredRedeploy()
+  const { manualDeployRequired } = await startDeferredRedeploy()
+  if (manualDeployRequired) {
+    return NextResponse.json({ ok: true, redeployTriggered: false, manualDeployRequired: true })
+  }
 
   return NextResponse.json({ ok: true, redeployTriggered: true })
 }

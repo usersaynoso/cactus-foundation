@@ -12,6 +12,7 @@ import { TabStrip } from '@/components/admin/TabStrip'
 import { setUrlParams } from '@/lib/admin/tab-url'
 import { ModuleArt } from './ModuleArt'
 import { CardMenu } from './CardMenu'
+import { MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual-message'
 
 // The shape the module install/update/uninstall handlers answer with. Only the fields
 // the UI branches on - a killed function answers with none of them.
@@ -23,6 +24,8 @@ type ModuleActionResponse = {
   requiredVersion?: string
   currentVersion?: string
   redeployTriggered?: boolean
+  /** Committed, but this host cannot build it (Vercel project with no Git link). */
+  manualDeployRequired?: boolean
   status?: ModuleStatus
   failed?: string[]
   updated?: number
@@ -513,7 +516,9 @@ export default function ModulesPage() {
       // What else went out in the same deployment, if anything.
       const alsoWent = alsoWentOut(d)
 
-      if (d.redeployTriggered) {
+      if (d.manualDeployRequired) {
+        setNotice(MANUAL_DEPLOY_MESSAGE)
+      } else if (d.redeployTriggered) {
         // Opens the notification bell with live deploy status
         announceRedeployStarted()
         if (alsoWent) setNotice(`${alsoWent} went out in the same deployment.`)
@@ -581,7 +586,9 @@ export default function ModulesPage() {
         throw new Error(parsed.error ?? 'Action failed')
       }
       const alsoWent = alsoWentOut(d)
-      if (d.redeployTriggered) {
+      if (d.manualDeployRequired) {
+        setNotice(MANUAL_DEPLOY_MESSAGE)
+      } else if (d.redeployTriggered) {
         announceRedeployStarted()
         if (alsoWent) setNotice(`${alsoWent} went out in the same deployment.`)
       } else if (action === 'update') {
@@ -614,7 +621,9 @@ export default function ModulesPage() {
       if (!parsed.ok) throw new Error(parsed.error ?? 'Update failed')
       const d = parsed.data ?? {}
       const failed: string[] = d.failed ?? []
-      if (d.redeployTriggered) {
+      if (d.manualDeployRequired) {
+        setNotice(MANUAL_DEPLOY_MESSAGE)
+      } else if (d.redeployTriggered) {
         announceRedeployStarted()
       } else {
         const updatedCount = d.updated ?? 0
@@ -699,7 +708,9 @@ export default function ModulesPage() {
       const d = parsed.data ?? {}
       setUninstallModal(null)
       const alsoWent = alsoWentOut(d)
-      if (d.redeployTriggered) {
+      if (d.manualDeployRequired) {
+        setNotice(MANUAL_DEPLOY_MESSAGE)
+      } else if (d.redeployTriggered) {
         announceRedeployStarted()
         if (alsoWent) setNotice(`${alsoWent} went out in the same deployment.`)
       } else {

@@ -7,6 +7,7 @@ import {
   getVercelProjectName,
   listVercelDeployments,
   triggerVercelRedeploy,
+  vercelProjectHasGitLink,
   type RedeployResult,
 } from '@/lib/vercel/deploy'
 import {
@@ -29,6 +30,8 @@ export type HostDeployment = {
   /** Epoch ms the deployment was created. */
   createdAt: number
   state: NormalisedDeployState
+  /** Vercel only: true when this is a replay of an earlier deployment's files. */
+  isReplay?: boolean
 }
 
 export function vercelStateToNormalised(state: string | undefined | null): NormalisedDeployState {
@@ -59,13 +62,25 @@ export async function triggerRedeploy(creds: HostingCredentials): Promise<Redepl
 }
 
 /**
+ * Whether a commit pushed to the site's repo can become a build on the host. Always
+ * true on Netlify, which builds from Git or not at all. On Vercel, false only for a
+ * project with no Git link (deployed by `vercel deploy` uploads). Fails open.
+ */
+export async function canBuildCommits(creds: HostingCredentials): Promise<boolean> {
+  if (creds.provider !== 'vercel') return true
+  return vercelProjectHasGitLink(creds.token, creds.siteId)
+}
+
+/**
  * Like triggerRedeploy, but adopts a production build that is already running instead
- * of stacking another on top.
+ * of stacking another on top. `requireLatestCommit` refuses (error 'no-git-link')
+ * rather than replaying old files on a host that cannot build the commit.
  */
 export async function ensureRedeploy(
-  creds: HostingCredentials
+  creds: HostingCredentials,
+  opts: { requireLatestCommit?: boolean } = {}
 ): Promise<RedeployResult & { alreadyRunning?: boolean }> {
-  if (creds.provider === 'vercel') return ensureVercelRedeploy(creds.token, creds.siteId)
+  if (creds.provider === 'vercel') return ensureVercelRedeploy(creds.token, creds.siteId, opts)
   if (isLocalMode()) return localModeResult()
   try {
     const [latest] = await listNetlifyDeploys(creds.token, creds.siteId, { productionOnly: true, limit: 1 })
@@ -90,6 +105,7 @@ export async function listDeployments(
         id: d.uid,
         createdAt: d.created,
         state: vercelStateToNormalised(d.readyState ?? d.state),
+        isReplay: d.source === 'redeploy',
       })) ?? null
     )
   }

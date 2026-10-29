@@ -263,7 +263,12 @@ export async function POST(request: NextRequest) {
     // adopt that build (committedSince mode skips the module sync, and polls before
     // starting anything of its own so we don't double-deploy), then surface live
     // deploy status in the admin.
-    const { triggered } = await startDeferredRedeploy({ committedSince: deployStartedAt })
+    const { triggered, manualDeployRequired } = await startDeferredRedeploy({ committedSince: deployStartedAt })
+    if (manualDeployRequired) {
+      // Committed, but this host cannot build it. The queued modules stay on their
+      // old version until the owner's own deploy lands (lib/deploy/manual.ts).
+      return NextResponse.json({ ok: true, redeployTriggered: false, manualDeployRequired: true, moduleUpdatesQueued: queuedModules.length, moduleUpdatesSkipped: skippedModules })
+    }
     if (!triggered) {
       // No Vercel creds: there's no deploy to track, so promote any queued module
       // updates optimistically now (mirrors the solo module-update route's fallback) -

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { announceRedeployStarted } from '@/lib/deploy-status-client'
 import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
+import { MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual-message'
 
 type Props = {
   id: string
@@ -46,6 +47,12 @@ export default function NotificationActions({ id, isRead, canRedeploy, viewHref,
       const res = await fetch(`/api/admin/notifications/${id}/redeploy`, { method: 'POST' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Redeploy failed')
+      if (d.manualDeployRequired) {
+        // Committed to GitHub, but this host cannot build it - no build to watch.
+        setError(MANUAL_DEPLOY_MESSAGE)
+        router.refresh()
+        return
+      }
       // Opens the notification bell with live deploy status (see deploy-status-client)
       announceRedeployStarted()
       router.refresh()

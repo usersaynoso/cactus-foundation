@@ -30,6 +30,7 @@ import {
   subscribeUploads,
 } from '@/lib/upload-status-client'
 import { formatBytes } from '@/app/cactus-admin/media/format'
+import { MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual-message'
 
 type Props = {
   adminPath: string
@@ -501,6 +502,12 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       const res = await fetch(`/api/admin/notifications/${id}/redeploy`, { method: 'POST' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Redeploy failed')
+      if (d.manualDeployRequired) {
+        // Committed to GitHub, but this host cannot build it - no build to watch.
+        setErr(id, MANUAL_DEPLOY_MESSAGE)
+        router.refresh()
+        return
+      }
       announceRedeployStarted()
       fetchNotifications()
       router.refresh()

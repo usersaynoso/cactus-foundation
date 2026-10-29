@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getLatestDeploymentStatus } from '@/lib/modules/github'
 import { getHostingCredentials } from '@/lib/hosting/provider'
 import { listDeployments, type HostDeployment } from '@/lib/hosting/deploy'
+import { manualDeploySince, manualDeployStatus } from '@/lib/deploy/manual'
 
 // Is a build the site started still running?
 //
@@ -106,6 +107,12 @@ export async function deploymentStatusForReconcile(args: {
   trackedId?: string | null
   since?: Date | null
 }): Promise<'READY' | 'ERROR' | 'BUILDING' | 'UNKNOWN'> {
+  // Modules waiting on a deploy the owner has to make themselves (a host that
+  // cannot build commits): settled by the first non-replay production deployment
+  // made after the commit. See lib/deploy/manual.ts.
+  const manualSince = manualDeploySince(args.trackedId)
+  if (manualSince !== null) return manualDeployStatus(manualSince)
+
   if (args.trackedId && args.trackedId !== 'pending') {
     return getLatestDeploymentStatus(args.trackedId)
   }

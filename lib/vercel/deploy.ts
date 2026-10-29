@@ -40,6 +40,31 @@ export async function getVercelProjectName(token: string, projectId: string): Pr
   }
 }
 
+// Whether the project is connected to a Git repository, i.e. whether a commit pushed
+// to the site's repo can ever become a build on it. A project deployed by uploading
+// files (`vercel deploy --prod`) has `link: null`: nothing watches the repo, and a
+// redeploy of its latest deployment replays the previous upload's files, whatever
+// `withLatestCommit` says - that flag only means something on a deployment with a
+// gitSource. Hobby cannot link an organisation-owned repo, so this is the only free
+// way to host one.
+//
+// Fails OPEN: an API that will not answer reports true, so a Git-linked site is never
+// downgraded to "deploy it yourself" by a network blip.
+export async function vercelProjectHasGitLink(token: string, projectId: string): Promise<boolean> {
+  try {
+    const teamId = await resolveVercelTeamId(token, projectId)
+    const res = await fetch(
+      `${VERCEL_API}/v9/projects/${encodeURIComponent(projectId)}${teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''}`,
+      { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) }
+    )
+    if (!res.ok) return true
+    const data = (await res.json()) as { link?: unknown }
+    return data.link !== null
+  } catch {
+    return true
+  }
+}
+
 function teamParam(teamId: string | null): string {
   return teamId ? `&teamId=${encodeURIComponent(teamId)}` : ''
 }
@@ -98,12 +123,21 @@ export async function triggerVercelRedeploy(
 // it returns that deployment instead of stacking another one on top. Used to
 // self-heal the "provisioned, waiting for redeploy" state after a page reload,
 // where an earlier trigger may have failed or the deploy may have errored.
+//
+// `requireLatestCommit` is for callers that need a commit they just pushed to ship.
+// On a project with no Git link that cannot happen - a redeploy would rebuild the
+// previous upload's files and report READY on the old code - so it answers
+// `no-git-link` without starting anything.
 export async function ensureVercelRedeploy(
   token: string,
-  projectId: string
+  projectId: string,
+  opts: { requireLatestCommit?: boolean } = {}
 ): Promise<RedeployResult & { alreadyRunning?: boolean }> {
   if (isLocalMode()) {
     return { triggered: false, error: 'Redeploys are not available in local-development mode' }
+  }
+  if (opts.requireLatestCommit && !(await vercelProjectHasGitLink(token, projectId))) {
+    return { triggered: false, error: 'no-git-link' }
   }
   try {
     const teamId = await resolveVercelTeamId(token, projectId)
@@ -162,7 +196,8 @@ async function createRedeploy(
   return { triggered: true, deploymentId: deployData.id ?? deployData.uid }
 }
 
-export type VercelDeploymentSummary = { uid: string; created: number; readyState?: string; state?: string }
+// `source` is how the deployment was made: 'git', 'cli', 'redeploy', 'import' and so on.
+export type VercelDeploymentSummary = { uid: string; created: number; readyState?: string; state?: string; source?: string }
 
 // Newest deployments for the project, newest first. `productionOnly` scopes it to
 // target=production - previews are not something an install or update can collide

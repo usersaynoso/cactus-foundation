@@ -333,9 +333,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
       await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-      const { triggered } = await startDeferredRedeploy(
+      const { triggered, manualDeployRequired } = await startDeferredRedeploy(
         committedSince !== undefined ? { committedSince } : {}
       )
+      if (manualDeployRequired) {
+        // Committed, but this host cannot build it: the module stays on its old
+        // version until the owner's own deploy lands (lib/deploy/manual.ts).
+        return NextResponse.json({
+          ok: true,
+          status: 'deploying',
+          redeployTriggered: false,
+          manualDeployRequired: true,
+          coreUpdatedTo: coreTarget?.latestVersion ?? null,
+        })
+      }
       if (!triggered) {
         // No Vercel creds: there's no deploy to track, so apply the update optimistically
         // (promote the version now) and fall back to the deferred-notification flow.
@@ -661,9 +672,20 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     // Deleting the row above removes it from the desired registry. Commit modules.json
     // and redeploy immediately; the admin sees live deploy status in the shell. With a
     // core update bundled in, that commit has already happened - adopt its build.
-    const { triggered } = await startDeferredRedeploy(
+    const { triggered, manualDeployRequired } = await startDeferredRedeploy(
       committedSince !== undefined ? { committedSince } : {}
     )
+    if (manualDeployRequired) {
+      return NextResponse.json({
+        ok: true,
+        droppedTables,
+        redeployTriggered: false,
+        manualDeployRequired: true,
+        coreUpdatedTo: coreTarget?.latestVersion ?? null,
+        moduleUpdatesQueued: acceptedUpdates.length,
+        moduleUpdatesSkipped: skippedUpdates,
+      })
+    }
     if (!triggered) {
       // No Vercel creds: fall back to the deferred-notification flow, promoting the
       // queued updates optimistically (same as the "Update all" path) so they aren't

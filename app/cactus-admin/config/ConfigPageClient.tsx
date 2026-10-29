@@ -23,6 +23,7 @@ import EmailTemplatesClient from './EmailTemplatesClient'
 import NavBuilder from './NavBuilder'
 import ScheduledJobsClient from './ScheduledJobsClient'
 import NotificationsSettingsClient from './NotificationsSettingsClient'
+import { MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual-message'
 import type { EditorNavSection, SidebarPrefs } from '@/lib/nav/admin-menu'
 import {
   PROVIDER_KIND,
@@ -349,6 +350,8 @@ function UpdatesPanel() {
   const [updating, setUpdating] = useState(false)
   const deployInFlight = useDeployInFlight()
   const [updateError, setUpdateError] = useState('')
+  // Set when the update was committed but this host cannot build it (no Git link).
+  const [updateNotice, setUpdateNotice] = useState('')
   const [modulesWithUpdates, setModulesWithUpdates] = useState<ModuleUpdateInfo[]>([])
   const [updateModulesToo, setUpdateModulesToo] = useState(true)
 
@@ -419,10 +422,16 @@ function UpdatesPanel() {
       const parsed = await readJsonResponse<{
         ok?: boolean
         redeployTriggered?: boolean
+        manualDeployRequired?: boolean
         error?: string
       }>(res, 'Update failed')
       if (!parsed.ok) throw new Error(parsed.error ?? 'Update failed')
       const d = parsed.data ?? {}
+      if (d.manualDeployRequired) {
+        // Keep the dialog open on the message: there is no build to watch.
+        setUpdateNotice(MANUAL_DEPLOY_MESSAGE)
+        return
+      }
       setShowConfirm(false)
       if (d.redeployTriggered) {
         // Opens the notification bell with live deploy status
@@ -569,6 +578,11 @@ function UpdatesPanel() {
                 </span>
               </label>
             )}
+            {updateNotice && (
+              <div className="alert alert-warning" style={{ fontSize: 'var(--text-sm)', marginBottom: '1rem' }}>
+                {updateNotice}
+              </div>
+            )}
             {updateError && (
               <div className="alert alert-danger" style={{ fontSize: 'var(--text-sm)', marginBottom: '1rem' }}>
                 <div>{updateError}</div>
@@ -586,13 +600,15 @@ function UpdatesPanel() {
               <button
                 className="btn btn-secondary"
                 disabled={updating}
-                onClick={() => { setShowConfirm(false); setUpdateError('') }}
+                onClick={() => { setShowConfirm(false); setUpdateError(''); setUpdateNotice('') }}
               >
-                Cancel
+                {updateNotice ? 'Close' : 'Cancel'}
               </button>
-              <button className="btn btn-primary" disabled={updating} onClick={handleUpdate}>
-                {updating ? 'Updating…' : 'Confirm update'}
-              </button>
+              {!updateNotice && (
+                <button className="btn btn-primary" disabled={updating} onClick={handleUpdate}>
+                  {updating ? 'Updating…' : 'Confirm update'}
+                </button>
+              )}
             </div>
           </div>
         </div>

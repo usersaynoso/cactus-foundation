@@ -494,9 +494,23 @@ export async function POST(request: NextRequest) {
 
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
-    const { triggered } = await startDeferredRedeploy(
+    const { triggered, manualDeployRequired } = await startDeferredRedeploy(
       committedSince !== undefined ? { committedSince } : {}
     )
+    if (manualDeployRequired) {
+      // Committed, but this host cannot build it: everything queued stays 'deploying'
+      // until the owner's own deploy lands (lib/deploy/manual.ts).
+      return NextResponse.json({
+        ok: true,
+        name: manifest.name,
+        status: 'deploying',
+        redeployTriggered: false,
+        manualDeployRequired: true,
+        coreUpdatedTo: coreTarget?.latestVersion ?? null,
+        moduleUpdatesQueued: acceptedUpdates.length,
+        moduleUpdatesSkipped: skippedUpdates,
+      })
+    }
     if (!triggered) {
       // No Vercel creds: fall back to the deferred-notification flow, promoting the
       // queued updates optimistically (same as the "Update all" path) so they aren't
@@ -683,7 +697,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: true, updated: 0, failed })
   }
 
-  const { triggered } = await startDeferredRedeploy()
+  const { triggered, manualDeployRequired } = await startDeferredRedeploy()
+  if (manualDeployRequired) {
+    return NextResponse.json({ ok: true, updated: updated.length, failed, status: 'deploying', redeployTriggered: false, manualDeployRequired: true })
+  }
   if (!triggered) {
     // No Vercel creds: apply each update optimistically, same as the single-module path.
     for (const m of updated) {

@@ -1,7 +1,8 @@
 import { after } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { triggerRedeploy, ensureRedeploy, listDeployments } from '@/lib/hosting/deploy'
-import { getHostingCredentials } from '@/lib/hosting/provider'
+import { triggerRedeploy, ensureRedeploy, listDeployments, canBuildCommits } from '@/lib/hosting/deploy'
+import { markAwaitingManualDeploy } from '@/lib/deploy/manual'
+import { getHostingCredentials, type HostingCredentials } from '@/lib/hosting/provider'
 import { syncModulesJson } from '@/lib/modules/github'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { isLocalMode } from '@/lib/config/env'
@@ -18,9 +19,17 @@ import { isLocalMode } from '@/lib/config/env'
 // update via syncCoreFromUpstream) that triggered a build on the host. In that mode the
 // helper skips the module sync and just arms the gate and adopts the build the
 // existing push created, avoiding a double-deploy.
+//
+// A host that cannot build commits (a Vercel project with no Git link, deployed by
+// CLI uploads) gets neither: when a commit has been or would be pushed, nothing is
+// armed and the answer is { triggered: false, manualDeployRequired: true }. The
+// modules riding that commit are left on their old version, tagged to be promoted
+// by the owner's own deploy (lib/deploy/manual.ts). Telling the owner a build is
+// running would be a lie: the only thing Cactus can start there is a replay of the
+// previous upload, which goes READY on the old code.
 export async function startDeferredRedeploy(
   opts: { committedSince?: number } = {}
-): Promise<{ triggered: boolean }> {
+): Promise<{ triggered: boolean; manualDeployRequired?: boolean }> {
   // Local-development mode has no git-push deploy or hosted redeploy: report
   // not-triggered so callers fall back to the deferred-notification path.
   if (isLocalMode()) {
@@ -34,6 +43,72 @@ export async function startDeferredRedeploy(
 
   const deployStartedAt = opts.committedSince ?? Date.now()
 
+  // Asked once, up front, because the answer decides whether there is anything to
+  // arm. Git-linked Vercel and Netlify answer true and carry on exactly as before.
+  if (!(await canBuildCommits(creds))) {
+    if (opts.committedSince !== undefined) {
+      await markAwaitingManualDeploy(opts.committedSince)
+      return { triggered: false, manualDeployRequired: true }
+    }
+    // Whether a commit happens is only known once the registry is synced, so on this
+    // host the sync runs now rather than in after(). Nothing to commit means an
+    // env-var redeploy, which a replay does correctly: fall through to it.
+    const committedAt = Date.now()
+    if (await syncModuleRegistry()) {
+      await markAwaitingManualDeploy(committedAt)
+      return { triggered: false, manualDeployRequired: true }
+    }
+    return armAndRedeploy(creds, deployStartedAt, { registrySynced: true })
+  }
+
+  return armAndRedeploy(creds, deployStartedAt, opts)
+}
+
+// Deferred module registry sync. The desired state is the set of Module rows whose
+// code should actually ship. A row existing is nearly enough - uninstall deletes the
+// row - but NOT quite, because 'failed' and 'inactive' are the two states that must
+// not run.
+//
+// Shipping those was a real hole: modules.json drives both the module checkout and
+// the build-time generators, so a failed or disabled module still got cloned and
+// wired into the router, while scripts/run-module-migrations.mjs only migrates
+// status IN ('active','deploying','update_available'). The result is live routes
+// sitting on tables that were never created - a 500 on a page the owner believes is
+// switched off, or one whose install they watched fail.
+//
+// Every other status still ships, deliberately: pending_install / pending_deploy /
+// deploying are mid-install, and their code has to be present for the very build
+// that installs them.
+//
+// Returns whether a commit was pushed. If this throws, the caller falls through to
+// the env-var redeploy path so settings-only redeploys still work.
+async function syncModuleRegistry(): Promise<boolean> {
+  try {
+    const modules = await prisma.module.findMany({
+      where: { status: { notIn: ['failed', 'inactive'] } },
+    })
+    const synced = await syncModulesJson(
+      // Ship the in-flight target while a deploy is mid-flight (pendingVersion);
+      // it's promoted to `version` only once the deploy succeeds.
+      modules.map((m) => ({
+        name: m.name,
+        repoUrl: m.repoUrl,
+        version: m.pendingVersion ?? m.version,
+        lastFailedVersion: m.lastFailedVersion,
+      }))
+    )
+    return synced.committed
+  } catch (err) {
+    console.error('[redeploy] Module registry sync failed, falling back to redeploy:', err)
+    return false
+  }
+}
+
+async function armAndRedeploy(
+  creds: HostingCredentials,
+  deployStartedAt: number,
+  opts: { committedSince?: number; registrySynced?: boolean }
+): Promise<{ triggered: boolean }> {
   // Sentinel written synchronously so the admin deploy status surfaces show up
   // immediately; the real deployment id is resolved below via after().
   await prisma.siteConfig.update({
@@ -105,7 +180,9 @@ export async function startDeferredRedeploy(
         return
       }
       console.warn('[redeploy] Push produced no deployment - triggering one explicitly')
-      const result = await ensureRedeploy(creds)
+      // requireLatestCommit: if the project has lost its Git link since the check up
+      // front, refuse rather than replay the previous files and call it shipped.
+      const result = await ensureRedeploy(creds, { requireLatestCommit: true })
       if (result.triggered && result.deploymentId) {
         await persistDeploymentId(result.deploymentId)
         return
@@ -121,43 +198,8 @@ export async function startDeferredRedeploy(
       return
     }
 
-    // Deferred module registry sync. The desired state is the set of Module rows whose
-    // code should actually ship. A row existing is nearly enough - uninstall deletes the
-    // row - but NOT quite, because 'failed' and 'inactive' are the two states that must
-    // not run.
-    //
-    // Shipping those was a real hole: modules.json drives both the module checkout and
-    // the build-time generators, so a failed or disabled module still got cloned and
-    // wired into the router, while scripts/run-module-migrations.mjs only migrates
-    // status IN ('active','deploying','update_available'). The result is live routes
-    // sitting on tables that were never created - a 500 on a page the owner believes is
-    // switched off, or one whose install they watched fail.
-    //
-    // Every other status still ships, deliberately: pending_install / pending_deploy /
-    // deploying are mid-install, and their code has to be present for the very build
-    // that installs them.
-    //
-    // If creds are missing or this throws, fall through to the env-var redeploy path so
-    // settings-only redeploys still work.
-    let committed = false
-    try {
-      const modules = await prisma.module.findMany({
-        where: { status: { notIn: ['failed', 'inactive'] } },
-      })
-      const synced = await syncModulesJson(
-        // Ship the in-flight target while a deploy is mid-flight (pendingVersion);
-        // it's promoted to `version` only once the deploy succeeds.
-        modules.map((m) => ({
-          name: m.name,
-          repoUrl: m.repoUrl,
-          version: m.pendingVersion ?? m.version,
-          lastFailedVersion: m.lastFailedVersion,
-        }))
-      )
-      committed = synced.committed
-    } catch (err) {
-      console.error('[redeploy] Module registry sync failed, falling back to redeploy:', err)
-    }
+    // registrySynced: the caller already synced (and found nothing to commit).
+    const committed = opts.registrySynced ? false : await syncModuleRegistry()
 
     if (committed) {
       // The git push should have triggered a build on the host - adopt that one rather
