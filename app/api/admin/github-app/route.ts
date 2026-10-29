@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { getGithubConnectionStatus } from '@/lib/github/client'
+import { getGithubConnectionStatus, installRepoWriteProblem } from '@/lib/github/client'
 import { errorResponse } from '@/lib/utils'
 
 export async function GET() {
@@ -28,6 +28,10 @@ export async function GET() {
   let state: 'none' | 'unreadable' | 'not-installed' | 'ready' = 'none'
   let appSlug: string | null = null
   let installationAccount: string | null = null
+  // Set when the App is connected but cannot write to this site's repo - not installed
+  // on it, or Contents left at read-only. Reads keep working (a public repo reads with
+  // anything), so without this the first sign is a failed update.
+  let writeProblem: string | null = null
 
   if (encryptionKeyValid) {
     try {
@@ -35,6 +39,7 @@ export async function GET() {
       state = status.state
       appSlug = status.appSlug
       installationAccount = status.installationAccount
+      if (state === 'ready') writeProblem = await installRepoWriteProblem()
     } catch {
       // DB not reachable — return defaults
     }
@@ -50,6 +55,7 @@ export async function GET() {
     appSlug,
     installationAccount,
     hasInstallation: state === 'ready',
+    writeProblem,
     hasPat,
   })
 }

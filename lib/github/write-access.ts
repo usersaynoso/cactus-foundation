@@ -11,8 +11,10 @@
 // probe that fills a WriteAccessProbe (which needs the database) lives in ./client.
 
 export type WriteAccessProbe =
-  // GitHub App installation: the permissions the installation token was minted with.
-  | { kind: 'app'; contents: string | undefined }
+  // GitHub App: whether the connected installation is the one covering this repo, and
+  // the Contents permission it holds. A public repo reads fine with ANY token, so reads
+  // succeeding says nothing about whether the App was ever given this repo at all.
+  | { kind: 'app'; installedOnRepo: boolean; contents: string | undefined }
   // Personal access token: the repo's `permissions.push` as that token sees it.
   | { kind: 'token'; push: boolean | undefined }
   // The probe itself failed. Not a reason to refuse - the write will say what is wrong.
@@ -22,7 +24,14 @@ export type WriteAccessProbe =
 // github-outage.ts keys off it to keep the status-page hint away from a permissions fault.
 export const WRITE_PERMISSION_MARKER = 'cannot write to'
 
-export function writePermissionMessage(owner: string, repo: string, kind: 'app' | 'token'): string {
+export function writePermissionMessage(owner: string, repo: string, kind: 'app' | 'app-not-installed' | 'token'): string {
+  if (kind === 'app-not-installed') {
+    return (
+      `The connected GitHub App ${WRITE_PERMISSION_MARKER} ${owner}/${repo}: it is not installed on that ` +
+      "repository. In GitHub, open the App's installation (Settings -> Integrations -> Install app on " +
+      `repository), add ${owner}/${repo} under Repository access, save, then try again.`
+    )
+  }
   if (kind === 'token') {
     return (
       `The connected GitHub token ${WRITE_PERMISSION_MARKER} ${owner}/${repo}. Give GITHUB_API_TOKEN ` +
@@ -39,6 +48,7 @@ export function writePermissionMessage(owner: string, repo: string, kind: 'app' 
 
 /** The message to fail with, or null when the write may go ahead. */
 export function writeAccessProblem(probe: WriteAccessProbe, owner: string, repo: string): string | null {
+  if (probe.kind === 'app' && !probe.installedOnRepo) return writePermissionMessage(owner, repo, 'app-not-installed')
   if (probe.kind === 'app' && probe.contents !== 'write') return writePermissionMessage(owner, repo, 'app')
   if (probe.kind === 'token' && probe.push === false) return writePermissionMessage(owner, repo, 'token')
   return null

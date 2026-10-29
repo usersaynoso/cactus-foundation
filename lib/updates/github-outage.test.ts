@@ -16,7 +16,7 @@ function errorSeen(probe: WriteAccessProbe): string {
 
 describe('write-permission preflight and the outage hint', () => {
   it('a read-only App gets the permissions message and no status-page hint', () => {
-    const message = errorSeen({ kind: 'app', contents: 'read' })
+    const message = errorSeen({ kind: 'app', installedOnRepo: true, contents: 'read' })
     expect(message).toContain('cannot write to acme/site')
     expect(message).toContain('Contents to Read and write')
     expect(message).not.toMatch(/status/i)
@@ -24,7 +24,15 @@ describe('write-permission preflight and the outage hint', () => {
   })
 
   it('an App with no contents permission at all is treated the same', () => {
-    expect(looksLikeGitHubProblem(errorSeen({ kind: 'app', contents: undefined }))).toBe(false)
+    expect(looksLikeGitHubProblem(errorSeen({ kind: 'app', installedOnRepo: true, contents: undefined }))).toBe(false)
+  })
+
+  it('an App with write that is not installed on the repo gets the installation message', () => {
+    // The tillerwell shape: a public repo reads with any token, so only the write fails.
+    const message = errorSeen({ kind: 'app', installedOnRepo: false, contents: 'write' })
+    expect(message).toContain('not installed on that repository')
+    expect(message).toContain('acme/site under Repository access')
+    expect(looksLikeGitHubProblem(message)).toBe(false)
   })
 
   it('a token without push gets the token wording and no hint', () => {
@@ -34,8 +42,8 @@ describe('write-permission preflight and the outage hint', () => {
   })
 
   it('write permission present but a 403 anyway keeps the outage hint', () => {
-    expect(writeAccessProblem({ kind: 'app', contents: 'write' }, 'acme', 'site')).toBeNull()
-    expect(looksLikeGitHubProblem(errorSeen({ kind: 'app', contents: 'write' }))).toBe(true)
+    expect(writeAccessProblem({ kind: 'app', installedOnRepo: true, contents: 'write' }, 'acme', 'site')).toBeNull()
+    expect(looksLikeGitHubProblem(errorSeen({ kind: 'app', installedOnRepo: true, contents: 'write' }))).toBe(true)
     expect(looksLikeGitHubProblem(errorSeen({ kind: 'token', push: true }))).toBe(true)
   })
 
