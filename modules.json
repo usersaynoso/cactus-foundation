@@ -148,7 +148,7 @@
     {
       "name": "chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat",
-      "version": "v0.1.21"
+      "version": "v0.1.22"
     },
     {
       "name": "uk-bookkeeping",
@@ -168,7 +168,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.140"
+      "version": "v0.1.141"
     },
     {
       "name": "google-ai-studio",
