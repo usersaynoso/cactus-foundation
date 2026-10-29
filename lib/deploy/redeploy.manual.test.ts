@@ -9,7 +9,10 @@ const h = vi.hoisted(() => ({
   canBuild: true,
   committed: false,
   siteConfigUpdate: vi.fn(),
+  siteConfigUpdateMany: vi.fn(),
+  moduleUpdateMany: vi.fn(),
   markAwaitingManualDeploy: vi.fn(),
+  deployMainByUpload: vi.fn(async () => ({ triggered: true, deploymentId: 'dpl_upload' }) as { triggered: boolean; deploymentId?: string; error?: string }),
   triggerRedeploy: vi.fn(async () => ({ triggered: true, deploymentId: 'dpl_env' })),
   ensureRedeploy: vi.fn(async () => ({ triggered: true, deploymentId: 'dpl_fallback' })),
   listDeployments: vi.fn(async () => [] as unknown[]),
@@ -30,10 +33,11 @@ vi.mock('@/lib/hosting/deploy', () => ({
 }))
 vi.mock('@/lib/modules/github', () => ({ syncModulesJson: h.syncModulesJson }))
 vi.mock('@/lib/deploy/manual', () => ({ markAwaitingManualDeploy: h.markAwaitingManualDeploy }))
+vi.mock('@/lib/deploy/upload-from-repo', () => ({ deployMainByUpload: h.deployMainByUpload }))
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    siteConfig: { update: h.siteConfigUpdate, updateMany: vi.fn() },
-    module: { findMany: vi.fn(async () => []), updateMany: vi.fn() },
+    siteConfig: { update: h.siteConfigUpdate, updateMany: h.siteConfigUpdateMany },
+    module: { findMany: vi.fn(async () => []), updateMany: h.moduleUpdateMany },
   },
 }))
 
@@ -54,16 +58,21 @@ beforeEach(() => {
 })
 
 describe('startDeferredRedeploy on a project with no Git link', () => {
-  it('a pushed commit arms nothing and asks for a manual deploy', async () => {
+  it('a pushed commit is built by uploading main, never by a replay', async () => {
     h.canBuild = false
     const result = await startDeferredRedeploy({ committedSince: 1234 })
 
-    expect(result).toEqual({ triggered: false, manualDeployRequired: true })
-    expect(armed()).toBe(false)
-    expect(h.afterCallbacks).toHaveLength(0)
-    // Modules are re-tagged to wait for the owner's deploy, not promoted.
-    expect(h.markAwaitingManualDeploy).toHaveBeenCalledWith(1234)
+    expect(result).toEqual({ triggered: true })
+    expect(armed()).toBe(true)
+    await runAfter()
+    expect(h.deployMainByUpload).toHaveBeenCalledTimes(1)
+    // The upload's id rides onto the site marker and the queued modules.
+    expect(h.moduleUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { deployId: 'dpl_upload' } })
+    )
     expect(h.ensureRedeploy).not.toHaveBeenCalled()
+    expect(h.triggerRedeploy).not.toHaveBeenCalled()
+    expect(h.markAwaitingManualDeploy).not.toHaveBeenCalled()
   })
 
   it('a module registry commit does the same', async () => {
@@ -71,10 +80,23 @@ describe('startDeferredRedeploy on a project with no Git link', () => {
     h.committed = true
     const result = await startDeferredRedeploy()
 
-    expect(result).toEqual({ triggered: false, manualDeployRequired: true })
-    expect(armed()).toBe(false)
-    expect(h.markAwaitingManualDeploy).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ triggered: true })
+    await runAfter()
+    expect(h.deployMainByUpload).toHaveBeenCalledTimes(1)
     expect(h.triggerRedeploy).not.toHaveBeenCalled()
+  })
+
+  it('an upload that cannot start clears the gate and asks for a manual deploy', async () => {
+    h.canBuild = false
+    h.deployMainByUpload.mockResolvedValueOnce({ triggered: false, error: 'nope' })
+    await startDeferredRedeploy({ committedSince: 1234 })
+    await runAfter()
+
+    expect(h.siteConfigUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { pendingRedeployId: null, pendingRedeployAt: null } })
+    )
+    expect(h.markAwaitingManualDeploy).toHaveBeenCalledWith(1234)
+    expect(h.ensureRedeploy).not.toHaveBeenCalled()
   })
 
   it('nothing to commit still runs the env-var redeploy', async () => {
@@ -88,6 +110,7 @@ describe('startDeferredRedeploy on a project with no Git link', () => {
     // Synced once up front; not again inside after().
     expect(h.syncModulesJson).toHaveBeenCalledTimes(1)
     expect(h.markAwaitingManualDeploy).not.toHaveBeenCalled()
+    expect(h.deployMainByUpload).not.toHaveBeenCalled()
   })
 })
 

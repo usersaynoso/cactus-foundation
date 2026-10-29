@@ -2,6 +2,7 @@ import { after } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { triggerRedeploy, ensureRedeploy, listDeployments, canBuildCommits } from '@/lib/hosting/deploy'
 import { markAwaitingManualDeploy } from '@/lib/deploy/manual'
+import { deployMainByUpload } from '@/lib/deploy/upload-from-repo'
 import { getHostingCredentials, type HostingCredentials } from '@/lib/hosting/provider'
 import { syncModulesJson } from '@/lib/modules/github'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
@@ -21,12 +22,13 @@ import { isLocalMode } from '@/lib/config/env'
 // existing push created, avoiding a double-deploy.
 //
 // A host that cannot build commits (a Vercel project with no Git link, deployed by
-// CLI uploads) gets neither: when a commit has been or would be pushed, nothing is
-// armed and the answer is { triggered: false, manualDeployRequired: true }. The
-// modules riding that commit are left on their old version, tagged to be promoted
-// by the owner's own deploy (lib/deploy/manual.ts). Telling the owner a build is
-// running would be a lie: the only thing Cactus can start there is a replay of the
-// previous upload, which goes READY on the old code.
+// CLI uploads) gets neither: a redeploy there replays the previous upload and goes
+// READY on the old code. Instead, when a commit has been or would be pushed, Cactus
+// uploads main's files itself (lib/deploy/upload-from-repo.ts) - a real build of the
+// commit, same as `vercel deploy --prod`. Only if that upload cannot start are the
+// modules riding the commit left on their old version, tagged to be promoted by the
+// owner's own deploy (lib/deploy/manual.ts). The route has answered by then, so the
+// owner hears about it from the notification bell.
 export async function startDeferredRedeploy(
   opts: { committedSince?: number } = {}
 ): Promise<{ triggered: boolean; manualDeployRequired?: boolean }> {
@@ -47,16 +49,14 @@ export async function startDeferredRedeploy(
   // arm. Git-linked Vercel and Netlify answer true and carry on exactly as before.
   if (!(await canBuildCommits(creds))) {
     if (opts.committedSince !== undefined) {
-      await markAwaitingManualDeploy(opts.committedSince)
-      return { triggered: false, manualDeployRequired: true }
+      return armAndUploadDeploy(creds, opts.committedSince)
     }
     // Whether a commit happens is only known once the registry is synced, so on this
     // host the sync runs now rather than in after(). Nothing to commit means an
     // env-var redeploy, which a replay does correctly: fall through to it.
     const committedAt = Date.now()
     if (await syncModuleRegistry()) {
-      await markAwaitingManualDeploy(committedAt)
-      return { triggered: false, manualDeployRequired: true }
+      return armAndUploadDeploy(creds, committedAt)
     }
     return armAndRedeploy(creds, deployStartedAt, { registrySynced: true })
   }
@@ -104,6 +104,71 @@ async function syncModuleRegistry(): Promise<boolean> {
   }
 }
 
+// Persist a resolved deployment id once we have one. When none comes back we
+// intentionally leave the 'pending' sentinel in place rather than nulling it:
+// nulling hides the deploy status from the admin mid-build. The server-side
+// 2-minute auto-release (resolvePendingRedeploy) is the backstop.
+async function persistDeploymentId(uid: string | undefined): Promise<void> {
+  if (!uid) return
+  try {
+    await prisma.siteConfig.updateMany({
+      where: { id: 'singleton', pendingRedeployId: 'pending' },
+      data: { pendingRedeployId: uid },
+    })
+    invalidateSiteConfigCache()
+  } catch (err) {
+    console.error('[redeploy] Failed to persist pendingRedeployId:', err)
+  }
+  // Same id onto the modules riding this build. The site marker doubles as the
+  // admin's live status and self-expires after four minutes, which is shorter
+  // than a slow build; the module rows keep theirs until the build is
+  // reconciled, so a terminal event can always be matched to the right modules.
+  try {
+    await prisma.module.updateMany({
+      where: { status: 'deploying', deployId: 'pending' },
+      data: { deployId: uid },
+    })
+  } catch (err) {
+    console.error('[redeploy] Failed to persist module deployId:', err)
+  }
+}
+
+// Arms the gate, then uploads main's files as a fresh production deployment. Used on
+// a Vercel project with no Git link, where a pushed commit builds nothing by itself.
+async function armAndUploadDeploy(
+  creds: HostingCredentials,
+  committedAt: number
+): Promise<{ triggered: boolean }> {
+  await prisma.siteConfig.update({
+    where: { id: 'singleton' },
+    data: { pendingRedeployId: 'pending', pendingRedeployAt: new Date() },
+  })
+  invalidateSiteConfigCache()
+
+  after(async () => {
+    const result = await deployMainByUpload(creds)
+    if (result.triggered && result.deploymentId) {
+      await persistDeploymentId(result.deploymentId)
+      return
+    }
+    console.error('[redeploy] Upload deploy failed to start:', result.error ?? 'unknown error')
+    // Nothing is building: drop the sentinel so the admin stops showing a build, and
+    // hand the commit to the owner the way a host with no upload route would.
+    try {
+      await prisma.siteConfig.updateMany({
+        where: { id: 'singleton', pendingRedeployId: 'pending' },
+        data: { pendingRedeployId: null, pendingRedeployAt: null },
+      })
+      invalidateSiteConfigCache()
+    } catch (err) {
+      console.error('[redeploy] Failed to clear pendingRedeployId:', err)
+    }
+    await markAwaitingManualDeploy(committedAt)
+  })
+
+  return { triggered: true }
+}
+
 async function armAndRedeploy(
   creds: HostingCredentials,
   deployStartedAt: number,
@@ -118,35 +183,6 @@ async function armAndRedeploy(
   invalidateSiteConfigCache()
 
   after(async () => {
-    // Persist a resolved deployment id once we have one. When the poll comes up
-    // empty we intentionally leave the 'pending' sentinel in place rather than
-    // nulling it: nulling hides the deploy status from the admin mid-build.
-    // The server-side 2-minute auto-release (resolvePendingRedeploy) is the backstop.
-    const persistDeploymentId = async (uid: string | undefined) => {
-      if (!uid) return
-      try {
-        await prisma.siteConfig.updateMany({
-          where: { id: 'singleton', pendingRedeployId: 'pending' },
-          data: { pendingRedeployId: uid },
-        })
-        invalidateSiteConfigCache()
-      } catch (err) {
-        console.error('[redeploy] Failed to persist pendingRedeployId:', err)
-      }
-      // Same id onto the modules riding this build. The site marker doubles as the
-      // admin's live status and self-expires after four minutes, which is shorter
-      // than a slow build; the module rows keep theirs until the build is
-      // reconciled, so a terminal event can always be matched to the right modules.
-      try {
-        await prisma.module.updateMany({
-          where: { status: 'deploying', deployId: 'pending' },
-          data: { deployId: uid },
-        })
-      } catch (err) {
-        console.error('[redeploy] Failed to persist module deployId:', err)
-      }
-    }
-
     // Poll the host for the deployment created after we started (used when we don't
     // get an id back directly — e.g. a git-push-triggered build).
     const pollForDeploymentId = async (): Promise<string | undefined> => {
