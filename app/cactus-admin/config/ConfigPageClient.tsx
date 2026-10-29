@@ -1638,6 +1638,19 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
     const gh = ghStatus
 
+    // The App is created private, and GitHub only lets a private App be installed on the
+    // account that owns it - so the organisation has to be chosen here, before creation.
+    const orgField = (
+      <div className="field" style={{ marginBottom: '0.75rem', maxWidth: '24rem' }}>
+        <label htmlFor="gh-org">GitHub organisation (optional)</label>
+        <input id="gh-org" type="text" value={ghOrg} onChange={(e) => setGhOrg(e.target.value)} placeholder="Leave blank for your own account" autoComplete="off" />
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0.25rem 0 0' }}>
+          The organisation name as it appears in its GitHub address. You need to be an owner of it.
+          The App can only be installed on the account it is created under.
+        </p>
+      </div>
+    )
+
     return (
       <div id="integrations-github" className="card admin-anchor">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
@@ -1678,13 +1691,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               read here, so updates and the module directory will not work until you connect a GitHub App for
               this site. Connecting one below replaces the old connection.
             </div>
-            <div className="field" style={{ marginBottom: '0.75rem', maxWidth: '24rem' }}>
-              <label htmlFor="gh-org">GitHub organisation (optional)</label>
-              <input id="gh-org" type="text" value={ghOrg} onChange={(e) => setGhOrg(e.target.value)} placeholder="Leave blank for your own account" autoComplete="off" />
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0.25rem 0 0' }}>
-                The organisation name as it appears in its GitHub address. You need to be an owner of it.
-              </p>
-            </div>
+            {orgField}
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleConnect}>
                 {ghBusy ? 'Opening GitHub…' : 'Connect a GitHub App'}
@@ -1699,13 +1706,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         {gh && gh.encryptionKeySet && gh.encryptionKeyValid && !gh.connected && !gh.unreadable && (
           <div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>No GitHub App connected. Click below to create and install one in about 30 seconds.</p>
-            <div className="field" style={{ marginBottom: '0.75rem', maxWidth: '24rem' }}>
-              <label htmlFor="gh-org">GitHub organisation (optional)</label>
-              <input id="gh-org" type="text" value={ghOrg} onChange={(e) => setGhOrg(e.target.value)} placeholder="Leave blank for your own account" autoComplete="off" />
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0.25rem 0 0' }}>
-                The organisation name as it appears in its GitHub address. You need to be an owner of it.
-              </p>
-            </div>
+            {orgField}
             <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleConnect}>
               {ghBusy ? 'Opening GitHub…' : 'Connect a GitHub App'}
             </button>
@@ -1719,6 +1720,12 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 ? <>App <strong>{gh.appSlug}</strong> created. Redirecting you to GitHub to install it…</>
                 : <>App <strong>{gh.appSlug}</strong> created but not yet installed on a repository. Install it to grant access.</>}
             </p>
+            {!ghBusy && (
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
+                It can only be installed on the account it was created under. If your repository belongs to an
+                organisation and GitHub only offers your own account, click Start over and enter the organisation name.
+              </p>
+            )}
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleInstall}>
                 {ghBusy ? 'Opening GitHub…' : 'Install app on repository'}
@@ -1747,7 +1754,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               {ghBusy ? 'Disconnecting…' : 'Disconnect'}
             </button>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: '0.5rem', marginBottom: 0 }}>
-              Disconnecting removes the credentials from this database. The GitHub App itself remains on your GitHub account.
+              Disconnecting removes the credentials from this database. The GitHub App itself remains on GitHub.
+              To move to a different account or organisation, disconnect and connect again.
             </p>
           </div>
         )}
@@ -3319,8 +3327,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             All credentials are stored directly in your {HOST_LABEL} environment variables. Changes take effect on next deployment.
           </p>
           <div className="settings-cols">
-            {/* eslint-disable-next-line react-hooks/static-components -- GitHubAppCard and EnvSectionCard are render helpers; extracting them would require threading ~20 state values as props */}
-            {activeSub === 'github' && <GitHubAppCard />}
+            {/* Called, not mounted: as <GitHubAppCard /> it is a new component type every render, so each keystroke in the organisation box remounted the card and dropped focus. */}
+            {activeSub === 'github' && GitHubAppCard()}
             <div className="settings-card-row">
             {INTEGRATION_SUBS.find((d) => d.key === activeSub)?.anchors
               .filter((a) => a.startsWith('section-'))
