@@ -86,6 +86,7 @@ describe('core public-path files use the public map', () => {
     'lib/media/usage-providers.ts',
     'lib/well-known/providers.ts',
     'lib/members/account-nav.ts',
+    'lib/members/contact-details.ts',
     'lib/modules/menu-entity-provider.ts',
     'app/(public)/cactus-account/page.tsx',
   ]

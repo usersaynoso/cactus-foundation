@@ -17,6 +17,7 @@ type RateLimitAction =
   // Members system (see MEMBERS_SPEC.md)
   | 'member_register'
   | 'member_magic_link'
+  | 'member_magic_link_consume'
   | 'member_login'
   | 'member_2fa'
   | 'member_verify'
@@ -40,7 +41,12 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   // chose, so a loose limit here is a way to use the site as a mailer.
   email_change: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
   member_register: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
+  // Requesting a sign-in link sends an email, so it stays tight.
   member_magic_link: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
+  // Using one is its own bucket: the token is a one-time 256-bit secret, so
+  // guessing is not the threat, and sharing the request bucket meant the third
+  // honest sign-in in fifteen minutes was refused on the click.
+  member_magic_link_consume: { windowMs: 15 * 60 * 1000, maxAttempts: 30 },
   member_login: { windowMs: 15 * 60 * 1000, maxAttempts: 10 },
   member_2fa: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
   member_verify: { windowMs: 60 * 60 * 1000, maxAttempts: 10 },

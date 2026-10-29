@@ -14,6 +14,7 @@ import {
   type AccountSectionKey,
 } from '@/lib/members/account-layout'
 import { getMemberAccountNavExtras } from '@/lib/members/account-nav'
+import { isMemberContactDetailsWanted } from '@/lib/members/contact-details'
 import MemberAvatar from '@/components/members/MemberAvatar'
 import VerifyEmailNudge from '@/components/members/account/VerifyEmailNudge'
 import ContactDetailsCard from '@/components/members/account/ContactDetailsCard'
@@ -87,7 +88,7 @@ export default async function AccountIndexPage() {
 
   // One round of queries rather than a waterfall: this is the page every
   // signed-in member lands on, so it is the one worth not making them wait for.
-  const [config, record, passkeyCount, sessionCount, twoFactorCount, recentActivity, extensionModules, notificationsAvailable, navExtras] =
+  const [config, record, passkeyCount, sessionCount, twoFactorCount, recentActivity, extensionModules, notificationsAvailable, navExtras, contactDetailsWanted] =
     await Promise.all([
       getMembersConfig(),
       prisma.member.findUnique({
@@ -117,6 +118,7 @@ export default async function AccountIndexPage() {
       // threaded down, because it is this page that has to draw the sections
       // those tabs point at, and in the same order.
       getMemberAccountNavExtras({ id: member.id, email: member.email, emailVerified: member.emailVerified }),
+      isMemberContactDetailsWanted(),
     ])
 
   // Modules can append content here via the "members.account-section"
@@ -206,12 +208,12 @@ export default async function AccountIndexPage() {
         />
         <div style={{ minWidth: 0 }}>
           {/* A name is only worth greeting somebody by if they can put it right.
-              The full name on the card below is always theirs to change, and the
-              Profile section is the other place a name can be corrected - a site
-              with neither greets nobody in particular rather than leaving a
-              wrong guess sitting there. */}
+              The full name on the card below is always theirs to change (where
+              the card is shown at all), and the Profile section is the other
+              place a name can be corrected - a site with neither greets nobody
+              in particular rather than leaving a wrong guess sitting there. */}
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', margin: 0, color: 'var(--color-text)' }}>
-            {member.fullName?.trim() || sections.profile
+            {(contactDetailsWanted && member.fullName?.trim()) || sections.profile
               ? `Hi, ${greetingName(member, config.registrationCollectUsername)}`
               : 'Hi there'}
           </h1>
@@ -233,12 +235,16 @@ export default async function AccountIndexPage() {
       {!member.emailVerified && <VerifyEmailNudge email={member.email} />}
 
       {/* Above the summary cards because it is the only thing on this page with
-          anything to fill in - the rest are links to somewhere else. */}
-      <ContactDetailsCard
-        initial={{ fullName: member.fullName, organisation: member.organisation }}
-        collectOrganisation={config.accountCollectOrganisation}
-        requireOrganisation={config.accountRequireOrganisation}
-      />
+          anything to fill in - the rest are links to somewhere else. Only where
+          an installed module actually reads the name back (`members.contact-details`):
+          core has no checkout of its own to fill in. */}
+      {contactDetailsWanted && (
+        <ContactDetailsCard
+          initial={{ fullName: member.fullName, organisation: member.organisation }}
+          collectOrganisation={config.accountCollectOrganisation}
+          requireOrganisation={config.accountRequireOrganisation}
+        />
+      )}
 
       {/* min(100%, 240px) so a phone gets one column rather than two it cannot
           fit - a bare 240px minimum widens the grid past the screen instead of

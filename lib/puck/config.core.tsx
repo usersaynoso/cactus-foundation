@@ -654,9 +654,20 @@ function GridBlock(props: any) {
         ].filter(Boolean).join('\n')}</style>
       )}
       {centerColIndexes.length > 0 && (
-        <style>{centerColIndexes.map((i) =>
-          `header[data-header-root] [data-grid-id="${id}"] > div:nth-child(${i + 1}){position:absolute;left:50%;transform:translateX(-50%);}`
-        ).join('\n')}</style>
+        <style>{centerColIndexes.map((i) => {
+          // Out of flow, so the grid's align-items never reaches it: place it
+          // vertically by hand. Without this it hangs from the grid's top edge,
+          // and when every other column is empty the row is 0px tall, so the
+          // logo drops half a header below where it should be.
+          const sel = `header[data-header-root] [data-grid-id="${id}"] > div:nth-child(${i + 1})`
+          const vPlace = (d: 'desktop' | 'tablet' | 'mobile') => {
+            const v = pickResponsive(vAlignRv, d) ?? 'stretch'
+            if (v === 'center') return 'top:50%;bottom:auto;transform:translate(-50%,-50%);'
+            if (v === 'end') return 'top:auto;bottom:0;transform:translateX(-50%);'
+            return 'top:0;bottom:auto;transform:translateX(-50%);'
+          }
+          return [`${sel}{position:absolute;left:50%;${vPlace('desktop')}}`, responsiveMediaCssFor(sel, vPlace)].filter(Boolean).join('\n')
+        }).join('\n')}</style>
       )}
       {gapVAlignCss && <style>{gapVAlignCss}</style>}
       {anyColSticky && (

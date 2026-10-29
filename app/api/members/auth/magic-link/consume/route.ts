@@ -14,7 +14,7 @@ const Body = z.object({ token: z.string() })
 
 export async function POST(request: NextRequest) {
   const ip = await getClientIp(request)
-  const rl = await checkAndRecord('member_magic_link', [`ip:${ip}`])
+  const rl = await checkAndRecord('member_magic_link_consume', [`ip:${ip}`])
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
   }
