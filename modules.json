@@ -188,7 +188,7 @@
     {
       "name": "ai-call-answering",
       "repoUrl": "https://github.com/cactus-foundation-modules/AI-Call-Answering",
-      "version": "v0.1.18"
+      "version": "v0.1.19"
     },
     {
       "name": "analytics",
