@@ -942,6 +942,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   type GhStatus = { encryptionKeySet: boolean; encryptionKeyValid: boolean; connected: boolean; unreadable: boolean; appSlug: string | null; installationAccount: string | null; hasInstallation: boolean; writeProblem?: string | null; hasPat: boolean }
   const [ghStatus, setGhStatus] = useState<GhStatus | null>(null)
   const [ghBusy, setGhBusy] = useState(false)
+  const [ghOrg, setGhOrg] = useState('')
   const [ghError, setGhError] = useState('')
 
   // Manual "Purge everything now" button on Settings → Speed.
@@ -1584,7 +1585,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       setGhBusy(true)
       setGhError('')
       try {
-        const res = await fetch(`/${adminPath}/integrations/github/start`)
+        const res = await fetch(`/${adminPath}/integrations/github/start${ghOrg.trim() ? `?org=${encodeURIComponent(ghOrg.trim())}` : ''}`)
         if (!res.ok) {
           const d = await res.json().catch(() => ({})) as { error?: string }
           setGhError(d.error ?? 'Failed to start GitHub App flow')
@@ -1677,6 +1678,13 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               read here, so updates and the module directory will not work until you connect a GitHub App for
               this site. Connecting one below replaces the old connection.
             </div>
+            <div className="field" style={{ marginBottom: '0.75rem', maxWidth: '24rem' }}>
+              <label htmlFor="gh-org">GitHub organisation (optional)</label>
+              <input id="gh-org" type="text" value={ghOrg} onChange={(e) => setGhOrg(e.target.value)} placeholder="Leave blank for your own account" autoComplete="off" />
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0.25rem 0 0' }}>
+                The organisation name as it appears in its GitHub address. You need to be an owner of it.
+              </p>
+            </div>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleConnect}>
                 {ghBusy ? 'Opening GitHub…' : 'Connect a GitHub App'}
@@ -1691,6 +1699,13 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         {gh && gh.encryptionKeySet && gh.encryptionKeyValid && !gh.connected && !gh.unreadable && (
           <div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>No GitHub App connected. Click below to create and install one in about 30 seconds.</p>
+            <div className="field" style={{ marginBottom: '0.75rem', maxWidth: '24rem' }}>
+              <label htmlFor="gh-org">GitHub organisation (optional)</label>
+              <input id="gh-org" type="text" value={ghOrg} onChange={(e) => setGhOrg(e.target.value)} placeholder="Leave blank for your own account" autoComplete="off" />
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0.25rem 0 0' }}>
+                The organisation name as it appears in its GitHub address. You need to be an owner of it.
+              </p>
+            </div>
             <button className="btn btn-primary" style={{ fontSize: '0.875rem' }} disabled={ghBusy} onClick={handleConnect}>
               {ghBusy ? 'Opening GitHub…' : 'Connect a GitHub App'}
             </button>

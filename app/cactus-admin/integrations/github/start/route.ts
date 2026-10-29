@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { errorResponse } from '@/lib/utils'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'config.manage')) return errorResponse('Forbidden', 403)
@@ -23,6 +23,12 @@ export async function GET() {
       'ENCRYPTION_KEY must be a 64-character hex string. Generate one with: openssl rand -hex 32',
       503
     )
+  }
+
+  // Blank = the signed-in GitHub user's own account; otherwise the App is created under that organisation.
+  const org = request.nextUrl.searchParams.get('org')?.trim() ?? ''
+  if (org && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(org)) {
+    return errorResponse('That does not look like a GitHub organisation name', 400)
   }
 
   const siteUrl = process.env.SITE_URL?.replace(/\/$/, '')
@@ -57,7 +63,9 @@ export async function GET() {
   }
 
   const res = NextResponse.json({
-    formActionUrl: 'https://github.com/settings/apps/new',
+    formActionUrl: org
+      ? `https://github.com/organizations/${org}/settings/apps/new`
+      : 'https://github.com/settings/apps/new',
     manifest,
     state,
   })
