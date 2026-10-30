@@ -46,7 +46,13 @@ const DISPLAY_VALUE = /^(?:auto|block|swap|fallback|optional)$/
 
 export function sanitiseFontQuery(params: URLSearchParams): URLSearchParams | null {
   const out = new URLSearchParams()
-  const families = params.getAll('family').filter((f) => FAMILY_VALUE.test(f))
+  // A literal `+` in a family name is a space someone pre-encoded before handing it
+  // to URLSearchParams, which then sent it as `%2B`. Google answers that with a 400,
+  // so hrefs stored or cached with it are healed here rather than served broken.
+  const families = params
+    .getAll('family')
+    .map((f) => f.replace(/\+/g, ' '))
+    .filter((f) => FAMILY_VALUE.test(f))
   if (families.length === 0) return null
   for (const f of families) out.append('family', f)
   const display = params.get('display')

@@ -914,8 +914,10 @@ export function googleFontHrefForFamily(family?: string, alreadyLoaded?: readonl
   // buildFontHref asks for the full 400-700 range precisely so this can be true -
   // see FULL_WEIGHTS there.
   if (alreadyLoaded?.some((f) => sameFamily(f, first))) return null
+  // A plain space: URLSearchParams encodes it as `+` itself. Pre-encoding it here
+  // turned the `+` into `%2B`, which Google answers with a 400.
   const params = new URLSearchParams()
-  params.append('family', `${first.replace(/ /g, '+')}:wght@${FULL_WEIGHTS}`)
+  params.append('family', `${first}:wght@${FULL_WEIGHTS}`)
   return proxiedFontHref(sanitiseFontQuery(params) ?? params)
 }
 
@@ -960,7 +962,7 @@ export function buildFontHref(tokens: unknown): string | null {
   // same face. One request for the page beats one for the page and one per block.
   const out = new URLSearchParams()
   for (const family of families.keys()) {
-    out.append('family', `${family.trim().replace(/ /g, '+')}:wght@${FULL_WEIGHTS}`)
+    out.append('family', `${family.trim()}:wght@${FULL_WEIGHTS}`)
   }
 
   return proxiedFontHref(sanitiseFontQuery(out) ?? out)

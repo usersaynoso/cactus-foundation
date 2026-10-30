@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { buildTokenStyles } from '@/lib/design/tokens'
+import { buildFontHref, buildTokenStyles, googleFontHrefForFamily } from '@/lib/design/tokens'
+import { sanitiseFontQuery } from '@/lib/design/font-proxy'
 
 // The blanket element rules the Styles panel emits are the ones that reach
 // things the site did not draw: a payment provider's own button, a wallet
@@ -97,5 +98,32 @@ describe('buildTokenStyles blanket element rules', () => {
   it('does not let the opt-out outrank a module\'s own button styling', () => {
     expect(css).not.toMatch(/:not\(\[data-cactus-unstyled\]\)/)
     expect(css).toContain(':not(:where([data-cactus-unstyled],[data-cactus-unstyled] *))')
+  })
+})
+
+describe('multi-word Google font families', () => {
+  const familyOf = (href: string | null) => {
+    expect(href).not.toBeNull()
+    return new URL(href!, 'https://example.test').searchParams.get('family')
+  }
+
+  it('buildFontHref sends a space, never a literal plus', () => {
+    const href = buildFontHref({ themeStyle: { body: { family: 'DM Sans' } } })
+    expect(href).not.toContain('%2B')
+    expect(familyOf(href)).toMatch(/^DM Sans:wght@/)
+  })
+
+  it('googleFontHrefForFamily sends a space, never a literal plus', () => {
+    const href = googleFontHrefForFamily('DM Sans, sans-serif')
+    expect(href).not.toContain('%2B')
+    expect(familyOf(href)).toMatch(/^DM Sans:wght@/)
+  })
+
+  it('the upstream query the proxy builds carries no %2B, even from an old %2B href', () => {
+    const old = new URL('/api/fonts/css?family=DM%2BSans%3Awght%40400&display=swap', 'https://example.test')
+    const upstream = sanitiseFontQuery(old.searchParams)
+    expect(upstream).not.toBeNull()
+    expect(upstream!.toString()).not.toContain('%2B')
+    expect(upstream!.get('family')).toBe('DM Sans:wght@400')
   })
 })
