@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { isValidHostname } from './caddy.ts'
 import { domainCertificate, issueCertificate } from './certificates.ts'
 import { Cloudflare, manualCloudflareSteps } from './cloudflare.ts'
-import { Databases, DB_NAME_PATTERN, dbNameForSite } from './db.ts'
+import { Databases, dbNameForSite } from './db.ts'
 import type { Host } from './host.ts'
 import type { AdminSiteSummary, CertificateSummary, CreateSiteRequest, CreateSiteResponse } from './protocol.ts'
 import { addSite } from './provision.ts'
@@ -20,14 +20,7 @@ import { SITE_ID_PATTERN, toSummary, type SiteRecord } from './store.ts'
 
 /** The database a site uses on this box: the one its DATABASE_URL names, or null. */
 export function siteDatabase(host: Host, site: SiteRecord): string | null {
-  const url = host.readSiteEnv(site).get('DATABASE_URL')
-  if (!url) return null
-  try {
-    const name = decodeURIComponent(new URL(url).pathname.replace(/^\//, ''))
-    return DB_NAME_PATTERN.test(name) ? name : null
-  } catch {
-    return null
-  }
+  return host.siteDatabase(site)
 }
 
 export function adminSummary(host: Host, site: SiteRecord): AdminSiteSummary {

@@ -305,7 +305,7 @@ you switch over by changing DNS. A few things to get right:
 
 ## 9. Backups
 
-Two layers, and you want both:
+Three layers, and you want them all:
 
 - **The site's own backup** (admin → Settings → Backups) makes a file you can restore
   into any Cactus site, anywhere.
@@ -321,7 +321,14 @@ Two layers, and you want both:
   systemctl start cactus-postgres-backup   # once now, to see it work
   ```
 
-  Restore one with `pg_restore --clean --if-exists -d <db> <file>.dump`, as `postgres`.
+- **A copy just before every deploy.** A build dumps the site's database (when it is on
+  this server) after `npm ci` and before `npm run build`, which is where the migrations
+  run. A dump that fails stops the build, with the live version untouched. The copies
+  stay on this server in `/var/lib/cactus-host/snapshots/<site>/`, root only; each kept
+  release keeps the copy from when it stopped being live, plus the newest
+  `keepReleases`. They are what `rollback --with-database` puts back.
+
+  Restore a nightly one with `pg_restore --clean --if-exists -d <db> <file>.dump`, as `postgres`.
   Try it once on a scratch database before you need it in anger: a backup nobody has
   restored is a hope, not a backup.
 
@@ -337,9 +344,27 @@ cactus-host logs shop               # the newest build's log
 cactus-host build shop              # build the latest commit now
 cactus-host rollback shop           # back to the previous version, no build needed
 cactus-host rollback shop <build>   # or a particular one
+cactus-host rollback shop <build> --with-database   # and its database as it was then
 cactus-host env list shop
 journalctl -u cactus-shop-a -f      # the site's own output (or -b)
 ```
+
+A plain rollback leaves the database alone, which is right whenever the newer release's
+migrations only added things. `--with-database` also puts back the copy taken when that
+release stopped being live, and **everything written since is lost**. It saves the
+database as it is now first (so the rollback can be undone the same way), restores the
+copy into `<db>__incoming`, swaps the two names while nobody is connected, then starts
+the old release. If that release fails its health check, the names swap straight back
+and the site carries on as it was. A crash mid-swap can leave `<db>__replaced` behind:
+the next restore refuses until you have checked it and dropped it.
+
+**Updating Cactus and modules** from the Oasis Server screen asks the site itself
+(`POST /api/internal/host-update` on its live port, with its own token) to do what its
+Settings → Updates screen does with "also update modules" ticked, or Modules → Update
+all when only modules have news. It commits to the site's repo and starts the build
+through cactus-host; the build backs the database up, migrates it, and switches over
+once healthy, like any other. A site whose Cactus predates the route has to be updated
+once from its own admin first.
 
 Settings changed with `cactus-host env set` reach the site with its next build, exactly
 as on Vercel. A running version always keeps the settings it was built with, so a

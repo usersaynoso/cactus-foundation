@@ -60,6 +60,8 @@ export type SiteRecord = {
 export type BuildRecord = BuildSummary & {
   releaseDir: string | null
   slot: SlotName | null
+  /** Epoch ms it last went live, by its own build or a rollback. Absent on older records. */
+  liveAt?: number | null
 }
 
 // Short enough that "cactus-<site>" fits a Linux user name (32 characters at most).

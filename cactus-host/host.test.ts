@@ -171,6 +171,133 @@ describe('rollback', () => {
   })
 })
 
+describe('database snapshots', () => {
+  const withDb = () => hostWithSite({ env: { DATABASE_URL: 'postgresql://shop:pw@localhost:5432/shop' } })
+  const sql = (ctx: ReturnType<typeof hostWithSite>) =>
+    ctx.system.calls.filter((c) => c.cmd === 'runuser' && c.args.includes('psql')).map((c) => c.args[c.args.length - 1] as string)
+
+  it('dumps the database after installing and before the build runs its migrations', async () => {
+    const ctx = withDb()
+    const b = await build(ctx)
+    const order = ctx.system.calls
+      .filter((c) => c.cmd === 'systemd-run' || (c.cmd === 'sh' && c.args[1]?.includes('pg_dump')))
+      .map((c) => (c.cmd === 'sh' ? 'dump' : c.args.slice(c.args.indexOf('--') + 2).join(' ')))
+    expect(order).toEqual(['ci --include=dev --no-audit --no-fund', 'dump', 'run build'])
+    const [snap] = ctx.host.snapshots.list('shop')
+    expect(snap).toMatchObject({ database: 'shop', reason: 'build', buildId: b.id })
+    expect(existsSync(snap!.file)).toBe(true)
+  })
+
+  it('leaves a database on another server alone', async () => {
+    const ctx = hostWithSite({ env: { DATABASE_URL: 'postgresql://u:p@ep-cool.neon.tech/neondb' } })
+    expect((await build(ctx)).state).toBe('ready')
+    expect(ctx.host.snapshots.list('shop')).toEqual([])
+  })
+
+  it('stops the build, with the old version still live, when the dump fails', async () => {
+    const ctx = withDb()
+    const first = await build(ctx)
+    ctx.system.dumpExit = 1
+    const second = await build(ctx)
+    expect(second.state).toBe('error')
+    expect(second.error).toMatch(/Dumping shop/)
+    expect(ctx.host.store.getBuild('shop', first.id)?.live).toBe(true)
+    expect(ctx.system.calls.filter((c) => c.cmd === 'systemd-run').length).toBe(3)
+  })
+
+  it('rolls back with the database as it was when that version was replaced', async () => {
+    const ctx = withDb()
+    const first = await build(ctx)
+    const second = await build(ctx)
+    const point = ctx.host.restorePoints('shop').get(first.id)
+    expect(point).toMatchObject({ reason: 'build', buildId: second.id })
+
+    ctx.system.calls.length = 0
+    const back = await ctx.host.rollback('shop', first.id, { restoreDatabase: true })
+    expect(back.id).toBe(first.id)
+
+    // The database as it is now is saved first, then the restore point goes in beside
+    // it and takes its name, and the replaced copy is dropped once the old code is up.
+    const restore = ctx.system.calls.find((c) => c.cmd === 'sh' && c.args[1]?.includes('pg_restore'))
+    expect(restore?.args.slice(3, 5)).toEqual(['shop__incoming', point!.file])
+    expect(sql(ctx)).toEqual(expect.arrayContaining([
+      'ALTER DATABASE shop RENAME TO shop__replaced',
+      'ALTER DATABASE shop__incoming RENAME TO shop',
+      'DROP DATABASE IF EXISTS shop__replaced WITH (FORCE)',
+    ]))
+    expect(ctx.host.snapshots.list('shop')[0]).toMatchObject({ reason: 'rollback', buildId: first.id })
+    // ...and that copy is what going forward again would restore.
+    expect(ctx.host.restorePoints('shop').get(second.id)).toMatchObject({ reason: 'rollback' })
+  })
+
+  it('swaps the database straight back if the old version will not start', async () => {
+    const ctx = withDb()
+    const first = await build(ctx)
+    const second = await build(ctx)
+    ctx.system.healthy = (port) => port !== ctx.site.ports.a
+    ctx.system.calls.length = 0
+    await expect(ctx.host.rollback('shop', first.id, { restoreDatabase: true })).rejects.toThrow(/did not start/)
+    expect(sql(ctx)).toEqual(expect.arrayContaining([
+      'ALTER DATABASE shop RENAME TO shop__incoming',
+      'ALTER DATABASE shop__replaced RENAME TO shop',
+      'DROP DATABASE IF EXISTS shop__incoming WITH (FORCE)',
+    ]))
+    expect(sql(ctx)).not.toContain('DROP DATABASE IF EXISTS shop__replaced WITH (FORCE)')
+    expect(ctx.host.store.getBuild('shop', second.id)?.live).toBe(true)
+  })
+
+  it('refuses to restore a database it has no copy of, and leaves code-only rollback alone', async () => {
+    const ctx = hostWithSite()
+    const first = await build(ctx)
+    await build(ctx)
+    expect(ctx.host.restorePoints('shop').size).toBe(0)
+    await expect(ctx.host.rollback('shop', first.id, { restoreDatabase: true })).rejects.toThrow(/only the code can go back/)
+    expect((await ctx.host.rollback('shop', first.id)).id).toBe(first.id)
+  })
+
+  it('keeps the snapshots kept releases need and drops the rest', async () => {
+    const ctx = withDb()
+    for (let i = 0; i < 6; i++) await build(ctx)
+    const snaps = ctx.host.snapshots.list('shop')
+    expect(snaps.length).toBe(ctx.config.keepReleases)
+    const kept = ctx.host.store.listBuilds('shop').filter((b) => b.releaseDir && !b.live)
+    for (const b of kept) expect(ctx.host.restorePoints('shop').has(b.id)).toBe(true)
+  })
+})
+
+describe('asking a site to update itself', () => {
+  it('posts to the live release with the token it was built with', async () => {
+    const ctx = hostWithSite()
+    await build(ctx)
+    const answer = { ok: true, upToDate: false, core: { from: '1.0.0', to: '1.1.0' }, updated: 2, failed: [], redeployTriggered: true }
+    ctx.system.answer = (req) => (req.path === '/api/internal/host-update' ? { status: 200, body: JSON.stringify(answer) } : null)
+    expect(await ctx.host.requestUpdate('shop')).toEqual(answer)
+    const sent = ctx.system.requests.find((r) => r.path === '/api/internal/host-update')
+    expect(sent).toMatchObject({ method: 'POST', port: ctx.site.ports.a })
+    expect(sent?.headers.Authorization).toBe('Bearer chs_test-token')
+    expect(sent?.headers.Host).toBe('shop.example.com')
+  })
+
+  it('says plainly when the site is too old to have the route', async () => {
+    const ctx = hostWithSite()
+    await build(ctx)
+    ctx.system.answer = (req) => (req.path === '/api/internal/host-update' ? { status: 404, body: '<html>404</html>' } : null)
+    await expect(ctx.host.requestUpdate('shop')).rejects.toThrow(/too old to be updated from here/)
+  })
+
+  it('passes on what the site said went wrong', async () => {
+    const ctx = hostWithSite()
+    await build(ctx)
+    ctx.system.answer = (req) => (req.path === '/api/internal/host-update' ? { status: 409, body: JSON.stringify({ error: 'A deployment is already in progress' }) } : null)
+    await expect(ctx.host.requestUpdate('shop')).rejects.toMatchObject({ status: 409, message: 'A deployment is already in progress' })
+  })
+
+  it('needs a live version to ask', async () => {
+    const ctx = hostWithSite()
+    await expect(ctx.host.requestUpdate('shop')).rejects.toThrow(/no live version/)
+  })
+})
+
 describe('environment', () => {
   it('lists every key but never hands back a secret', () => {
     const { host } = hostWithSite()

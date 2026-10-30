@@ -32,6 +32,8 @@ export type LocalRequest = {
   /** Sent as given. fetch() silently replaces Host, which is why this exists. */
   headers: Record<string, string>
   timeoutMs: number
+  /** GET unless said otherwise. A POST is sent with an empty body. */
+  method?: 'GET' | 'POST'
 }
 
 export type LocalResponse = { status: number; body: string }
@@ -41,7 +43,7 @@ export interface System {
   lookupUser(name: string): LinuxUser | null
   /** Outbound HTTPS (the domain check). */
   fetch(url: string, init?: RequestInit): Promise<Response>
-  /** A GET to a site's own port on loopback (`localhost`, which is what the site is bound to), with its real Host header. Never follows redirects. */
+  /** A request to a site's own port on loopback (`localhost`, which is what the site is bound to), with its real Host header. Never follows redirects. */
   local(req: LocalRequest): Promise<LocalResponse>
   now(): number
 }
@@ -113,9 +115,10 @@ export const realSystem: System = {
     }
   },
   fetch: (url, init) => fetch(url, init),
-  local({ port, path, headers, timeoutMs }) {
+  local({ port, path, headers, timeoutMs, method = 'GET' }) {
     return new Promise((resolve, reject) => {
-      const req = httpRequest({ host: 'localhost', port, path, method: 'GET', headers, timeout: timeoutMs }, (res) => {
+      const sent = method === 'POST' ? { ...headers, 'Content-Length': '0' } : headers
+      const req = httpRequest({ host: 'localhost', port, path, method, headers: sent, timeout: timeoutMs }, (res) => {
         let body = ''
         res.setEncoding('utf8')
         res.on('data', (chunk: string) => {

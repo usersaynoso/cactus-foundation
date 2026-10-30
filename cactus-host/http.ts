@@ -134,7 +134,7 @@ export async function handle(host: Host, req: IncomingMessage, res: ServerRespon
     case 'POST /rollback': {
       const body = await readBody(req)
       if (body.buildId !== undefined && typeof body.buildId !== 'string') throw new HostError('buildId must be text', 400)
-      return send(res, 200, { build: await host.rollback(id, body.buildId as string | undefined) })
+      return send(res, 200, { build: await host.rollback(id, body.buildId as string | undefined, { restoreDatabase: body.restoreDatabase === true }) })
     }
 
     case 'POST /domains': {
@@ -231,9 +231,17 @@ async function handleAdmin(
     case 'POST /sites/:id/rollback': {
       const body = await readBody(req)
       if (typeof body.buildId !== 'string') throw new HostError('buildId is required', 400)
+      if (body.restoreDatabase !== undefined && typeof body.restoreDatabase !== 'boolean') throw new HostError('restoreDatabase must be true or false', 400)
       const buildId = body.buildId
-      const build = await record('site.rollback', `${id} ${buildId}`, () => host.rollback(id, buildId))
+      const restoreDatabase = body.restoreDatabase === true
+      const build = await record(restoreDatabase ? 'site.rollback.database' : 'site.rollback', `${id} ${buildId}`, () =>
+        host.rollback(id, buildId, { restoreDatabase })
+      )
       return send(res, 200, { build, site: adminSummary(host, host.site(id)) })
+    }
+    case 'POST /sites/:id/update': {
+      const update = await record('site.update', id, () => host.requestUpdate(id))
+      return send(res, 200, { update, site: adminSummary(host, host.site(id)) })
     }
     case 'GET /sites/:id/certificates':
       return send(res, 200, { certificates: await siteCertificates(host, id) })
@@ -271,10 +279,18 @@ async function handleAdmin(
     case 'GET /sites/:id/builds': {
       host.site(id)
       const limit = Number(url.searchParams.get('limit') ?? 10)
+      const points = host.restorePoints(id)
       const builds: AdminBuildSummary[] = host.store
         .listBuilds(id)
         .slice(0, Math.max(1, Math.min(Number.isFinite(limit) ? limit : 10, 50)))
-        .map((b) => ({ ...toSummary(b), kept: b.state === 'ready' && Boolean(b.releaseDir && existsSync(b.releaseDir)) }))
+        .map((b) => {
+          const point = points.get(b.id)
+          return {
+            ...toSummary(b),
+            kept: b.state === 'ready' && Boolean(b.releaseDir && existsSync(b.releaseDir)),
+            restorePoint: point ? { takenAt: point.takenAt, sizeBytes: point.sizeBytes } : null,
+          }
+        })
       return send(res, 200, { builds })
     }
     case 'POST /sites/:id/builds': {

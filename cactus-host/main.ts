@@ -8,7 +8,8 @@
 //   cactus-host site tls <site> <cert> <key>   use this site's own Cloudflare origin certificate
 //   cactus-host site rename <site> <new-name>  a new name everywhere; the site restarts once
 //   cactus-host build <site> [--sha <commit>]  build and switch over, following the log
-//   cactus-host rollback <site> [<build>]      put an earlier release back live
+//   cactus-host rollback <site> [<build>] [--with-database]   put an earlier release back live,
+//                                              and with --with-database its database too
 //   cactus-host builds <site>                  recent builds
 //   cactus-host logs <site> [<build>]          a build's log (the newest by default)
 //   cactus-host env list <site>
@@ -239,8 +240,13 @@ async function main(argv: string[]): Promise<void> {
 
     case 'rollback': {
       const call = client(config, host, sub ?? fail(USAGE))
-      const { build } = await call<{ build: BuildSummary }>('/rollback', { method: 'POST', body: rest[0] ? { buildId: rest[0] } : {} })
-      console.log(`Live: ${build.id} (${build.sha.slice(0, 7)})`)
+      const restoreDatabase = rest.includes('--with-database')
+      const buildId = rest.find((a) => !a.startsWith('--'))
+      const { build } = await call<{ build: BuildSummary }>('/rollback', {
+        method: 'POST',
+        body: { ...(buildId ? { buildId } : {}), ...(restoreDatabase ? { restoreDatabase: true } : {}) },
+      })
+      console.log(`Live: ${build.id} (${build.sha.slice(0, 7)})${restoreDatabase ? ', with its database' : ''}`)
       return
     }
 

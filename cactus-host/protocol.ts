@@ -106,8 +106,37 @@ export type AdminSiteSummary = SiteSummary & {
   createdAt: number
 }
 
-/** A build in the admin API, with whether its release is still on disk to roll back to. */
-export type AdminBuildSummary = BuildSummary & { kept: boolean }
+/**
+ * A build in the admin API, with whether its release is still on disk to roll back to,
+ * and the copy of the database that rolling back to it with its database would restore.
+ */
+export type AdminBuildSummary = BuildSummary & {
+  kept: boolean
+  /** Null when only the code can go back: no copy from when it was live is kept. */
+  restorePoint: { takenAt: number; sizeBytes: number } | null
+}
+
+/**
+ * POST /v1/admin/sites/:id/update, which cactus-host passes on to the site itself
+ * (POST /api/internal/host-update on its live release): bring Cactus and every module
+ * up to date in one build. The build then runs, and switches over, like any other.
+ */
+export type HostUpdateResponse = {
+  ok: true
+  /** Nothing newer was found, so nothing was built. */
+  upToDate: boolean
+  /** The core version change, or null when only modules moved. */
+  core: { from: string; to: string } | null
+  /** Modules included in the build. */
+  updated: number
+  /** Modules held back, each with the reason. */
+  failed: string[]
+  /** False when the site committed the update but could not start the build itself. */
+  redeployTriggered: boolean
+}
+
+/** POST /v1/admin/sites/:id/rollback. `restoreDatabase` loses everything written since restorePoint.takenAt. */
+export type AdminRollbackRequest = { buildId: string; restoreDatabase?: boolean }
 
 /** PATCH /v1/admin/sites/:id. `backup` null or "" clears the destination. */
 export type EditSiteRequest = { name?: string; branch?: string; repo?: string; backup?: string | null }

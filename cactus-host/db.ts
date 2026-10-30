@@ -10,8 +10,8 @@
 // ops/backup-postgres.sh reads through `cactus-host db destination <name>`.
 
 import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto'
-import { mkdirSync, readFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { mkdirSync, readFileSync, statSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import type { HostConfig } from './config.ts'
 import type { DatabaseSummary } from './protocol.ts'
 import { writeFileAtomic } from './store.ts'
@@ -185,5 +185,105 @@ export class Databases {
       ])
     }
     return { file, copiedTo: dest }
+  }
+
+  /** One dump into `file`, kept on this server only. Returns its size in bytes. */
+  async dumpTo(name: string, file: string): Promise<number> {
+    checkName(name)
+    mkdirSync(dirname(file), { recursive: true, mode: 0o700 })
+    await mustRun(this.system, `Dumping ${name}`, 'sh', [
+      '-c',
+      'nice -n 19 ionice -c3 runuser -u "$3" -- pg_dump -Fc -d "$1" > "$2.tmp" && mv "$2.tmp" "$2"',
+      'sh', name, file, this.config.postgres.osUser,
+    ])
+    return statSync(file).size
+  }
+
+  /**
+   * Puts a dump back in place of a database, all at once. The dump is restored into a
+   * new database beside the live one (`<name>__incoming`), which takes the live one's
+   * name in a single moment while nobody is connected; the database it replaced waits
+   * as `<name>__replaced` until commit() drops it or undo() swaps it back.
+   *
+   * Restoring over the top of the live database instead would leave behind anything the
+   * newer schema added (a table, an index) that the dump does not mention, and the next
+   * build's migrations would then trip over it.
+   */
+  async replaceWithDump(name: string, file: string): Promise<{ commit: () => Promise<void>; undo: () => Promise<void> }> {
+    checkName(name)
+    const incoming = `${name}__incoming`
+    const replaced = `${name}__replaced`
+    const { output } = await this.psql(
+      'Checking the database',
+      `select pg_get_userbyid(datdba), (select count(*) from pg_database where datname = '${replaced}') from pg_database where datname = '${name}'`
+    )
+    const [owner, leftover] = output.trim().split('\t')
+    if (leftover && leftover !== '0') {
+      throw new Error(`${replaced} is still on this server from an earlier restore. Check it is not needed, drop it, then try again.`)
+    }
+    await this.psql('Clearing out an unfinished restore', `DROP DATABASE IF EXISTS ${incoming} WITH (FORCE)`)
+    await mustRun(this.system, 'Making a database to restore into', 'runuser', [
+      '-u', this.config.postgres.osUser, '--', 'createdb', '--owner', owner && DB_NAME_PATTERN.test(owner) ? owner : name, incoming,
+    ])
+    try {
+      // The dump is root's alone, so it goes in on stdin rather than by name.
+      await mustRun(this.system, `Restoring ${name}`, 'sh', [
+        '-c',
+        'runuser -u "$3" -- pg_restore --exit-on-error --single-transaction -d "$1" < "$2"',
+        'sh', incoming, file, this.config.postgres.osUser,
+      ])
+    } catch (err) {
+      await this.psql('Removing the half-restored copy', `DROP DATABASE IF EXISTS ${incoming} WITH (FORCE)`).catch(() => undefined)
+      throw err
+    }
+
+    const swap = async (from: string, aside: string) => {
+      // No new connections, then none at all, so the rename cannot be refused.
+      await this.psql(`Closing connections to ${name}`, `ALTER DATABASE ${name} ALLOW_CONNECTIONS false`)
+      try {
+        await this.psql(`Closing connections to ${name}`, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${name}' AND pid <> pg_backend_pid()`)
+        await this.psql(`Moving ${name} aside`, `ALTER DATABASE ${name} RENAME TO ${aside}`)
+      } catch (err) {
+        await this.psql(`Reopening ${name}`, `ALTER DATABASE ${name} ALLOW_CONNECTIONS true`).catch(() => undefined)
+        throw err
+      }
+      await this.psql(`Putting ${from} in place`, `ALTER DATABASE ${from} RENAME TO ${name}`)
+      await this.psql(`Opening ${name}`, `ALTER DATABASE ${name} ALLOW_CONNECTIONS true`)
+    }
+
+    try {
+      await swap(incoming, replaced)
+    } catch (err) {
+      await this.psql('Removing the restored copy', `DROP DATABASE IF EXISTS ${incoming} WITH (FORCE)`).catch(() => undefined)
+      throw err
+    }
+    return {
+      commit: async () => {
+        await this.psql('Dropping the replaced database', `DROP DATABASE IF EXISTS ${replaced} WITH (FORCE)`)
+      },
+      undo: async () => {
+        await swap(replaced, incoming)
+        await this.psql('Dropping the restored copy', `DROP DATABASE IF EXISTS ${incoming} WITH (FORCE)`)
+      },
+    }
+  }
+}
+
+/**
+ * The database a site's env points at, when it is one on this server's own cluster.
+ * Null for no DATABASE_URL, one elsewhere (Neon, Supabase), or one we could not name.
+ */
+export function localDatabase(config: HostConfig, databaseUrl: string | undefined): string | null {
+  if (!databaseUrl) return null
+  try {
+    const url = new URL(databaseUrl)
+    const host = url.hostname.replace(/^\[|\]$/g, '')
+    const local = ['localhost', '127.0.0.1', '::1', config.postgres.host]
+    if (!local.includes(host)) return null
+    if (url.port && Number(url.port) !== config.postgres.port) return null
+    const name = decodeURIComponent(url.pathname.replace(/^\//, ''))
+    return DB_NAME_PATTERN.test(name) && !RESERVED_NAMES.includes(name) ? name : null
+  } catch {
+    return null
   }
 }
