@@ -256,7 +256,7 @@ One lever is worth knowing about if your site has a lot of pages:
 
 | Variable | Effect |
 | --- | --- |
-| `SKIP_BUILD_STATIC_GENERATION=1` | Stops the build from pre-building every published page. Each page is built instead the first time somebody asks for it, and cached from then on. The pages are identical either way, they are just made later. Sensible on preview deployments, and on any site where the deploy spends longer building pages than you want to wait. |
+| `SKIP_BUILD_STATIC_GENERATION=1` | Retired and now does nothing: ordinary pages are no longer pre-built at deploy, so there is nothing to skip. Safe to remove. |
 
 Set it in Vercel's project settings and redeploy. Leave it unset and every published page is pre-built exactly as before.
 

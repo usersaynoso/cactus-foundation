@@ -87,30 +87,15 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   } catch { return withPublicSeo({}, path) }
 }
 
-export async function generateStaticParams() {
-  // Vercel's own build-time escape hatch, honoured here so it actually works on a
-  // Cactus site: with SKIP_BUILD_STATIC_GENERATION set, prerender nothing and let
-  // each page build itself when somebody first asks for it. `dynamicParams` is true
-  // and `revalidate` is false, so a page left out of the build is generated on its
-  // first request and cached from then on - the same output, produced later. Worth
-  // switching on for preview deployments, where nobody is waiting on a warm cache,
-  // and on any production site with more published pages than the deploy wants to
-  // sit through. Unset (the default), every published page is prerendered exactly
-  // as before.
-  if (process.env.SKIP_BUILD_STATIC_GENERATION) return []
-  try {
-    const [pages, homepageId] = await Promise.all([
-      prisma.infoPage.findMany({ where: { status: 'published' }, select: { id: true, slug: true } }),
-      getHomepageId(),
-    ])
-    // The homepage's own slug is left out: every request for it redirects to the
-    // root, so prerendering it builds a page nobody is ever served.
-    return pages.filter((p) => p.id !== homepageId).map((p) => ({ slug: p.slug }))
-  } catch { return [] }
-}
-
-export const dynamicParams = true
-export const revalidate = false
+// Rendered per request, never prerendered or held as static HTML. A header or footer
+// layout can carry blocks that read the visitor (Members: Sign In and friends call
+// connection()), and a static render of this route - the ISR fallback for any slug
+// the build did not prerender - throws "Page changed from static to dynamic at
+// runtime" the moment one of them runs. That 500'd every module index page
+// (/heaters), the homepage-slug redirect (/home) and every unknown slug that should
+// have been a 404. The homepage route is force-dynamic for the same reason, and a
+// shared cache in front is still driven by lib/cache/page-cache.ts, not by this.
+export const dynamic = 'force-dynamic'
 
 export default async function InfoPageRoute({ params, searchParams }: Props) {
   const { slug } = await params
@@ -129,11 +114,6 @@ export default async function InfoPageRoute({ params, searchParams }: Props) {
     // runs on a miss, and a module index beats a claim for the same reason.
     const resolved = (await resolveModuleIndexPage(slug)) ?? (await resolveModuleRootSlugPage(slug))
     if (!resolved) notFound()
-
-    // Calling a dynamic API before rendering forces this request to render dynamically
-    // rather than being cached forever under revalidate = false — without this, the
-    // module's index page would go stale (e.g. scheduled posts never appearing).
-    await getSessionFromCookie()
 
     const { Component, mappedParams } = resolved
     return <Component params={Promise.resolve(mappedParams)} searchParams={searchParams} />
