@@ -39,17 +39,35 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
 
   const [primary, ...others] = site.domains as [string, ...string[]]
   const livePort = site.liveSlot ? site.ports[site.liveSlot] : null
-  const tls = tlsLine(site.tls ?? config.tls)
+  const tlsFor = (domain: string) => site.domainTls?.[domain] ?? site.tls ?? config.tls
   const proof = [
     `\thandle ${PROOF_PATH} {`,
     '\t\theader Cache-Control "no-store"',
     `\t\trespond "${site.proof}" 200`,
     '\t}',
   ]
+  // Every other domain sends visitors to the primary one, keeping path and query. The
+  // proof path still answers, so a domain check can tell it reaches this site. Domains
+  // sharing a certificate share a block; one in another zone gets a block of its own.
+  const groups = new Map<string, string[]>()
+  for (const d of others) {
+    const key = JSON.stringify(tlsFor(d))
+    groups.set(key, [...(groups.get(key) ?? []), d])
+  }
+  const redirects = [...groups.values()].flatMap((domains) => [
+    '',
+    `${domains.join(', ')} {`,
+    ...tlsLine(tlsFor(domains[0] as string)),
+    ...proof,
+    '\thandle {',
+    `\t\tredir https://${primary}{uri} permanent`,
+    '\t}',
+    '}',
+  ])
   const lines = [
     header.trimEnd(),
     `${primary} {`,
-    ...tls,
+    ...tlsLine(tlsFor(primary)),
     `\troot * ${paths.static}`,
     ...proof,
     '\t@static {',
@@ -66,20 +84,7 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
       : ['\t\theader Cache-Control "no-store"', '\t\trespond "This site is still being built. Try again in a few minutes." 503']),
     '\t}',
     '}',
-    // Every other domain sends visitors to the primary one, keeping path and query.
-    // The proof path still answers, so a domain check can tell it reaches this site.
-    ...(others.length
-      ? [
-          '',
-          `${others.join(', ')} {`,
-          ...tls,
-          ...proof,
-          '\thandle {',
-          `\t\tredir https://${primary}{uri} permanent`,
-          '\t}',
-          '}',
-        ]
-      : []),
+    ...redirects,
     '',
   ]
   return lines.join('\n')

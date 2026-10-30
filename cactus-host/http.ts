@@ -206,6 +206,11 @@ async function handleAdmin(
       await record('site.edit', id, async () => host.editSite(id, changes))
       return send(res, 200, { site: adminSummary(host, host.site(id)) })
     }
+    case 'POST /sites/:id/refresh': {
+      const site = host.site(id)
+      await record('site.refresh', id, () => host.writeRouting(site))
+      return send(res, 200, { site: adminSummary(host, host.site(id)) })
+    }
     case 'POST /sites/:id/domains': {
       const body = await readBody(req)
       if (typeof body.name !== 'string') throw new HostError('name is required', 400)

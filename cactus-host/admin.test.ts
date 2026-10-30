@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ADMIN_TOKEN_KEY, grantAdmin, readAdmin, revokeAdmin } from './admin.ts'
 import { readAudit } from './audit.ts'
-import { createSite } from './create.ts'
+import { addSiteDomain, createSite } from './create.ts'
 import { parseEnv } from './env-file.ts'
 import { createApiServer } from './http.ts'
 import { hostWithSite, TEST_TOKEN, withCluster } from './testing.ts'
@@ -84,9 +84,29 @@ describe('the admin API: editing a site', () => {
     expect(ctx.host.site('shop').domains[0]).toBe('www.example.com')
     expect((await call('/admin/sites/shop/domains/www.example.com', admin, { method: 'DELETE' })).status).toBe(200)
     expect((await call('/admin/sites/shop/domains/shop.example.com', admin, { method: 'DELETE' })).status).toBe(409)
+    expect((await call('/admin/sites/shop/refresh', admin, { method: 'POST' })).status).toBe(200)
     const edited = await call('/admin/sites/shop', admin, { method: 'PATCH', body: { name: 'Renamed' } })
     expect((await edited.json() as { site: { name: string } }).site.name).toBe('Renamed')
-    expect(readAudit(ctx.config, 20).map((e) => e.action)).toEqual(expect.arrayContaining(['site.domain.add', 'site.domain.primary', 'site.domain.remove', 'site.edit']))
+    expect(readAudit(ctx.config, 20).map((e) => e.action)).toEqual(expect.arrayContaining(['site.domain.add', 'site.domain.primary', 'site.domain.remove', 'site.edit', 'site.refresh']))
+  })
+})
+
+describe('adding a domain in another zone', () => {
+  it('uses that zone\'s certificate from tlsDir, and none when the site\'s own covers it', async () => {
+    const ctx = hostWithSite()
+    ;(ctx.config as { tlsDir: string }).tlsDir = join(ctx.config.stateDir, 'tls')
+    mkdirSync(ctx.config.tlsDir, { recursive: true })
+    writeFileSync(join(ctx.config.tlsDir, 'other.furniture.pem'), 'c')
+    writeFileSync(join(ctx.config.tlsDir, 'other.furniture.key'), 'k')
+    const added = await addSiteDomain(ctx.host, 'shop', 'other.furniture', false)
+    expect(added.cloudflare.manual.join(' ')).not.toMatch(/origin certificate for/)
+    expect(ctx.host.site('shop').domainTls?.['other.furniture']).toEqual({
+      cert: join(ctx.config.tlsDir, 'other.furniture.pem'),
+      key: join(ctx.config.tlsDir, 'other.furniture.key'),
+    })
+    const bare = await addSiteDomain(ctx.host, 'shop', 'www.nocert.example', false)
+    expect(bare.cloudflare.manual.join(' ')).toMatch(/origin certificate for www\.nocert\.example/)
+    expect(ctx.host.site('shop').domainTls?.['www.nocert.example']).toBeUndefined()
   })
 })
 

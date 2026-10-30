@@ -7,6 +7,8 @@
 // fails, the error says which earlier ones already happened, so nothing is left
 // half-made without anybody knowing.
 
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { isValidHostname } from './caddy.ts'
 import { Cloudflare, manualCloudflareSteps } from './cloudflare.ts'
 import { Databases, dbNameForSite } from './db.ts'
@@ -107,28 +109,48 @@ export async function createSite(host: Host, input: CreateSiteRequest): Promise<
 export type AddDomainResult = { domain: { name: string; serving: boolean }; site: AdminSiteSummary; cloudflare: { done: string[]; manual: string[] } }
 
 /**
+ * The origin certificate in tlsDir for the zone a hostname sits in: the longest parent
+ * name with both halves there (example.co.uk.pem for www.example.co.uk), or null.
+ */
+export function zoneCertificate(tlsDir: string, hostname: string): { cert: string; key: string } | null {
+  const labels = hostname.split('.')
+  for (let i = 0; i < labels.length - 1; i++) {
+    const zone = labels.slice(i).join('.')
+    const pair = { cert: join(tlsDir, `${zone}.pem`), key: join(tlsDir, `${zone}.key`) }
+    if (existsSync(pair.cert) && existsSync(pair.key)) return pair
+  }
+  return null
+}
+
+/**
  * Attaches a domain to an existing site, with its Cloudflare record when this box has
- * a token. One zone per site: the site's certificate is for one zone, so a domain in
- * another is refused before anything is touched.
+ * a token. A domain in another zone from the site's certificate gets that zone's own
+ * origin certificate: reused from tlsDir, or made through Cloudflare when it can be.
  */
 export async function addSiteDomain(host: Host, siteId: string, name: string, primary: boolean): Promise<AddDomainResult> {
   const site = host.site(siteId)
   const domain = host.checkedDomain(siteId, name)
   const done: string[] = []
+  const manual: string[] = []
   const cloudflare = Cloudflare.fromConfig(host.config, host.system)
+  let cert = zoneCertificate(host.config.tlsDir, domain)
   if (cloudflare) {
     const zone = await cloudflare.findZone(domain)
-    if (site.domains[0]) {
-      const existing = await cloudflare.findZone(site.domains[0])
-      if (existing.id !== zone.id) throw new Error(`${domain} is in a different Cloudflare zone from ${site.domains[0]}; one zone per site`)
-    }
     done.push(await cloudflare.ensureARecord(zone.id, domain))
     done.push(await cloudflare.ensureStrict(zone.id, zone.name))
+    const made = await cloudflare.ensureOriginCertificate(zone.name)
+    done.push(made.note)
+    cert = { cert: made.cert, key: made.key }
+  } else {
+    manual.push(...manualCloudflareSteps(host.config, [domain]).slice(0, 2))
+    if (!cert) manual.push(`An origin certificate for ${domain}'s zone, saved as ${host.config.tlsDir}/<zone>.pem and .key (root:caddy, 0640), then add the domain again.`)
   }
-  const status = await host.addDomain(siteId, domain, { primary })
+  const siteCert = site.tls ?? host.config.tls
+  const own = cert && (cert.cert !== siteCert?.cert || cert.key !== siteCert?.key) ? cert : null
+  const status = await host.addDomain(siteId, domain, { primary, tls: own })
   return {
     domain: status,
     site: adminSummary(host, host.site(siteId)),
-    cloudflare: { done, manual: cloudflare ? [] : manualCloudflareSteps(host.config, [domain]).slice(0, 1) },
+    cloudflare: { done, manual },
   }
 }

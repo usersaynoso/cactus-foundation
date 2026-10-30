@@ -574,11 +574,13 @@ export class Host {
   // ── Domains ────────────────────────────────────────────────────────────────
 
   /** Adds a domain. The first one a site has is its primary; later ones redirect to it unless `primary` is set. */
-  async addDomain(siteId: string, name: string, opts: { primary?: boolean } = {}): Promise<DomainSummary> {
+  async addDomain(siteId: string, name: string, opts: { primary?: boolean; tls?: { cert: string; key: string } | null } = {}): Promise<DomainSummary> {
     const site = this.site(siteId)
     const domain = this.checkedDomain(siteId, name)
     const domains = site.domains.includes(domain) ? site.domains : [...site.domains, domain]
-    await this.saveDomains(site, opts.primary ? [domain, ...domains.filter((d) => d !== domain)] : domains)
+    const { [domain]: _previous, ...otherTls } = site.domainTls ?? {}
+    const domainTls = opts.tls ? { ...otherTls, [domain]: opts.tls } : opts.tls === null ? otherTls : site.domainTls
+    await this.saveDomains({ ...site, domainTls }, opts.primary ? [domain, ...domains.filter((d) => d !== domain)] : domains, site)
     return this.domainStatus(siteId, domain)
   }
 
@@ -596,7 +598,8 @@ export class Host {
     const domain = name.trim().toLowerCase()
     if (!site.domains.includes(domain)) throw new HostError(`${domain} is not attached to ${siteId}`, 404)
     if (site.domains.length === 1) throw new HostError(`${domain} is the only domain ${siteId} has. Add another first, or the site would be unreachable`, 409)
-    await this.saveDomains(site, site.domains.filter((d) => d !== domain))
+    const { [domain]: _gone, ...domainTls } = site.domainTls ?? {}
+    await this.saveDomains({ ...site, domainTls }, site.domains.filter((d) => d !== domain), site)
   }
 
   /** The domain, lower-cased, once it is known to be valid and not another site's. */
@@ -608,13 +611,13 @@ export class Host {
     return domain
   }
 
-  private async saveDomains(site: SiteRecord, domains: string[]): Promise<void> {
-    if (domains.join() === site.domains.join()) return
+  private async saveDomains(site: SiteRecord, domains: string[], before: SiteRecord = site): Promise<void> {
+    if (domains.join() === before.domains.join() && JSON.stringify(site.domainTls ?? {}) === JSON.stringify(before.domainTls ?? {})) return
     const updated = { ...site, domains }
     await this.writeRouting(updated)
     this.store.saveSite(updated)
     // SITE_URL follows the primary domain; running builds keep the old one until the next build.
-    if (domains[0] !== site.domains[0]) {
+    if (domains[0] !== before.domains[0]) {
       const env = this.readSiteEnv(updated)
       if (env.has('SITE_URL')) {
         env.set('SITE_URL', `https://${domains[0]}`)

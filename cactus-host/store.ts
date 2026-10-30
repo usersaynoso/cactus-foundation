@@ -49,6 +49,11 @@ export type SiteRecord = {
    * issued per zone, so two sites on two domains need one each.
    */
   tls?: { cert: string; key: string }
+  /**
+   * Certificates for particular domains that sit in another Cloudflare zone from the
+   * rest of the site (an origin certificate covers one zone), keyed by domain.
+   */
+  domainTls?: Record<string, { cert: string; key: string }>
   createdAt: number
 }
 

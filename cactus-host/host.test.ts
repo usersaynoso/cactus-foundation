@@ -248,6 +248,19 @@ describe('primary and redirect domains', () => {
     await expect(ctx.host.removeDomain('shop', 'zzz.example.com')).rejects.toThrow(/not attached/)
   })
 
+  it('gives a domain in another zone its own certificate, in its own redirect block', async () => {
+    const ctx = hostWithSite({ domains: [] })
+    await ctx.host.addDomain('shop', 'shop.example.com')
+    await ctx.host.addDomain('shop', 'www.shop.example.com')
+    await ctx.host.addDomain('shop', 'shop.example.org', { tls: { cert: '/etc/caddy/tls/example.org.pem', key: '/etc/caddy/tls/example.org.key' } })
+    const file = readFileSync(ctx.paths.caddyFile, 'utf8')
+    expect(file).toContain('www.shop.example.com {')
+    expect(file).toMatch(/shop\.example\.org \{\n\ttls \/etc\/caddy\/tls\/example\.org\.pem \/etc\/caddy\/tls\/example\.org\.key/)
+    await ctx.host.removeDomain('shop', 'shop.example.org')
+    expect(ctx.host.site('shop').domainTls).toEqual({})
+    expect(readFileSync(ctx.paths.caddyFile, 'utf8')).not.toContain('example.org')
+  })
+
   it('edits a site name and branch', () => {
     const ctx = hostWithSite()
     expect(ctx.host.editSite('shop', { name: ' The Shop ', branch: 'release' })).toMatchObject({ name: 'The Shop', branch: 'release' })
