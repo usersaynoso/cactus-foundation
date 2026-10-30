@@ -8,14 +8,17 @@
 // the audit log. A site token gets 401 there, and the admin token gets 401 on a
 // site's own routes, so neither kind of token is ever more than it says.
 
+import { existsSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { isAdminToken } from './admin.ts'
 import { audited, readAudit } from './audit.ts'
-import { addSiteDomain, adminSummary, createSite } from './create.ts'
+import { issueCertificate, siteCertificates } from './certificates.ts'
+import { addSiteDomain, adminSummary, createSite, siteDatabase } from './create.ts'
 import { Databases } from './db.ts'
 import { Host, HostError } from './host.ts'
-import { PROTOCOL_VERSION, type EnvWrite, type ErrorBody } from './protocol.ts'
-import type { SiteRecord } from './store.ts'
+import { PROTOCOL_VERSION, type AdminBuildSummary, type EditSiteResponse, type EnvWrite, type ErrorBody } from './protocol.ts'
+import { renameSite } from './rename.ts'
+import { toSummary, type SiteRecord } from './store.ts'
 import { bearerToken, tokenMatches } from './tokens.ts'
 
 const MAX_BODY = 1024 * 1024
@@ -202,9 +205,43 @@ async function handleAdmin(
       return send(res, 200, { site: adminSummary(host, host.site(id)) })
     case 'PATCH /sites/:id': {
       const body = await readBody(req)
-      const changes = { name: optionalText(body.name, 'name'), branch: optionalText(body.branch, 'branch') }
-      await record('site.edit', id, async () => host.editSite(id, changes))
-      return send(res, 200, { site: adminSummary(host, host.site(id)) })
+      const changes = { name: optionalText(body.name, 'name'), branch: optionalText(body.branch, 'branch'), repo: optionalText(body.repo, 'repo') }
+      // "backup" present means set it; null or "" clears it.
+      const backup = 'backup' in body ? (optionalText(body.backup, 'backup') ?? null) : undefined
+      const site = host.site(id)
+      const database = backup !== undefined ? siteDatabase(host, site) : null
+      if (backup !== undefined && !database) throw new HostError(`${id} has no database on this server to back up`, 400)
+      const edited = await record('site.edit', id, async () => {
+        const result = await host.editSite(id, changes)
+        if (backup !== undefined) databases.setDestination(database as string, backup)
+        return result
+      })
+      return send(res, 200, { site: adminSummary(host, host.site(id)), deployKeyPublic: edited.deployKeyPublic } satisfies EditSiteResponse)
+    }
+    case 'POST /sites/:id/rename': {
+      const body = await readBody(req)
+      if (typeof body.to !== 'string') throw new HostError('"to" is required: the new site name', 400)
+      const to = body.to
+      const renamed = await record('site.rename', `${id} ${to}`, () => renameSite(host, id, to))
+      return send(res, 200, { site: adminSummary(host, renamed) })
+    }
+    case 'GET /sites/:id/deploy-key':
+      host.site(id)
+      return send(res, 200, { deployKeyPublic: host.deployKeyPublic(id) })
+    case 'POST /sites/:id/rollback': {
+      const body = await readBody(req)
+      if (typeof body.buildId !== 'string') throw new HostError('buildId is required', 400)
+      const buildId = body.buildId
+      const build = await record('site.rollback', `${id} ${buildId}`, () => host.rollback(id, buildId))
+      return send(res, 200, { build, site: adminSummary(host, host.site(id)) })
+    }
+    case 'GET /sites/:id/certificates':
+      return send(res, 200, { certificates: await siteCertificates(host, id) })
+    case 'POST /sites/:id/domains/:domain/certificate': {
+      const body = await readBody(req)
+      const name = rest[3] as string
+      const renew = body.renew === true
+      return send(res, 200, await record(renew ? 'site.certificate.renew' : 'site.certificate', `${id} ${name}`, () => issueCertificate(host, id, name, { renew })))
     }
     case 'POST /sites/:id/refresh': {
       const site = host.site(id)
@@ -232,8 +269,13 @@ async function handleAdmin(
       return send(res, 200, { site: adminSummary(host, host.site(id)) })
     }
     case 'GET /sites/:id/builds': {
+      host.site(id)
       const limit = Number(url.searchParams.get('limit') ?? 10)
-      return send(res, 200, { builds: host.listBuilds(id, Number.isFinite(limit) ? limit : 10) })
+      const builds: AdminBuildSummary[] = host.store
+        .listBuilds(id)
+        .slice(0, Math.max(1, Math.min(Number.isFinite(limit) ? limit : 10, 50)))
+        .map((b) => ({ ...toSummary(b), kept: b.state === 'ready' && Boolean(b.releaseDir && existsSync(b.releaseDir)) }))
+      return send(res, 200, { builds })
     }
     case 'POST /sites/:id/builds': {
       host.site(id)

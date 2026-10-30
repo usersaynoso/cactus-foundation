@@ -408,12 +408,58 @@ own token still only ever sees that site. Every change made through it, or throu
 `db`, `site create` or `admin` on the command line, is one line in
 `/var/lib/cactus-host/admin-audit.log`, with no secret in it.
 
+### Renaming a site, moving its repo
+
+```bash
+cactus-host site rename shop store   # site name everywhere: folder, units, records, logs, user cactus-store
+```
+
+The site is offline while its live version restarts (its two slots keep their ports, so
+the new unit can only start once the old one has stopped), usually under a minute. Nothing
+is rebuilt, the database keeps its name (it is found from `DATABASE_URL`), and a build
+running at the time makes it refuse. Changing a site's install repo (admin API or the
+Oasis screen) makes a new deploy key, because GitHub refuses one key on two repos: add it
+on the new repo before the next build.
+
+## 13. SSL certificates
+
+```bash
+cactus-host cert list shop                    # each domain: which certificate, whether it covers it, expiry, who renews it, Cloudflare in front?
+cactus-host cert issue shop www.example.com   # get one for a domain that has none, or one running out
+cactus-host cert issue shop www.example.com --renew   # a fresh Let's Encrypt certificate now
+```
+
+`cert issue`, and every `site create` and domain add, tries in turn: a certificate
+already in `/etc/caddy/tls` that names the domain; a Cloudflare origin certificate (with
+`config.cloudflare`, section 12); Let's Encrypt (with `config.letsEncrypt`, below).
+
+Let's Encrypt uses certbot's DNS-01 challenge with certbot's own Cloudflare credentials
+file, which cactus-host never reads. Turn it on in `/etc/cactus-host/config.json`, then
+`systemctl restart cactus-host`:
+
+```json
+"letsEncrypt": { "credentialsFile": "/etc/letsencrypt/cloudflare.ini", "email": null }
+```
+
+certbot needs the `python3-certbot-dns-cloudflare` plugin and an account on the box (any
+earlier `certbot` run makes one; otherwise set `email`). Certificates are named
+`cactus-<domain>` in certbot and copied to `/etc/caddy/tls/letsencrypt-<domain>.{pem,key}`
+(root:caddy 0640). `certbot.timer` renews them, and the deploy hook it records with each
+one (`/usr/local/bin/cactus-host cert renewed`) installs the renewal and reloads Caddy.
+`certbot renew --dry-run` proves the whole chain.
+
+A domain behind Cloudflare's proxy shows visitors Cloudflare's own edge certificate, which
+Cloudflare issues and renews; the server's certificate only secures the hop from Cloudflare.
+A Cloudflare origin certificate is trusted by Cloudflare alone, so such a domain must stay
+proxied. `cert list` says which domains are behind Cloudflare.
+
 ## Where things live
 
 | What | Where |
 | --- | --- |
 | cactus-host | `/opt/cactus-host`, config in `/etc/cactus-host/config.json` |
 | Its records, build logs, code mirrors | `/var/lib/cactus-host` (root only) |
+| SSL certificates | `/etc/caddy/tls` (origin: `<zone>.{pem,key}`; Let's Encrypt: `letsencrypt-<domain>.{pem,key}`, from `/etc/letsencrypt/live/cactus-<domain>`) |
 | Database backup destinations, admin token hash, audit log | `/var/lib/cactus-host/databases.json`, `admin.json`, `admin-audit.log` |
 | Deploy keys | `/etc/cactus-host/keys` (root only) |
 | A site's files | `/srv/cactus/<site>/` |

@@ -241,3 +241,35 @@ describe('site create', () => {
     ])
   })
 })
+
+describe('the admin API: deployments, settings and certificates', () => {
+  it('lists builds with timing and whether each is kept, rolls back, and edits the backup destination', async () => {
+    const ctx = hostWithSite({ env: { DATABASE_URL: 'postgresql://shop:pw@localhost:5432/shop' } })
+    grantAdmin(ctx.host, 'shop')
+    const admin = adminTokenOf(ctx)
+    const call = await api(ctx)
+    const first = ctx.host.startBuild('shop')
+    await ctx.host.waitForBuild(first.build.id)
+    const second = ctx.host.startBuild('shop')
+    await ctx.host.waitForBuild(second.build.id)
+
+    const listed = (await (await call('/admin/sites/shop/builds', admin)).json()) as { builds: Array<{ id: string; kept: boolean; startedAt: number }> }
+    expect(listed.builds.map((b) => b.kept)).toEqual([true, true])
+    expect(listed.builds[0]?.startedAt).toBeGreaterThan(0)
+
+    const rolled = await call('/admin/sites/shop/rollback', admin, { method: 'POST', body: { buildId: first.build.id } })
+    expect(rolled.status).toBe(200)
+    expect(ctx.host.store.listBuilds('shop').find((b) => b.live)?.id).toBe(first.build.id)
+    expect((await call('/admin/sites/shop/rollback', admin, { method: 'POST', body: { buildId: first.build.id } })).status).toBe(409)
+
+    const edited = await call('/admin/sites/shop', admin, { method: 'PATCH', body: { backup: 'b2:Bucket/Shop' } })
+    expect(((await edited.json()) as { site: { backup: string } }).site.backup).toBe('b2:Bucket/Shop')
+    expect((await call('/admin/sites/shop', admin, { method: 'PATCH', body: { backup: 'not a remote' } })).status).toBe(400)
+
+    const certs = (await (await call('/admin/sites/shop/certificates', admin)).json()) as { certificates: Array<{ domain: string }> }
+    expect(certs.certificates.map((c) => c.domain)).toEqual(['shop.example.com'])
+    expect((await call('/admin/sites/shop/domains/shop.example.com/certificate', admin, { method: 'POST' })).status).toBe(400)
+    expect((await call('/admin/sites/shop/deploy-key', admin)).status).toBe(200)
+    expect(readAudit(ctx.config, 20).map((e) => e.action)).toEqual(expect.arrayContaining(['site.rollback', 'site.edit', 'site.certificate']))
+  })
+})

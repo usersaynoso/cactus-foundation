@@ -6,6 +6,7 @@
 //   cactus-host site list
 //   cactus-host site refresh <site>            rewrite its systemd units and Caddy file
 //   cactus-host site tls <site> <cert> <key>   use this site's own Cloudflare origin certificate
+//   cactus-host site rename <site> <new-name>  a new name everywhere; the site restarts once
 //   cactus-host build <site> [--sha <commit>]  build and switch over, following the log
 //   cactus-host rollback <site> [<build>]      put an earlier release back live
 //   cactus-host builds <site>                  recent builds
@@ -17,6 +18,9 @@
 //   cactus-host domain primary <site> <domain>   make it the primary; the others redirect to it
 //   cactus-host domain remove <site> <domain>
 //   cactus-host domain check <site> <domain>
+//   cactus-host cert list <site>               each domain's certificate and when it runs out
+//   cactus-host cert issue <site> <domain> [--renew]   get one for a domain that has none (or one running out)
+//   cactus-host cert renewed                   certbot's deploy hook: install a renewed certificate
 //   cactus-host db list
 //   cactus-host db create <name> [--backup remote:path]   prints the connection string, once
 //   cactus-host db backup <name>               one dump now, copied to its backup destination
@@ -36,6 +40,7 @@
 import { readFileSync } from 'node:fs'
 import { grantAdmin, readAdmin, revokeAdmin } from './admin.ts'
 import { audited, readAudit } from './audit.ts'
+import { issueCertificate, letsEncryptRenewed, siteCertificates } from './certificates.ts'
 import { loadConfig, type HostConfig } from './config.ts'
 import { createSite } from './create.ts'
 import { Databases } from './db.ts'
@@ -43,6 +48,7 @@ import { parseEnv } from './env-file.ts'
 import { Host } from './host.ts'
 import { createApiServer } from './http.ts'
 import { addSite } from './provision.ts'
+import { renameSite } from './rename.ts'
 import type { BuildLogChunk, BuildSummary, DomainSummary, EnvKeySummary, StartBuildResponse } from './protocol.ts'
 import { Scheduler } from './scheduler.ts'
 import { writeFileAtomic } from './store.ts'
@@ -203,6 +209,12 @@ async function main(argv: string[]): Promise<void> {
         console.log(`${site.id} now uses ${cert}. Do this while no build is running for the site.`)
         return
       }
+      if (sub === 'rename') {
+        const to = rest[1] ?? fail('The new name is required')
+        const renamed = await audited(config, () => Date.now(), 'cli', 'site.rename', `${id} ${to}`, () => renameSite(host, id, to))
+        console.log(`${id} is now ${renamed.id} (user ${renamed.user}). Its database keeps its name.`)
+        return
+      }
       if (sub === 'refresh') {
         const site = host.site(id)
         const paths = host.store.paths(site.id)
@@ -295,6 +307,32 @@ async function main(argv: string[]): Promise<void> {
           : await call<{ domain: DomainSummary }>(`/domains/${encodeURIComponent(name)}`)
       console.log(domain.serving ? `${domain.name} reaches this site.` : `${domain.name} does not reach this site yet (check its DNS and the Cloudflare proxy).`)
       return
+    }
+
+    case 'cert': {
+      if (sub === 'renewed') {
+        // certbot sets RENEWED_LINEAGE for a deploy hook; anything else is not ours to install.
+        const lineage = process.env.RENEWED_LINEAGE ?? fail('RENEWED_LINEAGE is not set: this is run by certbot as a deploy hook')
+        const domain = await letsEncryptRenewed(host, lineage)
+        if (domain) console.log(`Installed the renewed certificate for ${domain} and reloaded Caddy.`)
+        return
+      }
+      const siteId = rest[0] ?? fail(USAGE)
+      if (sub === 'list') {
+        for (const c of await siteCertificates(host, siteId)) {
+          const expires = c.expiresAt ? new Date(c.expiresAt).toISOString().slice(0, 10) : '-'
+          const proxy = c.cloudflareProxy ? '\tbehind Cloudflare' : ''
+          console.log(`${c.domain}\t${c.kind}\t${c.covers ? 'covers' : 'DOES NOT COVER'}\t${c.issuer ?? '-'}\texpires ${expires}\trenewed by ${c.renewedBy ?? 'nobody'}${proxy}${c.problem ? `\t${c.problem}` : ''}`)
+        }
+        return
+      }
+      if (sub === 'issue') {
+        const domain = rest[1] ?? fail('A domain is required')
+        const issued = await audited(config, () => Date.now(), 'cli', 'site.certificate', `${siteId} ${domain}`, () => issueCertificate(host, siteId, domain, { renew: rest.includes('--renew') }))
+        for (const n of issued.notes) console.log(n)
+        return
+      }
+      return fail(USAGE)
     }
 
     case 'db': {

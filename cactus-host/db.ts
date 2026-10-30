@@ -151,6 +151,11 @@ export class Databases {
     return readRegistry(this.config)[name]?.backup ?? null
   }
 
+  /** As destination(), but null rather than an error for a name this registry could never hold. */
+  destinationOrNull(name: string): string | null {
+    return DB_NAME_PATTERN.test(name) ? (readRegistry(this.config)[name]?.backup ?? null) : null
+  }
+
   setDestination(name: string, dest: string | null): void {
     checkName(name)
     if (dest) checkDest(dest)

@@ -55,6 +55,12 @@ export type HostConfig = {
    * account's global key. Without it, `site create` prints those steps instead.
    */
   cloudflare: { apiTokenFile: string } | null
+  /**
+   * Let's Encrypt through certbot's DNS-01 challenge, for domains no other certificate
+   * covers (certificates.ts). `credentialsFile` is certbot's dns-cloudflare credentials
+   * file, read by certbot only, never by cactus-host. Null turns it off.
+   */
+  letsEncrypt: { credentialsFile: string; email: string | null; liveDir: string; deployHook: string } | null
 }
 
 export const DEFAULT_CONFIG_PATH = '/etc/cactus-host/config.json'
@@ -82,6 +88,7 @@ export const DEFAULT_CONFIG: HostConfig = {
   backupDir: '/var/backups/cactus-db',
   tlsDir: '/etc/caddy/tls',
   cloudflare: null,
+  letsEncrypt: null,
 }
 
 type Json = Record<string, unknown>
@@ -105,6 +112,24 @@ const isStringList = (v: unknown) => Array.isArray(v) && v.length > 0 && v.every
 const isNullableString = (v: unknown) => v === null || isString(v)
 const isTls = (v: unknown) => v === null || (isObject(v) && isString(v.cert) && isString(v.key))
 const isCloudflare = (v: unknown) => v === null || (isObject(v) && isString(v.apiTokenFile))
+const isLetsEncrypt = (v: unknown) =>
+  v === null ||
+  (isObject(v) &&
+    isString(v.credentialsFile) &&
+    (v.email === undefined || isNullableString(v.email)) &&
+    (v.liveDir === undefined || isString(v.liveDir)) &&
+    (v.deployHook === undefined || isString(v.deployHook)))
+
+function letsEncrypt(raw: Json): HostConfig['letsEncrypt'] {
+  const value = pick<Json | null>(raw, 'letsEncrypt', null, isLetsEncrypt, '')
+  if (!value) return null
+  return {
+    credentialsFile: value.credentialsFile as string,
+    email: (value.email as string | null | undefined) ?? null,
+    liveDir: (value.liveDir as string | undefined) ?? '/etc/letsencrypt/live',
+    deployHook: (value.deployHook as string | undefined) ?? '/usr/local/bin/cactus-host cert renewed',
+  }
+}
 
 export function parseConfig(raw: unknown): HostConfig {
   if (!isObject(raw)) throw new Error('cactus-host config: the file must hold a JSON object')
@@ -150,6 +175,7 @@ export function parseConfig(raw: unknown): HostConfig {
     backupDir: pick(raw, 'backupDir', d.backupDir, isString, ''),
     tlsDir: pick(raw, 'tlsDir', d.tlsDir, isString, ''),
     cloudflare: pick(raw, 'cloudflare', d.cloudflare, isCloudflare, ''),
+    letsEncrypt: letsEncrypt(raw),
   }
 }
 

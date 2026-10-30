@@ -182,6 +182,7 @@ export function toSummary(build: BuildRecord): BuildSummary {
     ref: build.ref,
     state: build.state,
     createdAt: build.createdAt,
+    startedAt: build.startedAt ?? null,
     finishedAt: build.finishedAt,
     error: build.error,
     live: build.live,

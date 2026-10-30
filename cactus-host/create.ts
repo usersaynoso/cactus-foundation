@@ -10,21 +10,59 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { isValidHostname } from './caddy.ts'
+import { domainCertificate, issueCertificate } from './certificates.ts'
 import { Cloudflare, manualCloudflareSteps } from './cloudflare.ts'
-import { Databases, dbNameForSite } from './db.ts'
+import { Databases, DB_NAME_PATTERN, dbNameForSite } from './db.ts'
 import type { Host } from './host.ts'
-import type { AdminSiteSummary, CreateSiteRequest, CreateSiteResponse } from './protocol.ts'
+import type { AdminSiteSummary, CertificateSummary, CreateSiteRequest, CreateSiteResponse } from './protocol.ts'
 import { addSite } from './provision.ts'
 import { SITE_ID_PATTERN, toSummary, type SiteRecord } from './store.ts'
 
+/** The database a site uses on this box: the one its DATABASE_URL names, or null. */
+export function siteDatabase(host: Host, site: SiteRecord): string | null {
+  const url = host.readSiteEnv(site).get('DATABASE_URL')
+  if (!url) return null
+  try {
+    const name = decodeURIComponent(new URL(url).pathname.replace(/^\//, ''))
+    return DB_NAME_PATTERN.test(name) ? name : null
+  } catch {
+    return null
+  }
+}
+
 export function adminSummary(host: Host, site: SiteRecord): AdminSiteSummary {
-  const latest = host.store.listBuilds(site.id)[0] ?? null
+  const builds = host.store.listBuilds(site.id)
+  const latest = builds[0] ?? null
+  const live = builds.find((b) => b.live) ?? null
+  const database = siteDatabase(host, site)
   return {
     ...host.summary(site),
     ports: site.ports,
     liveSlot: site.liveSlot,
     latestBuild: latest ? toSummary(latest) : null,
+    liveSince: live?.finishedAt ?? null,
+    database,
+    backup: database ? new Databases(host.config, host.system).destinationOrNull(database) : null,
+    createdAt: site.createdAt,
   }
+}
+
+/**
+ * After a domain is attached: when this box can get certificates by itself, make sure
+ * the domain has one that names it. A failure here never undoes the domain; it is
+ * reported as a step still to do.
+ */
+async function autoCertificate(host: Host, siteId: string, domain: string, done: string[], manual: string[]): Promise<CertificateSummary> {
+  if (host.config.cloudflare || host.config.letsEncrypt) {
+    try {
+      const issued = await issueCertificate(host, siteId, domain)
+      if (issued.method !== 'existing') done.push(...issued.notes)
+      return issued.certificate
+    } catch (err) {
+      manual.push(`A certificate for ${domain}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return domainCertificate(host, host.site(siteId), domain)
 }
 
 export async function createSite(host: Host, input: CreateSiteRequest): Promise<CreateSiteResponse> {
@@ -96,17 +134,30 @@ export async function createSite(host: Host, input: CreateSiteRequest): Promise<
   }
   host.store.saveSite(site)
   if (tls) await host.writeRouting(site)
+
+  // Without a Cloudflare token the steps are listed for doing by hand, except the
+  // certificate when Let's Encrypt can get one for each domain here and now.
+  const manual = cloudflare ? [] : manualCloudflareSteps(host.config, domains)
+  if (!cloudflare && host.config.letsEncrypt) {
+    manual.pop()
+    for (const d of domains) await autoCertificate(host, site.id, d, cloudflareDone, manual)
+  }
   site = host.site(site.id)
 
   return {
     site: adminSummary(host, site),
     database: dbName,
     deployKeyPublic,
-    cloudflare: { done: cloudflareDone, manual: cloudflare ? [] : manualCloudflareSteps(host.config, domains) },
+    cloudflare: { done: cloudflareDone, manual },
   }
 }
 
-export type AddDomainResult = { domain: { name: string; serving: boolean }; site: AdminSiteSummary; cloudflare: { done: string[]; manual: string[] } }
+export type AddDomainResult = {
+  domain: { name: string; serving: boolean }
+  site: AdminSiteSummary
+  cloudflare: { done: string[]; manual: string[] }
+  certificate: CertificateSummary
+}
 
 /**
  * The origin certificate in tlsDir for the zone a hostname sits in: the longest parent
@@ -143,14 +194,16 @@ export async function addSiteDomain(host: Host, siteId: string, name: string, pr
     cert = { cert: made.cert, key: made.key }
   } else {
     manual.push(...manualCloudflareSteps(host.config, [domain]).slice(0, 2))
-    if (!cert) manual.push(`An origin certificate for ${domain}'s zone, saved as ${host.config.tlsDir}/<zone>.pem and .key (root:caddy, 0640), then add the domain again.`)
+    if (!cert && !host.config.letsEncrypt) manual.push(`An origin certificate for ${domain}'s zone, saved as ${host.config.tlsDir}/<zone>.pem and .key (root:caddy, 0640), then add the domain again.`)
   }
   const siteCert = site.tls ?? host.config.tls
   const own = cert && (cert.cert !== siteCert?.cert || cert.key !== siteCert?.key) ? cert : null
-  const status = await host.addDomain(siteId, domain, { primary, tls: own })
+  await host.addDomain(siteId, domain, { primary, tls: own })
+  const certificate = await autoCertificate(host, siteId, domain, done, manual)
   return {
-    domain: status,
+    domain: await host.domainStatus(siteId, domain),
     site: adminSummary(host, host.site(siteId)),
     cloudflare: { done, manual },
+    certificate,
   }
 }

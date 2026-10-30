@@ -261,10 +261,10 @@ describe('primary and redirect domains', () => {
     expect(readFileSync(ctx.paths.caddyFile, 'utf8')).not.toContain('example.org')
   })
 
-  it('edits a site name and branch', () => {
+  it('edits a site name and branch', async () => {
     const ctx = hostWithSite()
-    expect(ctx.host.editSite('shop', { name: ' The Shop ', branch: 'release' })).toMatchObject({ name: 'The Shop', branch: 'release' })
-    expect(() => ctx.host.editSite('shop', { branch: '--bad' })).toThrow(/branch/)
+    expect((await ctx.host.editSite('shop', { name: ' The Shop ', branch: 'release' })).site).toMatchObject({ name: 'The Shop', branch: 'release' })
+    await expect(ctx.host.editSite('shop', { branch: '--bad' })).rejects.toThrow(/branch/)
   })
 })
 

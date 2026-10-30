@@ -27,6 +27,8 @@ export type BuildSummary = {
   state: BuildState
   /** Epoch ms. */
   createdAt: number
+  /** When the build left the queue and began work. Absent on builds recorded before it was kept. */
+  startedAt?: number | null
   finishedAt: number | null
   /** Plain-English reason for an `error` state. */
   error: string | null
@@ -95,7 +97,57 @@ export type AdminSiteSummary = SiteSummary & {
   liveSlot: 'a' | 'b' | null
   /** The newest build, whatever its state. */
   latestBuild: BuildSummary | null
+  /** When the live build went live (its finish time), or null. */
+  liveSince: number | null
+  /** The database named in the site's DATABASE_URL, or null when it has none on this box. */
+  database: string | null
+  /** Where that database's backups are copied (rclone remote:path), or null. */
+  backup: string | null
+  createdAt: number
 }
+
+/** A build in the admin API, with whether its release is still on disk to roll back to. */
+export type AdminBuildSummary = BuildSummary & { kept: boolean }
+
+/** PATCH /v1/admin/sites/:id. `backup` null or "" clears the destination. */
+export type EditSiteRequest = { name?: string; branch?: string; repo?: string; backup?: string | null }
+
+/** A new deploy key comes back when the repo changes: GitHub refuses one key on two repos. */
+export type EditSiteResponse = { site: AdminSiteSummary; deployKeyPublic: string | null }
+
+export type CertificateSummary = {
+  domain: string
+  /** Which certificate Caddy uses for it: its own, the site's, the server-wide one, or Caddy's automatic one. */
+  source: 'domain' | 'site' | 'server' | 'automatic'
+  file: string | null
+  /** Whether that certificate names the domain (directly or by wildcard). */
+  covers: boolean
+  issuer: string | null
+  /** Epoch ms. */
+  expiresAt: number | null
+  /** Why the certificate could not be read, if it could not. */
+  problem: string | null
+  /**
+   * What kind of certificate it is. A Cloudflare origin certificate is trusted only by
+   * Cloudflare's proxy: visitors see Cloudflare's own edge certificate, which Cloudflare
+   * issues and renews by itself.
+   */
+  kind: 'cloudflare-origin' | 'letsencrypt' | 'other' | 'automatic'
+  /** Who renews it: certbot (with cactus-host installing each renewal), Caddy, or nobody (it is long-lived or was put there by hand). */
+  renewedBy: 'certbot' | 'caddy' | null
+  /** True when https://<domain> answers through Cloudflare's proxy, false when it does not, null when it could not be told. */
+  cloudflareProxy: boolean | null
+}
+
+export type IssueCertificateResponse = {
+  certificate: CertificateSummary
+  /** How it was got: an existing file, a Cloudflare origin certificate, or Let's Encrypt. */
+  method: 'existing' | 'cloudflare-origin' | 'letsencrypt'
+  notes: string[]
+}
+
+/** POST /v1/admin/sites/:id/domains/:domain/certificate. `renew` replaces a good certificate too. */
+export type IssueCertificateRequest = { renew?: boolean }
 
 export type CreateDatabaseRequest = { name: string; backup?: string | null }
 

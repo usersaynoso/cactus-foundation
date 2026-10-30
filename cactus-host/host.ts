@@ -234,7 +234,7 @@ export class Host {
     if (busyWith) {
       const running = this.store.getBuild(siteId, busyWith)
       if (running) return { build: toSummary(running), alreadyRunning: true }
-      throw new HostError('The site is being rolled back. Wait for that to finish, then build.', 409)
+      throw new HostError('The site is being rolled back or changed. Wait for that to finish, then build.', 409)
     }
 
     const now = this.system.now()
@@ -244,6 +244,7 @@ export class Host {
       ref: site.branch,
       state: 'queued',
       createdAt: now,
+      startedAt: null,
       finishedAt: null,
       error: null,
       live: false,
@@ -259,6 +260,31 @@ export class Host {
     })
     this.running.set(build.id, job)
     return { build: toSummary(build), alreadyRunning: false }
+  }
+
+  /**
+   * Runs work that must not overlap a build, a rollback or another change to the same
+   * sites, holding each one's lock until it is done. Refused while any is busy.
+   */
+  async withSiteLock<T>(siteIds: string[], label: string, work: () => Promise<T>): Promise<T> {
+    const held = siteIds.find((id) => this.busy.has(id))
+    if (held) throw new HostError(`${held} is busy with a build or another change. Wait for it to finish, then try again.`, 409)
+    for (const id of siteIds) this.busy.set(id, label)
+    try {
+      return await work()
+    } finally {
+      for (const id of siteIds) this.busy.delete(id)
+    }
+  }
+
+  /** Whether a slot that has just been started answers its health check. */
+  async slotHealthy(site: SiteRecord, slot: SlotName, expectsDatabase: boolean): Promise<{ healthy: boolean; reason?: string }> {
+    return waitUntilHealthy(
+      this.system,
+      { port: site.ports[slot], host: site.domains[0] ?? '127.0.0.1', expectsDatabase },
+      this.config.healthTimeoutSeconds * 1000,
+      this.sleep
+    )
   }
 
   /** Resolves once the build has finished, whatever the outcome. For tests and shutdown. */
@@ -302,7 +328,7 @@ export class Host {
   }
 
   private async runBuild(site: SiteRecord, initial: BuildRecord): Promise<void> {
-    let build: BuildRecord = { ...initial, state: 'building' }
+    let build: BuildRecord = { ...initial, state: 'building', startedAt: this.system.now() }
     const save = (patch: Partial<BuildRecord>) => {
       build = { ...build, ...patch }
       this.store.saveBuild(site.id, build)
@@ -626,16 +652,56 @@ export class Host {
     }
   }
 
-  /** Renames a site or moves it to another branch of its repo. */
-  editSite(siteId: string, changes: { name?: string; branch?: string }): SiteRecord {
+  /**
+   * Changes a site's display name, branch or install repo. A new repo starts a fresh
+   * code mirror and a new deploy key (GitHub refuses one deploy key on two repos), and
+   * moves GITHUB_REPO with it when it still named the old repo. The live release keeps
+   * serving; the next build uses the new settings. Returns the new key's public half
+   * when the repo changed.
+   */
+  async editSite(siteId: string, changes: { name?: string; branch?: string; repo?: string }): Promise<{ site: SiteRecord; deployKeyPublic: string | null }> {
     const site = this.site(siteId)
     const name = changes.name?.trim()
     const branch = changes.branch?.trim()
+    const repo = changes.repo?.trim()
     if (name !== undefined && (name.length === 0 || name.length > 80)) throw new HostError('A display name is 1 to 80 characters', 400)
     if (branch !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/.test(branch)) throw new HostError(`"${branch}" is not a valid branch name`, 400)
-    const updated = { ...site, ...(name ? { name } : {}), ...(branch ? { branch } : {}) }
-    this.store.saveSite(updated)
-    return updated
+    if (repo !== undefined && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) throw new HostError('The install repo is owner/repo, as on GitHub', 400)
+    const repoChanged = Boolean(repo) && repo !== site.repo
+    if (!repoChanged) {
+      const updated = { ...site, ...(name ? { name } : {}), ...(branch ? { branch } : {}) }
+      this.store.saveSite(updated)
+      return { site: updated, deployKeyPublic: null }
+    }
+    return this.withSiteLock([siteId], `repo-${siteId}`, async () => {
+      const paths = this.store.paths(siteId)
+      // A new key beside the old one, swapped in only once it exists.
+      mkdirSync(this.config.keysDir, { recursive: true, mode: 0o700 })
+      const fresh = `${paths.deployKey}.new`
+      rmSync(fresh, { force: true })
+      rmSync(`${fresh}.pub`, { force: true })
+      await mustRun(this.system, 'Making the deploy key', 'ssh-keygen', ['-t', 'ed25519', '-N', '', '-q', '-C', `cactus-host ${siteId}`, '-f', fresh])
+      renameSync(fresh, paths.deployKey)
+      renameSync(`${fresh}.pub`, `${paths.deployKey}.pub`)
+      rmSync(paths.mirror, { recursive: true, force: true })
+      const updated: SiteRecord = { ...site, repo: repo as string, ...(name ? { name } : {}), ...(branch ? { branch } : {}) }
+      this.store.saveSite(updated)
+      const env = this.readSiteEnv(updated)
+      if (env.get('GITHUB_REPO') === site.repo) {
+        env.set('GITHUB_REPO', updated.repo)
+        this.writeSiteEnv(updated, env)
+      }
+      return { site: updated, deployKeyPublic: this.deployKeyPublic(siteId) }
+    })
+  }
+
+  /** The public half of the site's deploy key, or null when it has none. */
+  deployKeyPublic(siteId: string): string | null {
+    try {
+      return readFileSync(`${this.store.paths(siteId).deployKey}.pub`, 'utf8').trim() || null
+    } catch {
+      return null
+    }
   }
 
   /** Whether https://<domain> reaches this site on this server, by asking for the site's proof value. */
