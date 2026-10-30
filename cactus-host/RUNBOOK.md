@@ -291,7 +291,13 @@ you switch over by changing DNS. A few things to get right:
    twin; anything else is answered with `SITE_URL`. Admin saves, the Update button and
    sign-in callbacks all depend on it. A site that already has `SITE_URL` from Vercel
    needs nothing more. There are no other new settings.
-6. **Switch DNS** in Cloudflare to the new address, proxied. Because Cloudflare sits in
+6. **Its scheduled-job cadence needs nothing by hand.** A site moved off Vercel has a
+   `vercel.json` but no `cactus-host.json` yet. cactus-host reads the release's own
+   `vercel.json` when there is no `cactus-host.json`, so the site keeps the tick it had
+   (say every 15 minutes) rather than dropping to the half-hourly default. The first core
+   update on the server writes `cactus-host.json` from the site's current tick, and from
+   then on that file is the one that counts.
+7. **Switch DNS** in Cloudflare to the new address, proxied. Because Cloudflare sits in
    front, the change is near enough instant for visitors.
 
 ## 9. Backups

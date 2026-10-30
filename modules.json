@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.521"
+      "version": "v0.1.522"
     },
     {
       "name": "address-lookup-for-shop",
@@ -23,7 +23,7 @@
     {
       "name": "google-sheet-products-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/google-sheet-products-for-shop",
-      "version": "v0.1.77"
+      "version": "v0.1.78"
     },
     {
       "name": "google-shopping-for-shop",
@@ -88,7 +88,7 @@
     {
       "name": "abandoned-carts-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/abandoned-carts-for-shop",
-      "version": "v0.1.15"
+      "version": "v0.1.16"
     },
     {
       "name": "space-planner-for-shop",
@@ -128,7 +128,7 @@
     {
       "name": "contact-form-reply-catcher",
       "repoUrl": "https://github.com/cactus-foundation-modules/reply-catcher",
-      "version": "v0.1.18"
+      "version": "v0.1.19"
     },
     {
       "name": "twilio",
@@ -168,7 +168,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.145"
+      "version": "v0.1.146"
     },
     {
       "name": "google-ai-studio",
@@ -178,7 +178,7 @@
     {
       "name": "social-hub",
       "repoUrl": "https://github.com/cactus-foundation-modules/social-hub",
-      "version": "v0.1.18"
+      "version": "v0.1.19"
     },
     {
       "name": "pay-via-worldfirst-for-shop",
@@ -188,7 +188,7 @@
     {
       "name": "ai-call-answering",
       "repoUrl": "https://github.com/cactus-foundation-modules/AI-Call-Answering",
-      "version": "v0.1.19"
+      "version": "v0.1.20"
     },
     {
       "name": "analytics",

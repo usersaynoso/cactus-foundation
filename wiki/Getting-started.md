@@ -123,7 +123,7 @@ The full walk-through, from a fresh Ubuntu box to a site behind Cloudflare with 
 What is different on your own server:
 
 - **Updates are built on the server**, at low priority and with a memory ceiling, so the live sites never notice. The new version starts alongside the old one, is health-checked, and only then gets the visitors; one that will not start never does, and the update is reported as failed.
-- **Scheduled jobs** are woken by cactus-host. The tick lives in `cactus-host.json`, which Cactus writes the way it writes `vercel.json` elsewhere.
+- **Scheduled jobs** are woken by cactus-host. The tick lives in `cactus-host.json`, which Cactus writes the way it writes `vercel.json` elsewhere. A site moved from Vercel keeps the tick in its `vercel.json` until Cactus has written one.
 - **Build progress** shows the real build log in the wizard and the admin.
 - **Settings changes** reach the site with its next build, as on Vercel. A running version keeps the settings it was built with, so a restart never changes anything.
 - **Vercel-only extras are hidden**: Edge Config, Vercel deployment webhooks and Speed Insights.

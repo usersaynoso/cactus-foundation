@@ -2,7 +2,8 @@
 // function. Each site has exactly one scheduled request - GET /api/cron/dispatch
 // with `Authorization: Bearer $CRON_SECRET` - and the site's dispatcher decides
 // everything else. How often it is woken comes from cactus-host.json in the RELEASE
-// being served (Cactus writes it; lib/cron/server-file.ts), so a tick change goes
+// being served (Cactus writes it; lib/cron/server-file.ts), or, for a site moved off
+// Vercel that has not written one yet, from the release's own vercel.json, so a tick change goes
 // live with the build that carries it, as it does on the other two hosts.
 //
 // Only the five-field subset Cactus ever writes is needed (`*/N * * * *`, `* * * * *`),
@@ -85,25 +86,48 @@ export function cronMatches(cron: CronExpression, at: Date): boolean {
   return domOk || dowOk
 }
 
+/** A moved site's own Vercel cron file, which every Cactus install repo carries. */
+export const VERCEL_FILE = 'vercel.json'
+
+function scheduleIn(text: string): string {
+  const data = JSON.parse(text) as { crons?: Array<{ path?: unknown; schedule?: unknown }> }
+  const entry = data.crons?.find((c) => c.path === DISPATCH_PATH)
+  if (typeof entry?.schedule !== 'string') throw new Error(`no ${DISPATCH_PATH} entry`)
+  parseCron(entry.schedule)
+  return entry.schedule
+}
+
+function readFileOrNull(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf8')
+  } catch {
+    return null
+  }
+}
+
 /**
- * The dispatcher schedule a release asks for. A release with no cactus-host.json, or
- * one this cannot read, gets the default - a site is never left with no tick at all.
+ * The dispatcher schedule a release asks for. cactus-host.json wins. A release without
+ * one - a site that has just moved off Vercel and has not had its first update on a
+ * server write the file yet - keeps the cadence it already had, taken from the
+ * release's own vercel.json. Nothing readable in either gets the default, so a site is
+ * never left with no tick at all.
  */
 export function readReleaseSchedule(releaseDir: string, warn: (message: string) => void = () => {}): string {
-  let text: string
-  try {
-    text = readFileSync(join(releaseDir, CRON_FILE), 'utf8')
-  } catch {
-    return DEFAULT_SCHEDULE
+  for (const file of [CRON_FILE, VERCEL_FILE]) {
+    const text = readFileOrNull(join(releaseDir, file))
+    if (text === null) continue
+    try {
+      return scheduleIn(text)
+    } catch (err) {
+      // A cactus-host.json that is there but broken is a fault worth the default; a
+      // vercel.json with no dispatcher entry (or none we can read) just means "no
+      // cadence on record", so carry on quietly.
+      if (file === CRON_FILE) {
+        warn(`${CRON_FILE} in ${releaseDir} could not be read (${err instanceof Error ? err.message : err}); using ${DEFAULT_SCHEDULE}`)
+        return DEFAULT_SCHEDULE
+      }
+      warn(`${VERCEL_FILE} in ${releaseDir} has no usable dispatcher schedule (${err instanceof Error ? err.message : err}); using ${DEFAULT_SCHEDULE}`)
+    }
   }
-  try {
-    const data = JSON.parse(text) as { crons?: Array<{ path?: unknown; schedule?: unknown }> }
-    const entry = data.crons?.find((c) => c.path === DISPATCH_PATH)
-    if (typeof entry?.schedule !== 'string') throw new Error(`no ${DISPATCH_PATH} entry`)
-    parseCron(entry.schedule)
-    return entry.schedule
-  } catch (err) {
-    warn(`${CRON_FILE} in ${releaseDir} could not be read (${err instanceof Error ? err.message : err}); using ${DEFAULT_SCHEDULE}`)
-    return DEFAULT_SCHEDULE
-  }
+  return DEFAULT_SCHEDULE
 }

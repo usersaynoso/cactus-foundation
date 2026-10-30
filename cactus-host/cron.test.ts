@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildServerCronJson, SERVER_CRON_PATH } from '@/lib/cron/server-file'
+import { buildVercelJson } from '@/lib/cron/vercel-file'
 import { DISPATCH_PATH as CORE_DISPATCH_PATH, DISPATCH_SCHEDULE, dispatchScheduleForInterval } from '@/lib/cron/vercel-file'
 import { CRON_FILE, cronMatches, DEFAULT_SCHEDULE, DISPATCH_PATH, parseCron, readReleaseSchedule } from './cron.ts'
 
@@ -55,6 +56,35 @@ describe('readReleaseSchedule', () => {
     const release = dir()
     writeFileSync(join(release, 'cactus-host.json'), buildServerCronJson('*/5 * * * *'))
     expect(readReleaseSchedule(release)).toBe('*/5 * * * *')
+  })
+
+  it('keeps a moved site\'s Vercel cadence when it has no cactus-host.json', () => {
+    const release = dir()
+    writeFileSync(join(release, 'vercel.json'), buildVercelJson('*/15 * * * *'))
+    expect(readReleaseSchedule(release)).toBe('*/15 * * * *')
+  })
+
+  it('prefers cactus-host.json over vercel.json', () => {
+    const release = dir()
+    writeFileSync(join(release, 'vercel.json'), buildVercelJson('*/15 * * * *'))
+    writeFileSync(join(release, 'cactus-host.json'), buildServerCronJson('*/5 * * * *'))
+    expect(readReleaseSchedule(release)).toBe('*/5 * * * *')
+  })
+
+  it('does not fall through to vercel.json when cactus-host.json is broken', () => {
+    const release = dir()
+    writeFileSync(join(release, 'vercel.json'), buildVercelJson('*/15 * * * *'))
+    writeFileSync(join(release, 'cactus-host.json'), 'not json')
+    expect(readReleaseSchedule(release, () => {})).toBe(DEFAULT_SCHEDULE)
+  })
+
+  it('uses the default when vercel.json has no dispatcher entry or is unreadable', () => {
+    const none = dir()
+    writeFileSync(join(none, 'vercel.json'), '{"crons":[{"path":"/api/other","schedule":"*/15 * * * *"}]}')
+    expect(readReleaseSchedule(none, () => {})).toBe(DEFAULT_SCHEDULE)
+    const broken = dir()
+    writeFileSync(join(broken, 'vercel.json'), '{{')
+    expect(readReleaseSchedule(broken, () => {})).toBe(DEFAULT_SCHEDULE)
   })
 
   it('falls back to the default when the file is missing or broken', () => {
