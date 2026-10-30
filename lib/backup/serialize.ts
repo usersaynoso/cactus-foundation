@@ -66,7 +66,7 @@ export class UnrestorableBackupError extends Error {
 // work). Anything not listed here is a type we have never round-trip tested.
 const TEXTUAL = new Set([
   'text', 'varchar', 'bpchar', 'char', 'name', 'citext', 'uuid',
-  'inet', 'cidr', 'macaddr', 'macaddr8', 'xml', 'tsvector', 'money', 'interval',
+  'inet', 'cidr', 'macaddr', 'macaddr8', 'xml', 'tsvector', 'tsquery', 'vector', 'money', 'interval',
 ])
 const INTEGRAL = new Set(['int2', 'int4', 'int8', 'oid'])
 const FRACTIONAL = new Set(['numeric', 'float4', 'float8'])

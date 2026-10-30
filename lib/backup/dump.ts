@@ -134,9 +134,23 @@ async function getColumns(db: BackupTx, tables: string[], enums: Set<string>): P
 // column coerces the literal back on INSERT. Arrays are left alone: their text
 // form is a brace literal, which the array branch is not written for, and no
 // module has a temporal array column.
-const READ_AS_TEXT = new Set(['timestamp', 'timestamptz', 'date', 'time', 'timetz'])
+//
+// The same cast is what makes types Prisma cannot deserialise at all readable.
+// A raw query on a `tsvector` column (the search module's srch_documents.search_vector)
+// fails outright with "Failed to deserialize column of type 'tsvector'" (P2010),
+// which turned every manual backup on a site with search installed into
+// "Backup failed". tsquery, pgvector's `vector`, and the network / interval /
+// money / xml types are in the same boat or close to it, so all are read as their
+// Postgres text form. That form is exactly what the column's own input function
+// accepts, so serializeValue writes it back as an untyped quoted literal and the
+// INSERT coerces it (`'''a'':1'` into a tsvector round-trips). `money` renders
+// per lc_monetary, so the dump pins that to C alongside DateStyle.
+export const READ_AS_TEXT = new Set([
+  'timestamp', 'timestamptz', 'date', 'time', 'timetz',
+  'tsvector', 'tsquery', 'vector', 'inet', 'cidr', 'macaddr', 'macaddr8', 'interval', 'money', 'xml',
+])
 
-function selectExpression(column: ColumnType): string {
+export function selectExpression(column: ColumnType): string {
   const name = quoteIdent(column.column)
   return READ_AS_TEXT.has(column.udtName) ? `${name}::text AS ${name}` : name
 }
@@ -307,6 +321,7 @@ export async function buildBackupSql(db: BackupDb, schemaSql: string, generatedA
       // a restore onto a server in another timezone reads back identically.
       await tx.$executeRawUnsafe("SET LOCAL DateStyle = 'ISO, MDY'")
       await tx.$executeRawUnsafe("SET LOCAL TimeZone = 'UTC'")
+      await tx.$executeRawUnsafe("SET LOCAL lc_monetary = 'C'")
 
       const tables = await getTables(tx)
       const enums = await getEnumTypes(tx)
