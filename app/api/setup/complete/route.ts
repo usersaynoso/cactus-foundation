@@ -12,6 +12,7 @@ import { getHostingCredentials } from '@/lib/hosting/provider'
 import { isLocalMode } from '@/lib/config/env'
 import { DEFAULT_DESIGN_TOKENS } from '@/lib/design/tokens'
 import pkg from '@/package.json'
+import { rawCurrentEnvKey } from '@/lib/crypto/keyring'
 
 export async function POST() {
   const cfg = await prisma.siteConfig.findUnique({
@@ -88,14 +89,14 @@ export async function POST() {
   // In local-development mode there is no hosting project to write to and no
   // redeploy: SESSION_SECRET / ENCRYPTION_KEY are expected in .env.local, so skip
   // this block entirely and proceed to auto-login.
-  if (!isLocalMode() && (!process.env.SESSION_SECRET || !process.env.ENCRYPTION_KEY)) {
+  if (!isLocalMode() && (!process.env.SESSION_SECRET || !rawCurrentEnvKey())) {
     const creds = getHostingCredentials()
     if (creds) {
       if (!process.env.SESSION_SECRET) {
         const secret = randomBytes(48).toString('hex')
         await upsertHostEnvVar(creds, 'SESSION_SECRET', secret).catch(() => {})
       }
-      if (!process.env.ENCRYPTION_KEY) {
+      if (!rawCurrentEnvKey()) {
         const key = randomBytes(32).toString('hex')
         await upsertHostEnvVar(creds, 'ENCRYPTION_KEY', key).catch(() => {})
       }

@@ -1,4 +1,14 @@
 import { isEncryptionKeyUsable, looksLikeEncryptedSecret, tryDecryptSecret } from '@/lib/crypto/secrets'
+import {
+  CHUNK,
+  areaLabel,
+  chunk,
+  getEncryptedColumns,
+  placeholders,
+  quoteIdent,
+  type EncryptedColumn,
+  type SecretsDb,
+} from '@/lib/crypto/encrypted-columns'
 
 // Secrets that came out of somebody else's install.
 //
@@ -26,37 +36,13 @@ import { isEncryptionKeyUsable, looksLikeEncryptedSecret, tryDecryptSecret } fro
 // Runs inside the restore's transaction: if any of it fails, the restore rolls
 // back and the site is left exactly as it was.
 
-/** The slice of PrismaClient this needs - restore passes its transaction client. */
-export type SecretsDb = {
-  $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>
-  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>
-}
+export type { SecretsDb }
 
 export type SecretsReconcileResult = {
   /** False when this install has no usable ENCRYPTION_KEY, so nothing could be tested. */
   checked: boolean
   /** Plain-English list of what had to be cleared, for the owner to act on. */
   cleared: string[]
-}
-
-type EncryptedColumn = { table: string; column: string; nullable: boolean }
-
-const CHUNK = 500
-
-// Rows are matched on their own ciphertext, chunked so a big site never builds a
-// statement with more placeholders than Postgres will take.
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = []
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
-  return out
-}
-
-function quoteIdent(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`
-}
-
-function placeholders(count: number, from = 1): string {
-  return Array.from({ length: count }, (_, i) => `$${i + from}`).join(', ')
 }
 
 // Clearing a secret without clearing the state that depended on it just moves the
@@ -66,38 +52,9 @@ const COMPANION_CLEARS: Record<string, string[]> = {
   'User.totpSecretEncrypted': [`${quoteIdent('totpVerifiedAt')} = NULL`, `${quoteIdent('totpLastStep')} = NULL`],
 }
 
-// What the owner is told to set up again. Anything not listed is a module's own
-// column and is reported by name - technical, but honest, and better than silence.
-const LABELS: Record<string, string> = {
-  'GithubAppConnection.privateKeyEncrypted': 'the GitHub App connection',
-  'User.totpSecretEncrypted': 'authenticator-app sign-in',
-  'User.smsOtpPhoneEncrypted': 'sign-in codes by text message',
-}
-
-function describe(key: string, rows: number): string {
-  const label = LABELS[key] ?? `stored secrets in ${key}`
+function describe(table: string, column: string, rows: number): string {
+  const label = areaLabel(table, column)
   return rows > 1 ? `${label} (${rows} accounts)` : label
-}
-
-// Only columns whose name ends in "Encrypted" - the convention every encrypted
-// column in this schema follows - and only text ones. Modules are expected to
-// keep to it; one that does gets this protection for free.
-async function getEncryptedColumns(db: SecretsDb): Promise<EncryptedColumn[]> {
-  const rows = await db.$queryRawUnsafe<{ table_name: string; column_name: string; is_nullable: string }[]>(`
-    SELECT c.table_name, c.column_name, c.is_nullable
-    FROM information_schema.columns c
-    JOIN information_schema.tables t
-      ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
-    WHERE c.table_schema = 'public'
-      AND c.column_name ILIKE '%encrypted'
-      AND c.udt_name IN ('text', 'varchar', 'bpchar')
-    ORDER BY c.table_name, c.ordinal_position
-  `)
-  return rows.map((r) => ({
-    table: r.table_name,
-    column: r.column_name,
-    nullable: r.is_nullable === 'YES',
-  }))
 }
 
 /**
@@ -224,7 +181,7 @@ export async function clearUnreadableSecrets(db: SecretsDb): Promise<SecretsReco
       }
     }
 
-    if (rowsAffected > 0) cleared.push(describe(key, rowsAffected))
+    if (rowsAffected > 0) cleared.push(describe(col.table, col.column, rowsAffected))
   }
 
   return { checked: true, cleared }

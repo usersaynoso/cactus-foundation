@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1903",
+  "version": "0.5.1904",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:backup-roundtrip": "RUN_BACKUP_ROUNDTRIP=1 vitest run lib/backup/roundtrip.test.ts",
+    "test:key-rotation": "RUN_KEY_ROTATION=1 vitest run lib/crypto/rotation.live.test.ts --testTimeout 120000",
     "test:shop-sql": "vitest run lib/backup/shop-sql.test.ts",
     "test:media-detach": "RUN_MEDIA_DETACH=1 vitest run modules/shop/lib/media-detach.live.test.ts --testTimeout 300000 --no-file-parallelism",
     "test:ledger-guards": "RUN_LEDGER_GUARDS=1 vitest run modules/uk-bookkeeping/lib/ledger-guards.live.test.ts modules/uk-bookkeeping/lib/ledger-projection.live.test.ts modules/uk-bookkeeping/lib/import-roundtrip.live.test.ts modules/uk-bookkeeping/lib/category-accounts.live.test.ts modules/uk-bookkeeping/lib/documents.live.test.ts modules/uk-bookkeeping/lib/vat-boxes.live.test.ts modules/uk-bookkeeping/lib/balance-checks.live.test.ts modules/uk-bookkeeping/lib/payment-status.live.test.ts modules/shop/lib/db/refund-netting.live.test.ts modules/shop/lib/db/order-access.live.test.ts modules/shop/lib/db/order-requests.live.test.ts modules/shop/lib/db/replacements.live.test.ts modules/shop/lib/stranded-payments.live.test.ts modules/shop/lib/db/audit-fixes.live.test.ts modules/shop/lib/db/order-charges.live.test.ts modules/shop/lib/despatch-observer.live.test.ts modules/shop/lib/db/delivery-delay.live.test.ts modules/shop/lib/db/consignment.live.test.ts modules/abandoned-carts-for-shop/lib/db/saved-basket.live.test.ts modules/chat/lib/visitors.live.test.ts modules/chat/lib/offline-notice.live.test.ts modules/shop-variations/lib/db/gallery-arrangement.live.test.ts lib/media/serving-mode.live.test.ts --testTimeout 120000 --no-file-parallelism",

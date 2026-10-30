@@ -171,6 +171,23 @@ When `DATABASE_URL` is absent at setup time and `NEON_API_KEY` is configured, th
 - **Recovery**: offline single-use recovery code (generated at setup), or email link (30-minute expiry). Both land on the login page's recovery UI.
 - **`GET /api/auth/config`** is the one pre-auth payload the login screen reads, and it is deliberately thin: `emailConfigured`, `turnstileConfigured`, `turnstileSiteKey`. It used to include `neonProjectId` as well, purely to deep-link the lost-passkey help at the right Neon project; that is infrastructure metadata handed to anyone who can reach the login page, so it was removed on 2026-07-23 and the help links to the plain console instead. Treat this route as public output when adding to it.
 
+## Encryption key and rotation
+
+One key, `ENCRYPTION_KEY`, does two jobs: AES-256-GCM on every stored secret (`lib/crypto/secrets.ts`, columns named `*Encrypted`, `*_encrypted` or `*_enc`) and HMAC on every signed link and cookie the modules hand out. Both go through a keyring, `lib/crypto/keyring.ts`, which is the only code allowed to read the variable (`lib/crypto/no-direct-key-reads.test.ts` holds core to that).
+
+**The ring.** `ENCRYPTION_KEY` (current), `ENCRYPTION_KEY_NEXT` (only mid-rotation), and previous keys in the `EncryptionKey` table, each encrypted under the active key, so a site that moves host takes its history with it. New encryptions and signatures use the **active** key: `ENCRYPTION_KEY`, or `ENCRYPTION_KEY_NEXT` once `SiteConfig.encryptionKeyActiveFingerprint` names it. Reading and verifying try every key. The database half is loaded once per instance by `instrumentation.ts` and refreshed every five minutes. Hashed visitor ids and IP addresses use a separate stable salt (`SiteConfig.derivationSaltEncrypted`, seeded from the key's own value on first boot) so they never change with the key.
+
+**Rotation** (`lib/crypto/rotation.ts`, screen at **Settings → General → Encryption key**, route `/api/admin/encryption-key`, superadmins only):
+
+| State | Host env | Data under | Active |
+|---|---|---|---|
+| S0 | `KEY=old` | old | old |
+| S1 | `KEY=old`, `NEXT=new`, redeployed | old | old |
+| S2 | same, after the rotation commits | new (old key in history) | new |
+| S3 | `KEY=new`, no `NEXT`, redeployed | new | new |
+
+Every state can read everything every earlier state wrote. The rotate step refuses until the running deployment really holds `NEXT` and it is the key the owner staged; it runs a dry run first (counts per area, refuses on any value no key can read, offers to clear those with the restore's own `clearUnreadableSecrets`), then re-encrypts everything in one transaction, round-tripping each value and the history before commit, and keeps every touched value in `EncryptionKeyRotation` so it can be put back while the old key is still `ENCRYPTION_KEY`. Idempotent; a crash leaves S1. Nothing is ever read back from the host (Vercel sensitive variables cannot be). The rotate step also refuses while any installed module still reads the key directly (`scripts/generate-module-key-readers.mjs` scans the build's module code). Rotate, roll back and clearing unreadable values need the password again (`lib/auth/step-up.ts`; passkey-only accounts need a sign-in in the last ten minutes).
+
 ## Admin screen permissions
 
 `proxy.ts` validates the session on every admin request and the admin layout validates it again; **neither checks a permission**. Authorisation is per screen, and there are three layers, each of which does a different job:

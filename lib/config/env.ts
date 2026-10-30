@@ -6,6 +6,7 @@ import {
   envKeysForProvider,
   isProxied,
 } from '@/lib/media/providers'
+import { isEncryptionKeyUsable, rawCurrentEnvKey } from '@/lib/crypto/keyring'
 import {
   detectHostingProvider,
   getHostingCredentials,
@@ -206,7 +207,7 @@ export function getEnvStatus(): {
       name: 'ENCRYPTION_KEY',
       description: '64-character hex string (32 bytes) for encrypting GitHub App credentials in the database. Generate: openssl rand -hex 32',
       required: false,
-      set: !!process.env.ENCRYPTION_KEY,
+      set: rawCurrentEnvKey() !== null,
       gates: 'GitHub App connection flow (alternative to GITHUB_API_TOKEN)',
     },
     {
@@ -366,7 +367,7 @@ export function configuredProxiedProviders(): MediaProviderType[] {
 
 export async function isGitHubConfigured(): Promise<boolean> {
   if (process.env.GITHUB_API_TOKEN) return true
-  if (!process.env.ENCRYPTION_KEY) return false
+  if (!isEncryptionKeyUsable()) return false
   const { prisma } = await import('@/lib/db/prisma')
   const conn = await prisma.githubAppConnection.findFirst({ select: { installationId: true } })
   return !!conn?.installationId
@@ -376,7 +377,7 @@ export type GitHubConfigStatus = 'configured' | 'app_not_installed' | 'not_confi
 
 export async function getGitHubConfigStatus(): Promise<GitHubConfigStatus> {
   if (process.env.GITHUB_API_TOKEN) return 'configured'
-  if (!process.env.ENCRYPTION_KEY) return 'not_configured'
+  if (!isEncryptionKeyUsable()) return 'not_configured'
   const { prisma } = await import('@/lib/db/prisma')
   const conn = await prisma.githubAppConnection.findFirst({ select: { installationId: true } })
   if (!conn) return 'not_configured'

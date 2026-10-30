@@ -263,7 +263,10 @@ you switch over by changing DNS. A few things to get right:
    **except** `VERCEL_*` and `EDGE_CONFIG`, with `cactus-host env set shop KEY=value`
    (add `--secret` for anything secret). Vercel will not show you a secret value once
    saved, so these come from wherever you kept them. `ENCRYPTION_KEY` must be **exactly**
-   the old value, or the site cannot read the credentials it stored encrypted.
+   the old value, or the site cannot read the credentials it stored encrypted. If nobody
+   kept it, change it first on the old site (**Settings → General → Encryption key**,
+   up to and including the rotation step) - that leaves you holding the new key, which
+   is the one to set here. Do not set `ENCRYPTION_KEY_NEXT` on the new box.
    `SESSION_SECRET` may change; everybody simply signs in again.
 2. **Its database** points at the new one: `DATABASE_URL` as in step 2, and `DIRECT_URL`
    unset or the same.

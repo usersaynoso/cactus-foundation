@@ -39,6 +39,10 @@ describe('chooseCredentialTiers', () => {
     expect(chooseCredentialTiers({ ENCRYPTION_KEY: KEY })).toEqual([])
   })
 
+  it('offers the app tier on ENCRYPTION_KEY_NEXT alone, mid-rotation', () => {
+    expect(chooseCredentialTiers({ DATABASE_URL: 'postgres://x', ENCRYPTION_KEY: 'short', ENCRYPTION_KEY_NEXT: KEY })).toEqual(['github-app'])
+  })
+
   it('falls back to GITHUB_API_TOKEN alone', () => {
     expect(chooseCredentialTiers({ GITHUB_API_TOKEN: 'p' })).toEqual(['github-pat'])
   })
@@ -162,6 +166,22 @@ describe('resolveCloneToken', () => {
     expect(result?.token).toBe('pat')
     expect(result?.source).toBe('GITHUB_API_TOKEN')
     expect(result?.warnings.length).toBe(1)
+  })
+
+  it('reads a connection already re-encrypted under ENCRYPTION_KEY_NEXT', async () => {
+    const result = await resolveCloneToken(
+      { ...APP_ENV, ENCRYPTION_KEY_NEXT: OTHER_KEY },
+      {
+        fetchConnection: async () => ({
+          appId: '99', installationId: '42', privateKeyEncrypted: encryptSecret('PEM', OTHER_KEY),
+        }),
+        mintToken: async ({ privateKey }) => {
+          expect(privateKey).toBe('PEM')
+          return 'ghs_minted'
+        },
+      },
+    )
+    expect(result?.source).toBe('github-app')
   })
 
   it('falls through when the database is unreachable, and never throws', async () => {

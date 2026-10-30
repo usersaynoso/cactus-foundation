@@ -310,6 +310,16 @@ model SiteConfig {
   // it subscribe again on their next visit.
   pushVapidPublic           String?
   pushVapidPrivateEncrypted String?
+  // The encryption key the stored secrets are under (lib/crypto/keyring.ts), by
+  // fingerprint only. Null on a site that has never rotated: the host's key is it.
+  encryptionKeyActiveFingerprint String?
+  // A rotation in progress: the key written to the host as ENCRYPTION_KEY_NEXT,
+  // and when the owner asked for it to be swapped in as ENCRYPTION_KEY.
+  encryptionKeyStagedFingerprint String?
+  encryptionKeySwapRequestedAt   DateTime?
+  // Stable salt for pseudonymous ids (hashed IPs, visitor ids), seeded from the
+  // key's value before the first rotation so no id changes. See derivationSalt().
+  derivationSaltEncrypted   String?
   // FK to Menu.id — nullable until admin creates and assigns a menu
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
@@ -894,6 +904,25 @@ model GithubAppConnection {
   clientSecretEncrypted  String?  @db.Text
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
+}
+
+// Retired encryption keys, encrypted under the active one (lib/crypto/keyring.ts).
+model EncryptionKey {
+  id           String   @id @default(cuid())
+  fingerprint  String   @unique
+  keyEncrypted String   @db.Text
+  retiredAt    DateTime @default(now())
+}
+
+// One per key rotation, with every touched value as it was (lib/crypto/rotation.ts).
+model EncryptionKeyRotation {
+  id              String    @id @default(cuid())
+  fromFingerprint String
+  toFingerprint   String
+  counts          Json
+  backup          Json
+  rolledBackAt    DateTime?
+  createdAt       DateTime  @default(now())
 }
 
 // ---------------------------------------------------------------------------

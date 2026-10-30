@@ -24,6 +24,7 @@ import NavBuilder from './NavBuilder'
 import ScheduledJobsClient from './ScheduledJobsClient'
 import NotificationsSettingsClient from './NotificationsSettingsClient'
 import MediaServingModeCard from './MediaServingModeCard'
+import EncryptionKeyCard from './EncryptionKeyCard'
 import { MEDIA_SERVING_MODE_VAR, MEDIA_DIRECT_RESIZE_VAR, canServeDirect, mediaServingMode } from '@/lib/media/serving-mode'
 import { MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual-message'
 import type { EditorNavSection, SidebarPrefs } from '@/lib/nav/admin-menu'
@@ -101,6 +102,7 @@ const GENERAL_PAGES: readonly SubTabDef[] = [
   { key: 'gdpr', label: 'GDPR & Legal', anchors: ['gdpr-legal', 'gdpr-retention', 'gdpr-banner', 'gdpr-members'] },
   { key: 'schedules', label: 'Schedules', anchors: [] },
   { key: 'backup', label: 'Backup & restore', anchors: ['general-backup', 'general-restore'] },
+  { key: 'encryption', label: 'Encryption key', anchors: ['general-encryption-key'] },
 ]
 const DANGER_PAGE: SubTabDef = { key: 'danger', label: 'Danger zone', anchors: ['general-danger'] }
 
@@ -723,6 +725,9 @@ type ConfigPageInnerProps = {
   // Settings > Schedules. Same key as the navigation editor (config.manage): both are
   // site-wide plumbing rather than anything a section owner should be reaching for.
   canManageSchedules: boolean
+  // Settings > Encryption key. Superadmins only: the protected role, not a
+  // permission key, because a rotation touches every stored secret on the site.
+  canManageEncryptionKey: boolean
   navEditorData: NavEditorData | null
   membersGdprExtensions: ReactNode
   // Modules can add their own backup cards under the core Backup section (e.g.
@@ -733,7 +738,7 @@ type ConfigPageInnerProps = {
   settingsSidebar: SettingsSidebarPrefs
 }
 
-function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageConfig, canManageEmailTemplates, canViewMembersGdpr, canManageNav, canManageSchedules, navEditorData, membersGdprExtensions, backupExtensions, settingsSidebar }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageConfig, canManageEmailTemplates, canViewMembersGdpr, canManageNav, canManageSchedules, canManageEncryptionKey, navEditorData, membersGdprExtensions, backupExtensions, settingsSidebar }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -753,6 +758,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       if (p.key === 'navigation') return showNavTab
       if (p.key === 'schedules') return showSchedulesTab
       if (p.key === 'gdpr') return canManageConfig || canViewMembersGdpr
+      if (p.key === 'encryption') return canManageEncryptionKey
       return canManageConfig
     }),
     ...moduleTabs.filter((t) => t.parent === 'general').map((t) => ({ key: t.id, label: t.label, anchors: [] })),
@@ -2230,6 +2236,12 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             )}
           </div>
 
+            </div></div>
+          )}
+
+          {tab === 'encryption' && canManageEncryptionKey && (
+            <div className="settings-cols"><div className="settings-card-row">
+              <EncryptionKeyCard />
             </div></div>
           )}
 

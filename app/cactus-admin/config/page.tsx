@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { hasPermissions } from '@/lib/permissions/check'
+import { hasPermissions, isAdmin } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
@@ -221,6 +221,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
         canViewMembersGdpr={canViewMembersGdpr}
         canManageNav={canManageNav}
         canManageSchedules={canManageSchedules}
+        canManageEncryptionKey={!!user && isAdmin(user)}
         navEditorData={navEditorData}
         membersGdprExtensions={membersGdprExtensions}
         backupExtensions={backupExtensions}

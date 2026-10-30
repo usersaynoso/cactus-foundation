@@ -4,21 +4,21 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { errorResponse } from '@/lib/utils'
+import { isEncryptionKeyUsable, rawCurrentEnvKey } from '@/lib/crypto/keyring'
 
 export async function GET(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!await hasPermission(user, 'config.manage')) return errorResponse('Forbidden', 403)
 
-  if (!process.env.ENCRYPTION_KEY) {
+  if (!rawCurrentEnvKey() && !isEncryptionKeyUsable()) {
     return errorResponse(
       'ENCRYPTION_KEY is not set. Add it to your Vercel environment variables to enable GitHub App connections.',
       503
     )
   }
 
-  const keyHex = process.env.ENCRYPTION_KEY
-  if (keyHex.length !== 64 || !/^[0-9a-fA-F]+$/.test(keyHex)) {
+  if (!isEncryptionKeyUsable()) {
     return errorResponse(
       'ENCRYPTION_KEY must be a 64-character hex string. Generate one with: openssl rand -hex 32',
       503

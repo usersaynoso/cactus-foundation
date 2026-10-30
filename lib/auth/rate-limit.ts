@@ -14,6 +14,7 @@ type RateLimitAction =
   | 'consent'
   | 'totp_verify'
   | 'email_change'
+  | 'step_up'
   // Members system (see MEMBERS_SPEC.md)
   | 'member_register'
   | 'member_magic_link'
@@ -40,6 +41,10 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   // Deliberately tight: each attempt posts a code to an address the requester
   // chose, so a loose limit here is a way to use the site as a mailer.
   email_change: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
+  // Re-entering a password before a dangerous action (lib/auth/step-up.ts). Tight:
+  // the person is already signed in, so a wrong guess is either a typo or someone
+  // at a borrowed browser working through a list.
+  step_up: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
   member_register: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
   // Requesting a sign-in link sends an email, so it stays tight.
   member_magic_link: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },

@@ -175,6 +175,10 @@ CREATE TABLE "SiteConfig" (
     "emailTracking" BOOLEAN NOT NULL DEFAULT true,
     "pushVapidPublic" TEXT,
     "pushVapidPrivateEncrypted" TEXT,
+    "encryptionKeyActiveFingerprint" TEXT,
+    "encryptionKeyStagedFingerprint" TEXT,
+    "encryptionKeySwapRequestedAt" TIMESTAMP(3),
+    "derivationSaltEncrypted" TEXT,
     "mainMenuId" TEXT,
     "homepageId" TEXT,
     "pendingRedeployId" TEXT,
@@ -681,6 +685,35 @@ CREATE TABLE "GithubAppConnection" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "GithubAppConnection_pkey" PRIMARY KEY ("id")
+);
+
+-- ---------------------------------------------------------------------------
+-- Encryption key history (lib/crypto/keyring.ts, lib/crypto/rotation.ts)
+-- ---------------------------------------------------------------------------
+
+-- Retired encryption keys, each encrypted under the site's active key, so links
+-- signed years ago still verify and a site that moves host carries them along.
+CREATE TABLE "EncryptionKey" (
+    "id" TEXT NOT NULL,
+    "fingerprint" TEXT NOT NULL,
+    "keyEncrypted" TEXT NOT NULL,
+    "retiredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EncryptionKey_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "EncryptionKey_fingerprint_key" ON "EncryptionKey"("fingerprint");
+
+-- One row per rotation: what moved, and every touched value as it was, so the
+-- rotation can be put back while the old key is still on the host.
+CREATE TABLE "EncryptionKeyRotation" (
+    "id" TEXT NOT NULL,
+    "fromFingerprint" TEXT NOT NULL,
+    "toFingerprint" TEXT NOT NULL,
+    "counts" JSONB NOT NULL,
+    "backup" JSONB NOT NULL,
+    "rolledBackAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EncryptionKeyRotation_pkey" PRIMARY KEY ("id")
 );
 
 -- ---------------------------------------------------------------------------

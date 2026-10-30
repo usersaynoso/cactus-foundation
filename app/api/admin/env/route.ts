@@ -12,6 +12,7 @@ import { prisma } from '@/lib/db/prisma'
 import { INSTALLED_MODULE_STATUSES } from '@/lib/modules/live-status'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { recordDeploymentNeeded, labelForEnvKeys } from '@/lib/notifications/deployment'
+import { ENCRYPTION_KEY_NEXT_VAR, ENCRYPTION_KEY_VAR, isEncryptionKeyUsable } from '@/lib/crypto/keyring'
 
 // Give the function enough headroom for list + parallel deletes + redeploy.
 export const maxDuration = 60
@@ -67,6 +68,8 @@ const ALLOWED_KEYS = new Set([
 // no matter what its requiredEnvVars declares.
 const PROTECTED_KEYS = new Set([
   'DATABASE_URL',
+  // Written only by the key rotation (app/api/admin/encryption-key).
+  ENCRYPTION_KEY_NEXT_VAR,
   'SESSION_SECRET',
   'SITE_URL',
   'VERCEL_API_TOKEN',
@@ -179,6 +182,16 @@ export async function POST(req: NextRequest) {
   // credential ends up looking set when it is not. Usually means the module
   // declaring the key is a version behind what the panel expects.
   const skipped = supplied.filter(({ key }) => !managedKeys.has(key)).map(({ key }) => key)
+
+  // Typing a new ENCRYPTION_KEY over a working one strands every stored secret
+  // and breaks every signed link already sent. Setting one where there is none
+  // is still fine; changing one goes through Settings -> Encryption key.
+  if (toWrite.some(({ key }) => key === ENCRYPTION_KEY_VAR) && isEncryptionKeyUsable()) {
+    return errorResponse(
+      'This site already has an encryption key. Changing it here would lock away every stored secret - use Settings, Encryption key, which moves everything across first.',
+      409
+    )
+  }
 
   if (toWrite.length === 0) {
     if (skipped.length > 0) {

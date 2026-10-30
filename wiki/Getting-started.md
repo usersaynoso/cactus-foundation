@@ -127,7 +127,7 @@ What is different on your own server:
 - **Build progress** shows the real build log in the wizard and the admin.
 - **Settings changes** reach the site with its next build, as on Vercel. A running version keeps the settings it was built with, so a restart never changes anything.
 - **Vercel-only extras are hidden**: Edge Config, Vercel deployment webhooks and Speed Insights.
-- **Moving a site over from Vercel** is covered in the runbook. The short version: copy every setting except the `VERCEL_*` ones, keep `ENCRYPTION_KEY` exactly as it was, and switch off the Vercel project's scheduled jobs before the new copy starts running its own, or every job runs twice.
+- **Moving a site over from Vercel** is covered in the runbook. The short version: copy every setting except the `VERCEL_*` ones, keep `ENCRYPTION_KEY` exactly as it was (if nobody kept a copy, change it first from **Settings → General → Encryption key** on the old host, which leaves you holding one), and switch off the Vercel project's scheduled jobs before the new copy starts running its own, or every job runs twice.
 
 ## The setup wizard
 

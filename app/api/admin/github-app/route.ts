@@ -3,6 +3,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { getGithubConnectionStatus, installRepoWriteProblem } from '@/lib/github/client'
 import { errorResponse } from '@/lib/utils'
+import { isEncryptionKeyUsable, rawCurrentEnvKey } from '@/lib/crypto/keyring'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -15,9 +16,8 @@ export async function GET() {
   ])
   if (!canConfig && !canModules) return errorResponse('Forbidden', 403)
 
-  const key = process.env.ENCRYPTION_KEY ?? ''
-  const encryptionKeySet = key.length > 0
-  const encryptionKeyValid = key.length === 64 && /^[0-9a-fA-F]+$/.test(key)
+  const encryptionKeySet = rawCurrentEnvKey() !== null || isEncryptionKeyUsable()
+  const encryptionKeyValid = isEncryptionKeyUsable()
   const hasPat = !!process.env.GITHUB_API_TOKEN
 
   // "Connected" means the credentials can actually be used, not merely that a row

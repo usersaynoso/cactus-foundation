@@ -1308,6 +1308,27 @@ It exists because the alternative was worse in a way worth spelling out. Setting
 A module must never import another module's code. Where two modules want the same
 machinery, it belongs in core and both import it from there.
 
+**The encryption key and signed links** - `lib/crypto/keyring.ts` and `lib/crypto/secrets.ts`.
+Never read `process.env.ENCRYPTION_KEY` yourself: a site can change its key, and anything
+reading the raw variable breaks every link it has sent the moment it does. The key-rotation
+screen refuses to run while an installed module reads it directly, and names the module.
+
+```ts
+import { signingKey, verifyWithAnyKey, derivationSalt } from '@/lib/crypto/keyring'
+import { encryptSecret, tryDecryptSecret, isEncryptionKeyUsable } from '@/lib/crypto/secrets'
+
+const sign = (id: string, key = signingKey('my links')) =>
+  createHmac('sha256', key).update(`my-link:${id}`).digest('base64url')
+const ok = verifyWithAnyKey(token, (key) => sign(id, key))   // current, next or any past key
+
+const visitor = createHmac('sha256', derivationSalt() ?? '').update(ip).digest('hex') // never changes with the key
+```
+
+Sign with the active key, verify against all of them, and hash pseudonymous ids with
+`derivationSalt()`, not the key. Store secrets with `encryptSecret` in a text column whose
+name ends in `_encrypted` (or `Encrypted`): the restore and the rotation find it by that name.
+Needs core `0.5.1904` or later in `requiresCoreVersion`.
+
 **Shrunk copies of a library picture** - `lib/media/renditions.ts`:
 
 ```ts

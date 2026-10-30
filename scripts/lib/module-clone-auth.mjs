@@ -47,6 +47,21 @@ export function decryptSecret(encrypted, keyHex) {
   return Buffer.concat([decipher.update(Buffer.from(ciphertextHex, 'hex')), decipher.final()]).toString('utf8')
 }
 
+// The keys a build can read stored secrets with: ENCRYPTION_KEY, plus
+// ENCRYPTION_KEY_NEXT while a key rotation is part-way (lib/crypto/rotation.ts) -
+// the data may already be under the next key when a redeploy builds.
+export function buildKeys(env) {
+  return [env.ENCRYPTION_KEY_NEXT, env.ENCRYPTION_KEY].filter(isUsableEncryptionKey)
+}
+
+export function tryDecryptWithAnyKey(encrypted, env) {
+  for (const key of buildKeys(env)) {
+    const plain = tryDecryptSecret(encrypted, key)
+    if (plain !== null) return plain
+  }
+  return null
+}
+
 export function tryDecryptSecret(encrypted, keyHex) {
   if (!encrypted || !isUsableEncryptionKey(keyHex)) return null
   try {
@@ -61,7 +76,7 @@ export function tryDecryptSecret(encrypted, keyHex) {
 export function chooseCredentialTiers(env) {
   const tiers = []
   if (env.MODULE_CLONE_TOKEN) tiers.push('env-token')
-  if (env.DATABASE_URL && isUsableEncryptionKey(env.ENCRYPTION_KEY)) tiers.push('github-app')
+  if (env.DATABASE_URL && buildKeys(env).length > 0) tiers.push('github-app')
   if (env.GITHUB_API_TOKEN) tiers.push('github-pat')
   return tiers
 }
@@ -160,7 +175,7 @@ export async function resolveCloneToken(env = process.env, deps = {}) {
       try {
         const conn = await fetchConnection(env.DATABASE_URL)
         if (!conn || !conn.installationId) continue
-        const privateKey = tryDecryptSecret(conn.privateKeyEncrypted, env.ENCRYPTION_KEY)
+        const privateKey = tryDecryptWithAnyKey(conn.privateKeyEncrypted, env)
         if (!privateKey) {
           warnings.push('GitHub App connection exists but this environment cannot decrypt it - trying the next credential')
           continue

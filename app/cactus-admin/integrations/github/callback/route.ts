@@ -6,6 +6,7 @@ import path from 'path'
 import { readFile } from 'fs/promises'
 import sharp from 'sharp'
 import { createAppAuth } from '@octokit/auth-app'
+import { isEncryptionKeyUsable, rawCurrentEnvKey } from '@/lib/crypto/keyring'
 
 type ManifestConversionResponse = {
   id: number
@@ -47,15 +48,14 @@ export async function GET(request: NextRequest) {
   })
   const adminPath = config?.adminPath ?? ''
 
-  const encKey = process.env.ENCRYPTION_KEY
-  if (!encKey) {
+  if (!rawCurrentEnvKey() && !isEncryptionKeyUsable()) {
     const res = NextResponse.redirect(
       new URL(`/${adminPath}/config?tab=integrations&github=error&reason=encrypt_key_missing`, request.url)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
   }
-  if (encKey.length !== 64 || !/^[0-9a-fA-F]+$/.test(encKey)) {
+  if (!isEncryptionKeyUsable()) {
     const res = NextResponse.redirect(
       new URL(`/${adminPath}/config?tab=integrations&github=error&reason=encrypt_key_format`, request.url)
     )
