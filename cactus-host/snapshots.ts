@@ -9,8 +9,10 @@
 //
 // Which snapshot belongs to which release: a release ran on the database as it was
 // when the release stopped being live, and the first snapshot taken after it last
-// went live is the nearest copy of that. Rolling back to it with its database restores
-// that snapshot, losing whatever was written after it was taken.
+// went live is the nearest copy of that - provided no other build reached its
+// migrations in between, which would make it a copy of someone else's database (it
+// happens only with builds from before snapshots were taken). Rolling back to it with
+// its database restores that snapshot, losing whatever was written after it was taken.
 
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -83,12 +85,19 @@ export class Snapshots {
    * The snapshot that rolling back to `build` with its database would restore: the
    * first one taken after the build last went live, of the database the site uses now.
    */
-  restorePointFor(siteId: string, build: BuildRecord, database: string | null): SnapshotRecord | null {
+  restorePointFor(siteId: string, build: BuildRecord, database: string | null, builds: BuildRecord[]): SnapshotRecord | null {
     if (!database || build.state !== 'ready') return null
     const wentLive = build.liveAt ?? build.finishedAt
     if (wentLive === null) return null
     const after = this.list(siteId).filter((s) => s.database === database && s.takenAt >= wentLive)
-    return after[after.length - 1] ?? null
+    const point = after[after.length - 1]
+    if (!point) return null
+    const meddled = builds.some((b) => {
+      if (b.id === build.id || b.id === point.buildId || b.reachedMigrations === false) return false
+      const started = b.startedAt ?? b.createdAt
+      return started > wentLive && started < point.takenAt
+    })
+    return meddled ? null : point
   }
 
   /**
@@ -96,12 +105,12 @@ export class Snapshots {
    * newest `keepReleases`, so a build that failed after migrating still has the copy
    * from before it.
    */
-  prune(siteId: string, keptBuilds: BuildRecord[], database: string | null, line: (t: string) => void = () => {}): void {
+  prune(siteId: string, keptBuilds: BuildRecord[], builds: BuildRecord[], database: string | null, line: (t: string) => void = () => {}): void {
     const all = this.list(siteId)
     const keep = new Set(all.slice(0, this.config.keepReleases).map((s) => s.id))
     for (const b of keptBuilds) {
       if (b.live) continue
-      const point = this.restorePointFor(siteId, b, database)
+      const point = this.restorePointFor(siteId, b, database, builds)
       if (point) keep.add(point.id)
     }
     const gone = all.filter((s) => !keep.has(s.id))

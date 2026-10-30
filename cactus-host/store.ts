@@ -62,6 +62,12 @@ export type BuildRecord = BuildSummary & {
   slot: SlotName | null
   /** Epoch ms it last went live, by its own build or a rollback. Absent on older records. */
   liveAt?: number | null
+  /**
+   * Whether the build got as far as `npm run build`, where migrations run. False until
+   * it does. Absent on records from before it was kept, which counts as true: nobody
+   * knows what those did to the database.
+   */
+  reachedMigrations?: boolean
 }
 
 // Short enough that "cactus-<site>" fits a Linux user name (32 characters at most).

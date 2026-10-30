@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readlinkSync } from 'node:fs'
+import { existsSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseEnv } from './env-file.ts'
@@ -244,6 +244,32 @@ describe('database snapshots', () => {
     ]))
     expect(sql(ctx)).not.toContain('DROP DATABASE IF EXISTS shop__replaced WITH (FORCE)')
     expect(ctx.host.store.getBuild('shop', second.id)?.live).toBe(true)
+  })
+
+  it('offers no copy to a release when another build changed the database after it', async () => {
+    const ctx = withDb()
+    const first = await build(ctx)
+    const second = await build(ctx)
+    // As if the second had been built before snapshots existed: it took none, and
+    // nobody knows what its migrations did.
+    const record = ctx.host.store.getBuild('shop', second.id)!
+    delete record.reachedMigrations
+    ctx.host.store.saveBuild('shop', record)
+    const index = join(ctx.config.stateDir, 'snapshots', 'shop', 'index.json')
+    writeFileSync(index, JSON.stringify(ctx.host.snapshots.list('shop').filter((s) => s.buildId !== second.id)))
+    const third = await build(ctx)
+    expect(ctx.host.restorePoints('shop').get(second.id)).toMatchObject({ buildId: third.id })
+    expect(ctx.host.restorePoints('shop').has(first.id)).toBe(false)
+  })
+
+  it('still offers a copy past a build that failed before reaching its migrations', async () => {
+    const ctx = withDb()
+    const first = await build(ctx)
+    ctx.system.buildExit = (command) => (command.includes('ci') ? 1 : 0)
+    expect((await build(ctx)).state).toBe('error')
+    ctx.system.buildExit = () => 0
+    const third = await build(ctx)
+    expect(ctx.host.restorePoints('shop').get(first.id)).toMatchObject({ buildId: third.id })
   })
 
   it('refuses to restore a database it has no copy of, and leaves code-only rollback alone', async () => {

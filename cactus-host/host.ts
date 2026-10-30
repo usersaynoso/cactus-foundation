@@ -267,6 +267,7 @@ export class Host {
       trigger: opts.trigger ?? 'api',
       releaseDir: null,
       slot: null,
+      reachedMigrations: false,
     }
     this.store.saveBuild(siteId, build)
     this.busy.set(siteId, build.id)
@@ -383,6 +384,7 @@ export class Host {
         line('The database is not on this server, so it is not backed up before the build')
       }
 
+      save({ reachedMigrations: true })
       step('Building')
       await this.buildStep(site, paths, releaseDir, [this.config.npmBin, 'run', 'build'], line, 'The build')
 
@@ -583,7 +585,7 @@ export class Host {
       throw new HostError('That version is no longer kept on this server', 409)
     }
     const database = opts.restoreDatabase ? this.siteDatabase(site) : null
-    const point = opts.restoreDatabase ? this.snapshots.restorePointFor(siteId, target, database) : null
+    const point = opts.restoreDatabase ? this.snapshots.restorePointFor(siteId, target, database, builds) : null
     if (opts.restoreDatabase && !point) {
       throw new HostError('There is no copy of the database from when that version was live, so only the code can go back', 409)
     }
@@ -673,9 +675,10 @@ export class Host {
     const site = this.site(siteId)
     const database = this.siteDatabase(site)
     const points = new Map<string, SnapshotRecord>()
-    for (const b of this.store.listBuilds(siteId)) {
+    const builds = this.store.listBuilds(siteId)
+    for (const b of builds) {
       if (b.live || !b.releaseDir || !existsSync(b.releaseDir)) continue
-      const point = this.snapshots.restorePointFor(siteId, b, database)
+      const point = this.snapshots.restorePointFor(siteId, b, database, builds)
       if (point) points.set(b.id, point)
     }
     return points
@@ -700,8 +703,8 @@ export class Host {
     }
     this.pruneStatic(siteId, builds.filter((b) => keep.has(b.id)).map((b) => b.releaseDir as string))
     const site = this.store.getSite(siteId)
-    const keptBuilds = this.store.listBuilds(siteId).filter((b) => keep.has(b.id))
-    this.snapshots.prune(siteId, keptBuilds, site ? this.siteDatabase(site) : null, line)
+    const all = this.store.listBuilds(siteId)
+    this.snapshots.prune(siteId, all.filter((b) => keep.has(b.id)), all, site ? this.siteDatabase(site) : null, line)
   }
 
   private pruneStatic(siteId: string, releaseDirs: string[]): void {
