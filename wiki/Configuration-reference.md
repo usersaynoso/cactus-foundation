@@ -348,6 +348,10 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `VERCEL_PROJECT_ID` | Yes, on Vercel | Your Vercel project ID. Find it at Vercel → your project → Settings → General. |
 | `NETLIFY_API_TOKEN` | Yes, on Netlify | Netlify personal access token. Create one at Netlify → User settings → Applications → Personal access tokens. Entered in the setup wizard. |
 | `NETLIFY_SITE_ID` | Yes, on Netlify | Your Netlify site ID (Site configuration → General). Picked in the setup wizard. |
+| `CACTUS_HOST_TOKEN` | Yes, on your own server | The token cactus-host issued for this site. Written by `cactus-host site add`; nothing to fill in. |
+| `CACTUS_HOST_SITE_ID` | Yes, on your own server | The name cactus-host knows this site by. Written by `cactus-host site add`. |
+| `CACTUS_HOST_URL` | No | Where cactus-host listens, if not `http://127.0.0.1:7171`. Written by `cactus-host site add` when it differs. |
+| `CACTUS_HOSTING_PROVIDER` | Set for you | `server` on your own server, written by cactus-host. On Vercel and Netlify it is filled in at build time. Never set it by hand. |
 | `NEON_API_KEY` | No | Neon database API key. Enables one-click database setup during the setup wizard. Leave unset if you supply your own `DATABASE_URL`. |
 | `BREVO_API_KEY` | No | Brevo email API key. Enables email sign-in, verification, and account recovery. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | No | SMTP email credentials. Alternative to Brevo. |

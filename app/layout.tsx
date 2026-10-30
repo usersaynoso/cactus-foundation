@@ -118,9 +118,11 @@ export default async function RootLayout({
 }) {
   // Settings > General switch. Off means the script never reaches the page at
   // all, rather than loading and being told to keep quiet. Speed Insights is a
-  // Vercel service, so on Netlify it stays off whatever the switch says - the
-  // script would only ask Vercel for an endpoint that is not there.
-  const speedInsights = detectHostingProvider() !== 'netlify' && (await isSpeedInsightsEnabled())
+  // Vercel service, so anywhere else (Netlify, a server) it stays off whatever the
+  // switch says - the script would only ask for an endpoint that is not there.
+  // Local development keeps the switch, as it always has.
+  const host = detectHostingProvider()
+  const speedInsights = (host === 'vercel' || host === null) && (await isSpeedInsightsEnabled())
 
   // Safari 26 ignores <meta name="theme-color"> and works its browser-UI tint
   // out from the page instead. Publishing the Theme colour as a variable lets

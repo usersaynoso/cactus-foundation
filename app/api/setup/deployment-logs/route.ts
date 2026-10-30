@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { resolveVercelTeamId } from '@/lib/vercel/deploy'
 import { getHostingCredentials, resolveHostingCredentials, type HostingCredentials } from '@/lib/hosting/provider'
 import { getNetlifyDeploy, netlifyStateToNormalised } from '@/lib/netlify/deploy'
+import { getServerBuild, getServerBuildLog, serverStateToNormalised } from '@/lib/server-host/deploy'
 
 const VERCEL_API = 'https://api.vercel.com'
 
@@ -63,6 +64,9 @@ export async function GET(req: NextRequest) {
 
   if (creds.provider === 'netlify') {
     return netlifyDeployProgress(creds, deploymentId, req.nextUrl.searchParams.get('since'))
+  }
+  if (creds.provider === 'server') {
+    return serverBuildProgress(creds, deploymentId, req.nextUrl.searchParams.get('since'))
   }
 
   const token = creds.token
@@ -144,4 +148,27 @@ async function netlifyDeployProgress(
   }
 
   return NextResponse.json({ state, logLines, latestTimestamp })
+}
+
+// A server's build log is the real thing, line for line, as cactus-host writes it.
+// `latestTimestamp` carries cactus-host's byte offset rather than a time: the client
+// only ever hands it back as `since`, which is exactly what the offset is for.
+async function serverBuildProgress(
+  creds: HostingCredentials,
+  deploymentId: string,
+  sinceRaw: string | null
+): Promise<NextResponse> {
+  const since = Number(sinceRaw) || 0
+  try {
+    const [build, log] = await Promise.all([
+      getServerBuild(creds.token, creds.siteId, deploymentId),
+      getServerBuildLog(creds.token, creds.siteId, deploymentId, since),
+    ])
+    const normalised = serverStateToNormalised(build?.state)
+    const state = normalised === 'UNKNOWN' ? '' : normalised
+    // cactus-host writes the reason for a failure into the log itself, as its last line.
+    return NextResponse.json({ state, logLines: log?.lines ?? [], latestTimestamp: log?.next ?? since })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 })
+  }
 }

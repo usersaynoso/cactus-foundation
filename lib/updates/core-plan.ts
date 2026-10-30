@@ -15,6 +15,7 @@
 // netlify.toml is the same file for a Netlify install (lib/cron/host-file.ts), so it
 // gets the same treatment. Core does ship a copy, for a brand-new Netlify site to
 // start from, but an existing install's copy is written only by those two syncs.
+// cactus-host.json is the same again for a server install, and core ships no copy.
 //
 // `.github/` joins them for a harder reason than tidiness. A GitHub App may only write
 // under `.github/workflows/` if it was granted the Workflows permission, which installs
@@ -33,6 +34,7 @@ export function isSkippedCorePath(path: string): boolean {
     path === 'modules.json' ||
     path === 'vercel.json' ||
     path === 'netlify.toml' ||
+    path === 'cactus-host.json' ||
     path === '.github' ||
     path.startsWith('.github/') ||
     path.startsWith('modules/')

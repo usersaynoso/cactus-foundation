@@ -1,0 +1,9 @@
+{
+  "name": "cactus-host",
+  "private": true,
+  "description": "Runs Cactus sites on a server you control. No dependencies: Node 24 runs the TypeScript directly. See RUNBOOK.md.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  }
+}

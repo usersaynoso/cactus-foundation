@@ -64,7 +64,14 @@ type DomainStateResult = { ok: true; state: DomainState } | { ok: false; error: 
 
 // Everything the wizard says that differs between hosting platforms.
 type HostCopy = {
+  /** The chooser's heading. */
   label: string
+  /** The host as it reads mid-sentence: "saves it to Vercel", "saves it to your server". */
+  name: string
+  /** "your <place>": "your Vercel project", "your server". */
+  place: string
+  /** "your <account>": where else the owner's domains might be. */
+  account: string
   unit: 'project' | 'site'
   tagline: string
   tokenPlaceholder: string
@@ -72,11 +79,16 @@ type HostCopy = {
   tokenWhere: string
   platformSuffix: string
   redeployHint: string
+  /** True where the credential is already on the site (a server): the token field may stay empty. */
+  tokenOptional?: boolean
 }
 
 const HOST_COPY: Record<HostingProvider, HostCopy> = {
   vercel: {
     label: 'Vercel',
+    name: 'Vercel',
+    place: 'Vercel project',
+    account: 'Vercel account',
     unit: 'project',
     tagline: 'Serverless hosting from the people who make Next.js.',
     tokenPlaceholder: 'vcp_… or ve_…',
@@ -87,6 +99,9 @@ const HOST_COPY: Record<HostingProvider, HostCopy> = {
   },
   netlify: {
     label: 'Netlify',
+    name: 'Netlify',
+    place: 'Netlify site',
+    account: 'Netlify account',
     unit: 'site',
     tagline: 'Git-driven hosting with builds, functions and a global CDN.',
     tokenPlaceholder: 'nfp_…',
@@ -94,6 +109,21 @@ const HOST_COPY: Record<HostingProvider, HostCopy> = {
     tokenWhere: 'Netlify → User settings → Applications → Personal access tokens',
     platformSuffix: '.netlify.app',
     redeployHint: 'Trigger a deploy from the Netlify dashboard (Deploys → Trigger deploy → Deploy site)',
+  },
+  server: {
+    label: 'Your own server',
+    name: 'your server',
+    place: 'server',
+    account: 'server',
+    unit: 'site',
+    tagline: 'A box you run yourself, with cactus-host doing the building and switching.',
+    tokenPlaceholder: 'Already on your server - leave this blank',
+    tokenUrl: '',
+    tokenWhere: '',
+    // No platform address: every domain on a server is one the owner added.
+    platformSuffix: '.cactus-host.invalid',
+    redeployHint: 'Start a build on your server (cactus-host build <site>, as root)',
+    tokenOptional: true,
   },
 }
 
@@ -1054,7 +1084,7 @@ export default function SetupPage() {
           </div>
           <p style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '1.0625rem' }}>Almost there!</p>
           <p style={{ color: 'var(--color-muted)', fontSize: '0.9375rem', margin: 0 }}>
-            {hostCopy.label} is applying the final configuration. You&apos;ll be redirected to
+            {hostCopy.name.charAt(0).toUpperCase() + hostCopy.name.slice(1)} is applying the final configuration. You&apos;ll be redirected to
             your login page automatically once the deployment is ready.
           </p>
           {finalisingWarning && (
@@ -1120,7 +1150,7 @@ export default function SetupPage() {
           {dbSubStep === 'host-configuring' && (
             <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span className="setup-spinner" />
-              <span>Writing environment variables to your {hostCopy.label} {hostCopy.unit}…</span>
+              <span>Writing environment variables to your {hostCopy.place}…</span>
             </div>
           )}
 
@@ -1151,7 +1181,7 @@ export default function SetupPage() {
                     .filter((v) => !isWizardHandledVar(v))
                     .join(', ')}
                 </strong>.
-                Add them to your {hostCopy.label} {hostCopy.unit}&apos;s environment variables and redeploy.
+                Add them to your {hostCopy.place}&apos;s environment variables and redeploy.
               </div>
             </>
           )}
@@ -1594,7 +1624,9 @@ function HostChooser({
   disabled: boolean
   onChange: (provider: HostingProvider) => void
 }) {
-  const options: HostingProvider[] = ['vercel', 'netlify']
+  // A server is only on offer when this copy of Cactus is running on one: the
+  // wizard talks to cactus-host on the same box, so it cannot set one up remotely.
+  const options: HostingProvider[] = detected === 'server' ? ['server', 'vercel', 'netlify'] : ['vercel', 'netlify']
   return (
     <fieldset style={{ border: 0, padding: 0, margin: '0 0 1.5rem' }}>
       <legend style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Where is this site hosted?</legend>
@@ -1643,7 +1675,7 @@ function HostChooser({
       </div>
       {detected && value !== detected && (
         <div className="alert alert-warning" style={{ marginTop: '0.75rem', fontSize: '0.8125rem' }}>
-          This copy of Cactus is running on {HOST_COPY[detected].label}. Setup will configure the {HOST_COPY[value].label} {HOST_COPY[value].unit} you pick below, so finish the rest of setup from that {HOST_COPY[value].unit}&apos;s own address once it has deployed.
+          This copy of Cactus is running on {HOST_COPY[detected].name}. Setup will configure the {HOST_COPY[value].place} you pick below, so finish the rest of setup from that {HOST_COPY[value].unit}&apos;s own address once it has deployed.
         </div>
       )}
     </fieldset>
@@ -1868,11 +1900,11 @@ function HostConfigPanel({
   return (
     <div>
       <div className="alert alert-info" style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        Cactus Foundation needs to connect to your {copy.label} {copy.unit} to store environment variables and trigger redeployments during setup. No env vars need to be set manually.
+        Cactus Foundation needs to connect to your {copy.place} to store environment variables and trigger redeployments during setup. No env vars need to be set manually.
       </div>
 
       <div className="field">
-        <label htmlFor="hostToken">{copy.label} {copy.unit === 'site' ? 'personal access token' : 'API token'}</label>
+        <label htmlFor="hostToken">{copy.tokenOptional ? 'Site token (optional)' : `${copy.label} ${copy.unit === 'site' ? 'personal access token' : 'API token'}`}</label>
         <input
           id="hostToken"
           type="text"
@@ -1886,12 +1918,18 @@ function HostConfigPanel({
           disabled={listing}
           style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
         />
-        <span className="field-hint">
-          Create at:{' '}
-          <a href={copy.tokenUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary)' }}>
-            {copy.tokenWhere}
-          </a>
-        </span>
+        {copy.tokenOptional ? (
+          <span className="field-hint">
+            cactus-host put this site&apos;s token in its settings when the site was added, so there is nothing to paste.
+          </span>
+        ) : (
+          <span className="field-hint">
+            Create at:{' '}
+            <a href={copy.tokenUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary)' }}>
+              {copy.tokenWhere}
+            </a>
+          </span>
+        )}
       </div>
 
       <div className="field" style={{ marginBottom: '1rem' }}>
@@ -1927,17 +1965,17 @@ function HostConfigPanel({
         <button
           className="btn btn-primary"
           style={{ width: '100%', marginBottom: '1rem' }}
-          disabled={!token || listing}
+          disabled={(!token && !copy.tokenOptional) || listing}
           onClick={onConnect}
         >
-          {listing ? 'Connecting…' : `Connect to ${copy.label} →`}
+          {listing ? 'Connecting…' : `Connect to ${copy.name} →`}
         </button>
       )}
 
       {hasProjects && (
         <>
           <div className="field">
-            <label htmlFor="projectSelect">Select your {copy.label} {copy.unit}</label>
+            <label htmlFor="projectSelect">Select your {copy.place}</label>
             <select
               id="projectSelect"
               value={selectedProjectId}
@@ -1977,7 +2015,7 @@ function HostConfigPanel({
 
               {loadingAccountDomains && (
                 <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', margin: '0.5rem 0' }}>
-                  Checking your {copy.label} account for other domains…
+                  Checking your {copy.account} for other domains…
                 </div>
               )}
               {accountDomainsError && (
@@ -1986,7 +2024,7 @@ function HostConfigPanel({
               {unattachedAccountDomains.length > 0 && (
                 <div style={{ margin: '0.5rem 0' }}>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '0.375rem' }}>
-                    Also in your {copy.label} account:
+                    Also in your {copy.account}:
                   </div>
                   {unattachedAccountDomains.map((d) => (
                     <div key={d.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
@@ -2045,7 +2083,7 @@ function HostConfigPanel({
                   {!domainState ? (
                     <div>
                       {statusError
-                        ? `Could not check ${selectedDomain} with ${copy.label}, so it cannot be used yet.`
+                        ? `Could not check ${selectedDomain} with ${copy.name}, so it cannot be used yet.`
                         : `Checking what ${selectedDomain} needs…`}
                     </div>
                   ) : (
@@ -2055,7 +2093,7 @@ function HostConfigPanel({
                           ? 'This domain needs two things before it will work.'
                           : domainState.misconfigured
                             ? 'Domain added, but it is not pointing here yet.'
-                            : `Domain added, but ${copy.label} needs proof that it is yours.`}
+                            : `Domain added, but ${copy.name} needs proof that it is yours.`}
                       </strong>{' '}
                       {pendingRecords.length > 0 ? (
                         <>
@@ -2080,14 +2118,18 @@ function HostConfigPanel({
                           </table>
                         </>
                       ) : (
-                        <>{copy.label} has not said which records it wants, so open the domain in your {copy.label} dashboard and follow the steps there.</>
+                        <>{copy.name} has not said which records it wants, so open the domain in your {copy.name} dashboard and follow the steps there.</>
                       )}
                       {ownershipPending && (
                         <div style={{ marginTop: '0.5rem', color: 'var(--color-muted)' }}>
-                          {copy.label} has seen this domain registered under another account, so the verification record is how you prove it is yours. Every record above is needed.
+                          {copy.name} has seen this domain registered under another account, so the verification record is how you prove it is yours. Every record above is needed.
                         </div>
                       )}
-                      {copy.unit === 'project' ? (
+                      {copy.tokenOptional ? (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          Behind Cloudflare, keep the record proxied (orange cloud) and set SSL/TLS to Full (strict) - the cactus-host runbook has the details. A domain like example.co.uk counts as an apex, so its record goes at @.
+                        </div>
+                      ) : copy.unit === 'project' ? (
                         <div style={{ marginTop: '0.5rem' }}>
                           Alternative: point the domain&apos;s nameservers at Vercel instead (<code>ns1.vercel-dns.com</code>, <code>ns2.vercel-dns.com</code>) and skip the records above.
                         </div>
@@ -2307,7 +2349,7 @@ function DbChoicePanel({
             {neonProjects.length === 1 && (
               <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--color-fg)' }}>
                 Project: <strong>{neonProjects[0]?.name}</strong>
-                <span className="field-hint" style={{ display: 'block' }}>Cactus Foundation will read the default branch connection URI and write it to {hostCopy.label}.</span>
+                <span className="field-hint" style={{ display: 'block' }}>Cactus Foundation will read the default branch connection URI and write it to {hostCopy.name}.</span>
               </div>
             )}
             {neonProjects.length > 1 && (
@@ -2324,7 +2366,7 @@ function DbChoicePanel({
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
-                <span className="field-hint">Cactus Foundation will read the default branch connection URI and write it to {hostCopy.label}.</span>
+                <span className="field-hint">Cactus Foundation will read the default branch connection URI and write it to {hostCopy.name}.</span>
               </div>
             )}
             {neonProjects.length > 0 && !existingDataWarning && (
@@ -2387,7 +2429,7 @@ function DbChoicePanel({
         >
           <div>
             <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>I&apos;ll supply my own DATABASE_URL</div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Paste a PostgreSQL connection string — Cactus Foundation saves it to {hostCopy.label} and redeploys.</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)' }}>Paste a PostgreSQL connection string — Cactus Foundation saves it to {hostCopy.name} and redeploys.</div>
           </div>
           <span style={{ color: 'var(--color-muted)', flexShrink: 0, marginLeft: '0.5rem' }}>{selectedOption === 'manual' ? '▲' : '▼'}</span>
         </button>
@@ -2458,7 +2500,7 @@ function DbManualPanel({
           placeholder="postgresql://user:pass@host/db?sslmode=require"
           style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
         />
-        <span className="field-hint">Use a pooled connection string from Neon, Supabase, or any PostgreSQL provider. Cactus Foundation saves it to {hostCopy.label} and redeploys automatically.</span>
+        <span className="field-hint">Use a pooled connection string from Neon, Supabase, or any PostgreSQL provider. Cactus Foundation saves it to {hostCopy.name} and redeploys automatically.</span>
       </div>
 
       <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -2508,7 +2550,7 @@ function DbRedeployingPanel({
         <span style={{ color: 'var(--color-success)', fontWeight: 700, flexShrink: 0 }}>✓</span>
         <div>
           <code style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>DATABASE_URL</code>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--color-success)' }}>Database connection string written to {hostCopy.label}</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-success)' }}>Database connection string written to {hostCopy.name}</div>
         </div>
       </div>
 

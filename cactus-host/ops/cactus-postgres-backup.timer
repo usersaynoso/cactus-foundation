@@ -1,0 +1,11 @@
+# /etc/systemd/system/cactus-postgres-backup.timer
+[Unit]
+Description=Nightly database backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 UTC
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

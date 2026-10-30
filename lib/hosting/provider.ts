@@ -1,11 +1,18 @@
 // Which platform this site is hosted on, and the credential Cactus uses to drive it.
 //
-// Cactus runs on Vercel or Netlify. Both are driven the same way - a REST API token
-// plus the id of the one project/site to act on - and every control-plane job (write
-// an env var, start a rebuild, ask how a build is getting on) goes through
-// lib/hosting/env.ts and lib/hosting/deploy.ts, which pick the right API from what is
-// returned here. Nothing outside lib/hosting, lib/vercel and lib/netlify should read
-// VERCEL_API_TOKEN / NETLIFY_API_TOKEN directly.
+// Cactus runs on Vercel, on Netlify, or on a server the owner runs themselves. All
+// three are driven the same way - an API token plus the id of the one project/site to
+// act on - and every control-plane job (write an env var, start a rebuild, ask how a
+// build is getting on) goes through lib/hosting/env.ts and lib/hosting/deploy.ts,
+// which pick the right API from what is returned here. Nothing outside lib/hosting,
+// lib/vercel, lib/netlify and lib/server-host should read VERCEL_API_TOKEN /
+// NETLIFY_API_TOKEN / CACTUS_HOST_TOKEN directly.
+//
+// 'server' is a Linux box running the cactus-host companion (cactus-host/ in this
+// repo), which builds the site, switches traffic between releases and keeps its env
+// file. It is named for what the owner has, "their own server", rather than
+// "self-hosted", which this codebase already uses for any `next start` including a
+// developer's own machine.
 //
 // Detection is from the environment the platform itself injects:
 //   - Vercel sets VERCEL=1 at build time AND at runtime.
@@ -13,24 +20,30 @@
 //     see it at runtime, so next.config.ts bakes the build-time answer into
 //     CACTUS_HOSTING_PROVIDER. Both are checked so a script running in the Netlify
 //     build (no Next inlining) still gets the right answer.
-// Neither present means local development: no control plane at all, config comes
-// from .env.local.
+//   - A server sets nothing of its own, so cactus-host writes
+//     CACTUS_HOSTING_PROVIDER=server into the site's env file, which both the build
+//     and the running site read. next.config.ts passes it through unchanged.
+// None present means local development: no control plane at all, config comes from
+// .env.local.
 
-export type HostingProvider = 'vercel' | 'netlify'
+export type HostingProvider = 'vercel' | 'netlify' | 'server'
 
-export const HOSTING_PROVIDERS: readonly HostingProvider[] = ['vercel', 'netlify']
+export const HOSTING_PROVIDERS: readonly HostingProvider[] = ['vercel', 'netlify', 'server']
 
 export const HOSTING_PROVIDER_LABELS: Record<HostingProvider, string> = {
   vercel: 'Vercel',
   netlify: 'Netlify',
+  server: 'Your own server',
 }
 
 // The pair of env vars that hold each provider's credential. The token is the
-// owner's personal access token; the id names the one project (Vercel) or site
-// (Netlify) Cactus writes to and rebuilds.
+// owner's personal access token (on a server, the per-site token cactus-host issued);
+// the id names the one project (Vercel) or site (Netlify, server) Cactus writes to
+// and rebuilds.
 export const HOSTING_CREDENTIAL_KEYS: Record<HostingProvider, { token: string; siteId: string }> = {
   vercel: { token: 'VERCEL_API_TOKEN', siteId: 'VERCEL_PROJECT_ID' },
   netlify: { token: 'NETLIFY_API_TOKEN', siteId: 'NETLIFY_SITE_ID' },
+  server: { token: 'CACTUS_HOST_TOKEN', siteId: 'CACTUS_HOST_SITE_ID' },
 }
 
 export type HostingCredentials = {
@@ -40,12 +53,13 @@ export type HostingCredentials = {
 }
 
 export function isHostingProvider(value: unknown): value is HostingProvider {
-  return value === 'vercel' || value === 'netlify'
+  return value === 'vercel' || value === 'netlify' || value === 'server'
 }
 
 /** The platform this process is running on, or null in local development. */
 export function detectHostingProvider(): HostingProvider | null {
   if (process.env.VERCEL === '1') return 'vercel'
+  if (process.env.CACTUS_HOSTING_PROVIDER === 'server') return 'server'
   if (process.env.CACTUS_HOSTING_PROVIDER === 'netlify' || process.env.NETLIFY === 'true') {
     return 'netlify'
   }
@@ -63,14 +77,18 @@ function credentialsFromEnv(provider: HostingProvider): HostingCredentials | nul
  * The credential for the platform this site runs on, read from process.env.
  *
  * Off-platform (local development) there is no detected provider, so it falls back
- * to whichever pair happens to be set, Vercel first - the same thing the code did
- * when Vercel was the only option, so a .env.local carrying Vercel credentials keeps
- * behaving exactly as before.
+ * to whichever pair happens to be set, in HOSTING_PROVIDERS order - Vercel first, the
+ * same thing the code did when Vercel was the only option, so a .env.local carrying
+ * Vercel credentials keeps behaving exactly as before.
  */
 export function getHostingCredentials(): HostingCredentials | null {
   const detected = detectHostingProvider()
   if (detected) return credentialsFromEnv(detected)
-  return credentialsFromEnv('vercel') ?? credentialsFromEnv('netlify')
+  for (const provider of HOSTING_PROVIDERS) {
+    const creds = credentialsFromEnv(provider)
+    if (creds) return creds
+  }
+  return null
 }
 
 export function isHostingConfigured(): boolean {

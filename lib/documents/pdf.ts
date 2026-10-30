@@ -1,6 +1,6 @@
 import type { PaperFormat, Page } from 'puppeteer-core'
 import { getSiteUrl } from '@/lib/config/env'
-import { resolvePrintBrowser } from '@/lib/documents/chromium'
+import { noPrintBrowserMessage, resolvePrintBrowser } from '@/lib/documents/chromium'
 import { docPageSetup, PDF_FOOTER_REGION_ID, type DocPageSetup } from '@/lib/documents/page-settings'
 
 // Turning a designed document into a PDF.
@@ -400,9 +400,7 @@ export async function renderDocumentPdf(options: RenderDocumentPdfOptions): Prom
     }),
   ])
   if (!browserResult) {
-    throw new DocumentPdfUnavailableError(
-      'No browser is available to make a PDF. Install Google Chrome locally, or set CHROME_PATH.',
-    )
+    throw new DocumentPdfUnavailableError(noPrintBrowserMessage())
   }
   const { executablePath, args } = browserResult
 

@@ -13,6 +13,7 @@
     "noImplicitAny": true,
     "noImplicitOverride": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

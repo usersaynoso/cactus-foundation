@@ -12,9 +12,16 @@ import {
   getNetlifyEnvVarKeys,
   upsertNetlifyEnvVars,
 } from '@/lib/netlify/env'
+import {
+  deleteServerEnvVars,
+  getServerEnvValues,
+  getServerEnvVarKeys,
+  upsertServerEnvVars,
+} from '@/lib/server-host/env'
 
 // Environment variables on the site's hosting platform, whichever it is. Writes only
-// reach the running site after a rebuild (lib/hosting/deploy.ts) on both platforms.
+// reach the running site after a rebuild (lib/hosting/deploy.ts) on every platform:
+// on a server, each release keeps the env file it was built with.
 
 export type HostEnvVar = {
   key: string
@@ -24,9 +31,14 @@ export type HostEnvVar = {
 }
 
 export async function getHostEnvVarKeys(creds: HostingCredentials): Promise<string[]> {
-  return creds.provider === 'netlify'
-    ? getNetlifyEnvVarKeys(creds.token, creds.siteId)
-    : getVercelEnvVarKeys(creds.token, creds.siteId)
+  switch (creds.provider) {
+    case 'vercel':
+      return getVercelEnvVarKeys(creds.token, creds.siteId)
+    case 'netlify':
+      return getNetlifyEnvVarKeys(creds.token, creds.siteId)
+    case 'server':
+      return getServerEnvVarKeys(creds.token, creds.siteId)
+  }
 }
 
 /**
@@ -38,26 +50,41 @@ export async function getHostEnvValues(
   creds: HostingCredentials,
   keys: string[]
 ): Promise<Record<string, string | null>> {
-  return creds.provider === 'netlify'
-    ? getNetlifyEnvValues(creds.token, creds.siteId, keys)
-    : getVercelEnvValues(creds.token, creds.siteId, keys)
+  switch (creds.provider) {
+    case 'vercel':
+      return getVercelEnvValues(creds.token, creds.siteId, keys)
+    case 'netlify':
+      return getNetlifyEnvValues(creds.token, creds.siteId, keys)
+    case 'server':
+      return getServerEnvValues(creds.token, creds.siteId, keys)
+  }
 }
 
 export async function upsertHostEnvVars(creds: HostingCredentials, vars: HostEnvVar[]): Promise<void> {
   if (vars.length === 0) return
-  if (creds.provider === 'netlify') {
-    await upsertNetlifyEnvVars(creds.token, creds.siteId, vars)
-    return
+  switch (creds.provider) {
+    case 'vercel':
+      await upsertVercelEnvVars(
+        creds.token,
+        creds.siteId,
+        vars.map(({ key, value, secret }) => ({
+          key,
+          value,
+          type: (secret ?? isSensitiveEnvKey(key)) ? 'sensitive' : 'plain',
+        }))
+      )
+      return
+    case 'netlify':
+      await upsertNetlifyEnvVars(creds.token, creds.siteId, vars)
+      return
+    case 'server':
+      await upsertServerEnvVars(
+        creds.token,
+        creds.siteId,
+        vars.map(({ key, value, secret }) => ({ key, value, secret: secret ?? isSensitiveEnvKey(key) }))
+      )
+      return
   }
-  await upsertVercelEnvVars(
-    creds.token,
-    creds.siteId,
-    vars.map(({ key, value, secret }) => ({
-      key,
-      value,
-      type: (secret ?? isSensitiveEnvKey(key)) ? 'sensitive' : 'plain',
-    }))
-  )
 }
 
 export async function upsertHostEnvVar(
@@ -73,7 +100,12 @@ export async function deleteHostEnvVars(
   creds: HostingCredentials,
   keys: string[]
 ): Promise<{ deleted: string[]; failed: Array<{ key: string; error: string }> }> {
-  return creds.provider === 'netlify'
-    ? deleteNetlifyEnvVars(creds.token, creds.siteId, keys)
-    : deleteVercelEnvVars(creds.token, creds.siteId, keys)
+  switch (creds.provider) {
+    case 'vercel':
+      return deleteVercelEnvVars(creds.token, creds.siteId, keys)
+    case 'netlify':
+      return deleteNetlifyEnvVars(creds.token, creds.siteId, keys)
+    case 'server':
+      return deleteServerEnvVars(creds.token, creds.siteId, keys)
+  }
 }

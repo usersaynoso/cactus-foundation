@@ -1,6 +1,6 @@
 # Getting started
 
-Cactus Foundation is deployed to [Vercel](https://vercel.com) or [Netlify](https://www.netlify.com) - hosting platforms that handle the technical side for you. The setup wizard asks which one you are using. If someone is setting up Cactus on your behalf, point them to the technical sections below. If you're setting it up yourself and comfortable with a terminal, read on.
+Cactus Foundation is deployed to [Vercel](https://vercel.com) or [Netlify](https://www.netlify.com) - hosting platforms that handle the technical side for you - or to a server of your own (see [First deploy to your own server](#first-deploy-to-your-own-server)). The setup wizard asks which one you are using. If someone is setting up Cactus on your behalf, point them to the technical sections below. If you're setting it up yourself and comfortable with a terminal, read on.
 
 Once your site is up and running, you don't need any of the information on this page for day-to-day use. Head to [Managing pages](Managing-pages), [Appearance and design](Appearance-and-design), or the [Configuration reference](Configuration-reference) instead.
 
@@ -109,6 +109,25 @@ What is different on Netlify:
 - **Vercel-only extras are hidden**: Edge Config, Vercel deployment webhooks (status is polled instead, as on Vercel Hobby) and Speed Insights.
 - **Function limits are Netlify's**, not Vercel's. Netlify's synchronous functions have a shorter time limit than Vercel's and AWS Lambda caps a function's environment variables at 4 KB in total - a site with many integrations configured can run into that. Neither has been tried on a real Netlify site yet.
 - **Custom domains**: the wizard can attach one to the site. A domain is accepted once Netlify has issued its certificate, which it only does after DNS points at Netlify (an `A` record to `75.2.60.5` for the apex, or a `CNAME` to `<name>.netlify.app` for a subdomain).
+
+## First deploy to your own server
+
+Cactus can also run on a Linux server you control, alongside Vercel and Netlify rather than instead of them. A small companion service, **cactus-host** (the `cactus-host` folder of every Cactus repo), does the hosting platform's job there: it builds the site, switches visitors to the new version only once it has proved it starts, keeps the last few versions for rollback, keeps the site's settings and wakes its scheduled jobs. One server can run several sites, each with its own user, settings, database and versions.
+
+The full walk-through, from a fresh Ubuntu box to a site behind Cloudflare with nightly backups, is `cactus-host/RUNBOOK.md`. In short:
+
+1. Set up the box (Node 24, Caddy, Postgres 18, Google Chrome for PDFs, cactus-host itself, a firewall that lets in Cloudflare only).
+2. `cactus-host site add shop --repo you/your-site --domain example.com`, add the read-only deploy key it prints to the GitHub repo, then `cactus-host build shop`.
+3. Point the domain at the server in Cloudflare (proxied, SSL mode Full (strict)) and open `https://example.com/setup`. The wizard knows it is on your own server and has nothing to paste in step 1 beyond choosing the domain.
+
+What is different on your own server:
+
+- **Updates are built on the server**, at low priority and with a memory ceiling, so the live sites never notice. The new version starts alongside the old one, is health-checked, and only then gets the visitors; one that will not start never does, and the update is reported as failed.
+- **Scheduled jobs** are woken by cactus-host. The tick lives in `cactus-host.json`, which Cactus writes the way it writes `vercel.json` elsewhere.
+- **Build progress** shows the real build log in the wizard and the admin.
+- **Settings changes** reach the site with its next build, as on Vercel. A running version keeps the settings it was built with, so a restart never changes anything.
+- **Vercel-only extras are hidden**: Edge Config, Vercel deployment webhooks and Speed Insights.
+- **Moving a site over from Vercel** is covered in the runbook. The short version: copy every setting except the `VERCEL_*` ones, keep `ENCRYPTION_KEY` exactly as it was, and switch off the Vercel project's scheduled jobs before the new copy starts running its own, or every job runs twice.
 
 ## The setup wizard
 

@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { hostCronFile } from './host-file'
 import { buildVercelJson, dispatchScheduleForInterval } from './vercel-file'
 import { buildNetlifyToml } from './netlify-file'
+import { buildServerCronJson } from './server-file'
 
 afterEach(() => vi.unstubAllEnvs())
 
@@ -28,5 +29,10 @@ describe('hostCronFile', () => {
   it('gives a Netlify site netlify.toml', () => {
     host({ CACTUS_HOSTING_PROVIDER: 'netlify' })
     expect(hostCronFile('*/10 * * * *')).toEqual({ path: 'netlify.toml', content: buildNetlifyToml('*/10 * * * *') })
+  })
+
+  it('gives a server cactus-host.json', () => {
+    host({ CACTUS_HOSTING_PROVIDER: 'server' })
+    expect(hostCronFile('*/5 * * * *')).toEqual({ path: 'cactus-host.json', content: buildServerCronJson('*/5 * * * *') })
   })
 })

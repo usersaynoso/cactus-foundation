@@ -1,0 +1,11 @@
+# /etc/systemd/system/cactus-postgres-backup.service
+[Unit]
+Description=Back up every Postgres database to B2
+After=postgresql.service
+
+[Service]
+Type=oneshot
+# Change the destination to your own bucket and folder.
+ExecStart=/usr/local/bin/backup-postgres.sh your-bucket/database-backups
+Nice=19
+IOSchedulingClass=idle

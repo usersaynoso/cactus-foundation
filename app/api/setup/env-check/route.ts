@@ -51,7 +51,12 @@ export async function GET() {
   // satisfied: the wizard then skips the connect step and goes straight to the
   // database step (which expects DATABASE_URL in .env.local).
   const credentials = getHostingCredentials()
-  const hostingConfigured = localMode || !!credentials
+  // On Vercel and Netlify the credential only exists once the connect step has
+  // written it, so "have credentials" means "connected". On a server cactus-host put
+  // the credential there before the first build, so it says nothing about whether the
+  // connect step (domain, SITE_URL, the site's own secrets) has run - SITE_URL does.
+  const hostingConfigured =
+    localMode || (!!credentials && (credentials.provider !== 'server' || !!process.env.SITE_URL))
 
   return NextResponse.json({
     required,

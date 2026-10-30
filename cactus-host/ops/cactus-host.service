@@ -1,0 +1,26 @@
+# /etc/systemd/system/cactus-host.service
+#
+# The companion service. Root, because it creates each site's user, writes systemd
+# units and reloads Caddy - but it listens on localhost only, has no npm
+# dependencies, and runs every build and every site process as that site's own user.
+[Unit]
+Description=cactus-host - builds and runs Cactus sites
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=CACTUS_HOST_CONFIG=/etc/cactus-host/config.json
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning /opt/cactus-host/main.ts serve
+Restart=on-failure
+RestartSec=5
+# On stop it takes no new work and waits for running builds to finish, which can be
+# a while on a cold build.
+KillSignal=SIGTERM
+TimeoutStopSec=35min
+# Builds run in their own transient units (systemd-run), not in this cgroup, so
+# this limit is for cactus-host itself.
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

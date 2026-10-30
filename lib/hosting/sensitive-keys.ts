@@ -1,15 +1,17 @@
 // Env vars whose values are secrets. Each hosting platform stores these write-only
-// (Vercel's `sensitive` type, Netlify's `is_secret` flag) so the value cannot be read
+// (Vercel's `sensitive` type, Netlify's `is_secret` flag, cactus-host's secret
+// marker) so the value cannot be read
 // back out of its dashboard or API once saved; everything else is stored plain.
 //
-// Shared by both platforms on purpose: a key that is secret on one is secret on the
-// other, and two lists would drift.
+// Shared by every platform on purpose: a key that is secret on one is secret on the
+// others, and separate lists would drift.
 export const SENSITIVE_ENV_KEYS: ReadonlySet<string> = new Set([
   'DATABASE_URL',
   'SESSION_SECRET',
   'CRON_SECRET',
   'VERCEL_API_TOKEN',
   'NETLIFY_API_TOKEN',
+  'CACTUS_HOST_TOKEN',
   'BREVO_API_KEY',
   'SMTP_PASS',
   'B2_APPLICATION_KEY',

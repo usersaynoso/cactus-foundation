@@ -143,11 +143,12 @@ const ALL_ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
 ]
 
 // Speed Insights, Edge Config and deployment webhooks are Vercel services, and the
-// config page does not show them on a Netlify site (CACTUS_HOSTING_PROVIDER is
-// inlined at build by next.config.ts), so search must not point at them either.
+// config page does not show them on a Netlify site or a server
+// (CACTUS_HOSTING_PROVIDER is inlined at build by next.config.ts), so search must not
+// point at them either.
 const VERCEL_ONLY_ENTRIES = new Set(['general-speed-insights', 'integrations-edge', 'integrations-webhook'])
 
 export const ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] =
-  process.env.CACTUS_HOSTING_PROVIDER === 'netlify'
+  process.env.CACTUS_HOSTING_PROVIDER === 'netlify' || process.env.CACTUS_HOSTING_PROVIDER === 'server'
     ? ALL_ADMIN_SEARCH_ENTRIES.filter((entry) => !VERCEL_ONLY_ENTRIES.has(entry.id))
     : ALL_ADMIN_SEARCH_ENTRIES

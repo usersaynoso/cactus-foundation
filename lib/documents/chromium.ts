@@ -5,10 +5,13 @@
 //  - Deployed (Linux serverless): @sparticuz/chromium-min supplies a chromium
 //    built to survive a read-only filesystem with almost no /dev/shm, along with
 //    the launch args that make it do so.
-//  - A developer's own machine: there is no Linux binary to fetch, so a locally
-//    installed Chrome is used. CHROME_PATH names it; failing that the usual macOS
-//    and Linux install paths are tried. If none is there the caller gets a clear
-//    refusal rather than a stack trace.
+//  - A developer's own machine, or a server run by cactus-host: there is no
+//    serverless sandbox to survive, so an installed Chrome is used. CHROME_PATH
+//    names it; failing that the usual macOS and Linux install paths are tried. If
+//    none is there the caller gets a clear refusal rather than a stack trace -
+//    noPrintBrowserMessage() words it for the machine it is on. On a server the
+//    runbook installs Google Chrome's own package (/usr/bin/google-chrome), not
+//    Ubuntu's chromium, which is a snap and will not start for a service user.
 //
 // Why the "-min" package rather than @sparticuz/chromium, which ships the browser
 // with it: the full package puts 66 MB of brotli packs in node_modules, and
@@ -58,6 +61,13 @@ async function localChromePath(): Promise<string | null> {
     if (existsSync(/* turbopackIgnore: true */ candidate)) return candidate
   }
   return null
+}
+
+/** What to tell the owner when resolvePrintBrowser() comes back empty. */
+export function noPrintBrowserMessage(): string {
+  return process.env.CACTUS_HOSTING_PROVIDER === 'server'
+    ? 'No browser is installed on your server to make a PDF. Install Google Chrome there (see the cactus-host runbook), or set CHROME_PATH.'
+    : 'No browser is available to make a PDF. Install Google Chrome locally, or set CHROME_PATH.'
 }
 
 /** A browser to hand puppeteer, or null when this machine has none. */

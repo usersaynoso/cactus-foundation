@@ -376,8 +376,8 @@ export async function syncCoreFromUpstream(
     baseTruncated: initialBase.truncated,
   })
 
-  // The cron file - vercel.json, or netlify.toml on a Netlify install (see
-  // lib/cron/host-file.ts) - is the install's own file (isSkippedCorePath keeps the
+  // The cron file - vercel.json, netlify.toml on a Netlify install, or
+  // cactus-host.json on a server (see lib/cron/host-file.ts) - is the install's own file (isSkippedCorePath keeps the
   // reconcile off it), but it is core that knows what belongs in it, and core that has
   // to put it there the first time. It has to be present in the COMMIT: Vercel reads vercel.json when it
   // creates the deployment, so the copy the build used to generate was written after the

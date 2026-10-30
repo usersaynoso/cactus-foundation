@@ -1,0 +1,11 @@
+# /etc/caddy/Caddyfile
+#
+# Each Cactus site gets its own file in /etc/caddy/sites, written by cactus-host.
+{
+	# Caddy's admin endpoint on a socket only root and Caddy can use. On its default
+	# TCP port any local user - every site's own process included - could rewrite
+	# the routing for every site on the box.
+	admin unix//run/caddy/admin.sock|0600
+}
+
+import /etc/caddy/sites/*.caddy

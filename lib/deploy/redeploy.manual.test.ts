@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   afterCallbacks: [] as Array<() => Promise<void>>,
   canBuild: true,
   committed: false,
+  provider: 'vercel' as 'vercel' | 'server',
   siteConfigUpdate: vi.fn(),
   siteConfigUpdateMany: vi.fn(),
   moduleUpdateMany: vi.fn(),
@@ -23,10 +24,11 @@ vi.mock('next/server', () => ({ after: (cb: () => Promise<void>) => h.afterCallb
 vi.mock('@/lib/config/env', () => ({ isLocalMode: () => false }))
 vi.mock('@/lib/config/site', () => ({ invalidateSiteConfigCache: vi.fn() }))
 vi.mock('@/lib/hosting/provider', () => ({
-  getHostingCredentials: () => ({ provider: 'vercel', token: 't', siteId: 'prj' }),
+  getHostingCredentials: () => ({ provider: h.provider, token: 't', siteId: 'prj' }),
 }))
 vi.mock('@/lib/hosting/deploy', () => ({
   canBuildCommits: async () => h.canBuild,
+  pushStartsBuild: (provider: string) => provider !== 'server',
   triggerRedeploy: h.triggerRedeploy,
   ensureRedeploy: h.ensureRedeploy,
   listDeployments: h.listDeployments,
@@ -55,6 +57,7 @@ beforeEach(() => {
   h.afterCallbacks.length = 0
   h.canBuild = true
   h.committed = false
+  h.provider = 'vercel'
 })
 
 describe('startDeferredRedeploy on a project with no Git link', () => {
@@ -122,5 +125,19 @@ describe('startDeferredRedeploy on a Git-linked project (unchanged)', () => {
     expect(result).toEqual({ triggered: true })
     expect(armed()).toBe(true)
     expect(h.markAwaitingManualDeploy).not.toHaveBeenCalled()
+  })
+})
+
+describe('startDeferredRedeploy on a server (cactus-host)', () => {
+  // Nothing on a server watches the repository, so a pushed commit builds nothing by
+  // itself. The build is started at once - not after 40 seconds of waiting for one.
+  it('starts the build itself straight after the push, without polling for one', async () => {
+    h.provider = 'server'
+    await startDeferredRedeploy({ committedSince: Date.now() })
+    await runAfter()
+
+    expect(h.listDeployments).not.toHaveBeenCalled()
+    expect(h.ensureRedeploy).toHaveBeenCalledWith(expect.objectContaining({ provider: 'server' }), { requireLatestCommit: true })
+    expect(h.moduleUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { deployId: 'dpl_fallback' } }))
   })
 })

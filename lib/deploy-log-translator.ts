@@ -42,5 +42,13 @@ export function translateLogLine(rawLine: string): string | null {
   if (line === 'Deploy is live.') return 'Bish bash bosh. You\'re live.'
   if (line.startsWith('Deploy failed') || line.startsWith('Deploy was cancelled')) return line
 
+  // cactus-host milestones, from a build on the site's own server (cactus-host/host.ts).
+  if (line === '──── Fetching the code ────') return 'Popping over to grab the latest code from GitHub...'
+  if (line === '──── Switching over ────') return 'Built. Starting the new version up alongside the old one...'
+  if (line === 'Health check passed') return 'New version is up and answering. Swapping it in...'
+  if (line === 'Traffic switched') return 'Visitors are on the new version now. Nobody noticed a thing.'
+  if (line === 'Live.') return 'Bish bash bosh. You\'re live.'
+  if (line.startsWith('Failed: ')) return line.slice('Failed: '.length)
+
   return null
 }

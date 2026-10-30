@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { triggerRedeploy, ensureRedeploy, listDeployments, canBuildCommits } from '@/lib/hosting/deploy'
+import { triggerRedeploy, ensureRedeploy, listDeployments, canBuildCommits, pushStartsBuild } from '@/lib/hosting/deploy'
 import { markAwaitingManualDeploy } from '@/lib/deploy/manual'
 import { deployMainByUpload } from '@/lib/deploy/upload-from-repo'
 import { getHostingCredentials, type HostingCredentials } from '@/lib/hosting/provider'
@@ -209,13 +209,18 @@ async function armAndRedeploy(
     //
     // ensureRedeploy rather than triggerRedeploy: if a build did start,
     // just late, this adopts it instead of stacking a second one on top.
+    //
+    // On a server nothing watches the repository, so there is no build to adopt:
+    // waiting 40 seconds for one would only delay the one we start ourselves.
     const captureOrTrigger = async () => {
-      const pushed = await pollForDeploymentId()
-      if (pushed) {
-        await persistDeploymentId(pushed)
-        return
+      if (pushStartsBuild(creds.provider)) {
+        const pushed = await pollForDeploymentId()
+        if (pushed) {
+          await persistDeploymentId(pushed)
+          return
+        }
+        console.warn('[redeploy] Push produced no deployment - triggering one explicitly')
       }
-      console.warn('[redeploy] Push produced no deployment - triggering one explicitly')
       // requireLatestCommit: if the project has lost its Git link since the check up
       // front, refuse rather than replay the previous files and call it shipped.
       const result = await ensureRedeploy(creds, { requireLatestCommit: true })

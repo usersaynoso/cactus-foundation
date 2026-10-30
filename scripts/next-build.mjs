@@ -53,7 +53,8 @@ const TOTAL_LIMIT = minutesFromEnv('CACTUS_BUILD_TOTAL_LIMIT_MINUTES', 25)
 
 const watchdogArmed = process.env.CACTUS_BUILD_WATCHDOG === '1'
   || (process.env.CACTUS_BUILD_WATCHDOG !== '0'
-    && (process.env.VERCEL === '1' || process.env.NETLIFY === 'true' || process.env.CI === '1' || process.env.CI === 'true'))
+    && (process.env.VERCEL === '1' || process.env.NETLIFY === 'true' || process.env.CACTUS_HOSTING_PROVIDER === 'server'
+      || process.env.CI === '1' || process.env.CI === 'true'))
 
 // Call the locally installed Next CLI directly rather than through npx, which re-runs
 // npm's package resolution for no benefit (mirrors build-migrate.mjs and prebuild.mjs).

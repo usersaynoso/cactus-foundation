@@ -82,9 +82,15 @@ type SubTabDef = { key: string; label: string; anchors: readonly string[] }
 // the Site page. A module whose settings tab says `parent: "general"` slots in after
 // these, and Danger zone always comes last.
 // The hosting platform this build is running on (inlined by next.config.ts), for
-// wording and for hiding the Vercel-only extras on a Netlify site.
-const ON_NETLIFY = process.env.CACTUS_HOSTING_PROVIDER === 'netlify'
-const HOST_LABEL = ON_NETLIFY ? 'Netlify' : 'Vercel'
+// wording and for hiding the Vercel-only extras (Edge Config, deployment webhooks,
+// Speed Insights) anywhere but Vercel. Empty means a local build, which has always
+// been worded as Vercel.
+const BUILT_FOR = process.env.CACTUS_HOSTING_PROVIDER
+const ON_VERCEL = BUILT_FOR !== 'netlify' && BUILT_FOR !== 'server'
+const HOST_LABEL = BUILT_FOR === 'netlify' ? 'Netlify' : BUILT_FOR === 'server' ? 'Server' : 'Vercel'
+// "your Vercel project", "your Netlify site", "your server's env file for this site".
+const HOST_PLACE =
+  BUILT_FOR === 'netlify' ? 'Netlify site' : BUILT_FOR === 'server' ? "server's settings for this site" : 'Vercel project'
 
 const GENERAL_PAGES: readonly SubTabDef[] = [
   { key: 'general', label: 'Site', anchors: ['general-updates', 'general-identity', 'general-homepage', 'general-status', 'general-seo', 'general-locale', 'general-admin-path', 'general-settings-sidebar'] },
@@ -111,7 +117,7 @@ const INTEGRATION_SUBS: readonly SubTabDef[] = [
   {
     key: 'hosting',
     label: `${HOST_LABEL} & database`,
-    anchors: ON_NETLIFY ? ['section-neon'] : ['section-edge-config', 'section-webhook', 'section-neon'],
+    anchors: ON_VERCEL ? ['section-edge-config', 'section-webhook', 'section-neon'] : ['section-neon'],
   },
   { key: 'protection', label: 'Protection & monitoring', anchors: ['section-turnstile', 'section-sentry'] },
 ]
@@ -276,7 +282,7 @@ const ALL_INTEGRATION_SECTIONS: EnvSection[] = [
   {
     id: 'sentry',
     label: 'Sentry',
-    description: `Error reporting; logs to ${HOST_LABEL} functions if unset`,
+    description: `Error reporting; logs to ${BUILT_FOR === 'server' ? 'the server journal' : `${HOST_LABEL} functions`} if unset`,
     keys: [
       { key: 'SENTRY_DSN', label: 'SENTRY_DSN', placeholder: 'https://…@sentry.io/…' },
     ],
@@ -291,9 +297,9 @@ const ALL_INTEGRATION_SECTIONS: EnvSection[] = [
   },
 ]
 
-const INTEGRATION_SECTIONS: EnvSection[] = ON_NETLIFY
-  ? ALL_INTEGRATION_SECTIONS.filter((section) => section.id !== 'edge-config' && section.id !== 'webhook')
-  : ALL_INTEGRATION_SECTIONS
+const INTEGRATION_SECTIONS: EnvSection[] = ON_VERCEL
+  ? ALL_INTEGRATION_SECTIONS
+  : ALL_INTEGRATION_SECTIONS.filter((section) => section.id !== 'edge-config' && section.id !== 'webhook')
 
 function StatusBadge({ set }: { set: boolean }) {
   return (
@@ -2289,7 +2295,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             <div className="card" style={{ borderColor: 'var(--color-destructive)' }}>
             <div className="card-title" style={{ color: 'var(--color-destructive)' }}>Reset Everything</div>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-              Permanently removes all environment variables from your {HOST_LABEL} {ON_NETLIFY ? 'site' : 'project'} and resets the site to factory settings.
+              Permanently removes all environment variables from your {HOST_PLACE} and resets the site to factory settings.
             </p>
             {!showResetConfirm && !resetDone && (
               <button className="btn btn-danger" onClick={() => setShowResetConfirm(true)}>
@@ -2300,7 +2306,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               <div style={{ border: '1px solid var(--color-destructive)', borderRadius: 'var(--radius)', padding: '1rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: 'var(--color-destructive)' }}>Are you sure?</h3>
                 <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-                  This will <strong>permanently delete all environment variables</strong> from your {HOST_LABEL} {ON_NETLIFY ? 'site' : 'project'} -
+                  This will <strong>permanently delete all environment variables</strong> from your {HOST_PLACE} -
                   email credentials, media provider keys, integrations, and everything else.
                   A redeployment will be triggered automatically. You will need to reconfigure these settings afterwards.
                 </p>
@@ -2486,8 +2492,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
               </label>
               <span className="field-hint">Needs Transformations switched on in Cloudflare.</span>
             </div>
-            {/* Speed Insights is a Vercel service; the layout never loads it on Netlify. */}
-            {!ON_NETLIFY && (
+            {/* Speed Insights is a Vercel service; the layout only ever loads it there. */}
+            {ON_VERCEL && (
             <div id="general-speed-insights" className="field admin-anchor">
               <label className="settings-check">
                 <input
@@ -3195,7 +3201,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                         <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.9rem' }}>Set up the Worker automatically <InfoTip>Paste a Cloudflare credential and Cactus creates and configures the Worker for you - no terminal, no dashboard hunting. Cloudflare&apos;s free plan is fine. {' '}Your {PROVIDER_LABELS[selected]} credentials are picked up from your saved settings, so there&apos;s nothing to re-enter here.</InfoTip></h4>
                         {localMode ? (
                           <div className="alert alert-info" style={{ fontSize: '0.8125rem', margin: 0 }}>
-                            Automatic deployment runs on your live site, not in local development (credentials are written to your {HOST_LABEL} {ON_NETLIFY ? 'site' : 'project'}). Deploy from your deployed admin and the credential fields appear here.
+                            Automatic deployment runs on your live site, not in local development (credentials are written to your {HOST_PLACE}). Deploy from your deployed admin and the credential fields appear here.
                           </div>
                         ) : (
                         <>

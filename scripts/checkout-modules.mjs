@@ -39,10 +39,13 @@ if (entries.length === 0) {
   process.exit(0)
 }
 
-// A hosted build - Vercel or Netlify. Both start every build from a fresh clone and
-// must honour a module pin exactly, so they get the strict behaviour below; a local
-// build gets the forgiving one. The name predates Netlify support.
-const isVercel = process.env.VERCEL === '1' || process.env.NETLIFY === 'true'
+// A hosted build - Vercel, Netlify, or a server run by cactus-host. All start every
+// build from a fresh copy of the commit and must honour a module pin exactly, so they
+// get the strict behaviour below; a local build gets the forgiving one. The name
+// predates Netlify support.
+const isVercel = process.env.VERCEL === '1'
+  || process.env.NETLIFY === 'true'
+  || process.env.CACTUS_HOSTING_PROVIDER === 'server'
 
 // Clone credential for private module repos, resolved lazily on the FIRST
 // failed clone and then shared by every module (see module-clone-auth.mjs for

@@ -53,4 +53,10 @@ describe('translateLogLine', () => {
   it('handles Generating static pages with no fraction', () => {
     expect(translateLogLine('Generating static pages...')).toBe("Knocking together all your pages, won't be a tick...")
   })
+
+  it('speaks for a build on the site\'s own server', () => {
+    expect(translateLogLine('──── Fetching the code ────')).toBe('Popping over to grab the latest code from GitHub...')
+    expect(translateLogLine('Live.')).toBe("Bish bash bosh. You're live.")
+    expect(translateLogLine('Failed: The build failed (exit 1). The log above says why.')).toBe('The build failed (exit 1). The log above says why.')
+  })
 })

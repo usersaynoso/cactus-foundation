@@ -1,4 +1,5 @@
 import type { SiteStatus } from '@prisma/client'
+import { isEdgeConfigWritable } from '@/lib/config/env'
 
 // Edge Config holds two values for ultra-fast reads on every request in proxy.ts:
 //   - adminPath: the secret admin URL prefix
@@ -48,7 +49,8 @@ export async function syncToEdgeConfig(updates: {
   adminPath?: string
   siteStatus?: SiteStatus
 }): Promise<boolean> {
-  if (!process.env.VERCEL_API_TOKEN || !process.env.VERCEL_EDGE_CONFIG_ID) {
+  // The same two keys as before, plus "not on a server" - see isEdgeConfigWritable.
+  if (!isEdgeConfigWritable()) {
     return false
   }
 
@@ -83,7 +85,8 @@ export async function syncToEdgeConfig(updates: {
 // read. Poll the same read path until it reflects the expected value (or give
 // up after maxWaitMs) so the caller can hold the response until it's safe to redirect.
 export async function waitForAdminPathPropagation(expected: string, maxWaitMs = 3000): Promise<void> {
-  if (!process.env.EDGE_CONFIG) return
+  // A server never writes Edge Config (see isEdgeConfigWritable), so there is nothing to wait for.
+  if (!process.env.EDGE_CONFIG || process.env.CACTUS_HOSTING_PROVIDER === 'server') return
   const start = Date.now()
   while (Date.now() - start < maxWaitMs) {
     const { adminPath } = await readFromEdgeConfig()

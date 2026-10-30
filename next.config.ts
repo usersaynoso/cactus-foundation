@@ -59,10 +59,14 @@ function turbopackBuildCache(): boolean {
 // NETLIFY=true but does not promise the same variable to its functions at runtime,
 // so the build-time answer is baked in here and read back by
 // lib/hosting/provider.ts. Vercel sets VERCEL=1 at runtime too, so it needs no help,
-// but recording it keeps the value meaningful on both. Empty means a local build.
+// but recording it keeps the value meaningful on both. A server (cactus-host) sets
+// CACTUS_HOSTING_PROVIDER=server in the site's env file itself; it has to be passed
+// through here, because the `env` block below inlines this answer into the bundle and
+// would otherwise overwrite it with an empty string. Empty means a local build.
 function hostingProvider(): string {
   if (process.env.VERCEL === '1') return 'vercel'
   if (process.env.NETLIFY === 'true') return 'netlify'
+  if (process.env.CACTUS_HOSTING_PROVIDER === 'server') return 'server'
   return ''
 }
 
