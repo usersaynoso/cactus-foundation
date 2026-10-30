@@ -13,7 +13,9 @@
 //   cactus-host env list <site>
 //   cactus-host env set <site> KEY=value [--secret]
 //   cactus-host env unset <site> KEY
-//   cactus-host domain add <site> <domain>
+//   cactus-host domain add <site> <domain> [--primary]
+//   cactus-host domain primary <site> <domain>   make it the primary; the others redirect to it
+//   cactus-host domain remove <site> <domain>
 //   cactus-host domain check <site> <domain>
 //   cactus-host db list
 //   cactus-host db create <name> [--backup remote:path]   prints the connection string, once
@@ -280,9 +282,16 @@ async function main(argv: string[]): Promise<void> {
     case 'domain': {
       const call = client(config, host, rest[0] ?? fail(USAGE))
       const name = rest[1] ?? fail('A domain is required')
+      if (sub === 'primary' || sub === 'remove') {
+        // Local, root-only commands: act on the host directly, as `site tls` does.
+        if (sub === 'primary') await host.setPrimaryDomain(rest[0] as string, name)
+        else await host.removeDomain(rest[0] as string, name)
+        console.log(sub === 'primary' ? `${name} is now the primary domain; the others redirect to it.` : `${name} is detached.`)
+        return
+      }
       const { domain } =
         sub === 'add'
-          ? await call<{ domain: DomainSummary }>('/domains', { method: 'POST', body: { name } })
+          ? await call<{ domain: DomainSummary }>('/domains', { method: 'POST', body: { name, primary: rest.includes('--primary') } })
           : await call<{ domain: DomainSummary }>(`/domains/${encodeURIComponent(name)}`)
       console.log(domain.serving ? `${domain.name} reaches this site.` : `${domain.name} does not reach this site yet (check its DNS and the Cloudflare proxy).`)
       return

@@ -70,6 +70,26 @@ describe('the admin token', () => {
   })
 })
 
+describe('the admin API: editing a site', () => {
+  it('adds, promotes and removes domains, and edits the name, only for the admin token', async () => {
+    const ctx = hostWithSite()
+    grantAdmin(ctx.host, 'shop')
+    const admin = adminTokenOf(ctx)
+    const call = await api(ctx)
+    expect((await call('/admin/sites/shop/domains', TEST_TOKEN, { method: 'POST', body: { name: 'www.example.com' } })).status).toBe(401)
+    const added = await call('/admin/sites/shop/domains', admin, { method: 'POST', body: { name: 'www.example.com' } })
+    expect(added.status).toBe(201)
+    expect(ctx.host.site('shop').domains).toEqual(['shop.example.com', 'www.example.com'])
+    expect((await call('/admin/sites/shop/domains/www.example.com', admin, { method: 'PUT', body: { primary: true } })).status).toBe(200)
+    expect(ctx.host.site('shop').domains[0]).toBe('www.example.com')
+    expect((await call('/admin/sites/shop/domains/www.example.com', admin, { method: 'DELETE' })).status).toBe(200)
+    expect((await call('/admin/sites/shop/domains/shop.example.com', admin, { method: 'DELETE' })).status).toBe(409)
+    const edited = await call('/admin/sites/shop', admin, { method: 'PATCH', body: { name: 'Renamed' } })
+    expect((await edited.json() as { site: { name: string } }).site.name).toBe('Renamed')
+    expect(readAudit(ctx.config, 20).map((e) => e.action)).toEqual(expect.arrayContaining(['site.domain.add', 'site.domain.primary', 'site.domain.remove', 'site.edit']))
+  })
+})
+
 describe('the admin API', () => {
   it('answers the admin token only, and the admin token opens no site route', async () => {
     const ctx = hostWithSite()

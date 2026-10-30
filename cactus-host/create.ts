@@ -103,3 +103,32 @@ export async function createSite(host: Host, input: CreateSiteRequest): Promise<
     cloudflare: { done: cloudflareDone, manual: cloudflare ? [] : manualCloudflareSteps(host.config, domains) },
   }
 }
+
+export type AddDomainResult = { domain: { name: string; serving: boolean }; site: AdminSiteSummary; cloudflare: { done: string[]; manual: string[] } }
+
+/**
+ * Attaches a domain to an existing site, with its Cloudflare record when this box has
+ * a token. One zone per site: the site's certificate is for one zone, so a domain in
+ * another is refused before anything is touched.
+ */
+export async function addSiteDomain(host: Host, siteId: string, name: string, primary: boolean): Promise<AddDomainResult> {
+  const site = host.site(siteId)
+  const domain = host.checkedDomain(siteId, name)
+  const done: string[] = []
+  const cloudflare = Cloudflare.fromConfig(host.config, host.system)
+  if (cloudflare) {
+    const zone = await cloudflare.findZone(domain)
+    if (site.domains[0]) {
+      const existing = await cloudflare.findZone(site.domains[0])
+      if (existing.id !== zone.id) throw new Error(`${domain} is in a different Cloudflare zone from ${site.domains[0]}; one zone per site`)
+    }
+    done.push(await cloudflare.ensureARecord(zone.id, domain))
+    done.push(await cloudflare.ensureStrict(zone.id, zone.name))
+  }
+  const status = await host.addDomain(siteId, domain, { primary })
+  return {
+    domain: status,
+    site: adminSummary(host, host.site(siteId)),
+    cloudflare: { done, manual: cloudflare ? [] : manualCloudflareSteps(host.config, [domain]).slice(0, 1) },
+  }
+}

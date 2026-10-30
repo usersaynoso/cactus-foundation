@@ -11,7 +11,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { isAdminToken } from './admin.ts'
 import { audited, readAudit } from './audit.ts'
-import { adminSummary, createSite } from './create.ts'
+import { addSiteDomain, adminSummary, createSite } from './create.ts'
 import { Databases } from './db.ts'
 import { Host, HostError } from './host.ts'
 import { PROTOCOL_VERSION, type EnvWrite, type ErrorBody } from './protocol.ts'
@@ -179,7 +179,7 @@ async function handleAdmin(
   const record = <T>(action: string, target: string | null, work: () => Promise<T>) =>
     audited(host.config, now, 'admin-api', action, target, () => asBadRequest(work))
   const databases = new Databases(host.config, host.system)
-  const route = `${method} /${rest.map((p, i) => (i === 1 && (rest[0] === 'sites' || rest[0] === 'databases') ? ':id' : i === 3 && rest[2] === 'builds' ? ':build' : p)).join('/')}`
+  const route = `${method} /${rest.map((p, i) => (i === 1 && (rest[0] === 'sites' || rest[0] === 'databases') ? ':id' : i === 3 && rest[2] === 'builds' ? ':build' : i === 3 && rest[2] === 'domains' ? ':domain' : p)).join('/')}`
   const id = rest[1] as string
 
   switch (route) {
@@ -200,6 +200,32 @@ async function handleAdmin(
     }
     case 'GET /sites/:id':
       return send(res, 200, { site: adminSummary(host, host.site(id)) })
+    case 'PATCH /sites/:id': {
+      const body = await readBody(req)
+      const changes = { name: optionalText(body.name, 'name'), branch: optionalText(body.branch, 'branch') }
+      await record('site.edit', id, async () => host.editSite(id, changes))
+      return send(res, 200, { site: adminSummary(host, host.site(id)) })
+    }
+    case 'POST /sites/:id/domains': {
+      const body = await readBody(req)
+      if (typeof body.name !== 'string') throw new HostError('name is required', 400)
+      const name = body.name
+      return send(res, 201, await record('site.domain.add', `${id} ${name}`, () => addSiteDomain(host, id, name, body.primary === true)))
+    }
+    case 'GET /sites/:id/domains/:domain':
+      return send(res, 200, { domain: await host.domainStatus(id, rest[3] as string) })
+    case 'PUT /sites/:id/domains/:domain': {
+      const body = await readBody(req)
+      if (body.primary !== true) throw new HostError('Only { "primary": true } can be set', 400)
+      const name = rest[3] as string
+      await record('site.domain.primary', `${id} ${name}`, () => host.setPrimaryDomain(id, name))
+      return send(res, 200, { site: adminSummary(host, host.site(id)) })
+    }
+    case 'DELETE /sites/:id/domains/:domain': {
+      const name = rest[3] as string
+      await record('site.domain.remove', `${id} ${name}`, () => host.removeDomain(id, name))
+      return send(res, 200, { site: adminSummary(host, host.site(id)) })
+    }
     case 'GET /sites/:id/builds': {
       const limit = Number(url.searchParams.get('limit') ?? 10)
       return send(res, 200, { builds: host.listBuilds(id, Number.isFinite(limit) ? limit : 10) })

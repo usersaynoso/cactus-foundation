@@ -223,6 +223,38 @@ describe('domains', () => {
   })
 })
 
+describe('primary and redirect domains', () => {
+  it('serves the primary and redirects the rest to it, proof path included', async () => {
+    const ctx = hostWithSite({ domains: [] })
+    await ctx.host.addDomain('shop', 'shop.example.com')
+    await ctx.host.addDomain('shop', 'www.shop.example.com')
+    const file = readFileSync(ctx.paths.caddyFile, 'utf8')
+    expect(file).toContain('www.shop.example.com {')
+    expect(file).toContain('redir https://shop.example.com{uri} permanent')
+    expect(file.match(/respond "proof-value" 200/g)).toHaveLength(2)
+    expect(file).not.toMatch(/shop\.example\.com, www/)
+  })
+
+  it('makes another domain primary, and promotes one when the primary is removed', async () => {
+    const ctx = hostWithSite({ domains: [] })
+    await ctx.host.addDomain('shop', 'a.example.com')
+    await ctx.host.addDomain('shop', 'b.example.com', { primary: true })
+    expect(ctx.host.site('shop').domains).toEqual(['b.example.com', 'a.example.com'])
+    await ctx.host.setPrimaryDomain('shop', 'a.example.com')
+    expect(ctx.host.site('shop').domains).toEqual(['a.example.com', 'b.example.com'])
+    await ctx.host.removeDomain('shop', 'a.example.com')
+    expect(ctx.host.site('shop').domains).toEqual(['b.example.com'])
+    await expect(ctx.host.removeDomain('shop', 'b.example.com')).rejects.toThrow(/only domain/)
+    await expect(ctx.host.removeDomain('shop', 'zzz.example.com')).rejects.toThrow(/not attached/)
+  })
+
+  it('edits a site name and branch', () => {
+    const ctx = hostWithSite()
+    expect(ctx.host.editSite('shop', { name: ' The Shop ', branch: 'release' })).toMatchObject({ name: 'The Shop', branch: 'release' })
+    expect(() => ctx.host.editSite('shop', { branch: '--bad' })).toThrow(/branch/)
+  })
+})
+
 describe('restart recovery', () => {
   it('marks a build that was running when the service stopped as failed', () => {
     const ctx = hostWithSite()

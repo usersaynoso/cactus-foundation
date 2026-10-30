@@ -573,18 +573,66 @@ export class Host {
 
   // ── Domains ────────────────────────────────────────────────────────────────
 
-  async addDomain(siteId: string, name: string): Promise<DomainSummary> {
+  /** Adds a domain. The first one a site has is its primary; later ones redirect to it unless `primary` is set. */
+  async addDomain(siteId: string, name: string, opts: { primary?: boolean } = {}): Promise<DomainSummary> {
     const site = this.site(siteId)
+    const domain = this.checkedDomain(siteId, name)
+    const domains = site.domains.includes(domain) ? site.domains : [...site.domains, domain]
+    await this.saveDomains(site, opts.primary ? [domain, ...domains.filter((d) => d !== domain)] : domains)
+    return this.domainStatus(siteId, domain)
+  }
+
+  /** Makes an attached domain the primary one: the others now redirect to it. */
+  async setPrimaryDomain(siteId: string, name: string): Promise<void> {
+    const site = this.site(siteId)
+    const domain = name.trim().toLowerCase()
+    if (!site.domains.includes(domain)) throw new HostError(`${domain} is not attached to ${siteId}`, 404)
+    await this.saveDomains(site, [domain, ...site.domains.filter((d) => d !== domain)])
+  }
+
+  /** Detaches a domain. A site always keeps one; removing the primary promotes the next. */
+  async removeDomain(siteId: string, name: string): Promise<void> {
+    const site = this.site(siteId)
+    const domain = name.trim().toLowerCase()
+    if (!site.domains.includes(domain)) throw new HostError(`${domain} is not attached to ${siteId}`, 404)
+    if (site.domains.length === 1) throw new HostError(`${domain} is the only domain ${siteId} has. Add another first, or the site would be unreachable`, 409)
+    await this.saveDomains(site, site.domains.filter((d) => d !== domain))
+  }
+
+  /** The domain, lower-cased, once it is known to be valid and not another site's. */
+  checkedDomain(siteId: string, name: string): string {
     const domain = name.trim().toLowerCase()
     if (!isValidHostname(domain)) throw new HostError(`"${name}" is not a valid domain name`, 400)
     const other = this.store.listSites().find((s) => s.id !== siteId && s.domains.includes(domain))
     if (other) throw new HostError(`${domain} already belongs to another site on this server`, 409)
-    if (!site.domains.includes(domain)) {
-      const updated = { ...site, domains: [...site.domains, domain] }
-      await this.writeRouting(updated)
-      this.store.saveSite(updated)
+    return domain
+  }
+
+  private async saveDomains(site: SiteRecord, domains: string[]): Promise<void> {
+    if (domains.join() === site.domains.join()) return
+    const updated = { ...site, domains }
+    await this.writeRouting(updated)
+    this.store.saveSite(updated)
+    // SITE_URL follows the primary domain; running builds keep the old one until the next build.
+    if (domains[0] !== site.domains[0]) {
+      const env = this.readSiteEnv(updated)
+      if (env.has('SITE_URL')) {
+        env.set('SITE_URL', `https://${domains[0]}`)
+        this.writeSiteEnv(updated, env)
+      }
     }
-    return this.domainStatus(siteId, domain)
+  }
+
+  /** Renames a site or moves it to another branch of its repo. */
+  editSite(siteId: string, changes: { name?: string; branch?: string }): SiteRecord {
+    const site = this.site(siteId)
+    const name = changes.name?.trim()
+    const branch = changes.branch?.trim()
+    if (name !== undefined && (name.length === 0 || name.length > 80)) throw new HostError('A display name is 1 to 80 characters', 400)
+    if (branch !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/.test(branch)) throw new HostError(`"${branch}" is not a valid branch name`, 400)
+    const updated = { ...site, ...(name ? { name } : {}), ...(branch ? { branch } : {}) }
+    this.store.saveSite(updated)
+    return updated
   }
 
   /** Whether https://<domain> reaches this site on this server, by asking for the site's proof value. */

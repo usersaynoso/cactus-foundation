@@ -37,16 +37,21 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
   const header = `# Written by cactus-host for site ${site.id}. Rewritten on every deploy, so edits here are lost.\n`
   if (site.domains.length === 0) return `${header}# No domains yet: add one with \`cactus-host domain add ${site.id} <name>\`.\n`
 
+  const [primary, ...others] = site.domains as [string, ...string[]]
   const livePort = site.liveSlot ? site.ports[site.liveSlot] : null
-  const lines = [
-    header.trimEnd(),
-    `${site.domains.join(', ')} {`,
-    ...tlsLine(site.tls ?? config.tls),
-    `\troot * ${paths.static}`,
+  const tls = tlsLine(site.tls ?? config.tls)
+  const proof = [
     `\thandle ${PROOF_PATH} {`,
     '\t\theader Cache-Control "no-store"',
     `\t\trespond "${site.proof}" 200`,
     '\t}',
+  ]
+  const lines = [
+    header.trimEnd(),
+    `${primary} {`,
+    ...tls,
+    `\troot * ${paths.static}`,
+    ...proof,
     '\t@static {',
     '\t\tpath /_next/static/*',
     '\t\tfile',
@@ -61,6 +66,20 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
       : ['\t\theader Cache-Control "no-store"', '\t\trespond "This site is still being built. Try again in a few minutes." 503']),
     '\t}',
     '}',
+    // Every other domain sends visitors to the primary one, keeping path and query.
+    // The proof path still answers, so a domain check can tell it reaches this site.
+    ...(others.length
+      ? [
+          '',
+          `${others.join(', ')} {`,
+          ...tls,
+          ...proof,
+          '\thandle {',
+          `\t\tredir https://${primary}{uri} permanent`,
+          '\t}',
+          '}',
+        ]
+      : []),
     '',
   ]
   return lines.join('\n')
