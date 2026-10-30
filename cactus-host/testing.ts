@@ -152,3 +152,40 @@ export function hostWithSite(opts: { env?: Record<string, string>; domains?: str
   )
   return { config, system, host, site, paths }
 }
+
+/** A fake Postgres cluster (psql answers from a list of databases and roles), plus a working ssh-keygen for `site add`. */
+export function withCluster(sys: FakeSystem, existing: { databases?: string[]; roles?: string[] } = {}) {
+  const databases = new Set(existing.databases ?? [])
+  const roles = new Set(existing.roles ?? [])
+  const base = sys.run.bind(sys)
+  sys.run = async (cmd: string, args: string[], opts?: RunOptions) => {
+    if (cmd === 'ssh-keygen') {
+      sys.calls.push({ cmd, args })
+      const file = args[args.indexOf('-f') + 1] as string
+      writeFileSync(file, 'private')
+      writeFileSync(`${file}.pub`, 'ssh-ed25519 AAAA cactus-host test')
+      return { code: 0, output: '' }
+    }
+    if (cmd !== 'runuser' && cmd !== 'sh' && cmd !== 'rclone') return base(cmd, args, opts)
+    sys.calls.push({ cmd, args })
+    const sql = args[args.indexOf('-c') + 1] ?? ''
+    if (args.includes('psql') && sql.startsWith('select (select count(*)')) {
+      const name = /datname = '([a-z0-9_]+)'/.exec(sql)?.[1] ?? ''
+      return { code: 0, output: `${databases.has(name) ? 1 : 0}\t${roles.has(name) ? 1 : 0}\n` }
+    }
+    if (args.includes('psql') && sql.startsWith('select datname')) {
+      return { code: 0, output: [...databases].map((d) => `${d}\t${d}\t2097152`).join('\n') + '\n' }
+    }
+    if (args.includes('psql') && sql.startsWith('CREATE ROLE')) {
+      roles.add(/CREATE ROLE ([a-z0-9_]+)/.exec(sql)?.[1] ?? '')
+      return { code: 0, output: '' }
+    }
+    if (args.includes('createdb')) {
+      databases.add(args[args.length - 1] as string)
+      return { code: 0, output: '' }
+    }
+    return { code: 0, output: '' }
+  }
+  return { databases, roles }
+}
+

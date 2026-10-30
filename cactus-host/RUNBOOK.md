@@ -114,8 +114,11 @@ short-lived instances each opening connections. Here each site is one long-lived
 with its own small pool (two, for a few seconds, during an update), so there is nothing
 to protect it from - and `pgbouncer=true` makes Prisma spend about four round trips on
 every query. If something else on the box genuinely needs a pooler, give it one of its
-own; keep the sites pointed straight at Postgres. `DIRECT_URL` can be left unset, or set
-to the same string.
+own; keep the sites pointed straight at Postgres. Set `DIRECT_URL` to the same string:
+the schema asks for it, and migrations fail without it.
+
+`cactus-host db create shop` does all of this in one go (section 12), without the
+password ever appearing on a command line.
 
 **Google Chrome**, for PDFs (invoices, quotes and the like):
 
@@ -354,12 +357,64 @@ Anything else you run here (a message broker, a worker) is best given its own sy
 unit with a `MemoryMax`, so it cannot take the sites down with it, and its own Linux
 user. Nothing about Cactus needs to know.
 
+## 12. Making sites and databases without psql
+
+```bash
+cactus-host db create blog --backup b2-blog:Blog/Database-Backups   # prints the connection string once
+cactus-host db list                                                 # name, owner, size, where backups go
+cactus-host db backup blog                                          # one dump now, copied to its destination
+cactus-host db destination blog b2-blog:Blog/Database-Backups       # or --none
+```
+
+`cactus-host site create` is `db create`, then `site add`, with the database already in
+the site's settings, so the first build has it and the setup wizard has nothing to paste:
+
+```bash
+cactus-host site create blog --repo you/blog-site --domain blog.example.com --backup b2-blog:Blog/Database-Backups
+```
+
+Given a Cloudflare API token, it does section 6 as well: the proxied DNS record, Full
+(strict), and the zone's origin certificate (key made on the box, saved in
+`/etc/caddy/tls/<zone>.pem` and `.key`, reused for the next site in that zone). Use a
+**scoped** token (Zone: DNS Edit, Zone: SSL and Certificates Edit), never the account's
+global key, in a root-only file named in `config.json`:
+
+```json
+"cloudflare": { "apiTokenFile": "/etc/cactus-host/cloudflare-token" }
+```
+
+Without one it prints those steps for you to do by hand. Either way, add the deploy key
+it prints, then `cactus-host build blog`.
+
+`ops/backup-postgres.sh` copies a database with its own destination there, and every
+other database to the script's argument as before.
+
+### The admin API
+
+A site that exists to run the server (and only such a site: never a public shop) can be
+given the server's admin token:
+
+```bash
+cactus-host admin grant ops      # a new token, into ops's settings as CACTUS_HOST_ADMIN_TOKEN
+cactus-host build ops            # settings reach a site with its next build
+cactus-host admin status
+cactus-host admin revoke         # the admin API then refuses everybody
+cactus-host admin audit 50       # the last 50 server-wide actions
+```
+
+The token is never printed, and granting again replaces it. It opens `/v1/admin/...`
+(every site and its builds, every database, making either) and nothing else; a site's
+own token still only ever sees that site. Every change made through it, or through
+`db`, `site create` or `admin` on the command line, is one line in
+`/var/lib/cactus-host/admin-audit.log`, with no secret in it.
+
 ## Where things live
 
 | What | Where |
 | --- | --- |
 | cactus-host | `/opt/cactus-host`, config in `/etc/cactus-host/config.json` |
 | Its records, build logs, code mirrors | `/var/lib/cactus-host` (root only) |
+| Database backup destinations, admin token hash, audit log | `/var/lib/cactus-host/databases.json`, `admin.json`, `admin-audit.log` |
 | Deploy keys | `/etc/cactus-host/keys` (root only) |
 | A site's files | `/srv/cactus/<site>/` |
 | A site's settings | `/srv/cactus/<site>/env` (that site's user only) |

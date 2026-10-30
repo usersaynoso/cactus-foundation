@@ -75,6 +75,62 @@ export type DomainSummary = {
 
 export type ErrorBody = { error: string }
 
+// ── The admin API ─────────────────────────────────────────────────────────────
+//
+// Under /v1/admin/, with the server's one admin token (CACTUS_HOST_ADMIN_TOKEN in
+// the env of whichever site was granted it), never a site's own token. It sees every
+// site and every database on the box, so it is held by a site that exists only to run
+// the server, never by a public-facing one.
+
+export type DatabaseSummary = {
+  name: string
+  owner: string
+  sizeBytes: number
+  /** rclone remote:path its backups are copied to, or null for local copies only. */
+  backup: string | null
+}
+
+export type AdminSiteSummary = SiteSummary & {
+  ports: { a: number; b: number }
+  liveSlot: 'a' | 'b' | null
+  /** The newest build, whatever its state. */
+  latestBuild: BuildSummary | null
+}
+
+export type CreateDatabaseRequest = { name: string; backup?: string | null }
+
+/** The connection string appears here once; cactus-host keeps no copy of the password. */
+export type CreateDatabaseResponse = { database: DatabaseSummary; connectionString: string }
+
+export type BackupDatabaseResponse = { file: string; copiedTo: string | null }
+
+export type CreateSiteRequest = {
+  id: string
+  repo: string
+  domains: string[]
+  name?: string
+  branch?: string
+  backup?: string | null
+}
+
+export type CreateSiteResponse = {
+  site: AdminSiteSummary
+  database: string
+  /** Add on GitHub as a read-only deploy key before the first build. */
+  deployKeyPublic: string
+  /** What was done in Cloudflare, or the steps still to do by hand. */
+  cloudflare: { done: string[]; manual: string[] }
+}
+
+export type AuditEntrySummary = {
+  at: number
+  actor: 'cli' | 'admin-api'
+  action: string
+  target: string | null
+  ok: boolean
+  error: string | null
+}
+
 export function isBuildState(value: unknown): value is BuildState {
   return (
     value === 'queued' ||
@@ -91,6 +147,7 @@ export const RESERVED_ENV_KEYS: readonly string[] = [
   'CACTUS_HOST_TOKEN',
   'CACTUS_HOST_SITE_ID',
   'CACTUS_HOST_URL',
+  'CACTUS_HOST_ADMIN_TOKEN',
   'PORT',
   'NODE_ENV',
 ]

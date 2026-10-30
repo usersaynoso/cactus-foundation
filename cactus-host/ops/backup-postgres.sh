@@ -6,6 +6,10 @@
 # B2's S3-compatible endpoint has refused writes with "AccessDenied: not entitled"
 # even with the right key capabilities; the native backend does not.
 #
+# A database with its own destination (`cactus-host db destination <name> remote:path`,
+# or `--backup` when it was made) is copied there instead, so two businesses on one
+# box never share a bucket.
+#
 # Usage (as root, from cactus-postgres-backup.service):
 #   backup-postgres.sh <bucket/path>
 set -eu
@@ -23,5 +27,10 @@ for db in $(sudo -u postgres psql -At -c "select datname from pg_database where 
 done
 
 find "$DIR" -name '*.dump' -mtime +7 -delete
-rclone copy --transfers 2 "$DIR" "b2:$DEST"
-echo "copied to b2:$DEST"
+
+for db in $(sudo -u postgres psql -At -c "select datname from pg_database where not datistemplate and datname <> 'postgres'"); do
+  own=$(cactus-host db destination "$db" 2>/dev/null || true)
+  target="${own:-b2:$DEST}"
+  rclone copy --transfers 2 --include "$db-*.dump" "$DIR" "$target"
+  echo "copied $db to $target"
+done

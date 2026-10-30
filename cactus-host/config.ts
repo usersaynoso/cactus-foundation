@@ -43,6 +43,18 @@ export type HostConfig = {
   /** How long a stopped release is given to finish in-flight requests and after() work. */
   stopTimeoutSeconds: number
   healthTimeoutSeconds: number
+  /** The Postgres cluster on this box: the OS user that may run psql as the superuser, and where sites reach it. */
+  postgres: { osUser: string; host: string; port: number }
+  /** Where `cactus-host db backup` writes its dumps. Shared with ops/backup-postgres.sh. */
+  backupDir: string
+  /** Cloudflare origin certificates, readable by Caddy: <zone>.pem and <zone>.key. */
+  tlsDir: string
+  /**
+   * A Cloudflare API token, in a root-only file, for `site create`'s DNS and certificate
+   * steps. A scoped token (Zone: DNS Edit, Zone: SSL and Certificates Edit) - never an
+   * account's global key. Without it, `site create` prints those steps instead.
+   */
+  cloudflare: { apiTokenFile: string } | null
 }
 
 export const DEFAULT_CONFIG_PATH = '/etc/cactus-host/config.json'
@@ -66,6 +78,10 @@ export const DEFAULT_CONFIG: HostConfig = {
   site: { memoryMax: '3G', nodeMaxOldSpaceMb: 2048 },
   stopTimeoutSeconds: 90,
   healthTimeoutSeconds: 120,
+  postgres: { osUser: 'postgres', host: 'localhost', port: 5432 },
+  backupDir: '/var/backups/cactus-db',
+  tlsDir: '/etc/caddy/tls',
+  cloudflare: null,
 }
 
 type Json = Record<string, unknown>
@@ -88,12 +104,15 @@ const isInt = (v: unknown) => Number.isInteger(v)
 const isStringList = (v: unknown) => Array.isArray(v) && v.length > 0 && v.every(isString)
 const isNullableString = (v: unknown) => v === null || isString(v)
 const isTls = (v: unknown) => v === null || (isObject(v) && isString(v.cert) && isString(v.key))
+const isCloudflare = (v: unknown) => v === null || (isObject(v) && isString(v.apiTokenFile))
 
 export function parseConfig(raw: unknown): HostConfig {
   if (!isObject(raw)) throw new Error('cactus-host config: the file must hold a JSON object')
   const d = DEFAULT_CONFIG
   const build = isObject(raw.build) ? raw.build : {}
   const site = isObject(raw.site) ? raw.site : {}
+  const postgres = isObject(raw.postgres) ? raw.postgres : {}
+  if ('postgres' in raw && !isObject(raw.postgres)) throw new Error('cactus-host config: "postgres" must be an object')
   if ('build' in raw && !isObject(raw.build)) throw new Error('cactus-host config: "build" must be an object')
   if ('site' in raw && !isObject(raw.site)) throw new Error('cactus-host config: "site" must be an object')
   return {
@@ -123,6 +142,14 @@ export function parseConfig(raw: unknown): HostConfig {
     },
     stopTimeoutSeconds: pick(raw, 'stopTimeoutSeconds', d.stopTimeoutSeconds, isPositiveInt, ''),
     healthTimeoutSeconds: pick(raw, 'healthTimeoutSeconds', d.healthTimeoutSeconds, isPositiveInt, ''),
+    postgres: {
+      osUser: pick(postgres, 'osUser', d.postgres.osUser, isString, 'postgres.'),
+      host: pick(postgres, 'host', d.postgres.host, isString, 'postgres.'),
+      port: pick(postgres, 'port', d.postgres.port, isPort, 'postgres.'),
+    },
+    backupDir: pick(raw, 'backupDir', d.backupDir, isString, ''),
+    tlsDir: pick(raw, 'tlsDir', d.tlsDir, isString, ''),
+    cloudflare: pick(raw, 'cloudflare', d.cloudflare, isCloudflare, ''),
   }
 }
 

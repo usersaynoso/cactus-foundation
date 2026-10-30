@@ -106,6 +106,7 @@ What is different on Netlify:
 
 - **Scheduled jobs** run from a Netlify scheduled function (`netlify/functions/cactus-cron.mts`) instead of `vercel.json`. Its schedule lives in `netlify.toml`, which Cactus rewrites when a job needs a faster tick. Netlify only runs scheduled functions on the published production deploy.
 - **Build progress** in the wizard and the admin shows the state and the outcome, not live log lines - Netlify has no API for those. The full log is in the Netlify dashboard under Deploys.
+- **Databases and the server's admin API**: `cactus-host db create|list|backup|destination` manages the box's databases without psql, each with its own backup destination. `cactus-host admin grant <site>` gives one site - one that exists only to run the server - an admin token for cactus-host's `/v1/admin/` API, which sees every site and database; every change through it is logged. A site's own token never sees beyond that site. Details in RUNBOOK section 12.
 - **Vercel-only extras are hidden**: Edge Config, Vercel deployment webhooks (status is polled instead, as on Vercel Hobby) and Speed Insights.
 - **Function limits are Netlify's**, not Vercel's. Netlify's synchronous functions have a shorter time limit than Vercel's and AWS Lambda caps a function's environment variables at 4 KB in total - a site with many integrations configured can run into that. Neither has been tried on a real Netlify site yet.
 - **Custom domains**: the wizard can attach one to the site. A domain is accepted once Netlify has issued its certificate, which it only does after DNS points at Netlify (an `A` record to `75.2.60.5` for the apex, or a `CNAME` to `<name>.netlify.app` for a subdomain).
@@ -117,7 +118,7 @@ Cactus can also run on a Linux server you control, alongside Vercel and Netlify 
 The full walk-through, from a fresh Ubuntu box to a site behind Cloudflare with nightly backups, is `cactus-host/RUNBOOK.md`. In short:
 
 1. Set up the box (Node 24, Caddy, Postgres 18, Google Chrome for PDFs, cactus-host itself, a firewall that lets in Cloudflare only).
-2. `cactus-host site add shop --repo you/your-site --domain example.com`, add the read-only deploy key it prints to the GitHub repo, then `cactus-host build shop`.
+2. `cactus-host site create shop --repo you/your-site --domain example.com`, add the read-only deploy key it prints to the GitHub repo, then `cactus-host build shop`. `site create` makes the site's own Postgres role and database first and puts `DATABASE_URL` and `DIRECT_URL` in its settings, so the first build has a database. Given a scoped Cloudflare API token on the box, it also adds the DNS record, sets Full (strict) and makes the origin certificate. (`site add` still works for a site whose database you made yourself; set both `DATABASE_URL` and `DIRECT_URL` before its first build.)
 3. Point the domain at the server in Cloudflare (proxied, SSL mode Full (strict)) and open `https://example.com/setup`. The wizard knows it is on your own server and has nothing to paste in step 1 beyond choosing the domain.
 
 What is different on your own server:
