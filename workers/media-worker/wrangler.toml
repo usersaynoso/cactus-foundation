@@ -1,3 +1,5 @@
+# Manual deploys: give each site its own name (e.g. cactus-media-example-com). A Worker
+# holds one site's storage keys and origin, so two sites must never share one.
 name = "cactus-media-worker"
 main = "index.ts"
 compatibility_date = "2024-01-01"

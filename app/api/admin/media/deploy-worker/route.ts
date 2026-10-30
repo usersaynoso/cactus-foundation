@@ -181,6 +181,12 @@ export async function POST(req: NextRequest) {
     return errorResponse(parts.join(' '), 400)
   }
 
+  // The hostname names this site's own Worker, so without one there is no Worker
+  // that is safely this site's to deploy to.
+  if (!siteHostname) {
+    return errorResponse('SITE_URL is not a valid web address, so this site\'s Worker cannot be named. Fix SITE_URL and try again.', 400)
+  }
+
   let url: string
   let resolvedAccountId: string
   let customDomain: string | null = null

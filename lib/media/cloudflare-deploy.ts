@@ -5,11 +5,16 @@
 // The Worker source is transpiled to a plain ES module at build time and embedded
 // as MEDIA_WORKER_SOURCE (see scripts/generate-media-worker.mjs).
 
+import { createHash } from 'node:crypto'
 import { MEDIA_WORKER_SOURCE } from './worker-source.generated'
 import { CLOUDFLARE_WORKERS_EDIT_PERMISSION } from './providers'
 
 const CF_API = 'https://api.cloudflare.com/client/v4'
-const WORKER_SCRIPT_NAME = 'cactus-media-worker'
+const WORKER_SCRIPT_PREFIX = 'cactus-media-'
+// The single name every install used before Workers were per site.
+const LEGACY_WORKER_SCRIPT_NAME = 'cactus-media-worker'
+// Cloudflare caps a script name at 63 characters.
+const WORKER_SCRIPT_NAME_MAX = 63
 const WORKER_MODULE_FILENAME = 'worker.mjs'
 // Matches workers/media-worker/wrangler.toml so runtime behaviour is identical
 // whether the Worker is deployed via this flow or via wrangler.
@@ -26,6 +31,59 @@ type CfResponse<T> = {
   success: boolean
   errors?: Array<{ code: number; message: string }>
   result?: T
+}
+
+// One Worker per site, named after the site's hostname. The Worker carries the
+// site's own storage keys, its one allowed origin and signing keys derived from
+// its own SESSION_SECRET, so it can never be shared: every deploy replaces all
+// of those in one PUT. A single fixed name meant two sites on one Cloudflare
+// account overwrote each other's Worker, and the second deploy took every image
+// on the first site down (2026-10-30). Installs deployed before this keep
+// serving from the old `cactus-media-worker` until their next deploy moves them
+// onto their own name and repoints media.<domain> at it.
+export function mediaWorkerScriptName(siteHostname: string): string {
+  const host = siteHostname.trim().toLowerCase().replace(/\.$/, '')
+  const slug = host.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  if (!slug) throw new Error('A site hostname is needed to name its media Worker.')
+  const name = `${WORKER_SCRIPT_PREFIX}${slug}`
+  if (name.length <= WORKER_SCRIPT_NAME_MAX) return name
+  // Too long: keep a readable head and add a hash of the whole host, so two long
+  // hostnames that share a prefix still get different Workers.
+  const hash = createHash('sha256').update(host).digest('hex').slice(0, 8)
+  const head = name.slice(0, WORKER_SCRIPT_NAME_MAX - hash.length - 1).replace(/-+$/, '')
+  return `${head}-${hash}`
+}
+
+function zoneOwnsHost(zoneName: string, host: string): boolean {
+  const zone = zoneName.toLowerCase()
+  return host === zone || host.endsWith(`.${zone}`)
+}
+
+// Refuse to overwrite a Worker that serves a domain this site does not own. The
+// per-site name makes this near impossible, but an upload replaces every secret
+// at once, so a collision would be another site's outage - worth one read.
+export async function assertWorkerNotShared(
+  auth: CloudflareAuth,
+  accountId: string,
+  scriptName: string,
+  siteHostname: string
+): Promise<void> {
+  const host = siteHostname.trim().toLowerCase().replace(/\.$/, '')
+  const res = await fetch(
+    `${CF_API}/accounts/${encodeURIComponent(accountId)}/workers/domains?service=${encodeURIComponent(scriptName)}`,
+    { headers: authHeaders(auth), signal: AbortSignal.timeout(15_000) }
+  )
+  const body = (await res.json()) as CfResponse<Array<{ hostname: string; service: string; zone_name: string }>>
+  if (!res.ok || !body.success) throw cfError('Worker domain lookup', body, res.status)
+
+  const foreign = (body.result ?? [])
+    .filter((d) => d.service === scriptName && !zoneOwnsHost(d.zone_name, host))
+    .map((d) => d.hostname)
+  if (foreign.length > 0) {
+    throw new Error(
+      `The Cloudflare Worker ${scriptName} also serves ${foreign.join(', ')}, which isn't this site's domain. Deploying would replace that site's settings and break its images, so nothing was changed.`
+    )
+  }
 }
 
 function authHeaders(auth: CloudflareAuth): Record<string, string> {
@@ -73,6 +131,7 @@ export async function resolveAccountId(
 export async function uploadWorker(
   auth: CloudflareAuth,
   accountId: string,
+  scriptName: string,
   secrets: WorkerSecret[]
 ): Promise<void> {
   const metadata = {
@@ -90,7 +149,7 @@ export async function uploadWorker(
   )
 
   const res = await fetch(
-    `${CF_API}/accounts/${encodeURIComponent(accountId)}/workers/scripts/${WORKER_SCRIPT_NAME}`,
+    `${CF_API}/accounts/${encodeURIComponent(accountId)}/workers/scripts/${encodeURIComponent(scriptName)}`,
     { method: 'PUT', headers: authHeaders(auth), body: form, signal: AbortSignal.timeout(30_000) }
   )
   const body = (await res.json()) as CfResponse<unknown>
@@ -113,7 +172,8 @@ export async function uploadWorker(
 // script, and return the public URL the app should serve media from.
 export async function enableWorkerUrl(
   auth: CloudflareAuth,
-  accountId: string
+  accountId: string,
+  scriptName: string
 ): Promise<string> {
   const subRes = await fetch(
     `${CF_API}/accounts/${encodeURIComponent(accountId)}/workers/subdomain`,
@@ -130,7 +190,7 @@ export async function enableWorkerUrl(
   }
 
   const enableRes = await fetch(
-    `${CF_API}/accounts/${encodeURIComponent(accountId)}/workers/scripts/${WORKER_SCRIPT_NAME}/subdomain`,
+    `${CF_API}/accounts/${encodeURIComponent(accountId)}/workers/scripts/${encodeURIComponent(scriptName)}/subdomain`,
     {
       method: 'POST',
       headers: { ...authHeaders(auth), 'Content-Type': 'application/json' },
@@ -143,7 +203,7 @@ export async function enableWorkerUrl(
     throw cfError('enable Worker URL', enableBody, enableRes.status)
   }
 
-  return `https://${WORKER_SCRIPT_NAME}.${subdomain}.workers.dev`
+  return `https://${scriptName}.${subdomain}.workers.dev`
 }
 
 // Attach `media.<zone>` to the Worker as a Custom Domain so images load from a
@@ -158,6 +218,7 @@ export async function enableWorkerUrl(
 export async function attachMediaCustomDomain(
   auth: CloudflareAuth,
   accountId: string,
+  scriptName: string,
   siteHostname: string
 ): Promise<{ url: string; reason?: undefined } | { url: null; reason: string }> {
   const host = siteHostname.trim().toLowerCase().replace(/\.$/, '')
@@ -179,16 +240,35 @@ export async function attachMediaCustomDomain(
   }
 
   const zone = (zonesBody.result ?? [])
-    .filter((z) => {
-      const name = z.name.toLowerCase()
-      return host === name || host.endsWith(`.${name}`)
-    })
+    .filter((z) => zoneOwnsHost(z.name, host))
     .sort((a, b) => b.name.length - a.name.length)[0]
   if (!zone) {
     return { url: null, reason: `no domain in this Cloudflare account matches ${host}, so media stays on the workers.dev address` }
   }
 
   const hostname = `media.${zone.name.toLowerCase()}`
+
+  // media.<zone> is one per zone, and two sites can share a zone (an apex site
+  // and a subdomain one). Never take the hostname off another site's Worker. The
+  // one hand-over allowed is from the old shared name, and only when this site
+  // is the one already serving from that hostname.
+  const currentRes = await fetch(
+    `${CF_API}/accounts/${encodeURIComponent(accountId)}/workers/domains?hostname=${encodeURIComponent(hostname)}`,
+    { headers: authHeaders(auth), signal: AbortSignal.timeout(15_000) }
+  )
+  const currentBody = (await currentRes.json()) as CfResponse<Array<{ hostname: string; service: string }>>
+  if (!currentRes.ok || !currentBody.success) {
+    return { url: null, reason: `couldn't check who is using ${hostname}: ${currentBody.errors?.map((e) => e.message).join('; ') || `HTTP ${currentRes.status}`}` }
+  }
+  const holder = (currentBody.result ?? []).find((d) => d.hostname.toLowerCase() === hostname)?.service
+  if (holder && holder !== scriptName) {
+    const ourUrl = process.env.CLOUDFLARE_WORKER_URL?.trim().replace(/\/$/, '').toLowerCase()
+    const legacyHandOver = holder === LEGACY_WORKER_SCRIPT_NAME && ourUrl === `https://${hostname}`
+    if (!legacyHandOver) {
+      return { url: null, reason: `${hostname} already serves another Worker (${holder}), probably another site on the same domain, so this site's media stays on the workers.dev address` }
+    }
+  }
+
   const attachRes = await fetch(
     `${CF_API}/accounts/${encodeURIComponent(accountId)}/workers/domains`,
     {
@@ -197,7 +277,7 @@ export async function attachMediaCustomDomain(
       body: JSON.stringify({
         environment: 'production',
         hostname,
-        service: WORKER_SCRIPT_NAME,
+        service: scriptName,
         zone_id: zone.id,
       }),
       signal: AbortSignal.timeout(30_000),
@@ -221,15 +301,16 @@ function isWorkersDevUrl(url: string): boolean {
   }
 }
 
-// Full deploy: resolve account, upload with secrets, enable the workers.dev URL,
-// then try to attach a media.<your-domain> Custom Domain. The returned `url` is
+// Full deploy: resolve account, check the site's own Worker isn't serving
+// someone else's domain, upload with secrets, enable the workers.dev URL, then
+// try to attach a media.<your-domain> Custom Domain. The returned `url` is
 // the best public base to serve media from: the Custom Domain when it attached,
 // otherwise the workers.dev URL. `note` explains any fallback for the admin.
 export async function deployMediaWorker(params: {
   auth: CloudflareAuth
   accountId?: string
   secrets: WorkerSecret[]
-  siteHostname?: string
+  siteHostname: string
 }): Promise<{
   url: string
   workersDevUrl: string
@@ -238,23 +319,23 @@ export async function deployMediaWorker(params: {
   note?: string
 }> {
   const accountId = await resolveAccountId(params.auth, params.accountId)
-  await uploadWorker(params.auth, accountId, params.secrets)
-  const workersDevUrl = await enableWorkerUrl(params.auth, accountId)
+  const scriptName = mediaWorkerScriptName(params.siteHostname)
+  await assertWorkerNotShared(params.auth, accountId, scriptName, params.siteHostname)
+  await uploadWorker(params.auth, accountId, scriptName, params.secrets)
+  const workersDevUrl = await enableWorkerUrl(params.auth, accountId, scriptName)
 
   let customDomain: string | null = null
   let note: string | undefined
-  if (params.siteHostname) {
-    const attached = await attachMediaCustomDomain(params.auth, accountId, params.siteHostname)
-    if (attached.url) {
-      customDomain = attached.url
-    } else {
-      note = attached.reason
-      // Don't regress a custom domain attached on an earlier deploy if this attach
-      // hit a transient error: keep serving from the existing media.<domain> rather
-      // than dropping the whole library back to the workers.dev URL.
-      const existing = process.env.CLOUDFLARE_WORKER_URL?.trim().replace(/\/$/, '')
-      if (existing && !isWorkersDevUrl(existing)) customDomain = existing
-    }
+  const attached = await attachMediaCustomDomain(params.auth, accountId, scriptName, params.siteHostname)
+  if (attached.url) {
+    customDomain = attached.url
+  } else {
+    note = attached.reason
+    // Don't regress a custom domain attached on an earlier deploy if this attach
+    // hit a transient error: keep serving from the existing media.<domain> rather
+    // than dropping the whole library back to the workers.dev URL.
+    const existing = process.env.CLOUDFLARE_WORKER_URL?.trim().replace(/\/$/, '')
+    if (existing && !isWorkersDevUrl(existing)) customDomain = existing
   }
 
   return {
