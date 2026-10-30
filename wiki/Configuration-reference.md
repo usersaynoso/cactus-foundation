@@ -343,7 +343,7 @@ This table lists every environment variable Cactus recognises. Variables marked 
 |----------|----------|----------------|
 | `DATABASE_URL` | Yes | Connection string for your PostgreSQL database. Provisioned automatically if `NEON_API_KEY` is set. |
 | `SESSION_SECRET` | Yes | A secret key (at least 32 random characters) used to secure sign-in sessions. |
-| `SITE_URL` | Yes | Your site's full public address (e.g. `https://example.com`). Tied to passkey sign-in and cannot change after the first passkey is registered. |
+| `SITE_URL` | Yes | Your site's full public address (e.g. `https://example.com`). Tied to passkey sign-in and cannot change after the first passkey is registered. On your own server it is also what the site trusts as its address: the host Caddy passes is accepted only if it is this address or its `www` / bare twin, so keep it set to the real address. |
 | `VERCEL_API_TOKEN` | Yes, on Vercel | Vercel API token. Create one at Vercel → Account Settings → Tokens. |
 | `VERCEL_PROJECT_ID` | Yes, on Vercel | Your Vercel project ID. Find it at Vercel → your project → Settings → General. |
 | `NETLIFY_API_TOKEN` | Yes, on Netlify | Netlify personal access token. Create one at Netlify → User settings → Applications → Personal access tokens. Entered in the setup wizard. |
