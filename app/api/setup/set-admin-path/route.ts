@@ -5,9 +5,9 @@ import { isBlocklisted } from '@/lib/config/site'
 
 const Body = z.object({
   adminPath: z.string()
-    .min(3)
+    .min(1)
     .max(64)
-    .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, 'Must be lowercase, start and end with alphanumeric, hyphens allowed'),
+    .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, 'Must be lowercase, start and end with alphanumeric, hyphens allowed'),
 })
 
 export async function POST(request: NextRequest) {
