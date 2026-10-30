@@ -13,11 +13,13 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { isAdminToken } from './admin.ts'
 import { audited, readAudit } from './audit.ts'
 import { issueCertificate, siteCertificates } from './certificates.ts'
+import { lastCronTick, readCronLog } from './cron-log.ts'
 import { addSiteDomain, adminSummary, createSite, siteDatabase } from './create.ts'
 import { Databases } from './db.ts'
 import { Host, HostError } from './host.ts'
-import { PROTOCOL_VERSION, type AdminBuildSummary, type EditSiteResponse, type EnvWrite, type ErrorBody } from './protocol.ts'
+import { PROTOCOL_VERSION, type AdminBuildSummary, type AdminCronSite, type EditSiteResponse, type EnvWrite, type ErrorBody } from './protocol.ts'
 import { renameSite } from './rename.ts'
+import { siteCronJobs } from './scheduler.ts'
 import { toSummary, type SiteRecord } from './store.ts'
 import { bearerToken, tokenMatches } from './tokens.ts'
 
@@ -239,6 +241,9 @@ async function handleAdmin(
       )
       return send(res, 200, { build, site: adminSummary(host, host.site(id)) })
     }
+    // Read only, so not audited: nothing changes on the site or the server.
+    case 'GET /sites/:id/update':
+      return send(res, 200, { check: await asBadRequest(() => host.checkUpdate(id)) })
     case 'POST /sites/:id/update': {
       const update = await record('site.update', id, () => host.requestUpdate(id))
       return send(res, 200, { update, site: adminSummary(host, host.site(id)) })
@@ -318,6 +323,36 @@ async function handleAdmin(
       const backup = optionalText(body.backup, 'backup') ?? null
       await record('db.destination', id, async () => databases.setDestination(id, backup))
       return send(res, 200, { ok: true })
+    }
+
+    // Every site's scheduled jobs, each asked of the site itself, side by side. A site
+    // that cannot be asked still appears, with the reason, so a quiet failure shows.
+    case 'GET /cron': {
+      const sites = await Promise.all(host.store.listSites().map(async (site): Promise<AdminCronSite> => {
+        const lastTick = lastCronTick(host.config, site.id)
+        try {
+          const { tick, jobs } = await siteCronJobs(host, site)
+          return { site: site.id, name: site.name, tick, jobs, error: null, lastTick }
+        } catch (err) {
+          return { site: site.id, name: site.name, tick: null, jobs: null, error: err instanceof Error ? err.message : String(err), lastTick }
+        }
+      }))
+      return send(res, 200, { sites })
+    }
+    case 'GET /cron/log': {
+      const known = host.store.listSites().map((s) => s.id)
+      const site = url.searchParams.get('site')
+      if (site && !known.includes(site)) throw new HostError(`No site called ${site}`, 404)
+      const limit = Number(url.searchParams.get('limit') ?? 100)
+      const before = Number(url.searchParams.get('before') ?? '')
+      return send(res, 200, {
+        entries: readCronLog(host.config, {
+          sites: site ? [site] : known,
+          limit: Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 1000) : 100,
+          failedOnly: url.searchParams.get('failed') === '1',
+          before: Number.isFinite(before) && before > 0 ? before : undefined,
+        }),
+      })
     }
 
     case 'GET /audit': {

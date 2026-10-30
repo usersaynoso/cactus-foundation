@@ -38,6 +38,7 @@ import {
   type DomainSummary,
   type EnvKeySummary,
   type EnvWrite,
+  type HostUpdateCheck,
   type HostUpdateResponse,
   type SiteSummary,
   type StartBuildResponse,
@@ -625,6 +626,57 @@ export class Host {
     }
   }
 
+  /** The live release, its port, and the site token it was built with: what asking a site anything needs. */
+  private liveSiteCall(siteId: string): { site: SiteRecord; port: number; token: string } {
+    const site = this.site(siteId)
+    const live = this.store.listBuilds(siteId).find((b) => b.live)
+    if (!site.liveSlot || !live?.releaseDir || !existsSync(live.releaseDir)) {
+      throw new HostError(`${siteId} has no live version to update from. Build it first.`, 409)
+    }
+    const token = parseEnv(readFileSync(join(live.releaseDir, '.cactus-env'), 'utf8')).get('CACTUS_HOST_TOKEN')
+    if (!token) throw new HostError(`${siteId}'s live version has no CACTUS_HOST_TOKEN to be asked with`, 409)
+    return { site, port: site.ports[site.liveSlot], token }
+  }
+
+  private async callUpdateRoute(siteId: string, method: 'GET' | 'POST'): Promise<Record<string, unknown> & { ok?: boolean; error?: string }> {
+    const { site, port, token } = this.liveSiteCall(siteId)
+    const res = await this.system.local({
+      port,
+      path: '/api/internal/host-update',
+      method,
+      headers: {
+        Host: site.domains[0] ?? '127.0.0.1',
+        'X-Forwarded-Proto': 'https',
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'cactus-host-update/1',
+      },
+      // The site checks GitHub for every module (and on POST commits) before it answers.
+      timeoutMs: 120_000,
+    })
+    let body: Record<string, unknown> & { ok?: boolean; error?: string } = {}
+    try {
+      body = JSON.parse(res.body) as typeof body
+    } catch {
+      // An HTML 404 is a Cactus too old to have the route.
+    }
+    // A 405 is a Cactus with the update route but not yet the check.
+    if (res.status === 404 || (method === 'GET' && res.status === 405)) {
+      throw new HostError(method === 'GET'
+        ? `${siteId} runs a Cactus too old to be checked from here. Update it once; after that it can be checked.`
+        : `${siteId} runs a Cactus too old to be updated from here. Update it once from its own admin (Settings → Updates); after that this button works.`, 409)
+    }
+    if (res.status < 200 || res.status >= 300 || body.ok !== true) {
+      throw new HostError(body.error ?? `${siteId} answered ${res.status}`, res.status === 409 || res.status === 503 ? res.status : 502)
+    }
+    return body
+  }
+
+  /** Asks the live release what it would update - a newer Cactus, newer modules - without updating anything. */
+  async checkUpdate(siteId: string): Promise<HostUpdateCheck> {
+    const body = await this.callUpdateRoute(siteId, 'GET')
+    return body as unknown as HostUpdateCheck
+  }
+
   /**
    * Asks the live release to update Cactus and every module (POST
    * /api/internal/host-update), proving who is asking with the site's own token, read
@@ -633,39 +685,8 @@ export class Host {
    * build it starts would otherwise be refused.
    */
   async requestUpdate(siteId: string): Promise<HostUpdateResponse> {
-    const site = this.site(siteId)
     if (this.busy.has(siteId)) throw new HostError(`${siteId} is busy with a build or another change. Wait for it to finish, then try again.`, 409)
-    const live = this.store.listBuilds(siteId).find((b) => b.live)
-    if (!site.liveSlot || !live?.releaseDir || !existsSync(live.releaseDir)) {
-      throw new HostError(`${siteId} has no live version to update from. Build it first.`, 409)
-    }
-    const token = parseEnv(readFileSync(join(live.releaseDir, '.cactus-env'), 'utf8')).get('CACTUS_HOST_TOKEN')
-    if (!token) throw new HostError(`${siteId}'s live version has no CACTUS_HOST_TOKEN to be asked with`, 409)
-    const res = await this.system.local({
-      port: site.ports[site.liveSlot],
-      path: '/api/internal/host-update',
-      method: 'POST',
-      headers: {
-        Host: site.domains[0] ?? '127.0.0.1',
-        'X-Forwarded-Proto': 'https',
-        Authorization: `Bearer ${token}`,
-        'User-Agent': 'cactus-host-update/1',
-      },
-      // The site checks GitHub for every module and commits before it answers.
-      timeoutMs: 120_000,
-    })
-    let body: Partial<HostUpdateResponse> & { error?: string } = {}
-    try {
-      body = JSON.parse(res.body) as typeof body
-    } catch {
-      // An HTML 404 is a Cactus too old to have the route.
-    }
-    if (res.status === 404) {
-      throw new HostError(`${siteId} runs a Cactus too old to be updated from here. Update it once from its own admin (Settings → Updates); after that this button works.`, 409)
-    }
-    if (res.status < 200 || res.status >= 300 || body.ok !== true) {
-      throw new HostError(body.error ?? `${siteId} answered ${res.status}`, res.status === 409 || res.status === 503 ? res.status : 502)
-    }
+    const body = await this.callUpdateRoute(siteId, 'POST') as Partial<HostUpdateResponse>
     this.log(`[${siteId}] update requested: ${body.upToDate ? 'already up to date' : `core ${body.core ? `${body.core.from} -> ${body.core.to}` : 'unchanged'}, ${body.updated ?? 0} module(s)`}`)
     return body as HostUpdateResponse
   }

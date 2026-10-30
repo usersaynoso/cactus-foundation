@@ -322,6 +322,22 @@ describe('asking a site to update itself', () => {
     const ctx = hostWithSite()
     await expect(ctx.host.requestUpdate('shop')).rejects.toThrow(/no live version/)
   })
+
+  it('checks without updating, with a GET to the same route', async () => {
+    const ctx = hostWithSite()
+    await build(ctx)
+    const answer = { ok: true, core: { current: '1.0.0', latest: '1.1.0', updateAvailable: true }, modules: [{ name: 'shop', current: '2.0.0', latest: '2.1.0' }], modulesChecked: 4, failed: [] }
+    ctx.system.answer = (req) => (req.path === '/api/internal/host-update' ? { status: 200, body: JSON.stringify(answer) } : null)
+    expect(await ctx.host.checkUpdate('shop')).toEqual(answer)
+    expect(ctx.system.requests.find((r) => r.path === '/api/internal/host-update')).toMatchObject({ method: 'GET' })
+  })
+
+  it('says plainly when the site is too old to be checked', async () => {
+    const ctx = hostWithSite()
+    await build(ctx)
+    ctx.system.answer = (req) => (req.path === '/api/internal/host-update' ? { status: 405, body: '' } : null)
+    await expect(ctx.host.checkUpdate('shop')).rejects.toThrow(/too old to be checked/)
+  })
 })
 
 describe('environment', () => {

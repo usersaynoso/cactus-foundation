@@ -6,6 +6,7 @@ import {
   isValidCronExpression,
   InvalidCronExpressionError,
   MAX_LOOKBACK_MS,
+  nextFireAfter,
 } from './schedule'
 
 const utc = (iso: string) => new Date(`${iso}Z`)
@@ -108,5 +109,19 @@ describe('firedBetween', () => {
 
   it('returns false when the window is empty or inverted', () => {
     expect(firedBetween('* * * * *', utc('2026-08-24T10:00:00'), utc('2026-08-24T09:00:00'))).toBe(false)
+  })
+})
+
+describe('nextFireAfter', () => {
+  it('gives the next matching minute, strictly after the one given', () => {
+    expect(nextFireAfter('0 3 * * *', utc('2026-10-30T02:59:00'))).toEqual(utc('2026-10-30T03:00:00'))
+    expect(nextFireAfter('0 3 * * *', utc('2026-10-30T03:00:00'))).toEqual(utc('2026-10-31T03:00:00'))
+    expect(nextFireAfter('*/15 * * * *', utc('2026-10-30T22:12:30'))).toEqual(utc('2026-10-30T22:15:00'))
+  })
+
+  it('finds a weekly job and gives up on one that never fires in the window', () => {
+    // 30 Oct 2026 is a Friday; the next Monday is 2 Nov.
+    expect(nextFireAfter('0 7 * * 1', utc('2026-10-30T12:00:00'))).toEqual(utc('2026-11-02T07:00:00'))
+    expect(nextFireAfter('0 0 31 2 *', utc('2026-10-30T12:00:00'))).toBeNull()
   })
 })

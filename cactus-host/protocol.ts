@@ -121,6 +121,18 @@ export type AdminBuildSummary = BuildSummary & {
  * (POST /api/internal/host-update on its live release): bring Cactus and every module
  * up to date in one build. The build then runs, and switches over, like any other.
  */
+/** What a site would update, found without updating anything (GET /api/internal/host-update). */
+export type HostUpdateCheck = {
+  ok: true
+  core: { current: string; latest: string; updateAvailable: boolean }
+  /** Modules with a newer release, custom ones included. Versions without a leading v. */
+  modules: Array<{ name: string; current: string; latest: string }>
+  /** How many installed modules were checked. */
+  modulesChecked: number
+  /** Modules whose check itself failed, with why. */
+  failed: Array<{ name: string; error: string }>
+}
+
 export type HostUpdateResponse = {
   ok: true
   /** Nothing newer was found, so nothing was built. */
@@ -201,6 +213,57 @@ export type CreateSiteResponse = {
   deployKeyPublic: string
   /** What was done in Cloudflare, or the steps still to do by hand. */
   cloudflare: { done: string[]; manual: string[] }
+}
+
+/** One job's result inside a dispatcher tick, as the site's dispatcher reported it. */
+export type CronOutcome = {
+  path: string
+  /** The module that declared it, or null for one of core's own. */
+  module: string | null
+  status: 'ran' | 'failed' | 'seeded' | 'deferred'
+  detail?: string
+}
+
+/** One wake of a site's cron dispatcher, and what each job it touched did. */
+export type CronTickEntry = {
+  /** Epoch ms the tick was due. */
+  at: number
+  site: string
+  /** The dispatcher's HTTP status, or null when it never answered. */
+  httpStatus: number | null
+  /** Why the tick as a whole failed: no answer, or a non-200 with its reason. */
+  error: string | null
+  elapsedMs: number | null
+  ran: number
+  failed: number
+  deferred: number
+  seeded: number
+  outcomes: CronOutcome[]
+}
+
+/** A scheduled job as the site itself reports it (GET /api/cron/jobs). Times are epoch ms. */
+export type CronJobSummary = {
+  path: string
+  module: string | null
+  schedule: string
+  /** The schedule in words. */
+  label: string
+  /** The owner's override, or null for the author's schedule. */
+  frequency: string | null
+  lastRunAt: number | null
+  lastStatus: string | null
+  lastError: string | null
+  nextDueAt: number | null
+}
+
+/** One site in GET /v1/admin/cron. jobs is null, with error saying why, when the site could not be asked. */
+export type AdminCronSite = {
+  site: string
+  name: string
+  tick: { schedule: string; label: string } | null
+  jobs: CronJobSummary[] | null
+  error: string | null
+  lastTick: CronTickEntry | null
 }
 
 export type AuditEntrySummary = {

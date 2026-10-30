@@ -5,9 +5,14 @@ import { safeCompare } from '@/lib/auth/session-core'
 import { getCoreUpdateStatus } from '@/lib/updates/core'
 import { applyCoreUpdate } from '@/lib/updates/apply-core'
 import { findModuleUpdates } from '@/lib/modules/updates'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { applyModuleUpdateAll } from '@/lib/modules/update-all'
-import type { HostUpdateResponse } from '@/cactus-host/protocol'
+import type { HostUpdateCheck, HostUpdateResponse } from '@/cactus-host/protocol'
 
+// GET /api/internal/host-update: the same question without the answer being acted on -
+// is there a newer Cactus, and which modules (custom ones included: every installed
+// module is checked against its own repo) have a newer release. Nothing is written.
+//
 // POST /api/internal/host-update: the server this site runs on asks it to bring Cactus
 // and every module up to date in one build, exactly as the admin would from Settings →
 // Updates with "also update modules" ticked, or from Modules → Update all when only
@@ -21,12 +26,45 @@ import type { HostUpdateResponse } from '@/cactus-host/protocol'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-export async function POST(request: NextRequest) {
-  const routeStartedAt = Date.now()
+/** null when the caller is this site's cactus-host, otherwise the response to send. */
+function refuseUnlessHost(request: NextRequest): Response | null {
   const token = process.env.CACTUS_HOST_TOKEN
   if (process.env.CACTUS_HOSTING_PROVIDER !== 'server' || !token) return errorResponse('Not found', 404)
   const given = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? ''
   if (!given || !safeCompare(given, token)) return errorResponse('Not authenticated', 401)
+  return null
+}
+
+export async function GET(request: NextRequest) {
+  const refused = refuseUnlessHost(request)
+  if (refused) return refused
+
+  const cfg = await prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { coreUpdateChannel: true } })
+  const channel = (cfg?.coreUpdateChannel ?? 'public') as 'public' | 'beta'
+  const failed: Array<{ name: string; error: string }> = []
+  const [status, found, installed] = await Promise.all([
+    getCoreUpdateStatus({ bust: true, channel }),
+    findModuleUpdates(failed),
+    prisma.module.count({ where: INSTALLED_MODULE_WHERE }),
+  ])
+  if ('localMode' in status || !status.configured) {
+    return errorResponse('This site cannot check for updates: GitHub is not connected', 503)
+  }
+  if ('error' in status) return errorResponse("Couldn't find out the latest version - try again shortly.", 503)
+
+  return NextResponse.json({
+    ok: true,
+    core: { current: status.currentVersion, latest: status.latestVersion, updateAvailable: status.updateAvailable },
+    modules: found.map((m) => ({ name: m.name, current: m.currentVersion, latest: m.latestTag.replace(/^v/, '') })),
+    modulesChecked: installed,
+    failed,
+  } satisfies HostUpdateCheck)
+}
+
+export async function POST(request: NextRequest) {
+  const routeStartedAt = Date.now()
+  const refused = refuseUnlessHost(request)
+  if (refused) return refused
 
   const cfg = await prisma.siteConfig.findUnique({ where: { id: 'singleton' }, select: { coreUpdateChannel: true } })
   const channel = (cfg?.coreUpdateChannel ?? 'public') as 'public' | 'beta'

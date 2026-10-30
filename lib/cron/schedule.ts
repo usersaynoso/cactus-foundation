@@ -137,6 +137,20 @@ export function firedBetween(expression: string, after: Date, until: Date): bool
   return false
 }
 
+// The first minute strictly after `after` at which this expression fires, or null when
+// it does not fire inside the same eight-day window the dispatcher looks back over.
+// This is when a job next falls DUE: it runs on the first dispatcher tick at or after
+// that minute, which on a half-hourly tick can be up to half an hour later.
+export function nextFireAfter(expression: string, after: Date): Date | null {
+  const parsed = parseCronExpression(expression)
+  const first = Math.floor(after.getTime() / 60_000) * 60_000 + 60_000
+  const last = first + MAX_LOOKBACK_MS
+  for (let t = first; t <= last; t += 60_000) {
+    if (matchesMinute(parsed, new Date(t))) return new Date(t)
+  }
+  return null
+}
+
 // Cheap validity check for manifest review and tests.
 export function isValidCronExpression(expression: string): boolean {
   try {

@@ -16,7 +16,9 @@ export type ModuleUpdateInfo = {
   releaseBody: string | null
 }
 
-export async function findModuleUpdates(): Promise<ModuleUpdateInfo[]> {
+// `failures`, when given, collects the modules whose check itself failed (a repo the
+// site's GitHub App cannot see, say), which would otherwise look the same as current.
+export async function findModuleUpdates(failures?: Array<{ name: string; error: string }>): Promise<ModuleUpdateInfo[]> {
   const modules = await prisma.module.findMany({
     // Deliberately NOT INSTALLED_MODULE_WHERE. Everywhere else, a module mid-deploy
     // still counts as live; here it must not. A `deploying` row holds the old tag in
@@ -40,6 +42,7 @@ export async function findModuleUpdates(): Promise<ModuleUpdateInfo[]> {
         }
       } catch (err) {
         console.error(`[modules] Update check failed for ${mod.name}:`, err)
+        failures?.push({ name: mod.name, error: err instanceof Error ? err.message : String(err) })
         return null
       }
     })

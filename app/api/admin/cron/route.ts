@@ -5,7 +5,8 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { listCronJobs, resolveDispatchSchedule, tickForSchedules } from '@/lib/cron/jobs'
-import { CRON_FREQUENCIES, describeSchedule, frequencyOfSchedule, isCronFrequency } from '@/lib/cron/frequencies'
+import { CRON_FREQUENCIES, describeSchedule, isCronFrequency } from '@/lib/cron/frequencies'
+import { cronReport } from '@/lib/cron/report'
 import { syncVercelJson } from '@/lib/modules/github'
 
 // The Schedules tab behind Settings, and the one dropdown a module can host on its own
@@ -24,36 +25,8 @@ export async function GET() {
   if (!user) return errorResponse('Not authenticated', 401)
   if (!(await hasPermission(user, 'config.manage'))) return errorResponse('Forbidden', 403)
 
-  const [jobs, runs, tick] = await Promise.all([
-    listCronJobs(),
-    prisma.cronRun.findMany({ select: { path: true, lastRunAt: true, lastStatus: true, lastError: true } }),
-    resolveDispatchSchedule(),
-  ])
-  const runByPath = new Map(runs.map((r) => [r.path, r]))
-
-  return NextResponse.json({
-    // The tick, in the same words the dropdown uses, so the page can explain why a
-    // five-minute job on an hourly site is not five-minutely yet.
-    tick: { schedule: tick, label: describeSchedule(tick) },
-    frequencies: CRON_FREQUENCIES,
-    jobs: jobs.map((job) => {
-      const run = runByPath.get(job.path)
-      return {
-        path: job.path,
-        module: job.module,
-        frequency: job.frequency,
-        schedule: job.schedule,
-        defaultSchedule: job.defaultSchedule,
-        defaultLabel: describeSchedule(job.defaultSchedule),
-        // Null where the author's own schedule is not one of the choices - a weekly
-        // audit, say. The page offers "Default" for those and leaves them alone.
-        defaultFrequency: frequencyOfSchedule(job.defaultSchedule),
-        lastRunAt: run?.lastRunAt ?? null,
-        lastStatus: run?.lastStatus ?? null,
-        lastError: run?.lastError ?? null,
-      }
-    }),
-  })
+  const report = await cronReport()
+  return NextResponse.json({ ...report, frequencies: CRON_FREQUENCIES })
 }
 
 const patchSchema = z.object({

@@ -91,6 +91,8 @@ export function sitePaths(config: HostConfig, siteId: string) {
     builds: join(config.stateDir, 'builds', `${siteId}.json`),
     logs: join(config.stateDir, 'logs', siteId),
     log: (buildId: string) => join(config.stateDir, 'logs', siteId, `${buildId}.log`),
+    /** One JSON line per cron tick (cron-log.ts). Beside the build logs so a rename takes it along. */
+    cronLog: join(config.stateDir, 'logs', siteId, 'cron.jsonl'),
     mirror: join(config.stateDir, 'repos', `${siteId}.git`),
     deployKey: join(config.keysDir, siteId),
     knownHosts: join(config.keysDir, 'known_hosts'),

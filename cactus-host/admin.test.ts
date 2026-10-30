@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ADMIN_TOKEN_KEY, grantAdmin, readAdmin, revokeAdmin } from './admin.ts'
 import { readAudit } from './audit.ts'
+import { appendCronTick, tickFromResponse } from './cron-log.ts'
 import { addSiteDomain, createSite } from './create.ts'
 import { parseEnv } from './env-file.ts'
 import { createApiServer } from './http.ts'
@@ -271,5 +272,28 @@ describe('the admin API: deployments, settings and certificates', () => {
     expect((await call('/admin/sites/shop/domains/shop.example.com/certificate', admin, { method: 'POST' })).status).toBe(400)
     expect((await call('/admin/sites/shop/deploy-key', admin)).status).toBe(200)
     expect(readAudit(ctx.config, 20).map((e) => e.action)).toEqual(expect.arrayContaining(['site.rollback', 'site.edit', 'site.certificate']))
+  })
+})
+
+describe('the admin API: scheduled tasks', () => {
+  it('lists every site with its jobs or the reason it could not be asked, and its cron log', async () => {
+    const ctx = hostWithSite()
+    grantAdmin(ctx.host, 'shop')
+    const admin = adminTokenOf(ctx)
+    const call = await api(ctx)
+    appendCronTick(ctx.config, tickFromResponse('shop', 1000, 200, JSON.stringify({ ran: 1, outcomes: [{ path: '/api/cron/x', module: null, status: 'ran' }] })))
+    appendCronTick(ctx.config, tickFromResponse('shop', 2000, 500, 'boom'))
+
+    // Never built, so not live: listed with the reason, and its last tick.
+    const res = await call('/admin/cron', admin)
+    expect(res.status).toBe(200)
+    const { sites } = (await res.json()) as { sites: Array<{ site: string; jobs: unknown; error: string; lastTick: { at: number } }> }
+    expect(sites).toHaveLength(1)
+    expect(sites[0]).toMatchObject({ site: 'shop', jobs: null, error: 'Not live', lastTick: { at: 2000 } })
+
+    const log = (await (await call('/admin/cron/log?site=shop&failed=1', admin)).json()) as { entries: Array<{ at: number }> }
+    expect(log.entries.map((e) => e.at)).toEqual([2000])
+    expect((await call('/admin/cron/log?site=nope', admin)).status).toBe(404)
+    expect((await call('/admin/cron/log', TEST_TOKEN)).status).toBe(401)
   })
 })
