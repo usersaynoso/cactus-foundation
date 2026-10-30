@@ -1,3 +1,4 @@
+import { publicUrl } from '@/lib/security/public-origin'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
@@ -20,7 +21,7 @@ type ManifestConversionResponse = {
 export async function GET(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) {
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(publicUrl(request, '/'))
   }
 
   const { searchParams } = request.nextUrl
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
     })
     const adminPath = config?.adminPath ?? ''
     const res = NextResponse.redirect(
-      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=state_mismatch`, request.url)
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=state_mismatch`)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
@@ -50,14 +51,14 @@ export async function GET(request: NextRequest) {
 
   if (!rawCurrentEnvKey() && !isEncryptionKeyUsable()) {
     const res = NextResponse.redirect(
-      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=encrypt_key_missing`, request.url)
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=encrypt_key_missing`)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
   }
   if (!isEncryptionKeyUsable()) {
     const res = NextResponse.redirect(
-      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=encrypt_key_format`, request.url)
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=encrypt_key_format`)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
       const body = await resp.text()
       console.error('[github/callback] manifest conversion failed:', resp.status, body)
       const res = NextResponse.redirect(
-        new URL(`/${adminPath}/config?tab=integrations&github=error&reason=conversion_failed`, request.url)
+        publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=conversion_failed`)
       )
       res.cookies.delete('cactus_github_app_state')
       return res
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('[github/callback] fetch error:', err)
     const res = NextResponse.redirect(
-      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=network`, request.url)
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=network`)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('[github/callback] encryption error:', err)
     const res = NextResponse.redirect(
-      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=encrypt_error`, request.url)
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=encrypt_error`)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('[github/callback] db write error:', err)
     const res = NextResponse.redirect(
-      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=db`, request.url)
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=db`)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
@@ -173,7 +174,7 @@ export async function GET(request: NextRequest) {
   }
 
   const res = NextResponse.redirect(
-    new URL(`/${adminPath}/config?tab=integrations&github=connected`, request.url)
+    publicUrl(request, `/${adminPath}/config?tab=integrations&github=connected`)
   )
   res.cookies.delete('cactus_github_app_state')
   return res

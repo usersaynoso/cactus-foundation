@@ -1,3 +1,4 @@
+import { publicUrl } from '@/lib/security/public-origin'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { deleteSession, clearSessionCookie } from '@/lib/auth/session'
@@ -11,5 +12,5 @@ export async function POST(request: Request) {
   }
 
   await clearSessionCookie()
-  return NextResponse.redirect(new URL('/logged-out', request.url))
+  return NextResponse.redirect(publicUrl(request, '/logged-out'))
 }

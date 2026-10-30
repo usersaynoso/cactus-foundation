@@ -1,8 +1,8 @@
 {
   "publicAddress": "203.0.113.10",
   "tls": {
-    "cert": "/etc/cactus-host/tls/origin.pem",
-    "key": "/etc/cactus-host/tls/origin.key"
+    "cert": "/etc/caddy/tls/origin.pem",
+    "key": "/etc/caddy/tls/origin.key"
   },
   "keepReleases": 5,
   "build": {

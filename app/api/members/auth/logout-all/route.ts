@@ -1,3 +1,4 @@
+import { publicUrl } from '@/lib/security/public-origin'
 import { NextRequest, NextResponse } from 'next/server'
 import { getMemberFromCookie, deleteAllMemberSessions, clearMemberSessionCookie } from '@/lib/members/session'
 import { MEMBER_ADMIN_OPTOUT_COOKIE } from '@/lib/members/admin-link'
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
   await deleteAllMemberSessions(member.id)
   await clearMemberSessionCookie()
 
-  const res = NextResponse.redirect(new URL('/logged-out', request.url))
+  const res = NextResponse.redirect(publicUrl(request, '/logged-out'))
   // Same reason as the ordinary sign-out: an admin-linked member who asks to be
   // signed out everywhere means it, live admin session or not.
   if (member.userId) {

@@ -136,7 +136,7 @@ The folder is already in `/opt/cactus-host` from step 2. Install it:
 install -m 0755 /opt/cactus-host/ops/cactus-host.sh /usr/local/bin/cactus-host
 install -d -m 0700 /etc/cactus-host /etc/cactus-host/keys
 cp /opt/cactus-host/ops/config.example.json /etc/cactus-host/config.json
-nano /etc/cactus-host/config.json   # your server's public IP, the origin certificate
+nano /etc/cactus-host/config.json   # your server's public IP, the origin certificate (kept in /etc/caddy/tls, step 6)
 cp /opt/cactus-host/ops/cactus-host.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now cactus-host
 journalctl -u cactus-host -n 20   # "listening on 127.0.0.1:7171 for 0 site(s)"
@@ -212,15 +212,21 @@ For each domain:
    `*.domain`, 15 years) are fine. Save the certificate and key on the server:
 
    ```bash
-   install -d -m 0750 -o root -g caddy /etc/cactus-host/tls
-   nano /etc/cactus-host/tls/origin.pem   # paste the certificate
-   nano /etc/cactus-host/tls/origin.key   # paste the private key
-   chown root:caddy /etc/cactus-host/tls/* && chmod 0640 /etc/cactus-host/tls/*
+   install -d -m 0750 -o root -g caddy /etc/caddy/tls
+   nano /etc/caddy/tls/origin.pem   # paste the certificate
+   nano /etc/caddy/tls/origin.key   # paste the private key
+   chown root:caddy /etc/caddy/tls/* && chmod 0640 /etc/caddy/tls/*
    ```
+
+   It goes under `/etc/caddy`, not `/etc/cactus-host`: that folder is root only (step 3),
+   so Caddy could not get through it to the certificate, `systemctl reload caddy` would
+   fail, and the site would carry on with the old config while Caddy kept trying (and
+   failing) to fetch its own certificate.
 
    An origin certificate covers one Cloudflare zone. The first goes in cactus-host's
    config as the default (`tls`, step 3); a site on a different domain gets its own with
-   `cactus-host site tls <site> <cert> <key>`.
+   `cactus-host site tls <site> <cert> <key>`, for example
+   `cactus-host site tls shop /etc/caddy/tls/shop.pem /etc/caddy/tls/shop.key`.
 
 4. In the site's admin, once it is running: **Settings → Speed → behind Cloudflare** on.
    That is what lets rate limits see your visitors' real addresses instead of
@@ -279,7 +285,13 @@ you switch over by changing DNS. A few things to get right:
    Jobs settings), or take that deployment down. Once DNS has moved and you are happy,
    disconnect the Vercel project's Git repository too, so Cactus's own commits stop
    building there.
-5. **Switch DNS** in Cloudflare to the new address, proxied. Because Cloudflare sits in
+5. **`SITE_URL` must be set, and be the site's real address** (`https://example.com`, no
+   path). On a server the site works out its own public address from the Host header
+   Caddy passes, but only accepts one that is `SITE_URL`'s own host or its `www` / bare
+   twin; anything else is answered with `SITE_URL`. Admin saves, the Update button and
+   sign-in callbacks all depend on it. A site that already has `SITE_URL` from Vercel
+   needs nothing more. There are no other new settings.
+6. **Switch DNS** in Cloudflare to the new address, proxied. Because Cloudflare sits in
    front, the change is near enough instant for visitors.
 
 ## 9. Backups

@@ -57,7 +57,7 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
     '\t}',
     '\thandle {',
     ...(livePort
-      ? [`\t\treverse_proxy 127.0.0.1:${livePort}`]
+      ? [`\t\treverse_proxy localhost:${livePort}`]
       : ['\t\theader Cache-Control "no-store"', '\t\trespond "This site is still being built. Try again in a few minutes." 503']),
     '\t}',
     '}',

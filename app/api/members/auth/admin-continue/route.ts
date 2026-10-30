@@ -2,6 +2,7 @@
 // sends them here rather than to the sign-in page: they have already proved who
 // they are to the admin, and being asked to do it again by the same site is the
 // sort of thing that gets described, fairly, as broken.
+import { publicUrl } from '@/lib/security/public-origin'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { sanitizeRedirect } from '@/lib/auth/redirect'
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
   // Every failure ends on the ordinary sign-in page - there is always a way in
   // by member credentials, whatever went wrong with the staff shortcut.
   function toLogin(reason?: string): NextResponse {
-    const url = new URL(`${basePath}/login`, request.url)
+    const url = publicUrl(request, `${basePath}/login`)
     if (reason) url.searchParams.set('admin_link', reason)
     if (target !== basePath) url.searchParams.set('redirect', target)
     const res = NextResponse.redirect(url)
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
   // Set on the response rather than through cookies(): this answer is a
   // redirect, and the response object is the one place a Set-Cookie is certain
   // to survive being one.
-  const res = NextResponse.redirect(new URL(target, request.url))
+  const res = NextResponse.redirect(publicUrl(request, target))
   res.cookies.set(MEMBER_SESSION_COOKIE, token, await memberSessionCookieOptions())
   res.cookies.set(MEMBER_ADMIN_ATTEMPT_COOKIE, '1', {
     httpOnly: true,

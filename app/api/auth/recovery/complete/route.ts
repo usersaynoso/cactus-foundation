@@ -1,3 +1,4 @@
+import { publicUrl } from '@/lib/security/public-origin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { validateRecoveryToken, consumeRecoveryToken } from '@/lib/auth/recovery'
@@ -11,13 +12,13 @@ import { isEmailConfigured } from '@/lib/config/env'
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token')
   if (!token) {
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(publicUrl(request, '/'))
   }
 
   const result = await validateRecoveryToken(token)
   if (!result) {
     // Redirect to a "link expired" message — for now just redirect home
-    return NextResponse.redirect(new URL('/?recovery=expired', request.url))
+    return NextResponse.redirect(publicUrl(request, '/?recovery=expired'))
   }
 
   // Redirect to a recovery form page (the admin path's recovery page)
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   // mode from the ?recovery=1 flag, and the POST below reads the token back out
   // of the cookie. SameSite=Lax so it survives the top-level navigation from the
   // emailed link.
-  const res = NextResponse.redirect(new URL(`/${adminPath}/login?recovery=1`, request.url))
+  const res = NextResponse.redirect(publicUrl(request, `/${adminPath}/login?recovery=1`))
   res.cookies.set(RECOVERY_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

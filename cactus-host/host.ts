@@ -386,15 +386,22 @@ export class Host {
   private async unpackRelease(site: SiteRecord, paths: SitePaths, sha: string, releaseDir: string): Promise<void> {
     const owner = this.owner(site)
     mkdirSync(paths.releases, { recursive: true, mode: 0o750 })
+    // Not recursive, so a name somebody planted ahead of us is an error rather than
+    // something we write through.
     mkdirSync(releaseDir, { mode: 0o750 })
-    chownSync(releaseDir, owner.uid, owner.gid)
-    const archive = join(this.config.stateDir, 'tmp', `${site.id}-${sha}.tar`)
-    mkdirSync(join(this.config.stateDir, 'tmp'), { recursive: true, mode: 0o700 })
+    // The archive sits inside the release directory, not in cactus-host's own state
+    // directory. The state directory is root only (it holds the deploy keys'
+    // known-hosts, build logs and site records), and `tar` below runs as the site's
+    // user, who cannot walk through it however the file is owned. The release
+    // directory is the one place that user is about to own anyway. It is written
+    // while the directory is still root's alone, and handed over afterwards.
+    const archive = join(releaseDir, '.cactus-release.tar')
     try {
       await mustRun(this.system, 'Exporting the commit', 'git', ['-C', paths.mirror, 'archive', '--format=tar', `--output=${archive}`, sha], {
         env: this.gitEnv(paths),
       })
       chownSync(archive, owner.uid, owner.gid)
+      chownSync(releaseDir, owner.uid, owner.gid)
       await mustRun(this.system, 'Unpacking the commit', 'tar', ['-xf', archive, '-C', releaseDir, '--no-same-owner'], {
         uid: owner.uid,
         gid: owner.gid,

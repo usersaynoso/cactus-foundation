@@ -35,10 +35,14 @@ export function slotUnit(config: HostConfig, site: SiteRecord, paths: SitePaths,
     `EnvironmentFile=${dir}/.cactus-env`,
     `Environment=NODE_ENV=production`,
     `Environment=PORT=${port}`,
-    `Environment=HOSTNAME=127.0.0.1`,
+    // `localhost`, never `127.0.0.1`: Next normalises 127.0.0.1 to localhost in
+    // request.url but builds its own idea of the original URL from the -H value, so
+    // every proxy.ts rewrite looked like a different site and was proxied to itself
+    // over TLS (EPROTO). localhost still binds loopback only.
+    `Environment=HOSTNAME=localhost`,
     `Environment=HOME=${paths.home}`,
     `Environment=NODE_OPTIONS=--max-old-space-size=${config.site.nodeMaxOldSpaceMb}`,
-    `ExecStart=${config.nodeBin} ${dir}/node_modules/next/dist/bin/next start -H 127.0.0.1 -p ${port}`,
+    `ExecStart=${config.nodeBin} ${dir}/node_modules/next/dist/bin/next start -H localhost -p ${port}`,
     'Restart=on-failure',
     'RestartSec=5',
     // SIGTERM lets Next stop taking connections and finish what it has; this is how

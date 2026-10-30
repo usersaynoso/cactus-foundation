@@ -1,3 +1,4 @@
+import { publicUrl } from '@/lib/security/public-origin'
 import { createHash } from 'crypto'
 import { NextResponse } from 'next/server'
 import { resolveBranding, BRANDING_DEFAULTS, type ResolvedBranding } from '@/lib/config/branding'
@@ -118,7 +119,7 @@ function variantFor(url: URL): Variant {
 }
 
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
+  const requestUrl = publicUrl(request)
   const variant = variantFor(requestUrl)
 
   let branding: ResolvedBranding | null = null
@@ -155,7 +156,7 @@ export async function GET(request: Request) {
   // throw on.
   let target: URL
   try {
-    target = new URL(source, request.url)
+    target = publicUrl(request, source)
   } catch {
     return fallback(request, variant, { transient: true })
   }
@@ -207,7 +208,7 @@ async function composedIco(request: Request, b: ResolvedBranding): Promise<NextR
   let buffers: Uint8Array[]
   try {
     buffers = await Promise.all(sources.map(async (source) => {
-      const upstream = await fetch(new URL(source, request.url), {
+      const upstream = await fetch(publicUrl(request, source), {
         signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
         redirect: 'follow',
         cache: 'no-store',
@@ -265,7 +266,7 @@ function passThrough(upstream: Response, variant: Variant): Headers {
 }
 
 function fallback(request: Request, variant: Variant, opts: { transient?: boolean } = {}) {
-  const res = NextResponse.redirect(new URL(variant.fallback, request.url), 307)
+  const res = NextResponse.redirect(publicUrl(request, variant.fallback), 307)
   res.headers.set('Cache-Control', opts.transient ? TRANSIENT_CACHE_CONTROL : CACHE_CONTROL)
   return res
 }

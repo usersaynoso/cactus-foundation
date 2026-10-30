@@ -1,3 +1,4 @@
+import { publicUrl } from '@/lib/security/public-origin'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   if (!user) {
     return NextResponse.redirect(
-      new URL(`/${adminPath}/login?next=/${adminPath}/config?tab=integrations`, request.url)
+      publicUrl(request, `/${adminPath}/login?next=/${adminPath}/config?tab=integrations`)
     )
   }
 
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   if (!installationId || !conn) {
     const res = NextResponse.redirect(
-      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=missing_installation`, request.url)
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=missing_installation`)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
   // Validate state only if we have a stored state (it may have expired)
   if (storedState && state && state !== storedState) {
     const res = NextResponse.redirect(
-      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=state_mismatch`, request.url)
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=state_mismatch`)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
@@ -66,14 +67,14 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('[github/installed] db update error:', err)
     const res = NextResponse.redirect(
-      new URL(`/${adminPath}/config?tab=integrations&github=error&reason=db`, request.url)
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=db`)
     )
     res.cookies.delete('cactus_github_app_state')
     return res
   }
 
   const res = NextResponse.redirect(
-    new URL(`/${adminPath}/config?tab=integrations&github=installed`, request.url)
+    publicUrl(request, `/${adminPath}/config?tab=integrations&github=installed`)
   )
   res.cookies.delete('cactus_github_app_state')
   return res

@@ -114,9 +114,9 @@ export function testConfig(): HostConfig {
 export const TEST_TOKEN = 'chs_test-token'
 
 /** A host with one site, `shop`, already added - the state `cactus-host site add` leaves. */
-export function hostWithSite(opts: { env?: Record<string, string>; domains?: string[] } = {}) {
+export function hostWithSite(opts: { env?: Record<string, string>; domains?: string[]; system?: System } = {}) {
   const config = testConfig()
-  const system = fakeSystem()
+  const system = (opts.system ?? fakeSystem()) as FakeSystem
   const host = new Host(config, system, { log: () => {}, sleep: async () => {} })
   const site: SiteRecord = {
     id: 'shop',

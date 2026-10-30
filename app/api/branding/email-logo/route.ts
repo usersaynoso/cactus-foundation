@@ -1,3 +1,4 @@
+import { publicUrl } from '@/lib/security/public-origin'
 import { NextResponse } from 'next/server'
 import sharp from 'sharp'
 import { prisma } from '@/lib/db/prisma'
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'No site logo is set.' }, { status: 404 })
   }
 
-  const url = new URL(request.url)
+  const url = publicUrl(request)
   if (url.searchParams.get('v') !== logo.id) {
     // Including the no-parameter case, so a hand-typed address still ends up on
     // the cacheable one.
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
   // Already a format every mail client draws: no reason to re-print it, and the
   // media provider's own CDN serves it better than this ever will.
   if (EMAIL_SAFE_IMAGE_TYPES.has(logo.mimeType)) {
-    const res = NextResponse.redirect(new URL(logo.url, request.url), 307)
+    const res = NextResponse.redirect(publicUrl(request, logo.url), 307)
     res.headers.set('Cache-Control', 'public, max-age=86400')
     return res
   }

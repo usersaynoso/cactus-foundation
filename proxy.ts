@@ -43,6 +43,7 @@ import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
 import { isPathExcepted, resolveRouteTier } from '@/lib/members/access'
 import { moduleCspOrigins, type ModuleCspDirective } from '@/lib/modules/csp-origins'
 import { originMismatch } from '@/lib/security/origin-check'
+import { publicOrigin, publicUrl } from '@/lib/security/public-origin'
 import { directBucketCspSources } from '@/lib/media/bucket-origins'
 
 // The media Worker's hostname for the img-src allowlist. Prefer an explicit
@@ -409,7 +410,7 @@ function sessionToken(request: NextRequest): string | null {
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
-  rememberRequestOrigin(request.nextUrl.origin)
+  rememberRequestOrigin(publicOrigin(request))
 
   // ── Always-pass paths ──────────────────────────────────────────────────────
   // The proxy's own data route (Netlify) must never come back through the proxy,
@@ -475,7 +476,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     if (SETUP_PASS.some((p) => pathname.startsWith(p))) {
       return withSecurity(NextResponse.next())
     }
-    return withSecurity(NextResponse.redirect(new URL('/setup', request.url)))
+    return withSecurity(NextResponse.redirect(publicUrl(request, '/setup')))
   }
 
   // Setup is complete — /setup and /api/setup/* are dead paths (except /api/setup/reset,
@@ -528,7 +529,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       }
 
       // Not authenticated — redirect to login (at the public admin URL)
-      const loginUrl = new URL(`${prefix}/login`, request.url)
+      const loginUrl = publicUrl(request, `${prefix}/login`)
       if (pathname !== prefix && sub !== '/') {
         loginUrl.searchParams.set('next', pathname)
       }
@@ -648,7 +649,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         }
 
         if (!member) {
-          const loginUrl = new URL(`/${getMemberAreaPath()}/login`, request.url)
+          const loginUrl = publicUrl(request, `/${getMemberAreaPath()}/login`)
           loginUrl.searchParams.set('redirect', pathname + request.nextUrl.search)
           return withSecurity(NextResponse.redirect(loginUrl))
         }

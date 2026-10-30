@@ -1,3 +1,4 @@
+import { publicUrl } from '@/lib/security/public-origin'
 import { NextRequest, NextResponse } from 'next/server'
 import {
   getMemberFromCookie,
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
   // thing: stop putting me in the member area.
   const optOut = member ? !!member.userId : !!(await getSessionFromCookie())
 
-  const res = NextResponse.redirect(new URL('/logged-out', request.url))
+  const res = NextResponse.redirect(publicUrl(request, '/logged-out'))
   if (optOut) {
     res.cookies.set(MEMBER_ADMIN_OPTOUT_COOKIE, '1', {
       httpOnly: true,

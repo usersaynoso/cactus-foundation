@@ -27,7 +27,7 @@ describe('a build', () => {
     expect(ctx.host.store.getSite('shop')?.liveSlot).toBe('a')
     expect(readlinkSync(ctx.paths.slot('a'))).toBe(b.releaseDir)
     expect(systemctl(ctx)).toEqual(['restart cactus-shop-a.service', 'enable cactus-shop-a.service'])
-    expect(readFileSync(ctx.paths.caddyFile, 'utf8')).toContain('reverse_proxy 127.0.0.1:3100')
+    expect(readFileSync(ctx.paths.caddyFile, 'utf8')).toContain('reverse_proxy localhost:3100')
   })
 
   it('runs the steps as the site user under the build limits', async () => {
@@ -90,7 +90,7 @@ describe('a build', () => {
     expect(second.releaseDir).toBeNull()
     expect(ctx.host.store.getSite('shop')?.liveSlot).toBe('a')
     expect(ctx.host.store.getBuild('shop', first.id)?.live).toBe(true)
-    expect(readFileSync(ctx.paths.caddyFile, 'utf8')).toContain('reverse_proxy 127.0.0.1:3100')
+    expect(readFileSync(ctx.paths.caddyFile, 'utf8')).toContain('reverse_proxy localhost:3100')
     expect(systemctl(ctx)).toEqual(['restart cactus-shop-b.service', 'stop cactus-shop-b.service'])
   })
 
@@ -238,12 +238,12 @@ describe('restart recovery', () => {
 describe('the Caddy file', () => {
   it('uses the site\'s own origin certificate over the server-wide one', async () => {
     const ctx = hostWithSite()
-    ctx.config.tls = { cert: '/etc/cactus-host/tls/default.pem', key: '/etc/cactus-host/tls/default.key' }
+    ctx.config.tls = { cert: '/etc/caddy/tls/default.pem', key: '/etc/caddy/tls/default.key' }
     await ctx.host.writeRouting(ctx.site)
-    expect(readFileSync(ctx.paths.caddyFile, 'utf8')).toContain('tls /etc/cactus-host/tls/default.pem')
-    await ctx.host.writeRouting({ ...ctx.site, tls: { cert: '/etc/cactus-host/tls/shop.pem', key: '/etc/cactus-host/tls/shop.key' } })
+    expect(readFileSync(ctx.paths.caddyFile, 'utf8')).toContain('tls /etc/caddy/tls/default.pem')
+    await ctx.host.writeRouting({ ...ctx.site, tls: { cert: '/etc/caddy/tls/shop.pem', key: '/etc/caddy/tls/shop.key' } })
     const file = readFileSync(ctx.paths.caddyFile, 'utf8')
-    expect(file).toContain('tls /etc/cactus-host/tls/shop.pem /etc/cactus-host/tls/shop.key')
+    expect(file).toContain('tls /etc/caddy/tls/shop.pem /etc/caddy/tls/shop.key')
     expect(file).not.toContain('default.pem')
   })
 

@@ -41,7 +41,7 @@ export interface System {
   lookupUser(name: string): LinuxUser | null
   /** Outbound HTTPS (the domain check). */
   fetch(url: string, init?: RequestInit): Promise<Response>
-  /** A GET to a site's own port on 127.0.0.1, with its real Host header. Never follows redirects. */
+  /** A GET to a site's own port on loopback (`localhost`, which is what the site is bound to), with its real Host header. Never follows redirects. */
   local(req: LocalRequest): Promise<LocalResponse>
   now(): number
 }
@@ -115,7 +115,7 @@ export const realSystem: System = {
   fetch: (url, init) => fetch(url, init),
   local({ port, path, headers, timeoutMs }) {
     return new Promise((resolve, reject) => {
-      const req = httpRequest({ host: '127.0.0.1', port, path, method: 'GET', headers, timeout: timeoutMs }, (res) => {
+      const req = httpRequest({ host: 'localhost', port, path, method: 'GET', headers, timeout: timeoutMs }, (res) => {
         let body = ''
         res.setEncoding('utf8')
         res.on('data', (chunk: string) => {

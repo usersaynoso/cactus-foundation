@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { publicOrigin } from '@/lib/security/public-origin'
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
@@ -37,5 +38,6 @@ export function originMismatch(request: NextRequest): boolean {
   // No cookies means no ambient credentials means nothing to forge against.
   if (request.cookies.getAll().length === 0) return false
 
-  return origin !== request.nextUrl.origin
+  // Not request.nextUrl.origin: on a server that reads https://localhost:<port>.
+  return origin !== publicOrigin(request)
 }
