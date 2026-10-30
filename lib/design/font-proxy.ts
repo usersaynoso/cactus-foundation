@@ -122,3 +122,28 @@ export function sanitiseKitFontQuery(params: URLSearchParams): URLSearchParams |
 export function proxiedFontHref(params: URLSearchParams): string {
   return `${FONT_CSS_PATH}?${params.toString()}`
 }
+
+/**
+ * The font type of a body, read from its first bytes, or null if they are not a
+ * font signature we serve: `wOF2`, `wOFF`, `OTTO`, `00 01 00 00` (TrueType) or
+ * `true` (old Apple TrueType). Nothing else - so HTML, script or anything
+ * executable can never pass for a font.
+ *
+ * Why the bytes and not Google's Content-Type: for the kit shape of url Google
+ * sometimes labels a genuine WOFF2 as `text/html; charset=utf-8`, depending on
+ * where the request comes from. Seen 2026-10-30 from a dedicated OVH UK server
+ * (IPv4 and IPv6, any User-Agent) while a home connection got `font/woff2` for the
+ * same url. A label can lie in either direction; the signature is the file's own
+ * word for what it is, so it wins over the label, and no signature means refused.
+ */
+export function sniffFontType(bytes: ArrayLike<number>): string | null {
+  if (bytes.length < 4) return null
+  const [a, b, c, d] = [bytes[0], bytes[1], bytes[2], bytes[3]]
+  const is = (x: string) =>
+    a === x.charCodeAt(0) && b === x.charCodeAt(1) && c === x.charCodeAt(2) && d === x.charCodeAt(3)
+  if (is('wOF2')) return 'font/woff2'
+  if (is('wOFF')) return 'font/woff'
+  if (is('OTTO')) return 'font/otf'
+  if (is('true') || (a === 0 && b === 1 && c === 0 && d === 0)) return 'font/ttf'
+  return null
+}

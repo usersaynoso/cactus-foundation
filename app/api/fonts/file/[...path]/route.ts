@@ -3,6 +3,7 @@ import {
   GOOGLE_FONTS_FILE_ORIGIN,
   KIT_FONT_FILE_PATH,
   isSafeFontFilePath,
+  sniffFontType,
   sanitiseKitFontQuery,
 } from '@/lib/design/font-proxy'
 
@@ -59,12 +60,16 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ path: s
   try {
     const res = await fetch(upstream, { cache: 'no-store' })
     if (!res.ok) return new NextResponse('Not found', { status: 404 })
+    const bytes = await res.arrayBuffer()
     if (!type) {
-      const served = res.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? ''
-      type = Object.values(TYPES).find((t) => t === served)
+      // Read off the file's own first bytes, not Google's Content-Type: Google
+      // mislabels kit files as text/html from some networks (seen from an OVH UK
+      // server) while the body is a real WOFF2. A font signature is the only thing
+      // accepted, so HTML still cannot be served from this origin, and a font label
+      // on non-font bytes is refused too.
+      type = sniffFontType(new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength))) ?? undefined
       if (!type) return new NextResponse('Not a font', { status: 502 })
     }
-    const bytes = await res.arrayBuffer()
     return new NextResponse(bytes, {
       headers: {
         'Content-Type': type,

@@ -7,6 +7,7 @@ import {
   rewriteFontFileUrls,
   sanitiseFontQuery,
   sanitiseKitFontQuery,
+  sniffFontType,
 } from './font-proxy'
 
 // These two guards are the whole security surface of serving fonts from our own
@@ -147,5 +148,28 @@ describe('kit-shaped font urls', () => {
     expect(sanitiseKitFontQuery(new URLSearchParams('skey=abc&v=v20'))).toBeNull()
     expect(sanitiseKitFontQuery(new URLSearchParams('kit=../../etc'))).toBeNull()
     expect(sanitiseKitFontQuery(new URLSearchParams('kit=a&v=v20%2F..'))).toBeNull()
+  })
+})
+
+describe('sniffFontType', () => {
+  const bytes = (s: string) => new TextEncoder().encode(s)
+
+  it('names real font signatures, whatever label the upstream gave them', () => {
+    // WOFF2 labelled text/html by Google from some networks: the bytes decide.
+    expect(sniffFontType(bytes('wOF2\0\0\0\0'))).toBe('font/woff2')
+    expect(sniffFontType(bytes('wOFF\0\0\0\0'))).toBe('font/woff')
+    expect(sniffFontType(bytes('OTTO\0\0\0\0'))).toBe('font/otf')
+    expect(sniffFontType(new Uint8Array([0, 1, 0, 0, 9]))).toBe('font/ttf')
+    expect(sniffFontType(bytes('true\0\0'))).toBe('font/ttf')
+  })
+
+  it('refuses HTML, even when the label claimed a font', () => {
+    expect(sniffFontType(bytes('<!DOCTYPE html><html></html>'))).toBeNull()
+    expect(sniffFontType(bytes('<html><script>alert(1)</script>'))).toBeNull()
+  })
+
+  it('refuses empty or truncated bodies', () => {
+    expect(sniffFontType(new Uint8Array([]))).toBeNull()
+    expect(sniffFontType(bytes('wOF'))).toBeNull()
   })
 })
