@@ -498,11 +498,12 @@ systemctl daemon-reload
 systemctl enable --now cactus-monitor
 ```
 
-Then, for each site, `cactus-host site refresh <site>`. That rewrites its units into a slice
-of its own (`cactus-<site>.slice`, under `cactus.slice`), which its builds share, and adds a
-JSON access log to its Caddy file (`/var/log/caddy/<site>.access.log`, rolled at 50 MB and
-kept 30 days - it holds visitor addresses). Each site restarts once. Until it is refreshed,
-a site is still measured from its two units, and its traffic figures stay empty.
+Then, for each site, `cactus-host site refresh <site>`. That adds a JSON access log to its
+Caddy file (`/var/log/caddy/<site>.access.log`, rolled at 50 MB and kept 30 days - it holds
+visitor addresses) with a graceful Caddy reload, and rewrites its units into a slice of its
+own (`cactus-<site>.slice`, under `cactus.slice`), which its builds share. Nothing restarts:
+the running copy moves into the slice at the site's next deploy, and is measured where it is
+until then. Until it is refreshed, a site's traffic figures stay empty.
 
 `cactus-host monitor status` shows the newest sample and anything the monitor cannot read.
 

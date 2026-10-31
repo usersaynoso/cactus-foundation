@@ -137,6 +137,12 @@ export function classifyJournal(e: JournalEntry): Classified | null {
     if (unit.startsWith('cactus-postgres-backup') && /Failed with result/.test(rest)) {
       return { event: ev('backup.failed', 'error', 'The nightly database backup failed', null, rest) }
     }
+    // A deploy stops the old slot with SIGTERM and systemd force-stops it once the grace
+    // period runs out, which it reports as "Failed with result 'timeout'". That is a slow
+    // goodbye, not a crash, and must not raise the crash alert on every deploy.
+    if (site && /Failed with result 'timeout'/.test(rest)) {
+      return { event: ev('unit.slow-stop', 'info', `${site}: ${unit} took too long to stop and was ended`, site, rest) }
+    }
     if (/Failed with result/.test(rest) && !unit.startsWith('cactus-build-')) {
       return { event: ev('unit.failed', 'error', `${site ? `${site}: ` : ''}${unit} stopped with an error`, site, rest) }
     }
@@ -260,10 +266,15 @@ export function hostHistoryEvents(host: Host, store: MetricsStore, now: number):
     const sites = host.store.listSites().map((s) => s.id)
     for (const tick of readCronLog(host.config, { sites, limit: 200, failedOnly: true })) {
       if (tick.at <= seen.cron) continue
-      const jobs = tick.outcomes.filter((o) => o.status === 'failed').map((o) => o.path)
+      const failed = tick.outcomes.filter((o) => o.status === 'failed')
+      const jobs = failed.map((o) => o.path)
+      // Name the job (the first, and a count of the rest) so the alert says which one failed.
+      const named = jobs.length ? `${jobs[0]}${jobs.length > 1 ? ` and ${jobs.length - 1} more` : ''}` : null
       out.push({ at: tick.at, kind: 'cron.failed', severity: 'warning', site: tick.site,
-        title: `${tick.site}: ${jobs.length ? `${jobs.length} scheduled job${jobs.length === 1 ? '' : 's'} failed` : 'scheduled jobs did not run'}`,
-        detail: tick.error ?? jobs.join('\n') })
+        title: `${tick.site}: scheduled task failed${named ? `: ${named}` : ' to run'}`,
+        detail: failed.length
+          ? failed.map((o) => `${o.path}${o.module ? ` (module ${o.module})` : ''}${o.detail ? `: ${o.detail}` : ''}`).join('\n')
+          : (tick.error ?? 'The scheduler did not run any jobs.') })
       next.cron = Math.max(next.cron, tick.at)
     }
     // Keep the newest seen times even with nothing new, so the next read is short.

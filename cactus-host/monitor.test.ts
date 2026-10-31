@@ -176,6 +176,8 @@ describe('the journal', () => {
     expect(classifyJournal(entry('kernel', '[UFW BLOCK] IN=eth0'))?.counter).toEqual({ name: 'sec.fw_blocked' })
     expect(classifyJournal(entry('systemd', 'cactus-shop-a.service: Failed with result \'exit-code\'.'))?.event).toMatchObject({ kind: 'unit.failed', site: 'shop' })
     expect(classifyJournal(entry('systemd', 'cactus-postgres-backup.service: Failed with result \'exit-code\'.'))?.event?.kind).toBe('backup.failed')
+    // The old slot outliving its grace period after a deploy is not a crash.
+    expect(classifyJournal(entry('systemd', 'cactus-oasis-b.service: Failed with result \'timeout\'.'))?.event).toMatchObject({ kind: 'unit.slow-stop', severity: 'info', site: 'oasis' })
     expect(classifyJournal(entry('sshd', 'Accepted publickey for root from 198.51.100.4 port 2 ssh2'))?.event).toMatchObject({ kind: 'ssh.login', title: 'SSH login: root from 198.51.100.4 (publickey)' })
     expect(classifyJournal(entry('sshd', 'Failed password for invalid user admin from 1.2.3.4'))?.counter?.name).toBe('sec.ssh_failed')
     expect(classifyJournal(entry('fail2ban.actions', '2026-10-30 NOTICE [sshd] Ban 1.2.3.4'))?.event?.kind).toBe('security.ban')
@@ -249,6 +251,12 @@ describe('alerts', () => {
     engine.onEvent({ at: 5, kind: 'build.failed', severity: 'error', site: 'shop', title: 'The Shop: deploy failed', detail: null }, ctx(5))
     engine.onEvent({ at: 5, kind: 'build.ok', severity: 'info', site: 'shop', title: 'ok', detail: null }, ctx(5))
     expect(listAlerts(db, { state: 'open' }).map((a) => a.title)).toEqual(['The Shop: deploy failed'])
+    // The same thing failing again while that alert is open counts against it rather than raising another.
+    engine.onEvent({ at: 6, kind: 'build.failed', severity: 'error', site: 'shop', title: 'The Shop: deploy failed', detail: null }, ctx(6))
+    const open = listAlerts(db, { state: 'open' })
+    expect(open).toHaveLength(1)
+    expect(open[0]?.value).toBe(2)
+    expect(outbox(db, 6).filter((n) => n.kind === 'firing')).toHaveLength(1)
   })
 })
 

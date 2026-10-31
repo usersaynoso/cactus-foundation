@@ -1,6 +1,6 @@
 'use client'
 import { useSyncExternalStore } from 'react'
-import { translateLogLine } from '@/lib/deploy-log-translator'
+import { isLiveLogLine, translateLogLine } from '@/lib/deploy-log-translator'
 
 // Client-side singleton that tracks an in-flight redeploy for the whole admin
 // page: one poller feeds both the notification bell's live status section and
@@ -77,6 +77,12 @@ export function useDeployInFlight(): boolean {
   return isDeployInFlight(
     useSyncExternalStore(subscribeDeployStatus, getDeployStatus, getServerDeployStatus)
   )
+}
+
+// Whether a READY deploy is done enough to reload the page: its live line has been
+// seen, or it has been READY for long enough that the line is not coming.
+export function shouldReloadAfterDeploy(liveLineSeen: boolean, postReadyPolls: number, maxPostReadyPolls: number): boolean {
+  return liveLineSeen || postReadyPolls >= maxPostReadyPolls
 }
 
 export function deployStateLabel(state: string, failed: boolean): string {
@@ -188,6 +194,10 @@ function startPolling(id: string): () => void {
   let lastSeen: number | null = null
   let postReadyPolls = 0
   const MAX_POST_READY_POLLS = 10
+  // Whether the host's own "you're live" line has turned up. Remembered across polls,
+  // because on a server cactus-host writes "Live." a moment before the build is marked
+  // ready - so it can arrive in a poll that still says BUILDING.
+  let liveLineSeen = false
 
   async function poll() {
     if (cancelled) return
@@ -202,6 +212,7 @@ function startPolling(id: string): () => void {
           const next: Partial<DeployStatus> = {}
           if (data.state) next.state = data.state
           const lines = data.logLines
+          if (lines?.some(isLiveLogLine)) liveLineSeen = true
           if (lines && lines.length > 0) {
             const translated: string[] = []
             for (const raw of lines) {
@@ -216,12 +227,14 @@ function startPolling(id: string): () => void {
           if (data.latestTimestamp) lastSeen = data.latestTimestamp
           if (data.state === 'READY') {
             postReadyPolls++
-            const tailDone =
-              lines?.some((l) => l.includes('Build cache uploaded')) ||
-              postReadyPolls >= MAX_POST_READY_POLLS
-            if (tailDone) {
+            // Live on every host (Vercel's "Build cache uploaded", Netlify's "Deploy is
+            // live.", cactus-host's "Live."): reload now. Checking for Vercel's line alone
+            // left a server or Netlify site sitting on "You're live" for forty seconds,
+            // until the fallback count ran out.
+            if (shouldReloadAfterDeploy(liveLineSeen, postReadyPolls, MAX_POST_READY_POLLS)) {
               cancelled = true
-              finish()
+              // A beat on "You're live" so it is read, then the fresh page.
+              setTimeout(() => void finish(), 1_500)
               return
             }
           }

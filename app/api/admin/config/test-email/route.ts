@@ -47,7 +47,10 @@ export async function POST(request: NextRequest) {
       await sendTestEmail(to, siteName)
     }
   } catch (err) {
-    return errorResponse(err instanceof Error ? err.message : 'Failed to send test email', 502)
+    // 422, not 502: the mail service refusing is not a gateway failure, and Cloudflare
+    // swaps an origin's 502 for its own HTML page - the admin then saw a JSON parse error
+    // ("The string did not match the expected pattern") instead of the provider's reason.
+    return errorResponse(err instanceof Error ? err.message : 'Failed to send test email', 422)
   }
 
   return NextResponse.json({ ok: true, to })

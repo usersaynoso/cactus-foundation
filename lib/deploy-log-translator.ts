@@ -1,3 +1,12 @@
+/** The line every host's last word turns into: Vercel's "Build cache uploaded",
+ *  Netlify's "Deploy is live." and cactus-host's "Live.". */
+export const LIVE_MESSAGE = 'Bish bash bosh. You\'re live.'
+
+/** Whether a raw log line is the one that says the new version is serving visitors. */
+export function isLiveLogLine(raw: string): boolean {
+  return translateLogLine(raw) === LIVE_MESSAGE
+}
+
 export function translateLogLine(rawLine: string): string | null {
   const line = rawLine
 
@@ -34,12 +43,12 @@ export function translateLogLine(rawLine: string): string | null {
   if (line.includes('Deploying outputs')) return "Vercel's got it now, shipping everything out..."
   if (line.includes('Deployment completed')) return 'Rolling out to your visitors now...'
   if (line.includes('Creating build cache')) return 'Just tidying up and putting things away neatly...'
-  if (line.includes('Build cache uploaded')) return 'Bish bash bosh. You\'re live.'
+  if (line.includes('Build cache uploaded')) return LIVE_MESSAGE
 
   // Netlify milestones (app/api/setup/deployment-logs/route.ts writes these itself,
   // since Netlify has no log-lines endpoint to read).
   if (line.startsWith('Building on Netlify')) return "Netlify's on it. The full blow-by-blow lives in your Netlify dashboard."
-  if (line === 'Deploy is live.') return 'Bish bash bosh. You\'re live.'
+  if (line === 'Deploy is live.') return LIVE_MESSAGE
   if (line.startsWith('Deploy failed') || line.startsWith('Deploy was cancelled')) return line
 
   // cactus-host milestones, from a build on the site's own server (cactus-host/host.ts).
@@ -47,7 +56,7 @@ export function translateLogLine(rawLine: string): string | null {
   if (line === '──── Switching over ────') return 'Built. Starting the new version up alongside the old one...'
   if (line === 'Health check passed') return 'New version is up and answering. Swapping it in...'
   if (line === 'Traffic switched') return 'Visitors are on the new version now. Nobody noticed a thing.'
-  if (line === 'Live.') return 'Bish bash bosh. You\'re live.'
+  if (line === 'Live.') return LIVE_MESSAGE
   if (line.startsWith('Failed: ')) return line.slice('Failed: '.length)
 
   return null

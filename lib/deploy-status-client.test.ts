@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { isDeployInFlight, type DeployStatus } from './deploy-status-client'
+import { isDeployInFlight, shouldReloadAfterDeploy, type DeployStatus } from './deploy-status-client'
+import { isLiveLogLine } from './deploy-log-translator'
 
 // The store is a module-level singleton driven by network polling, so the
 // decision it feeds is tested as the pure function the hook wraps.
@@ -22,5 +23,22 @@ describe('isDeployInFlight', () => {
   // work - getDeployInFlight() answers null for an ERRORed deployment.
   it('is false once the build has failed, so the buttons come back', () => {
     expect(isDeployInFlight(status({ active: true, failed: true, state: 'ERROR' }))).toBe(false)
+  })
+})
+
+describe('reloading once a deploy is live', () => {
+  it('knows every host\'s last line', () => {
+    expect(isLiveLogLine('Build cache uploaded: 42.1 MB in 2.3s')).toBe(true)
+    expect(isLiveLogLine('Deploy is live.')).toBe(true)
+    expect(isLiveLogLine('Live.')).toBe(true)
+    expect(isLiveLogLine('──── Switching traffic ────')).toBe(false)
+  })
+
+  // A server site's "Live." arrives with READY; waiting for Vercel's own line kept
+  // the panel on "You're live" for forty seconds.
+  it('reloads on the first READY poll once the live line is in, and falls back after the count', () => {
+    expect(shouldReloadAfterDeploy(true, 1, 10)).toBe(true)
+    expect(shouldReloadAfterDeploy(false, 1, 10)).toBe(false)
+    expect(shouldReloadAfterDeploy(false, 10, 10)).toBe(true)
   })
 })

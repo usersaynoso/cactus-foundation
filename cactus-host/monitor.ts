@@ -28,7 +28,7 @@ import {
   parsePressure, parseProcStat, parseSockstat, parseSystemctlShow, readCgroup, readTemps, realProc, siteSlice,
   type CgroupReading, type DiskCounters, type NetCounters, type Proc, type ProcStat,
 } from './monitor-proc.ts'
-import type { CollectorState, LiveSnapshot, MonitorSettings, PgActivity, ServiceLive, SiteHealth, SiteLive, SmartLive } from './monitor-protocol.ts'
+import type { CollectorState, ListeningPort, LiveSnapshot, MonitorSettings, PgActivity, ServiceLive, SiteHealth, SiteLive, SmartLive } from './monitor-protocol.ts'
 import { SecurityCollector } from './monitor-security.ts'
 import { monitorDir, readSettings } from './monitor-settings.ts'
 import { AccessLogTailer, TrafficAggregator, type SiteTrafficSample } from './monitor-traffic.ts'
@@ -209,7 +209,23 @@ export class Monitor {
       const latest = this.host.store.listBuilds(site.id)[0]
       if (latest && (latest.state === 'queued' || latest.state === 'building')) deploying.add(site.id)
     }
-    return { now, settings, deploying, siteName: (id) => names.get(id) ?? id }
+    return { now, settings, deploying, siteName: (id) => names.get(id) ?? id, describe: (metric, label) => this.describeMetric(metric, label) }
+  }
+
+  /** Which port, which service: the part of a metric alert that its number cannot say. */
+  private describeMetric(metric: string, label: string | null): string | null {
+    if (metric === 'sec.unexpected_ports') {
+      const ports = this.store.getKv<{ ports: ListeningPort[] }>('security')?.value.ports.filter((p) => !p.expected) ?? []
+      if (!ports.length) return null
+      const byPort = new Map<string, ListeningPort[]>()
+      for (const p of ports) byPort.set(`${p.proto} ${p.port}`, [...(byPort.get(`${p.proto} ${p.port}`) ?? []), p])
+      return [...byPort.values()].map((list) => {
+        const p = list[0] as ListeningPort
+        return `Port ${p.port}/${p.proto.replace(/\d$/, '')} is open to the internet, opened by ${p.process ?? 'a process we could not identify'}, listening on ${list.map((l) => l.address).join(' and ')}. If it should be open, add ${p.port} to the expected ports in Settings > Server.`
+      }).join('\n')
+    }
+    if (metric === 'svc.down' && label) return `The ${label} service is not running.`
+    return null
   }
 
   private noteReboot(): void {
@@ -378,17 +394,21 @@ export class Monitor {
     const siteRows: SiteLive[] = []
     const defaultLimit = memLimitBytes(this.host.config.site.memoryMax)
     for (const site of sites) {
-      const slice = join(this.cgroupRoot, 'cactus.slice', siteSlice(site.id))
-      const inSlice = this.proc.read(`${slice}/cgroup.procs`) !== null
-      const base = inSlice ? slice : join(this.cgroupRoot, 'system.slice')
-      const slotA = readCgroup(this.proc, `${base}/cactus-${site.id}-a.service`)
-      const slotB = readCgroup(this.proc, `${base}/cactus-${site.id}-b.service`)
+      // A site refreshed since its last deploy has its builds in its own slice and its
+      // running copy still in system.slice, until the next deploy moves it. So each unit is
+      // looked for in both, slice first.
+      const homes = [join(this.cgroupRoot, 'cactus.slice', siteSlice(site.id)), join(this.cgroupRoot, 'system.slice')]
+      const unit = (name: string) => homes.map((h) => readCgroup(this.proc, `${h}/${name}`)).find((r) => r !== null) ?? null
+      const slotA = unit(`cactus-${site.id}-a.service`)
+      const slotB = unit(`cactus-${site.id}-b.service`)
       const slots = addCgroups(slotA, slotB)
       let builds: CgroupReading | null = null
       const prefix = `cactus-build-${site.id}-`
-      for (const name of this.proc.list(base)) {
-        if (!name.startsWith(prefix) || !/^[a-z0-9]+\.service$/.test(name.slice(prefix.length))) continue
-        builds = addCgroups(builds, readCgroup(this.proc, `${base}/${name}`))
+      for (const home of homes) {
+        for (const name of this.proc.list(home)) {
+          if (!name.startsWith(prefix) || !/^[a-z0-9]+\.service$/.test(name.slice(prefix.length))) continue
+          builds = addCgroups(builds, readCgroup(this.proc, `${home}/${name}`))
+        }
       }
       sitePrev.set(site.id, { slots, builds })
       const p = prev?.sites.get(site.id)

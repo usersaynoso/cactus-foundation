@@ -52,6 +52,8 @@ export function slotUnit(config: HostConfig, site: SiteRecord, paths: SitePaths,
     // SIGTERM lets Next stop taking connections and finish what it has; this is how
     // long it gets before systemd stops waiting.
     'KillSignal=SIGTERM',
+    // Node exits 143 when SIGTERM stops it, which is a clean stop here, not a failure.
+    'SuccessExitStatus=143',
     `TimeoutStopSec=${config.stopTimeoutSeconds}`,
     `MemoryMax=${config.site.memoryMax}`,
     'NoNewPrivileges=yes',

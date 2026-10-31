@@ -73,6 +73,7 @@ describe('a build', () => {
       'enable cactus-shop-b.service',
       'disable cactus-shop-a.service',
       'stop cactus-shop-a.service',
+      'reset-failed cactus-shop-a.service',
     ])
     const order = ctx.system.calls.map((c) => `${c.cmd} ${c.args[0]}`)
     expect(order.indexOf('systemctl reload')).toBeLessThan(order.indexOf('systemctl stop'))

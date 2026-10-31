@@ -549,6 +549,9 @@ export class Host {
       await this.sleep(2_000)
       await this.system.run('systemctl', ['disable', '--quiet', paths.unit(previous)])
       await this.system.run('systemctl', ['stop', paths.unit(previous)])
+      // A stop that ran into its timeout (or exited 143) leaves the unit "failed", which
+      // Oasis's alerts report as a fault although we asked for it. It is stopped on purpose.
+      await this.system.run('systemctl', ['reset-failed', paths.unit(previous)])
       line('Previous version stopped')
     }
     return next

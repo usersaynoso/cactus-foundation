@@ -1374,8 +1374,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credentials }),
       })
-      const d = (await res.json()) as { ok?: boolean; to?: string; error?: string }
-      if (!res.ok) throw new Error(d.error ?? 'Failed to send test email')
+      // Read defensively: an error page from something in front of the site (Cloudflare,
+      // a proxy) is not JSON, and Safari's parse error would hide what actually happened.
+      const d = (await res.json().catch(() => ({}))) as { ok?: boolean; to?: string; error?: string }
+      if (!res.ok) throw new Error(d.error ?? `Failed to send test email (the site answered ${res.status})`)
       setTestedEnvId(sectionId)
       setTimeout(() => setTestedEnvId(null), 5000)
     } catch (err: unknown) {
@@ -1395,8 +1397,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(testEmailTo.trim() ? { to: testEmailTo.trim() } : {}),
       })
-      const d = (await res.json()) as { ok?: boolean; to?: string; error?: string }
-      if (!res.ok) throw new Error(d.error ?? 'Failed to send test email')
+      // Read defensively: an error page from something in front of the site (Cloudflare,
+      // a proxy) is not JSON, and Safari's parse error would hide what actually happened.
+      const d = (await res.json().catch(() => ({}))) as { ok?: boolean; to?: string; error?: string }
+      if (!res.ok) throw new Error(d.error ?? `Failed to send test email (the site answered ${res.status})`)
       setTestEmailSent(d.to ?? testEmailTo.trim())
     } catch (err: unknown) {
       setTestEmailError(err instanceof Error ? err.message : 'Failed to send test email')

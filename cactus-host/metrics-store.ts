@@ -99,7 +99,7 @@ CREATE INDEX IF NOT EXISTS events_at ON events (at);
 CREATE INDEX IF NOT EXISTS events_site ON events (site, at);
 CREATE TABLE IF NOT EXISTS traffic (site TEXT NOT NULL, t INTEGER NOT NULL, dim TEXT NOT NULL, key TEXT NOT NULL, requests INTEGER NOT NULL, bytes INTEGER NOT NULL, errors INTEGER NOT NULL, dur_sum REAL NOT NULL, dur_max REAL NOT NULL, PRIMARY KEY (site, t, dim, key)) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS traffic_t ON traffic (t);
-CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY, rule_id TEXT NOT NULL, label TEXT, site TEXT, title TEXT NOT NULL, severity TEXT NOT NULL, state TEXT NOT NULL, started_at INTEGER NOT NULL, acknowledged_at INTEGER, acknowledged_by TEXT, resolved_at INTEGER, snoozed_until INTEGER, value REAL, last_notified_at INTEGER, muted INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY, rule_id TEXT NOT NULL, label TEXT, site TEXT, title TEXT NOT NULL, severity TEXT NOT NULL, state TEXT NOT NULL, started_at INTEGER NOT NULL, acknowledged_at INTEGER, acknowledged_by TEXT, resolved_at INTEGER, snoozed_until INTEGER, value REAL, last_notified_at INTEGER, muted INTEGER NOT NULL DEFAULT 0, detail TEXT);
 CREATE INDEX IF NOT EXISTS alerts_state ON alerts (state, started_at);
 CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY, alert_id INTEGER, kind TEXT NOT NULL, created_at INTEGER NOT NULL, sent_at INTEGER);
 CREATE INDEX IF NOT EXISTS notifications_unsent ON notifications (sent_at, id);
@@ -123,6 +123,10 @@ export class MetricsStore {
       this.db.exec('PRAGMA journal_mode = WAL')
       this.db.exec('PRAGMA synchronous = NORMAL')
       this.db.exec(SCHEMA)
+      // Alerts made before they carried the detail of what happened.
+      if (!(this.db.prepare('PRAGMA table_info(alerts)').all() as { name: string }[]).some((c) => c.name === 'detail')) {
+        this.db.exec('ALTER TABLE alerts ADD COLUMN detail TEXT')
+      }
     }
   }
 

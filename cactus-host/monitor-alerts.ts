@@ -31,6 +31,7 @@ type AlertRow = {
   value: number | null
   last_notified_at: number | null
   muted: number
+  detail: string | null
 }
 
 function toAlert(r: AlertRow): MonitorAlert {
@@ -49,6 +50,7 @@ function toAlert(r: AlertRow): MonitorAlert {
     snoozedUntil: r.snoozed_until,
     value: r.value,
     muted: r.muted === 1,
+    detail: r.detail,
   }
 }
 
@@ -69,6 +71,18 @@ export type AlertContext = {
   deploying: Set<string>
   /** A display name for a site id. */
   siteName: (id: string) => string
+  /** What a metric alert is about in plain words (which port, which service), when the rule's value alone does not say. */
+  describe?: (metric: string, label: string | null) => string | null
+}
+
+const OPS = { '>': 'above', '<': 'below' } as const
+
+/** The rule in words, with the value that tripped it. */
+function ruleDetail(rule: Extract<AlertRule, { type: 'metric' }>, value: number, extra: string | null): string {
+  const limit = rule.metric.endsWith('_pct') ? `${rule.threshold}%` : formatValue(rule.metric, rule.threshold)
+  const lasted = rule.forSeconds >= 60 ? ` for ${Math.round(rule.forSeconds / 60)} min` : rule.forSeconds > 0 ? ` for ${rule.forSeconds}s` : ''
+  const rest = `${rule.name}: it read ${formatValue(rule.metric, value)}, ${OPS[rule.op]} the limit of ${limit}${lasted}.`
+  return extra ? `${extra}\n${rest}` : rest
 }
 
 export class AlertEngine {
@@ -94,10 +108,10 @@ export class AlertEngine {
     if (alertId !== null) this.db.prepare('UPDATE alerts SET last_notified_at = ? WHERE id = ?').run(now, alertId)
   }
 
-  private fire(rule: AlertRule, label: string | null, site: string | null, title: string, value: number | null, ctx: AlertContext): void {
+  private fire(rule: AlertRule, label: string | null, site: string | null, title: string, value: number | null, detail: string | null, ctx: AlertContext): void {
     const muted = this.muted(site, ctx)
-    const result = this.db.prepare(`INSERT INTO alerts (rule_id, label, site, title, severity, state, started_at, value, muted)
-      VALUES (?, ?, ?, ?, ?, 'firing', ?, ?, ?)`).run(rule.id, label, site, title, rule.severity, ctx.now, value, muted ? 1 : 0)
+    const result = this.db.prepare(`INSERT INTO alerts (rule_id, label, site, title, severity, state, started_at, value, muted, detail)
+      VALUES (?, ?, ?, ?, ?, 'firing', ?, ?, ?, ?)`).run(rule.id, label, site, title, rule.severity, ctx.now, value, muted ? 1 : 0, detail)
     if (!muted) this.queue(Number(result.lastInsertRowid), 'firing', ctx.now)
   }
 
@@ -140,7 +154,7 @@ export class AlertEngine {
         if (ctx.now - since < rule.forSeconds * 1000) continue
         const site = rule.metric.startsWith('site.') ? s.label : null
         const what = site ? ctx.siteName(site) : s.label
-        this.fire(rule, s.label, site, `${rule.name}${what ? `: ${what}` : ''} (${formatValue(rule.metric, s.value)})`, s.value, ctx)
+        this.fire(rule, s.label, site, `${rule.name}${what ? `: ${what}` : ''} (${formatValue(rule.metric, s.value)})`, s.value, ruleDetail(rule, s.value, ctx.describe?.(rule.metric, s.label) ?? null), ctx)
       }
       // A series that has gone (a site removed, a disk unmounted) cannot stay alerting.
       const stale = this.db.prepare("SELECT * FROM alerts WHERE rule_id = ? AND state <> 'resolved'").all(rule.id) as AlertRow[]
@@ -165,7 +179,13 @@ export class AlertEngine {
   onEvent(event: Omit<MonitorEvent, 'id'>, ctx: AlertContext): void {
     for (const rule of ctx.settings.rules) {
       if (!rule.enabled || rule.type !== 'event' || !rule.kinds.includes(event.kind)) continue
-      this.fire(rule, event.site, event.site, event.title, null, ctx)
+      // Something failing over and over (a job every minute) is one alert, not one a minute.
+      const open = this.open(rule.id, event.site)
+      if (open) {
+        this.db.prepare('UPDATE alerts SET value = COALESCE(value, 1) + 1 WHERE id = ?').run(open.id)
+        continue
+      }
+      this.fire(rule, event.site, event.site, event.title, null, event.detail, ctx)
     }
   }
 

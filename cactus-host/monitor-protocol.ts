@@ -267,6 +267,8 @@ export type MonitorAlert = {
   snoozedUntil: number | null
   value: number | null
   muted: boolean
+  /** What actually happened: which port, which scheduled task, which service. */
+  detail: string | null
 }
 
 export type AlertNotification = {
