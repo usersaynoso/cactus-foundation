@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { isAdminToken } from './admin.ts'
 import { audited, readAudit } from './audit.ts'
+import { backupsFor } from './backups.ts'
 import { issueCertificate, siteCertificates } from './certificates.ts'
 import { lastCronTick, readCronLog } from './cron-log.ts'
 import { addSiteDomain, adminSummary, createSite, siteDatabase } from './create.ts'
@@ -156,6 +157,24 @@ export async function handle(host: Host, req: IncomingMessage, res: ServerRespon
     }
     case 'GET /domains/:id':
       return send(res, 200, { domain: await host.domainStatus(id, rest[1] as string) })
+
+    // The site's own database's automatic backups (backups.ts). Changes are audited
+    // like the admin API's, because they decide where a copy of every secret goes.
+    case 'GET /backup':
+      return send(res, 200, { backup: backupsFor(host).state(site) })
+    case 'PUT /backup': {
+      const body = await readBody(req)
+      const backup = await audited(host.config, () => host.system.now(), 'site-api', 'backup.settings', id, () =>
+        backupsFor(host).save(site, body)
+      )
+      return send(res, 200, { backup })
+    }
+    case 'POST /backup/run': {
+      const started = await audited(host.config, () => host.system.now(), 'site-api', 'backup.run', id, async () =>
+        backupsFor(host).runNow(site)
+      )
+      return send(res, 202, { started, backup: backupsFor(host).state(site) })
+    }
 
     default:
       return send(res, 404, { error: 'Not found' } satisfies ErrorBody)

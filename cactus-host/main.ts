@@ -26,6 +26,8 @@
 //   cactus-host db create <name> [--backup remote:path]   prints the connection string, once
 //   cactus-host db backup <name>               one dump now, copied to its backup destination
 //   cactus-host db destination <name> [remote:path | --none]
+//   cactus-host db schedule <name> [off|6h|12h|daily|weekly] [--at HH:MM] [--keep <days>]   show or set its automatic backups (UTC)
+//   cactus-host db scheduled <name>            exit 0 when cactus-host schedules it, so a nightly script can skip it
 //   cactus-host admin grant <site>             a new admin token, into that site's env
 //   cactus-host admin revoke
 //   cactus-host admin status
@@ -54,6 +56,7 @@ import { createApiServer } from './http.ts'
 import { addSite } from './provision.ts'
 import { renameSite } from './rename.ts'
 import type { BuildLogChunk, BuildSummary, DomainSummary, EnvKeySummary, StartBuildResponse } from './protocol.ts'
+import { backupsFor, parseSchedule } from './backups.ts'
 import { Scheduler } from './scheduler.ts'
 import { Monitor } from './monitor.ts'
 import { newMetricsToken, readLive } from './monitor-api.ts'
@@ -133,7 +136,7 @@ async function serve(config: HostConfig): Promise<void> {
     console.log(`[cactus-host] ${signal}: no new work; waiting for running builds`)
     scheduler.stop()
     server.close()
-    void host.waitForAll().then(() => process.exit(0))
+    void Promise.all([host.waitForAll(), backupsFor(host).whenIdle()]).then(() => process.exit(0))
   }
   process.on('SIGTERM', () => shutdown('SIGTERM'))
   process.on('SIGINT', () => shutdown('SIGINT'))
@@ -378,6 +381,34 @@ async function main(argv: string[]): Promise<void> {
         const dest = value === '--none' ? null : value
         await audited(config, now, 'cli', 'db.destination', name, async () => databases.setDestination(name, dest))
         console.log(dest ? `${name}'s backups now go to ${dest}.` : `${name}'s backups are now local only.`)
+        return
+      }
+      if (sub === 'scheduled') {
+        process.exitCode = databases.schedule(name).every === 'off' ? 1 : 0
+        return
+      }
+      if (sub === 'schedule') {
+        const current = databases.schedule(name)
+        const every = rest[1]
+        if (every === undefined || every.startsWith('--')) {
+          const last = databases.lastRun(name)
+          const at = `${String(current.hour).padStart(2, '0')}:${String(current.minute).padStart(2, '0')} UTC`
+          console.log(current.every === 'off' ? 'off' : `${current.every} at ${at}, ${current.keepDays} days kept`)
+          if (last) console.log(`last run ${new Date(last.at).toISOString()}: ${last.ok ? 'ok' : `failed: ${last.error}`}`)
+          return
+        }
+        const at = flag(rest, '--at')
+        const time = at === undefined ? null : /^(\d{1,2}):(\d{2})$/.exec(at)
+        if (at !== undefined && !time) fail('--at takes a time like 03:30 (UTC)')
+        const keep = flag(rest, '--keep')
+        const schedule = parseSchedule({
+          every,
+          hour: time ? Number(time[1]) : current.hour,
+          minute: time ? Number(time[2]) : current.minute,
+          keepDays: keep === undefined ? current.keepDays : Number(keep),
+        })
+        await audited(config, now, 'cli', 'db.schedule', name, async () => databases.setSchedule(name, schedule))
+        console.log(schedule.every === 'off' ? `cactus-host no longer schedules ${name}'s backups.` : `${name} is now backed up ${schedule.every} from ${at ?? `${schedule.hour}:${String(schedule.minute).padStart(2, '0')}`} UTC, ${schedule.keepDays} days kept.`)
         return
       }
       return fail(USAGE)

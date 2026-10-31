@@ -123,6 +123,7 @@ export function testConfig(): HostConfig {
     keepReleases: 3,
     healthTimeoutSeconds: 5,
     backupDir: join(root, 'backups'),
+    rcloneConfig: join(root, 'rclone.conf'),
   }
 }
 

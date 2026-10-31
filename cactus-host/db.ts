@@ -7,13 +7,15 @@
 // once, inside the connection string, and cactus-host keeps no copy.
 //
 // Where each database's backups go is recorded in <stateDir>/databases.json, which
-// ops/backup-postgres.sh reads through `cactus-host db destination <name>`.
+// ops/backup-postgres.sh reads through `cactus-host db destination <name>`. The same
+// file holds each database's automatic backup schedule and how its last run went,
+// which backups.ts acts on.
 
 import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import type { HostConfig } from './config.ts'
-import type { DatabaseSummary } from './protocol.ts'
+import { DEFAULT_BACKUP_SCHEDULE, type BackupRun, type BackupSchedule, type DatabaseSummary } from './protocol.ts'
 import { writeFileAtomic } from './store.ts'
 import { mustRun, type System } from './system.ts'
 
@@ -49,7 +51,15 @@ export function connectionString(config: HostConfig, name: string, password: str
   return `postgresql://${name}:${password}@${host}:${port}/${name}?connection_limit=10&pool_timeout=20`
 }
 
-type Registry = Record<string, { backup: string | null; createdAt: number | null }>
+type RegistryEntry = {
+  backup: string | null
+  createdAt: number | null
+  /** cactus-host's own schedule for it (backups.ts). Absent means off. */
+  schedule?: BackupSchedule
+  lastRun?: BackupRun | null
+}
+
+type Registry = Record<string, RegistryEntry>
 
 function registryPath(config: HostConfig): string {
   return join(config.stateDir, 'databases.json')
@@ -112,6 +122,8 @@ export class Databases {
         owner: owner as string,
         sizeBytes: Number(size),
         backup: registry[name as string]?.backup ?? null,
+        schedule: registry[name as string]?.schedule ?? DEFAULT_BACKUP_SCHEDULE,
+        lastRun: registry[name as string]?.lastRun ?? null,
       }))
   }
 
@@ -159,9 +171,51 @@ export class Databases {
   setDestination(name: string, dest: string | null): void {
     checkName(name)
     if (dest) checkDest(dest)
+    this.update(name, (entry) => ({ ...entry, backup: dest }))
+  }
+
+  /** The schedule cactus-host keeps for it, off when it has none. */
+  schedule(name: string): BackupSchedule {
+    checkName(name)
+    return readRegistry(this.config)[name]?.schedule ?? DEFAULT_BACKUP_SCHEDULE
+  }
+
+  setSchedule(name: string, schedule: BackupSchedule): void {
+    checkName(name)
+    this.update(name, (entry) => ({ ...entry, schedule }))
+  }
+
+  lastRun(name: string): BackupRun | null {
+    checkName(name)
+    return readRegistry(this.config)[name]?.lastRun ?? null
+  }
+
+  recordRun(name: string, run: BackupRun): void {
+    checkName(name)
+    this.update(name, (entry) => ({ ...entry, lastRun: run }))
+  }
+
+  /** Every database with a schedule that is not off, for the scheduler. */
+  scheduled(): Array<{ name: string; schedule: BackupSchedule; lastRun: BackupRun | null }> {
+    return Object.entries(readRegistry(this.config))
+      .filter(([name, entry]) => DB_NAME_PATTERN.test(name) && entry.schedule && entry.schedule.every !== 'off')
+      .map(([name, entry]) => ({ name, schedule: entry.schedule as BackupSchedule, lastRun: entry.lastRun ?? null }))
+  }
+
+  /** Read, change and write one entry, keeping whatever else it holds. */
+  private update(name: string, change: (entry: RegistryEntry) => RegistryEntry): void {
     const registry = readRegistry(this.config)
-    registry[name] = { backup: dest, createdAt: registry[name]?.createdAt ?? null }
+    registry[name] = change(registry[name] ?? { backup: null, createdAt: null })
     saveRegistry(this.config, registry)
+  }
+
+  /** Deletes this database's copies older than `keepDays` from its destination. */
+  async pruneDestination(name: string, keepDays: number): Promise<void> {
+    const dest = this.destination(name)
+    if (!dest || !Number.isInteger(keepDays) || keepDays < 1) return
+    await mustRun(this.system, `Tidying old copies of ${name} in ${dest}`, 'rclone', [
+      'delete', '--include', `${name}-*.dump`, '--min-age', `${keepDays}d`, dest,
+    ])
   }
 
   /** One dump now, at the lowest priority, then a copy to the recorded destination if there is one. */

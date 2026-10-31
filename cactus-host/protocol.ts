@@ -90,6 +90,71 @@ export type DatabaseSummary = {
   sizeBytes: number
   /** rclone remote:path its backups are copied to, or null for local copies only. */
   backup: string | null
+  /** cactus-host's own schedule for it (backups.ts). Absent from a cactus-host older than schedules. */
+  schedule?: BackupSchedule
+  lastRun?: BackupRun | null
+}
+
+// ── Automatic backups ─────────────────────────────────────────────────────────
+//
+// cactus-host dumps a database on the schedule recorded beside its destination in
+// databases.json, copies the dump there, and deletes copies older than keepDays from
+// it. A site reads and changes its own database's settings with its own token; the
+// admin API shows every database's.
+
+/** How often. 'off' means cactus-host does not schedule this database at all. */
+export type BackupEvery = 'off' | '6h' | '12h' | 'daily' | 'weekly'
+
+export const BACKUP_EVERY: readonly BackupEvery[] = ['off', '6h', '12h', 'daily', 'weekly']
+
+/**
+ * When, in UTC. `hour` is the first run of the day for 6h and 12h (03:00 every six
+ * hours is 03:00, 09:00, 15:00, 21:00), the time of day for daily, and the time on
+ * Sundays for weekly.
+ */
+export type BackupSchedule = { every: BackupEvery; hour: number; minute: number; keepDays: number }
+
+export const DEFAULT_BACKUP_SCHEDULE: BackupSchedule = { every: 'off', hour: 3, minute: 30, keepDays: 30 }
+
+export type BackupRun = {
+  /** When it started. */
+  at: number
+  finishedAt: number
+  ok: boolean
+  sizeBytes: number | null
+  /** The rclone remote:path it was copied to, or null when there is no destination. */
+  copiedTo: string | null
+  error: string | null
+  trigger: 'schedule' | 'manual'
+}
+
+/** The storage providers whose buckets cactus-host can copy into (their Cactus names). */
+export type BackupStorage = 'B2' | 'R2' | 'S3' | 'SPACES' | 'WASABI' | 'MINIO'
+
+/** GET /v1/sites/:id/backup. */
+export type SiteBackupState = {
+  /** The site's database on this server, or null when it has none here (nothing to back up). */
+  database: string | null
+  /** Where its backups are copied, as rclone remote:path, or null for this server only. */
+  destination: string | null
+  /** The destination taken apart, when it has a bucket and a folder. */
+  location: { remote: string; bucket: string; folder: string } | null
+  schedule: BackupSchedule
+  lastRun: BackupRun | null
+  /** A backup of it is under way now. */
+  running: boolean
+}
+
+/**
+ * PUT /v1/sites/:id/backup. `folder` is a folder in the bucket the site's own `storage`
+ * credentials (in its env file) open: cactus-host makes or reuses an rclone remote from
+ * them, checks it can reach the bucket, and records `<remote>:<bucket>/<folder>`. Omit a
+ * field to leave it as it is.
+ */
+export type SiteBackupRequest = {
+  storage?: BackupStorage
+  folder?: string
+  schedule?: BackupSchedule
 }
 
 export type AdminSiteSummary = SiteSummary & {

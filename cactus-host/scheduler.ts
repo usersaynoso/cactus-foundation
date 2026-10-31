@@ -9,10 +9,13 @@
 //
 // Whatever the dispatcher answers is kept in the site's cron log (cron-log.ts), job by
 // job, which is what the Oasis Server screen's Scheduled Tasks tab reads.
+//
+// The same tick also queues any database whose automatic backup is due (backups.ts).
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { cronMatches, DISPATCH_PATH, parseCron, readReleaseSchedule } from './cron.ts'
+import { backupsFor } from './backups.ts'
 import { appendCronTick, tickFromResponse } from './cron-log.ts'
 import { parseEnv } from './env-file.ts'
 import type { Host } from './host.ts'
@@ -123,6 +126,11 @@ export class Scheduler {
 
   /** One pass over every site. Exposed for the tests. */
   async tick(at: Date): Promise<string[]> {
+    try {
+      backupsFor(this.host).tick(at)
+    } catch (err) {
+      this.log(`[backup] could not check the schedules: ${err instanceof Error ? err.message : String(err)}`)
+    }
     const woken: string[] = []
     const jobs: Promise<void>[] = []
     for (const site of this.host.store.listSites()) {

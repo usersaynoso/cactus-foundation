@@ -47,6 +47,12 @@ export type HostConfig = {
   postgres: { osUser: string; host: string; port: number }
   /** Where `cactus-host db backup` writes its dumps. Shared with ops/backup-postgres.sh. */
   backupDir: string
+  /**
+   * root's rclone config. A site choosing a backup folder in its own bucket gets a remote
+   * here (`b2-<site>`, or `s3-<site>`) made from its own storage key, unless one of that
+   * name already holds the same key.
+   */
+  rcloneConfig: string
   /** Cloudflare origin certificates, readable by Caddy: <zone>.pem and <zone>.key. */
   tlsDir: string
   /**
@@ -86,6 +92,7 @@ export const DEFAULT_CONFIG: HostConfig = {
   healthTimeoutSeconds: 120,
   postgres: { osUser: 'postgres', host: 'localhost', port: 5432 },
   backupDir: '/var/backups/cactus-db',
+  rcloneConfig: '/root/.config/rclone/rclone.conf',
   tlsDir: '/etc/caddy/tls',
   cloudflare: null,
   letsEncrypt: null,
@@ -173,6 +180,7 @@ export function parseConfig(raw: unknown): HostConfig {
       port: pick(postgres, 'port', d.postgres.port, isPort, 'postgres.'),
     },
     backupDir: pick(raw, 'backupDir', d.backupDir, isString, ''),
+    rcloneConfig: pick(raw, 'rcloneConfig', d.rcloneConfig, isString, ''),
     tlsDir: pick(raw, 'tlsDir', d.tlsDir, isString, ''),
     cloudflare: pick(raw, 'cloudflare', d.cloudflare, isCloudflare, ''),
     letsEncrypt: letsEncrypt(raw),

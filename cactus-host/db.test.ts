@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { Databases, dbNameForSite, scramVerifier } from './db.ts'
+import { DEFAULT_BACKUP_SCHEDULE } from './protocol.ts'
 import { fakeSystem, testConfig, withCluster } from './testing.ts'
 
 describe('scramVerifier', () => {
@@ -50,8 +51,8 @@ describe('Databases', () => {
     const db = new Databases(testConfig(), sys)
     db.setDestination('shop', 'b2-shop:Shop/Backups')
     expect(await db.list()).toEqual([
-      { name: 'shop', owner: 'shop', sizeBytes: 2097152, backup: 'b2-shop:Shop/Backups' },
-      { name: 'blog', owner: 'blog', sizeBytes: 2097152, backup: null },
+      { name: 'shop', owner: 'shop', sizeBytes: 2097152, backup: 'b2-shop:Shop/Backups', schedule: DEFAULT_BACKUP_SCHEDULE, lastRun: null },
+      { name: 'blog', owner: 'blog', sizeBytes: 2097152, backup: null, schedule: DEFAULT_BACKUP_SCHEDULE, lastRun: null },
     ])
   })
 

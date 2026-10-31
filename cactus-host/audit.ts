@@ -7,7 +7,8 @@ import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { HostConfig } from './config.ts'
 
-export type AuditActor = 'cli' | 'admin-api'
+/** 'site-api' is a site changing its own settings with its own token (its backups). */
+export type AuditActor = 'cli' | 'admin-api' | 'site-api'
 
 export type AuditEntry = {
   /** Epoch ms. */

@@ -321,6 +321,26 @@ Three layers, and you want them all:
   systemctl start cactus-postgres-backup   # once now, to see it work
   ```
 
+- **Or let cactus-host take each database's backups itself**, on a schedule set per
+  database. A site does this from its own admin (Settings → Backup & restore →
+  Automatic backups): it picks a folder in its own bucket in the media picker, how
+  often, the time (UTC) and how many days of copies to keep. cactus-host makes an
+  rclone remote from that site's own storage key (`b2-<site>`, or `s3-<site>` for
+  R2, S3, Spaces, Wasabi and MinIO), writes it into root's rclone config (the file
+  rclone itself reads; `rcloneConfig` in `config.json` if yours lives elsewhere),
+  and copies there. A remote of that name holding a different key is left alone and
+  the site is told why. A folder under `media/` is refused, because that part of a
+  bucket is served to the public. From the command line:
+
+  ```bash
+  cactus-host db schedule blog daily --at 03:30 --keep 30   # or 6h, 12h, weekly (Sundays), off
+  cactus-host db schedule blog                              # what it is set to, and how the last run went
+  ```
+
+  `ops/backup-postgres.sh` skips any database cactus-host schedules (`cactus-host db
+  scheduled <name>` exits 0 for those), so nothing is dumped twice a night. A run
+  missed by more than an hour (cactus-host was down) waits for the next one.
+
 - **A copy just before every deploy.** A build dumps the site's database (when it is on
   this server) after `npm ci` and before `npm run build`, which is where the migrations
   run. A dump that fails stops the build, with the live version untouched. The copies
@@ -389,6 +409,7 @@ cactus-host db create blog --backup b2-blog:Blog/Database-Backups   # prints the
 cactus-host db list                                                 # name, owner, size, where backups go
 cactus-host db backup blog                                          # one dump now, copied to its destination
 cactus-host db destination blog b2-blog:Blog/Database-Backups       # or --none
+cactus-host db schedule blog daily --at 03:30 --keep 30             # cactus-host takes them itself (section 9)
 ```
 
 `cactus-host site create` is `db create`, then `site add`, with the database already in
