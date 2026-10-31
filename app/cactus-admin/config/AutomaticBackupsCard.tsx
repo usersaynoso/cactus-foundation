@@ -6,7 +6,7 @@
 // view, which walks the bucket itself), deleting copies older than the days kept. The
 // route behind it is app/api/admin/backup/automatic; the work is cactus-host/backups.ts.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BackupEvery, BackupSchedule, SiteBackupState } from '@/cactus-host/protocol'
 import { InfoTip } from '@/components/admin/InfoTip'
 import { MediaPickerModal } from '@/components/admin/MediaPickerModal'
@@ -48,7 +48,7 @@ function when(ms: number): string {
 
 async function readStatus(): Promise<Status | { error: string }> {
   try {
-    const res = await fetch('/api/admin/backup/automatic')
+    const res = await fetch('/api/admin/backup/automatic', { cache: 'no-store' })
     const data = (await res.json()) as Status & { error?: string }
     return res.ok ? data : { error: data.error ?? 'Could not read the backup settings.' }
   } catch {
@@ -66,6 +66,10 @@ export default function AutomaticBackupsCard({ id }: { id: string }) {
   const [saving, setSaving] = useState(false)
   const [starting, setStarting] = useState(false)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+  // The time of the last backup when "Back up now" was pressed. While set, the page keeps
+  // checking until a newer one shows, so a run that ends before the first check still lands.
+  const [watchingFrom, setWatchingFrom] = useState<number | null>(null)
+  const watchingFromRef = useRef<number | null>(null)
 
   const apply = useCallback((next: Status) => {
     setStatus(next)
@@ -78,6 +82,13 @@ export default function AutomaticBackupsCard({ id }: { id: string }) {
     else {
       setLoadError('')
       setStatus(next)
+      // A newer last run than the one we started from means the backup is done.
+      const from = watchingFromRef.current
+      if (from !== null && !next.backup?.running && (next.backup?.lastRun?.at ?? 0) > from) {
+        watchingFromRef.current = null
+        setWatchingFrom(null)
+        setMessage(null)
+      }
     }
     return next
   }, [])
@@ -94,11 +105,12 @@ export default function AutomaticBackupsCard({ id }: { id: string }) {
 
   // While a backup runs, check on it now and then so the result shows without a reload.
   const running = status?.backup?.running ?? false
+  const watching = watchingFrom !== null
   useEffect(() => {
-    if (!running) return
-    const timer = setInterval(() => { void refresh() }, 5000)
+    if (!running && !watching) return
+    const timer = setInterval(() => { void refresh() }, 3000)
     return () => clearInterval(timer)
-  }, [running, refresh])
+  }, [running, watching, refresh])
 
   const backup = status?.backup ?? null
   const location = backup?.location ?? null
@@ -137,7 +149,12 @@ export default function AutomaticBackupsCard({ id }: { id: string }) {
       const data = (await res.json()) as { started?: boolean; backup?: SiteBackupState; error?: string }
       if (!res.ok || !data.backup) throw new Error(data.error ?? 'The backup did not start.')
       if (status) setStatus({ ...status, backup: data.backup })
-      setMessage({ kind: 'ok', text: data.started ? 'Backing up now. This page updates when it is done.' : 'A backup is already under way.' })
+      // Already finished by the time the server answered: nothing to wait for.
+      if (data.backup.running) {
+        watchingFromRef.current = data.backup.lastRun?.at ?? 0
+        setWatchingFrom(watchingFromRef.current)
+        setMessage({ kind: 'ok', text: data.started ? 'Backing up now. This page updates when it is done.' : 'A backup is already under way.' })
+      }
     } catch (err: unknown) {
       setMessage({ kind: 'error', text: err instanceof Error ? err.message : 'The backup did not start.' })
     } finally {
