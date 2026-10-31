@@ -478,6 +478,68 @@ Cloudflare issues and renews; the server's certificate only secures the hop from
 A Cloudflare origin certificate is trusted by Cloudflare alone, so such a domain must stay
 proxied. `cert list` says which domains are behind Cloudflare.
 
+## 14. Monitoring
+
+`cactus-monitor` watches the box and every site and keeps the history behind Oasis's
+Server › Status tab: CPU, memory, disks, network and each site's share of them, visitor
+traffic, Postgres, uptime checks, logs, events, alerts and security. It is the same code as
+cactus-host (`cactus-host monitor`), run as a service of its own so it can never get in the
+way of a deploy, and it writes only `/var/lib/cactus-host/monitor/`.
+
+Install it once, after copying the new cactus-host to `/opt/cactus-host`:
+
+```bash
+install -m 0644 /opt/cactus-host/ops/cactus-monitor.service /etc/systemd/system/
+mkdir -p /etc/systemd/journald.conf.d
+install -m 0644 /opt/cactus-host/ops/journald-cactus.conf /etc/systemd/journald.conf.d/cactus.conf
+systemctl restart systemd-journald
+apt install -y smartmontools
+systemctl daemon-reload
+systemctl enable --now cactus-monitor
+```
+
+Then, for each site, `cactus-host site refresh <site>`. That rewrites its units into a slice
+of its own (`cactus-<site>.slice`, under `cactus.slice`), which its builds share, and adds a
+JSON access log to its Caddy file (`/var/log/caddy/<site>.access.log`, rolled at 50 MB and
+kept 30 days - it holds visitor addresses). Each site restarts once. Until it is refreshed,
+a site is still measured from its two units, and its traffic figures stay empty.
+
+`cactus-host monitor status` shows the newest sample and anything the monitor cannot read.
+
+**Postgres's slowest statements** need `pg_stat_statements`, which takes one Postgres
+restart (every site loses its database for a few seconds - pick a quiet moment):
+
+```bash
+echo "shared_preload_libraries = 'pg_stat_statements'" > /etc/postgresql/18/main/conf.d/statements.conf
+systemctl restart postgresql
+sudo -u postgres psql -d postgres -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
+```
+
+**Each site's own network traffic** (its calls to payment, email and other APIs, which never
+pass through Caddy) is counted by an nftables table, `inet cactus_acct`, that the monitor
+writes itself. It only counts - it accepts every packet and never blocks one - and it is
+rewritten when sites come and go. `nft list table inet cactus_acct` shows it.
+
+**Alerts** are emailed by the Oasis site (its cron job collects them once a minute) to the
+addresses in Settings › Server. Rules, quiet periods, how often to sample and how long to
+keep history are all set there too. Because nothing on a dead server can send an email, set
+an outside heartbeat (healthchecks.io or similar) in the same place: the monitor pings it
+once a minute, and it emails you when the pings stop.
+
+**Cloudflare figures** (what each site delivered to visitors, cache included) are read by
+the Oasis site from its own environment: `CLOUDFLARE_EMAIL` and `CLOUDFLARE_GLOBAL_KEY`, or
+a `CLOUDFLARE_API_TOKEN` with Analytics: Read.
+
+```bash
+cactus-host env set oasis CLOUDFLARE_EMAIL=you@example.com
+cactus-host env set oasis CLOUDFLARE_GLOBAL_KEY=... --secret
+cactus-host build oasis
+```
+
+**Another monitoring system** (Grafana, Prometheus) can read the same live figures:
+`cactus-host monitor token` prints a read-only token for `GET /v1/metrics` on cactus-host's
+port, in Prometheus's text format. It reads figures and nothing else.
+
 ## Where things live
 
 | What | Where |
@@ -491,4 +553,6 @@ proxied. `cert list` says which domains are behind Cloudflare.
 | A site's settings | `/srv/cactus/<site>/env` (that site's user only) |
 | A site's versions | `/srv/cactus/<site>/releases/<build>/` |
 | A site's Caddy file | `/etc/caddy/sites/<site>.caddy` (rewritten by cactus-host) |
-| Its services | `cactus-<site>-a`, `cactus-<site>-b` |
+| Its services | `cactus-<site>-a`, `cactus-<site>-b`, in `cactus-<site>.slice` |
+| Monitoring history, live sample, settings | `/var/lib/cactus-host/monitor/` (`metrics.db`, `live.json`, `settings.json`) |
+| Each site's access log | `/var/log/caddy/<site>.access.log` |

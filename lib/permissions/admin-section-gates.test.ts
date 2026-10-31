@@ -22,6 +22,7 @@ const OPEN_PAGES = new Map<string, string>([
   ['account/page.tsx', 'Your own account. Being signed in is the permission.'],
   ['inbox/page.tsx', 'A host screen with no content of its own - each tab is gated by the module that fills it, and an empty inbox says so.'],
   ['config/page.tsx', 'Gated in the file, but on "may you see any tab" rather than one key - a module settings tab lives here under the module\'s own permission.'],
+  ['config/[tab]/page.tsx', 'Renders nothing: a redirect to config?tab=<tab>, where config/page.tsx does the gating.'],
   ['m/[module]/[[...path]]/page.tsx', 'The module router. A module gates its own admin pages.'],
 ])
 

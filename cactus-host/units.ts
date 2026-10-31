@@ -12,6 +12,7 @@
 // same names.
 
 import type { HostConfig } from './config.ts'
+import { siteSlice } from './monitor-proc.ts'
 import type { SitePaths, SiteRecord, SlotName } from './store.ts'
 
 export function slotUnit(config: HostConfig, site: SiteRecord, paths: SitePaths, slot: SlotName): string {
@@ -28,6 +29,9 @@ export function slotUnit(config: HostConfig, site: SiteRecord, paths: SitePaths,
     'Type=simple',
     `User=${site.user}`,
     `Group=${site.user}`,
+    // Its own slice, shared with its builds, so the monitor can read the whole site's
+    // CPU, memory and disk use from one cgroup (monitor-proc.ts).
+    `Slice=${siteSlice(site.id)}`,
     `WorkingDirectory=${dir}`,
     // The release's own copy of the env, taken when it was built - a later change to
     // the site's env file reaches the site with the next build, never by surprise on
@@ -83,6 +87,7 @@ export function buildStepArgs(
     '--collect',
     '--quiet',
     `--unit=cactus-build-${site.id}-${Date.now().toString(36)}`,
+    `--slice=${siteSlice(site.id)}`,
     `--uid=${site.user}`,
     `--gid=${site.user}`,
     `--working-directory=${releaseDir}`,

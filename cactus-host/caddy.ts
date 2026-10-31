@@ -30,6 +30,26 @@ function tlsLine(tls: { cert: string; key: string } | null): string[] {
   return [`\ttls ${tls.cert} ${tls.key}`]
 }
 
+/**
+ * The site's JSON access log, which cactus-monitor reads for requests, errors,
+ * response times and bandwidth per site (monitor-traffic.ts). Caddy rolls it at
+ * 50 MB and keeps 30 days: it holds visitor addresses, which are personal data.
+ */
+export const ACCESS_LOG_DIR = '/var/log/caddy'
+
+function accessLog(siteId: string): string[] {
+  return [
+    '\tlog {',
+    `\t\toutput file ${ACCESS_LOG_DIR}/${siteId}.access.log {`,
+    '\t\t\troll_size 50MiB',
+    '\t\t\troll_keep 20',
+    '\t\t\troll_keep_for 720h',
+    '\t\t}',
+    '\t\tformat json',
+    '\t}',
+  ]
+}
+
 export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SitePaths): string {
   for (const domain of site.domains) {
     if (!isValidHostname(domain)) throw new Error(`"${domain}" is not a valid domain name`)
@@ -68,6 +88,7 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
     header.trimEnd(),
     `${primary} {`,
     ...tlsLine(tlsFor(primary)),
+    ...accessLog(site.id),
     `\troot * ${paths.static}`,
     ...proof,
     '\t@static {',

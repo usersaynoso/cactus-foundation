@@ -1,0 +1,27 @@
+# /etc/systemd/system/cactus-monitor.service
+#
+# Watches the box and every site: CPU, memory, disks, network, each site's own
+# share, visitor traffic, Postgres, uptime, logs and alerts (cactus-host monitor.ts).
+# A service of its own so monitoring can never get in the way of a deploy.
+#
+# Root, because it reads every site's cgroup and access log, the journal, the
+# Postgres statistics and the nftables counters. It listens on nothing: cactus-host
+# answers for it, reading what it writes to /var/lib/cactus-host/monitor.
+[Unit]
+Description=cactus-monitor - watches the server and its sites
+After=network-online.target cactus-host.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=CACTUS_HOST_CONFIG=/etc/cactus-host/config.json
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning /opt/cactus-host/main.ts monitor
+Restart=always
+RestartSec=10
+Nice=10
+IOSchedulingClass=idle
+MemoryMax=256M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

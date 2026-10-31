@@ -30,6 +30,9 @@
 //   cactus-host admin revoke
 //   cactus-host admin status
 //   cactus-host admin audit [<count>]
+//   cactus-host monitor                        the monitoring service itself (systemd runs this)
+//   cactus-host monitor status                 the newest sample, in brief
+//   cactus-host monitor token                  a new read-only token for /v1/metrics (Prometheus)
 //
 // Everything but `serve`, the `site` commands, `db` and `admin` goes through the
 // running service's API with the site's own token, so the service stays the only
@@ -52,6 +55,8 @@ import { addSite } from './provision.ts'
 import { renameSite } from './rename.ts'
 import type { BuildLogChunk, BuildSummary, DomainSummary, EnvKeySummary, StartBuildResponse } from './protocol.ts'
 import { Scheduler } from './scheduler.ts'
+import { Monitor } from './monitor.ts'
+import { newMetricsToken, readLive } from './monitor-api.ts'
 import { writeFileAtomic } from './store.ts'
 import { realSystem } from './system.ts'
 import { slotUnit } from './units.ts'
@@ -402,6 +407,38 @@ async function main(argv: string[]): Promise<void> {
         for (const e of readAudit(config, Number.isFinite(count) ? count : 20).reverse()) {
           console.log(`${new Date(e.at).toISOString()}\t${e.actor}\t${e.action}\t${e.target ?? '-'}\t${e.ok ? 'ok' : `FAILED: ${e.error}`}`)
         }
+        return
+      }
+      return fail(USAGE)
+    }
+
+    case 'monitor': {
+      if (!sub) {
+        const monitor = new Monitor(host)
+        console.log(`[cactus-monitor] watching ${host.store.listSites().length} site(s)`)
+        monitor.start()
+        const shutdown = () => {
+          monitor.stop()
+          process.exit(0)
+        }
+        process.on('SIGTERM', shutdown)
+        process.on('SIGINT', shutdown)
+        return
+      }
+      if (sub === 'status') {
+        const live = readLive(host)
+        if (!live) return fail('No sample yet. Is cactus-monitor running? systemctl status cactus-monitor')
+        const age = Math.round((Date.now() - live.at) / 1000)
+        console.log(`Sampled ${age}s ago. CPU ${live.server.cpu.pct.toFixed(0)}%, memory ${Math.round((live.server.mem.usedBytes / live.server.mem.totalBytes) * 100)}%, ${live.alerts.firing} alert(s) open.`)
+        for (const s of live.sites) console.log(`  ${s.id}\t${s.health}\tCPU ${s.cpuPct.toFixed(0)}%\t${Math.round(s.memBytes / 1024 / 1024)} MB\t${s.reqRate.toFixed(1)} req/s`)
+        for (const [name, c] of Object.entries(live.collectors)) if (!c.ok) console.log(`  ${name}: ${c.error}`)
+        return
+      }
+      if (sub === 'token') {
+        const token = newMetricsToken(host)
+        console.log('A new read-only token for /v1/metrics (any earlier one no longer works). It is shown once:')
+        console.log('')
+        console.log(`  ${token}`)
         return
       }
       return fail(USAGE)

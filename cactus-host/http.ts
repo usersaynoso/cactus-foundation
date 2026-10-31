@@ -16,6 +16,7 @@ import { issueCertificate, siteCertificates } from './certificates.ts'
 import { lastCronTick, readCronLog } from './cron-log.ts'
 import { addSiteDomain, adminSummary, createSite, siteDatabase } from './create.ts'
 import { Databases } from './db.ts'
+import { handleMonitor, isMetricsToken, prometheusText, readLive } from './monitor-api.ts'
 import { Host, HostError } from './host.ts'
 import { PROTOCOL_VERSION, type AdminBuildSummary, type AdminCronSite, type EditSiteResponse, type EnvWrite, type ErrorBody } from './protocol.ts'
 import { renameSite } from './rename.ts'
@@ -84,6 +85,15 @@ export async function handle(host: Host, req: IncomingMessage, res: ServerRespon
   if (parts[0] !== 'v1') return send(res, 404, { error: 'Not found' } satisfies ErrorBody)
   if (parts[1] === 'health' && parts.length === 2) return send(res, 200, { ok: true, protocol: PROTOCOL_VERSION })
   if (parts[1] === 'admin') return handleAdmin(host, req, res, url, method, parts.slice(2))
+  // Prometheus's text format, for an outside monitoring system, behind its own read-only token.
+  if (parts[1] === 'metrics' && parts.length === 2 && method === 'GET') {
+    const token = bearerToken(req.headers.authorization)
+    if (!token || !isMetricsToken(host, token)) return send(res, 401, { error: 'The metrics token is required' } satisfies ErrorBody)
+    const live = readLive(host)
+    if (!live) return send(res, 503, { error: 'Monitoring has not started yet' } satisfies ErrorBody)
+    res.writeHead(200, { 'Content-Type': 'text/plain; version=0.0.4; charset=utf-8', 'Cache-Control': 'no-store' })
+    return void res.end(prometheusText(live))
+  }
 
   const site = authenticate(host, req)
   if (!site) return send(res, 401, { error: 'A valid token for this site is required' } satisfies ErrorBody)
@@ -186,6 +196,7 @@ async function handleAdmin(
   const databases = new Databases(host.config, host.system)
   const route = `${method} /${rest.map((p, i) => (i === 1 && (rest[0] === 'sites' || rest[0] === 'databases') ? ':id' : i === 3 && rest[2] === 'builds' ? ':build' : i === 3 && rest[2] === 'domains' ? ':domain' : p)).join('/')}`
   const id = rest[1] as string
+  if (rest[0] === 'monitor') return handleMonitor(host, method, rest.slice(1), url, req, res)
 
   switch (route) {
     case 'GET /sites':
