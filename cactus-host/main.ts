@@ -16,6 +16,7 @@
 //   cactus-host env set <site> KEY=value [--secret]
 //   cactus-host env unset <site> KEY
 //   cactus-host domain add <site> <domain> [--primary]
+//   cactus-host domain add <site> <domain> --direct   served in full, Cloudflare proxy OFF; passes the visitor's source port
 //   cactus-host domain primary <site> <domain>   make it the primary; the others redirect to it
 //   cactus-host domain remove <site> <domain>
 //   cactus-host domain check <site> <domain>
@@ -313,6 +314,14 @@ async function main(argv: string[]): Promise<void> {
         if (sub === 'primary') await host.setPrimaryDomain(rest[0] as string, name)
         else await host.removeDomain(rest[0] as string, name)
         console.log(sub === 'primary' ? `${name} is now the primary domain; the others redirect to it.` : `${name} is detached.`)
+        return
+      }
+      // --direct: Cloudflare's proxy is off for this name (grey cloud), so Caddy sees the
+      // visitor's own connection. Local and root-only, like `primary`, because it
+      // decides how the domain's certificate and visitor addresses are handled.
+      if (sub === 'add' && rest.includes('--direct')) {
+        const status = await host.addDomain(rest[0] as string, name, { direct: true })
+        console.log(status.serving ? `${status.name} is served directly and reaches this site.` : `${status.name} is attached as a direct domain. Point a DNS-only (grey cloud) A record at this server, then run \`cactus-host domain check ${rest[0]} ${name}\`.`)
         return
       }
       const { domain } =

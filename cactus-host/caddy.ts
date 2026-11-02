@@ -50,6 +50,31 @@ function accessLog(siteId: string): string[] {
   ]
 }
 
+/**
+ * The proxy for a domain nothing sits in front of. Caddy sees the visitor's own
+ * connection, so it hands the site its source port in an RFC 7239 Forwarded header
+ * (Gov-Client-Public-Port reads it). `header_up Forwarded` REPLACES whatever the
+ * visitor sent, so it cannot be spoofed. IPv6 addresses are bracketed, as the RFC
+ * requires, and are matched on their own because Caddy cannot bracket conditionally.
+ * Never used behind Cloudflare: the port seen there is Cloudflare's, not the visitor's.
+ */
+function forwardedProxy(port: number): string[] {
+  const proxy = (forValue: string) => [
+    `\t\treverse_proxy localhost:${port} {`,
+    `\t\t\theader_up Forwarded "for=\\"${forValue}:{http.request.remote.port}\\""`,
+    '\t\t}',
+  ]
+  return [
+    '\t@ipv6 remote_ip ::/0',
+    '\thandle @ipv6 {',
+    ...proxy('[{http.request.remote.host}]'),
+    '\t}',
+    '\thandle {',
+    ...proxy('{http.request.remote.host}'),
+    '\t}',
+  ]
+}
+
 export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SitePaths): string {
   for (const domain of site.domains) {
     if (!isValidHostname(domain)) throw new Error(`"${domain}" is not a valid domain name`)
@@ -58,6 +83,7 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
   if (site.domains.length === 0) return `${header}# No domains yet: add one with \`cactus-host domain add ${site.id} <name>\`.\n`
 
   const [primary, ...others] = site.domains as [string, ...string[]]
+  const direct = new Set(site.directDomains ?? [])
   const livePort = site.liveSlot ? site.ports[site.liveSlot] : null
   const tlsFor = (domain: string) => site.domainTls?.[domain] ?? site.tls ?? config.tls
   const proof = [
@@ -66,11 +92,36 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
     `\t\trespond "${site.proof}" 200`,
     '\t}',
   ]
+  // The whole site on one address: static files, the proof path and the live release.
+  // A direct domain has nothing in front of Caddy, so it also passes on the visitor's
+  // source port (see forwardedProxy).
+  const serve = (address: string, isDirect: boolean): string[] => [
+    `${address} {`,
+    ...(isDirect ? [] : tlsLine(tlsFor(address))),
+    ...accessLog(site.id),
+    `\troot * ${paths.static}`,
+    ...proof,
+    '\t@static {',
+    '\t\tpath /_next/static/*',
+    '\t\tfile',
+    '\t}',
+    '\thandle @static {',
+    '\t\theader Cache-Control "public, max-age=31536000, immutable"',
+    '\t\tfile_server',
+    '\t}',
+    ...(livePort
+      ? isDirect
+        ? forwardedProxy(livePort)
+        : ['\thandle {', `\t\treverse_proxy localhost:${livePort}`, '\t}']
+      : ['\thandle {', '\t\theader Cache-Control "no-store"', '\t\trespond "This site is still being built. Try again in a few minutes." 503', '\t}']),
+    '}',
+  ]
   // Every other domain sends visitors to the primary one, keeping path and query. The
   // proof path still answers, so a domain check can tell it reaches this site. Domains
   // sharing a certificate share a block; one in another zone gets a block of its own.
+  // A direct domain is never a redirect: it is served in a block of its own.
   const groups = new Map<string, string[]>()
-  for (const d of others) {
+  for (const d of others.filter((d) => !direct.has(d))) {
     const key = JSON.stringify(tlsFor(d))
     groups.set(key, [...(groups.get(key) ?? []), d])
   }
@@ -84,29 +135,7 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
     '\t}',
     '}',
   ])
-  const lines = [
-    header.trimEnd(),
-    `${primary} {`,
-    ...tlsLine(tlsFor(primary)),
-    ...accessLog(site.id),
-    `\troot * ${paths.static}`,
-    ...proof,
-    '\t@static {',
-    '\t\tpath /_next/static/*',
-    '\t\tfile',
-    '\t}',
-    '\thandle @static {',
-    '\t\theader Cache-Control "public, max-age=31536000, immutable"',
-    '\t\tfile_server',
-    '\t}',
-    '\thandle {',
-    ...(livePort
-      ? [`\t\treverse_proxy localhost:${livePort}`]
-      : ['\t\theader Cache-Control "no-store"', '\t\trespond "This site is still being built. Try again in a few minutes." 503']),
-    '\t}',
-    '}',
-    ...redirects,
-    '',
-  ]
+  const directBlocks = others.filter((d) => direct.has(d)).flatMap((d) => ['', ...serve(d, true)])
+  const lines = [header.trimEnd(), ...serve(primary, direct.has(primary)), ...directBlocks, ...redirects, '']
   return lines.join('\n')
 }

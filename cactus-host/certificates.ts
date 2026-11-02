@@ -36,6 +36,8 @@ type Pair = { cert: string; key: string }
 
 /** The certificate Caddy serves a domain with, and where that choice came from. */
 export function certificateFor(host: Host, site: SiteRecord, domain: string): { source: CertificateSummary['source']; pair: Pair | null } {
+  // Served straight to browsers, so Caddy gets and renews its own certificate.
+  if (site.directDomains?.includes(domain)) return { source: 'automatic', pair: null }
   const own = site.domainTls?.[domain]
   if (own) return { source: 'domain', pair: own }
   if (site.tls) return { source: 'site', pair: site.tls }

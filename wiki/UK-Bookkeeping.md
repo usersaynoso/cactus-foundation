@@ -1222,7 +1222,15 @@ the port stops there and never arrives. The module sends it on hosting that does
 pass it through, and leaves it out rather than making one up on hosting that does
 not.
 
-HMRC allow for this and ask to be told why. Say this in your application:
+A site on its own server can send it. Give the bookkeeping screens a hostname that
+browsers reach directly, with Cloudflare's proxy switched off (grey cloud), added with
+`cactus-host domain add <site> <name> --direct`. The server then sees your browser's own
+connection and passes the port on. Use that hostname for the HMRC calls. The Government
+Gateway sign-in itself still has to be made from the main site address, since HMRC send
+you back to the one address registered with them.
+
+Where it genuinely cannot be sent, HMRC allow for this and ask to be told why. Say this in
+your application:
 
 > Our software runs as a web application behind a hosted edge network. The end
 > user's TCP connection is terminated at the edge and only the client's public IP

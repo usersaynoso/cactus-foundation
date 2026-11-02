@@ -431,6 +431,31 @@ describe('primary and redirect domains', () => {
     expect(readFileSync(ctx.paths.caddyFile, 'utf8')).not.toContain('example.org')
   })
 
+  it('serves a direct domain in full, with no origin certificate and the visitor port passed on', async () => {
+    const ctx = hostWithSite({ domains: [] })
+    ctx.host.store.saveSite({ ...ctx.host.site('shop'), liveSlot: 'a' })
+    await ctx.host.addDomain('shop', 'shop.example.com')
+    await ctx.host.addDomain('shop', 'www.shop.example.com')
+    await ctx.host.addDomain('shop', 'books.example.com', { direct: true })
+    const file = readFileSync(ctx.paths.caddyFile, 'utf8')
+    const start = file.indexOf('books.example.com {')
+    const block = file.slice(start, file.indexOf('\n}\n', start))
+    expect(block).not.toContain('tls ')
+    expect(block).not.toContain('redir')
+    expect(block).toContain('reverse_proxy localhost:')
+    expect(block).toContain('header_up Forwarded "for=\\"{http.request.remote.host}:{http.request.remote.port}\\""')
+    expect(block).toContain('header_up Forwarded "for=\\"[{http.request.remote.host}]:{http.request.remote.port}\\""')
+    // The proxied domains still redirect and never get the source-port header.
+    expect(file).toContain('redir https://shop.example.com{uri} permanent')
+    expect(file.slice(0, start)).not.toContain('header_up')
+    expect(file.slice(file.indexOf('\n}\n', start))).not.toContain('header_up')
+    expect(ctx.host.site('shop').directDomains).toEqual(['books.example.com'])
+    await expect(ctx.host.addDomain('shop', 'x.example.com', { direct: true, tls: { cert: '/a.pem', key: '/a.key' } })).rejects.toThrow(/certificate/)
+    await ctx.host.removeDomain('shop', 'books.example.com')
+    expect(ctx.host.site('shop').directDomains).toEqual([])
+    expect(readFileSync(ctx.paths.caddyFile, 'utf8')).not.toContain('books.example.com')
+  })
+
   it('edits a site name and branch', async () => {
     const ctx = hostWithSite()
     expect((await ctx.host.editSite('shop', { name: ' The Shop ', branch: 'release' })).site).toMatchObject({ name: 'The Shop', branch: 'release' })

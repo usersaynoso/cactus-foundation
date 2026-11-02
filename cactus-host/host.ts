@@ -747,13 +747,19 @@ export class Host {
   // ── Domains ────────────────────────────────────────────────────────────────
 
   /** Adds a domain. The first one a site has is its primary; later ones redirect to it unless `primary` is set. */
-  async addDomain(siteId: string, name: string, opts: { primary?: boolean; tls?: { cert: string; key: string } | null } = {}): Promise<DomainSummary> {
+  async addDomain(siteId: string, name: string, opts: { primary?: boolean; direct?: boolean; tls?: { cert: string; key: string } | null } = {}): Promise<DomainSummary> {
     const site = this.site(siteId)
     const domain = this.checkedDomain(siteId, name)
+    // A direct domain (Cloudflare proxy off) is served in full, with a certificate Caddy
+    // gets itself, so an origin certificate recorded for it would be the wrong one.
+    if (opts.direct && opts.tls) throw new HostError('A direct domain gets its certificate from Caddy; it cannot be given one', 400)
+    const others = (site.directDomains ?? []).filter((d) => d !== domain)
+    const directDomains = opts.direct ? [...others, domain] : opts.direct === false ? others : site.directDomains
+    if (opts.direct) opts.tls = null
     const domains = site.domains.includes(domain) ? site.domains : [...site.domains, domain]
     const { [domain]: _previous, ...otherTls } = site.domainTls ?? {}
     const domainTls = opts.tls ? { ...otherTls, [domain]: opts.tls } : opts.tls === null ? otherTls : site.domainTls
-    await this.saveDomains({ ...site, domainTls }, opts.primary ? [domain, ...domains.filter((d) => d !== domain)] : domains, site)
+    await this.saveDomains({ ...site, domainTls, directDomains }, opts.primary ? [domain, ...domains.filter((d) => d !== domain)] : domains, site)
     return this.domainStatus(siteId, domain)
   }
 
@@ -772,7 +778,8 @@ export class Host {
     if (!site.domains.includes(domain)) throw new HostError(`${domain} is not attached to ${siteId}`, 404)
     if (site.domains.length === 1) throw new HostError(`${domain} is the only domain ${siteId} has. Add another first, or the site would be unreachable`, 409)
     const { [domain]: _gone, ...domainTls } = site.domainTls ?? {}
-    await this.saveDomains({ ...site, domainTls }, site.domains.filter((d) => d !== domain), site)
+    const directDomains = (site.directDomains ?? []).filter((d) => d !== domain)
+    await this.saveDomains({ ...site, domainTls, directDomains }, site.domains.filter((d) => d !== domain), site)
   }
 
   /** The domain, lower-cased, once it is known to be valid and not another site's. */
@@ -785,7 +792,11 @@ export class Host {
   }
 
   private async saveDomains(site: SiteRecord, domains: string[], before: SiteRecord = site): Promise<void> {
-    if (domains.join() === before.domains.join() && JSON.stringify(site.domainTls ?? {}) === JSON.stringify(before.domainTls ?? {})) return
+    if (
+      domains.join() === before.domains.join() &&
+      JSON.stringify(site.domainTls ?? {}) === JSON.stringify(before.domainTls ?? {}) &&
+      JSON.stringify(site.directDomains ?? []) === JSON.stringify(before.directDomains ?? [])
+    ) return
     const updated = { ...site, domains }
     await this.writeRouting(updated)
     this.store.saveSite(updated)

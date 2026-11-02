@@ -54,6 +54,14 @@ export type SiteRecord = {
    * rest of the site (an origin certificate covers one zone), keyed by domain.
    */
   domainTls?: Record<string, { cert: string; key: string }>
+  /**
+   * Domains (a subset of `domains`) that browsers reach straight, with Cloudflare's
+   * proxy off (grey cloud). They are served in full rather than redirected to the
+   * primary, get a Let's Encrypt certificate from Caddy itself (an origin certificate
+   * is only trusted by Cloudflare), and the visitor's real source port is passed to the
+   * site in a Forwarded header, which is what HMRC's Gov-Client-Public-Port needs.
+   */
+  directDomains?: string[]
   createdAt: number
 }
 

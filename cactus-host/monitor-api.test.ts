@@ -107,7 +107,8 @@ describe('the monitoring API', () => {
     expect((await call('/admin/monitor/security')).status).toBe(200)
     const cap = (await (await call('/admin/monitor/capacity')).json()) as { forecasts: { kind: string }[] }
     expect(cap.forecasts.some((f) => f.kind === 'disk')).toBe(true)
-    const month = new Date().toISOString().slice(0, 7)
+    // The fake system clock's month (testing.ts), not the real one: the real month moves on.
+    const month = '2026-10'
     const usage = (await (await call(`/admin/monitor/usage?month=${month}`)).json()) as { sites: { site: string }[] }
     expect(usage.sites.map((s) => s.site)).toEqual(['shop'])
     expect((await call('/admin/monitor/usage?month=nope')).status).toBe(400)
