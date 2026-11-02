@@ -94,10 +94,11 @@ export function siteCaddyFile(config: HostConfig, site: SiteRecord, paths: SiteP
   ]
   // The whole site on one address: static files, the proof path and the live release.
   // A direct domain has nothing in front of Caddy, so it also passes on the visitor's
-  // source port (see forwardedProxy).
+  // source port (see forwardedProxy), and it only ever gets a certificate of its own:
+  // the site's or server's is a Cloudflare origin certificate, untrusted by browsers.
   const serve = (address: string, isDirect: boolean): string[] => [
     `${address} {`,
-    ...(isDirect ? [] : tlsLine(tlsFor(address))),
+    ...tlsLine(isDirect ? (site.domainTls?.[address] ?? null) : tlsFor(address)),
     ...accessLog(site.id),
     `\troot * ${paths.static}`,
     ...proof,

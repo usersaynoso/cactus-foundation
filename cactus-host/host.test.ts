@@ -433,6 +433,7 @@ describe('primary and redirect domains', () => {
 
   it('serves a direct domain in full, with no origin certificate and the visitor port passed on', async () => {
     const ctx = hostWithSite({ domains: [] })
+    ;(ctx.config as { tls: unknown }).tls = { cert: '/etc/caddy/tls/example.com.pem', key: '/etc/caddy/tls/example.com.key' }
     ctx.host.store.saveSite({ ...ctx.host.site('shop'), liveSlot: 'a' })
     await ctx.host.addDomain('shop', 'shop.example.com')
     await ctx.host.addDomain('shop', 'www.shop.example.com')
@@ -450,7 +451,11 @@ describe('primary and redirect domains', () => {
     expect(file.slice(0, start)).not.toContain('header_up')
     expect(file.slice(file.indexOf('\n}\n', start))).not.toContain('header_up')
     expect(ctx.host.site('shop').directDomains).toEqual(['books.example.com'])
-    await expect(ctx.host.addDomain('shop', 'x.example.com', { direct: true, tls: { cert: '/a.pem', key: '/a.key' } })).rejects.toThrow(/certificate/)
+    // Its own certificate is used; the site's or server's origin certificate never is.
+    await ctx.host.addDomain('shop', 'books.example.com', { tls: { cert: '/etc/caddy/tls/le-books.pem', key: '/etc/caddy/tls/le-books.key' } })
+    const withOwn = readFileSync(ctx.paths.caddyFile, 'utf8')
+    expect(withOwn).toMatch(/books\.example\.com \{\n\ttls \/etc\/caddy\/tls\/le-books\.pem \/etc\/caddy\/tls\/le-books\.key/)
+    expect(ctx.host.site('shop').directDomains).toEqual(['books.example.com'])
     await ctx.host.removeDomain('shop', 'books.example.com')
     expect(ctx.host.site('shop').directDomains).toEqual([])
     expect(readFileSync(ctx.paths.caddyFile, 'utf8')).not.toContain('books.example.com')

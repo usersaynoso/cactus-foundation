@@ -750,12 +750,11 @@ export class Host {
   async addDomain(siteId: string, name: string, opts: { primary?: boolean; direct?: boolean; tls?: { cert: string; key: string } | null } = {}): Promise<DomainSummary> {
     const site = this.site(siteId)
     const domain = this.checkedDomain(siteId, name)
-    // A direct domain (Cloudflare proxy off) is served in full, with a certificate Caddy
-    // gets itself, so an origin certificate recorded for it would be the wrong one.
-    if (opts.direct && opts.tls) throw new HostError('A direct domain gets its certificate from Caddy; it cannot be given one', 400)
+    // A direct domain (Cloudflare proxy off) never falls back to the site's or server's
+    // certificate: those are Cloudflare origin certificates, which browsers reject. It is
+    // served with its own (issueCertificate gets one from Let's Encrypt) or Caddy's.
     const others = (site.directDomains ?? []).filter((d) => d !== domain)
     const directDomains = opts.direct ? [...others, domain] : opts.direct === false ? others : site.directDomains
-    if (opts.direct) opts.tls = null
     const domains = site.domains.includes(domain) ? site.domains : [...site.domains, domain]
     const { [domain]: _previous, ...otherTls } = site.domainTls ?? {}
     const domainTls = opts.tls ? { ...otherTls, [domain]: opts.tls } : opts.tls === null ? otherTls : site.domainTls

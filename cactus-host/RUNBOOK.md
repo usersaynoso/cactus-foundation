@@ -579,34 +579,38 @@ port, in Prometheus's text format. It reads figures and nothing else.
 | Monitoring history, live sample, settings | `/var/lib/cactus-host/monitor/` (`metrics.db`, `live.json`, `settings.json`) |
 | Each site's access log | `/var/log/caddy/<site>.access.log` |
 
-## 14. Direct (grey cloud) domains
+## 15. Direct (grey cloud) domains
 
 Cloudflare's proxy ends the visitor's connection and opens its own to Caddy, so a site
 behind it can never learn the visitor's source port. Most sites never need it. HMRC's
 Gov-Client-Public-Port header does (the UK Bookkeeping module), so a name for that has to
 be reached **directly**:
 
-```bash
-cactus-host domain add shop books.example.com --direct
-```
-
-then in Cloudflare add an `A` record for the name pointing at the server with the proxy
-**off** (grey cloud, "DNS only"), and run `cactus-host domain check shop books.example.com`.
+1. In Cloudflare, an `A` record for the name pointing at the server, proxy **off** (grey
+   cloud, "DNS only").
+2. Port 443 open to everyone, not just Cloudflare's ranges (`ufw allow 443/tcp`). This makes
+   the box reachable without Cloudflare for every site on it, which is the price.
+3. `cactus-host domain add shop books.example.com --direct`
+4. `cactus-host domain check shop books.example.com`
 
 What `--direct` changes for that one name, and nothing else on the site:
 
-- It is **served in full**, not redirected to the primary domain, so it needs no change to
-  which domain is primary. The same install answers on both names.
-- Caddy gets its own Let's Encrypt certificate (HTTP challenge, so ports 80 and 443 must be
-  open to the internet). A Cloudflare origin certificate is only trusted by Cloudflare and
-  would give browsers a certificate error. `cert list` shows it as `automatic`.
+- It is **served in full**, not redirected to the primary domain. The same install answers
+  on both names.
+- It only ever gets a certificate of its **own**. The site's and server's certificates are
+  Cloudflare origin certificates, which browsers reject. With `config.letsEncrypt` set up
+  (section 13), `domain add --direct` gets a Let's Encrypt certificate straight away, by DNS,
+  so port 80 can stay shut. Without it Caddy tries on its own, which needs ports 80 and 443
+  open and **no other loaded certificate covering the name**: Caddy will not request one
+  while, say, a `*.example.com` origin certificate matches, and serves that instead.
+  `cert list` flags both cases; `cert issue <site> <name>` fixes them.
 - Caddy passes the visitor's real source port to the site in a `Forwarded: for="ip:port"`
   header, replacing any value the visitor sent.
 
 Rules: never use `--direct` for a name that is proxied (the port would be Cloudflare's, not
 the visitor's), and expect the name to have no CDN or DDoS shield, so keep it for the few
-screens that need it. `cert list` reports `cloudflareProxy: true` if the grey cloud was
-forgotten. Sign in on the direct name with email and password: passkeys and sessions are
-per hostname. The HMRC connection itself (the Government Gateway consent) still has to be
-made from the primary domain, because HMRC return the browser to the one redirect address
-registered with them.
+screens that need it. `cert list` says `behind Cloudflare` if the grey cloud was forgotten.
+Sign in on the direct name with email and password: passkeys and sessions are per hostname.
+The HMRC connection itself (the Government Gateway consent) still has to be made from the
+primary domain, because HMRC return the browser to the one redirect address registered
+with them.

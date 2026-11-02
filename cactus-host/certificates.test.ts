@@ -88,6 +88,25 @@ describe('getting a certificate', () => {
     expect(ctx.host.site('shop').domainTls?.['shop.example.com']?.cert).toBe(join(tlsDir, 'letsencrypt-shop.example.com.pem'))
   })
 
+  it('gives a direct domain a Let\'s Encrypt certificate, never a covering origin one', async () => {
+    const ctx = hostWithSite({ domains: ['shop.example.com'] })
+    const tlsDir = withTlsDir(ctx)
+    withLetsEncrypt(ctx)
+    // A wildcard in tlsDir that "covers" the name: right for a proxied domain, wrong here.
+    writeFileSync(join(tlsDir, 'example.org.pem'), EXAMPLE_ORG)
+    writeFileSync(join(tlsDir, 'example.org.key'), 'k')
+    ;(ctx.config as { tls: unknown }).tls = { cert: join(tlsDir, 'example.org.pem'), key: join(tlsDir, 'example.org.key') }
+    await ctx.host.addDomain('shop', 'books.example.org', { direct: true })
+    expect((await siteCertificates(ctx.host, 'shop', { checkProxy: false })).find((c) => c.domain === 'books.example.org')?.problem).toMatch(/cert issue/)
+    const issued = await issueCertificate(ctx.host, 'shop', 'books.example.org')
+    expect(issued.method).toBe('letsencrypt')
+    expect(ctx.system.calls.find((c) => c.cmd === 'certbot')?.args).toEqual(expect.arrayContaining(['-d', 'books.example.org']))
+    expect(ctx.host.site('shop').domainTls?.['books.example.org']?.cert).toBe(join(tlsDir, 'letsencrypt-books.example.org.pem'))
+    expect(ctx.host.site('shop').directDomains).toEqual(['books.example.org'])
+    const file = readFileSync(ctx.paths.caddyFile, 'utf8')
+    expect(file).toContain(`books.example.org {\n\ttls ${join(tlsDir, 'letsencrypt-books.example.org.pem')}`)
+  })
+
   it('forces a renewal on request, and refuses with an explanation when it cannot', async () => {
     const ctx = hostWithSite()
     withTlsDir(ctx)

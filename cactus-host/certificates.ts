@@ -36,9 +36,10 @@ type Pair = { cert: string; key: string }
 
 /** The certificate Caddy serves a domain with, and where that choice came from. */
 export function certificateFor(host: Host, site: SiteRecord, domain: string): { source: CertificateSummary['source']; pair: Pair | null } {
-  // Served straight to browsers, so Caddy gets and renews its own certificate.
-  if (site.directDomains?.includes(domain)) return { source: 'automatic', pair: null }
   const own = site.domainTls?.[domain]
+  // Served straight to browsers: its own certificate or Caddy's, never an inherited
+  // origin certificate (see caddy.ts).
+  if (site.directDomains?.includes(domain)) return own ? { source: 'domain', pair: own } : { source: 'automatic', pair: null }
   if (own) return { source: 'domain', pair: own }
   if (site.tls) return { source: 'site', pair: site.tls }
   if (host.config.tls) return { source: 'server', pair: host.config.tls }
@@ -78,10 +79,19 @@ function isLetsEncryptFile(host: Host, domain: string, file: string): boolean {
 /** One domain's certificate, without the network check (cloudflareProxy is null). */
 export function domainCertificate(host: Host, site: SiteRecord, domain: string): CertificateSummary {
   const { source, pair } = certificateFor(host, site, domain)
+  const direct = site.directDomains?.includes(domain) ?? false
   if (!pair) {
-    return { domain, source, file: null, covers: true, issuer: 'Caddy (automatic)', expiresAt: null, problem: null, kind: 'automatic', renewedBy: 'caddy', cloudflareProxy: null }
+    // Caddy skips getting one when a certificate it already holds matches the name, and a
+    // wildcard origin certificate does, so a direct domain on such a box is left with it.
+    const problem = direct && (site.tls || host.config.tls)
+      ? `No certificate of its own yet, so Caddy may serve an origin certificate browsers reject: run \`cactus-host cert issue ${site.id} ${domain}\``
+      : null
+    return { domain, source, file: null, covers: true, issuer: 'Caddy (automatic)', expiresAt: null, problem, kind: 'automatic', renewedBy: 'caddy', cloudflareProxy: null }
   }
   const described = describeCertificate(pair.cert, domain)
+  if (direct && described.kind === 'cloudflare-origin') {
+    described.problem = 'A Cloudflare origin certificate on a domain browsers reach directly: they will reject it'
+  }
   return {
     domain,
     source,
@@ -169,6 +179,34 @@ async function issueLetsEncrypt(host: Host, domain: string, force = false): Prom
   return installLetsEncrypt(host, domain)
 }
 
+/**
+ * A direct domain (Cloudflare proxy off) needs a certificate browsers trust, so the
+ * zone file and the Cloudflare origin route are both skipped - a wildcard origin
+ * certificate would "cover" it and be rejected by every browser. Let's Encrypt only.
+ */
+async function issueDirect(
+  host: Host,
+  siteId: string,
+  domain: string,
+  current: CertificateSummary,
+  good: (c: Pick<CertificateSummary, 'covers' | 'expiresAt' | 'problem'>) => boolean,
+  renew: boolean
+): Promise<IssueCertificateResponse> {
+  if (!renew && current.source === 'domain' && current.kind !== 'cloudflare-origin' && good(current)) {
+    return { certificate: current, method: 'existing', notes: [`${domain} already has a good certificate in ${current.file}.`] }
+  }
+  if (!host.config.letsEncrypt) {
+    throw new HostError(`${domain} is reached directly, so it needs a certificate browsers trust, and this server cannot get one by itself: Let's Encrypt is not configured (config "letsEncrypt"). Without it Caddy tries on its own, which needs ports 80 and 443 open and no other certificate covering the name.`, 400)
+  }
+  const pair = await issueLetsEncrypt(host, domain, renew)
+  await host.addDomain(siteId, domain, { tls: pair })
+  return {
+    certificate: domainCertificate(host, host.site(siteId), domain),
+    method: 'letsencrypt',
+    notes: [`Let's Encrypt issued a certificate for ${domain}. certbot renews it, and cactus-host installs each renewal.`],
+  }
+}
+
 /** Whether automatic certificates can be had at all on this box. */
 export function certificateMethods(host: Host): Array<IssueCertificateResponse['method']> {
   return [
@@ -191,6 +229,7 @@ export async function issueCertificate(host: Host, siteId: string, name: string,
     c.covers && !c.problem && (c.expiresAt === null || c.expiresAt - now > RENEW_WITHIN_MS)
 
   const current = domainCertificate(host, site, domain)
+  if (site.directDomains?.includes(domain)) return issueDirect(host, siteId, domain, current, good, opts.renew === true)
   if (opts.renew) {
     // A renewal on request: Let's Encrypt can always issue again. An origin certificate
     // lasts 15 years and Cloudflare renews what visitors see by itself, so there is

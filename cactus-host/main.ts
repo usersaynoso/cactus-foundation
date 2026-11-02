@@ -320,8 +320,16 @@ async function main(argv: string[]): Promise<void> {
       // visitor's own connection. Local and root-only, like `primary`, because it
       // decides how the domain's certificate and visitor addresses are handled.
       if (sub === 'add' && rest.includes('--direct')) {
-        const status = await host.addDomain(rest[0] as string, name, { direct: true })
-        console.log(status.serving ? `${status.name} is served directly and reaches this site.` : `${status.name} is attached as a direct domain. Point a DNS-only (grey cloud) A record at this server, then run \`cactus-host domain check ${rest[0]} ${name}\`.`)
+        const siteId = rest[0] as string
+        let status = await host.addDomain(siteId, name, { direct: true })
+        // Its certificate has to be one browsers trust; with Let's Encrypt set up it is got
+        // now, rather than leaving Caddy to serve a wildcard origin certificate that matches.
+        if (config.letsEncrypt) {
+          const issued = await audited(config, () => Date.now(), 'cli', 'site.certificate', `${siteId} ${status.name}`, () => issueCertificate(host, siteId, status.name))
+          for (const note of issued.notes) console.log(note)
+          status = await host.domainStatus(siteId, status.name)
+        }
+        console.log(status.serving ? `${status.name} is served directly and reaches this site.` : `${status.name} is attached as a direct domain. Point a DNS-only (grey cloud) A record at this server, then run \`cactus-host domain check ${siteId} ${name}\`.`)
         return
       }
       const { domain } =
