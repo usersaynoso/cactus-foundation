@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server'
 import { publicOrigin, publicUrl } from '@/lib/security/public-origin'
 import { originMismatch } from '@/lib/security/origin-check'
 
-const KEYS = ['CACTUS_HOSTING_PROVIDER', 'VERCEL', 'SITE_URL', 'VERCEL_URL'] as const
+const KEYS = ['CACTUS_HOSTING_PROVIDER', 'VERCEL', 'SITE_URL', 'VERCEL_URL', 'CACTUS_HOST_DIRECT_HOSTS'] as const
 const saved: Record<string, string | undefined> = {}
 
 beforeEach(() => {
@@ -152,5 +152,26 @@ describe('over a real http server', () => {
     expect(bad.mismatch).toBe(true)
     const forged = await post({ host: 'evil.example', origin: 'https://evil.example', cookie: 'a=1' })
     expect(forged).toEqual({ origin: 'https://site.example', mismatch: true })
+  })
+})
+
+describe('publicOrigin with direct domains', () => {
+  it('accepts a direct domain cactus-host listed, and nothing else extra', () => {
+    process.env.CACTUS_HOSTING_PROVIDER = 'server'
+    process.env.SITE_URL = 'https://site.example'
+    expect(publicOrigin(behindCaddy({ host: 'books.site.example' }))).toBe('https://site.example')
+    process.env.CACTUS_HOST_DIRECT_HOSTS = 'books.site.example, Other.example'
+    expect(publicOrigin(behindCaddy({ host: 'books.site.example' }))).toBe('https://books.site.example')
+    expect(publicOrigin(behindCaddy({ host: 'other.example' }))).toBe('https://other.example')
+    expect(publicOrigin(behindCaddy({ host: 'evil.example' }))).toBe('https://site.example')
+  })
+
+  it('lets a signed-in POST from the direct domain through, and still refuses a cross-site one', () => {
+    process.env.CACTUS_HOSTING_PROVIDER = 'server'
+    process.env.SITE_URL = 'https://site.example'
+    process.env.CACTUS_HOST_DIRECT_HOSTS = 'books.site.example'
+    const from = (origin: string) => behindCaddy({ host: 'books.site.example', origin, cookie: 'cactus_session=x' })
+    expect(originMismatch(from('https://books.site.example'))).toBe(false)
+    expect(originMismatch(from('https://evil.example'))).toBe(true)
   })
 })

@@ -357,6 +357,7 @@ export const RESERVED_ENV_KEYS: readonly string[] = [
   'CACTUS_HOST_SITE_ID',
   'CACTUS_HOST_URL',
   'CACTUS_HOST_ADMIN_TOKEN',
+  'CACTUS_HOST_DIRECT_HOSTS',
   'PORT',
   'NODE_ENV',
 ]

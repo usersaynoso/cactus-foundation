@@ -351,6 +351,7 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `CACTUS_HOST_TOKEN` | Yes, on your own server | The token cactus-host issued for this site. Written by `cactus-host site add`; nothing to fill in. |
 | `CACTUS_HOST_SITE_ID` | Yes, on your own server | The name cactus-host knows this site by. Written by `cactus-host site add`. |
 | `CACTUS_HOST_URL` | No | Where cactus-host listens, if not `http://127.0.0.1:7171`. Written by `cactus-host site add` when it differs. |
+| `CACTUS_HOST_DIRECT_HOSTS` | No | The site's direct addresses (Cloudflare proxy off), comma separated, which it accepts as its own alongside `SITE_URL`. Written and kept up to date by `cactus-host domain add <site> <name> --direct`; never set it by hand. Takes effect on the next build. |
 | `CACTUS_HOSTING_PROVIDER` | Set for you | `server` on your own server, written by cactus-host. On Vercel and Netlify it is filled in at build time. Never set it by hand. |
 | `NEON_API_KEY` | No | Neon database API key. Enables one-click database setup during the setup wizard. Leave unset if you supply your own `DATABASE_URL`. |
 | `BREVO_API_KEY` | No | Brevo email API key. Enables email sign-in, verification, and account recovery. |

@@ -791,6 +791,7 @@ export class Host {
   }
 
   private async saveDomains(site: SiteRecord, domains: string[], before: SiteRecord = site): Promise<void> {
+    this.syncDirectHostsEnv(site)
     if (
       domains.join() === before.domains.join() &&
       JSON.stringify(site.domainTls ?? {}) === JSON.stringify(before.domainTls ?? {}) &&
@@ -807,6 +808,22 @@ export class Host {
         this.writeSiteEnv(updated, env)
       }
     }
+  }
+
+  /**
+   * CACTUS_HOST_DIRECT_HOSTS: the site's direct domains, comma separated, so the site
+   * accepts them as its own addresses (lib/security/public-origin.ts) - otherwise every
+   * signed-in form posted from one is refused as a cross-site forgery. Written whenever
+   * the domains are saved, changed or not, so a site that predates the key catches up.
+   * Like SITE_URL, a running release keeps the old value until the next build.
+   */
+  private syncDirectHostsEnv(site: SiteRecord): void {
+    const value = (site.directDomains ?? []).join(',')
+    const env = this.readSiteEnv(site)
+    if ((env.get('CACTUS_HOST_DIRECT_HOSTS') ?? '') === value) return
+    if (value) env.set('CACTUS_HOST_DIRECT_HOSTS', value)
+    else env.delete('CACTUS_HOST_DIRECT_HOSTS')
+    this.writeSiteEnv(site, env)
   }
 
   /**

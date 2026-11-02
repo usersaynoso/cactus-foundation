@@ -23,8 +23,8 @@ import { resolveSiteUrl } from '@/lib/seo/site-url'
  * before.
  *
  * On a server the answer comes from the Host / X-Forwarded-Host Caddy passes,
- * but only when that host is the site's own (SITE_URL's host, or its www / apex
- * twin). Anything else - a forged Host, a health check calling by IP - is
+ * but only when that host is the site's own (SITE_URL's host, its www / apex
+ * twin, or a direct domain cactus-host lists in CACTUS_HOST_DIRECT_HOSTS). Anything else - a forged Host, a health check calling by IP - is
  * answered with SITE_URL's origin. That is what keeps the CSRF check honest: the
  * result is always one of the site's own addresses, never something a request
  * gets to name, so a cross-site Origin can never equal it. The Host is also not
@@ -51,7 +51,20 @@ function hostnameOf(host: string): string {
 
 function isSiteHost(hostname: string, siteHostname: string): boolean {
   const apex = siteHostname.replace(/^www\./, '')
-  return hostname === apex || hostname === `www.${apex}`
+  return hostname === apex || hostname === `www.${apex}` || directHosts().includes(hostname)
+}
+
+/**
+ * The site's direct domains (Cloudflare proxy off), which cactus-host lists in
+ * CACTUS_HOST_DIRECT_HOSTS. They are the site's own addresses too - a bookkeeping
+ * screen reached on one posts its forms from it - and cactus-host owns the value,
+ * so it is no more a request's to name than SITE_URL is.
+ */
+function directHosts(): string[] {
+  return (process.env.CACTUS_HOST_DIRECT_HOSTS ?? '')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean)
 }
 
 export function publicOrigin(request: RequestLike): string {

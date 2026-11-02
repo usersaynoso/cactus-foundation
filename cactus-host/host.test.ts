@@ -451,6 +451,7 @@ describe('primary and redirect domains', () => {
     expect(file.slice(0, start)).not.toContain('header_up')
     expect(file.slice(file.indexOf('\n}\n', start))).not.toContain('header_up')
     expect(ctx.host.site('shop').directDomains).toEqual(['books.example.com'])
+    expect(parseEnv(readFileSync(ctx.paths.env, 'utf8')).get('CACTUS_HOST_DIRECT_HOSTS')).toBe('books.example.com')
     // Its own certificate is used; the site's or server's origin certificate never is.
     await ctx.host.addDomain('shop', 'books.example.com', { tls: { cert: '/etc/caddy/tls/le-books.pem', key: '/etc/caddy/tls/le-books.key' } })
     const withOwn = readFileSync(ctx.paths.caddyFile, 'utf8')
@@ -458,6 +459,7 @@ describe('primary and redirect domains', () => {
     expect(ctx.host.site('shop').directDomains).toEqual(['books.example.com'])
     await ctx.host.removeDomain('shop', 'books.example.com')
     expect(ctx.host.site('shop').directDomains).toEqual([])
+    expect(parseEnv(readFileSync(ctx.paths.env, 'utf8')).has('CACTUS_HOST_DIRECT_HOSTS')).toBe(false)
     expect(readFileSync(ctx.paths.caddyFile, 'utf8')).not.toContain('books.example.com')
   })
 
