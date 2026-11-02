@@ -615,6 +615,12 @@ buying looks.
 library rather than a second copy of it. One document, in one place, and the
 purchasing module's own housekeeping knows it is spoken for.
 
+**So does the proof of payment**, where the order was paid up front and
+somebody filed one: it sits on the entry beside their invoice, as *Proof of
+payment*. On those orders the entry is also dated to the day the order was
+first paid rather than the date on their invoice, because a payment made before
+the invoice is the tax point.
+
 **The VAT is the VAT on their invoice.** A supplier who rounds line by line
 where the software rounds once lands a penny or two out on a long invoice, and
 the figure in your accounts has to be the one on the document anybody would be
