@@ -127,10 +127,21 @@ async function applySchema(db: ExtendedPrismaClient): Promise<void> {
 // survives is sorted dependency-first, so shop's tables exist before anything
 // built on top of them goes near the database.
 //
-// Whatever is left is applied per module in its own transaction, so a module that
+// Whatever is left is applied one migration FILE per transaction, exactly as
+// scripts/run-module-migrations.mjs does it on a real deploy, so a module that
 // will not build simply is not covered rather than taking the run with it - and a
 // module whose dependency threw is skipped in turn rather than being handed a
 // half-built schema to fail against.
+//
+// Per file, not per module, and that is not a detail. A module that declares
+// DEFERRABLE constraints or constraint triggers queues trigger events that only
+// fire at COMMIT; a later file that ALTERs one of those tables inside the SAME
+// transaction is refused with 55006 "cannot ALTER TABLE ... because it has
+// pending trigger events". The deploy runner never sees it, because it commits
+// between files. One transaction per module did, and that is how uk-bookkeeping
+// sat out this gate in every run while installing perfectly well everywhere
+// else. The gate must build a schema the way installs build it, or it is
+// testing something no site will ever have.
 //
 // EVERY exclusion is printed, whether it was decided here while reading or later
 // while applying. That is not tidiness: a gate that narrows itself in silence
@@ -138,7 +149,10 @@ async function applySchema(db: ExtendedPrismaClient): Promise<void> {
 // the dollar-quote rule existed. If you change what gets skipped, make sure it
 // still says so out loud.
 
-type ModuleSchema = { name: string; requires: string[]; statements: string[] }
+/** `files` holds one entry per migration file, in order, each split into its
+ *  statements: a file is the unit the deploy runner commits, so it is the unit
+ *  this gate commits too. */
+type ModuleSchema = { name: string; requires: string[]; files: string[][] }
 type ModuleExclusion = { name: string; why: string }
 type ModuleCandidate = { name: string; requires: string[]; migrationsDir: string; files: string[] }
 
@@ -252,7 +266,7 @@ function readModuleSchemas(): { schemas: ModuleSchema[]; excluded: ModuleExclusi
     schemas.push({
       name,
       requires: candidate.requires,
-      statements: sql.flatMap((s) => splitMigrationStatements(s)),
+      files: sql.map((s) => splitMigrationStatements(s)),
     })
   }
 
@@ -282,12 +296,17 @@ async function applyModuleSchemas(db: ExtendedPrismaClient): Promise<string[]> {
     }
 
     try {
-      await db.$transaction(
-        async (tx) => {
-          for (const statement of mod.statements) await tx.$executeRawUnsafe(statement)
-        },
-        { maxWait: 15_000, timeout: 55_000 },
-      )
+      // One transaction per file, as a deploy does it (see the note above). A
+      // file that throws stops the module there: what came before it stays, as
+      // it would on a real install, and the module is reported as not covered.
+      for (const statements of mod.files) {
+        await db.$transaction(
+          async (tx) => {
+            for (const statement of statements) await tx.$executeRawUnsafe(statement)
+          },
+          { maxWait: 15_000, timeout: 55_000 },
+        )
+      }
       applied.push(mod.name)
       appliedNames.add(mod.name)
     } catch (error) {
