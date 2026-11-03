@@ -430,6 +430,8 @@ Whatever you pick ends up in the web address, so a filtered list can be bookmark
 
 Each row tells you the lot at a glance: how old the order is, how many items, whether it's paid, how much of it has been dispatched, its status, the total, and whether the buyer has an account with you or checked out as a guest. The **⋯** button on the right opens the order, jumps to that customer's other orders, starts an email, copies the address, or changes the status there and then.
 
+**Where it came from.** With the [Analytics](Analytics) module installed, a line under the order number and date says where the customer came from - *via ChatGPT*, *via Google Ads - Spring sale*, *via Google search* - and the order page gets a **Where this order came from** card with the whole story. Orders nobody could trace have no line.
+
 **Doing several at once.** Tick a few rows and a bar appears: pick a status, decide whether the customers should be emailed about it, and apply. If one of them can't be changed - an order being held back by a pre-order, say - the others still go through and Cactus tells you which one was left alone and why, by order number.
 
 **Export CSV** hands you the orders you're currently looking at, filters and all, one row each - up to 5,000 at a time. Handy for the accountant, and rather easier than copying numbers off the screen by hand. If the filters match more than that, the file is named for it (`first-5000-of-6123`), so a partial export can't pass itself off as the lot; narrow the dates and export again for the rest.
