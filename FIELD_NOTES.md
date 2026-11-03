@@ -1025,6 +1025,15 @@ Last updated: 2026-09-03 (**A reply now puts an inbox conversation back in Open 
 
 ---
 
+## core - reads survive the deploy's idle-connection sweep (working tree, unreleased)
+
+- **Symptom (Deskwell, on the `server` hosting provider):** a burst of 500s on whatever was loading (homepage, product pages, `/manifest.webmanifest`, admin notifications, module admin routes) at the end of each deploy's build, logged as `prisma:error Error in PostgreSQL connection ... E57P01 "terminating connection due to administrator command"`, in two bursts three seconds apart.
+- **Cause:** `scripts/lib/plan-flush.mjs` `sweepPlans` ends every idle backend after migrations (two passes, 3s apart) to clear stale query plans. Harmless behind a pooler; on a server install the live release's own Prisma pool owned those backends, so each request that drew one failed.
+- **NEW `lib/db/connection-retry.ts`:** `isClosedConnectionError` (P1017, `meta.code` E57P01, or the two messages), `isReadOnlySql` (SELECT, or a WITH with no INSERT/UPDATE/DELETE/MERGE, leading comments skipped), `isReplayableRead(operation, args)` (model reads `findUnique[OrThrow]`/`findFirst[OrThrow]`/`findMany`/`count`/`aggregate`/`groupBy`; `$queryRaw` via `args.sql`, `$queryRawUnsafe` via `args[0]`; everything else, `$executeRaw*` included, is a write), `retryOnClosedConnection` (up to `CLOSED_CONNECTION_REPLAYS` = 5 replays, reads only). Writes are never replayed: the error cannot prove a write did not land.
+- **`lib/db/prisma.ts`:** `stalePlanRetryExtension` (name unchanged, still exported) now wraps `retryOnClosedConnection(operation, args, () => retryOnStalePlan(() => query(args)))`.
+- **`app/api/auth/passkey/authenticate-options/route.ts`:** the caught failure is now `console.error`'d (`[passkey] could not create a sign-in challenge`); before, a 500 there left nothing in the site log.
+- Tests: NEW `lib/db/connection-retry.test.ts` (12 cases).
+
 ## purchase-orders - automatic drafts sent by themselves (v0.1.46, working tree, unreleased)
 
 Stage A of `plans/auto-draft-po-on-paid-plan.md` (decisions 1 and 2 of 2026-09-30: a plain per-supplier switch with the edit record beside it for information, no automatic cut-out; an automatic send prints "Sent automatically" as the approver).

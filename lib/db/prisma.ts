@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client'
 import type { ITXClientDenyList } from '@prisma/client/runtime/library'
 
+import { retryOnClosedConnection } from './connection-retry'
 import { retryOnStalePlan } from './stale-plan'
 
 const globalForPrisma = globalThis as unknown as {
@@ -11,7 +12,10 @@ const globalForPrisma = globalThis as unknown as {
 // extension, which is the only reason a single change can cover the whole
 // platform. See ./stale-plan.ts for why the retry exists: a migration that adds
 // a column leaves already-open pooled connections holding plans that no longer
-// match the table, and each one throws until the statement is replayed.
+// match the table, and each one throws until the statement is replayed. The
+// same hook replays reads whose pooled connection the database ended while it
+// sat idle (./connection-retry.ts) - the deploy's own idle-connection sweep does
+// that to a live site that talks to Postgres directly.
 //
 // Exported so that any client built outside this module - the backup round-trip
 // test builds its own against a throwaway database - behaves the same as the one
@@ -21,8 +25,8 @@ export const stalePlanRetryExtension = Prisma.defineExtension({
   query: {
     // $allOperations covers raw queries as well as model calls, which matters:
     // the modules do most of their reading through $queryRaw.
-    $allOperations({ args, query }) {
-      return retryOnStalePlan(() => query(args))
+    $allOperations({ operation, args, query }) {
+      return retryOnClosedConnection(operation, args, () => retryOnStalePlan(() => query(args)))
     },
   },
 })

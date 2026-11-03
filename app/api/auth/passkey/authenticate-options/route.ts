@@ -19,6 +19,9 @@ export async function POST(request: NextRequest) {
     const opts = await createAuthenticationChallenge()
     return NextResponse.json(opts)
   } catch (err: unknown) {
+    // Logged as well as returned: the answer only ever reached the sign-in page,
+    // so a sign-in that failed every time left nothing in the site's log to say why.
+    console.error('[passkey] could not create a sign-in challenge', err)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to generate challenge' }, { status: 500 })
   }
 }
