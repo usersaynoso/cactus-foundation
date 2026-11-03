@@ -882,7 +882,18 @@ export function buildTokenStyles(tokens: unknown): string {
   return [rootBlock, darkBlock, mediaDark, ...scoped].join('\n')
 }
 
-const SYSTEM_KEYWORDS = ['system-ui', 'arial', 'georgia', 'helvetica', 'times', 'sans-serif', 'serif', 'monospace', '-apple-system']
+// Typefaces every device already has, and the CSS generic families. Matched
+// against the WHOLE name, never as a substring: the substring test this replaced
+// read "PT Serif", "Noto Serif", "DM Serif Display" and "IBM Plex Serif" as
+// system fonts (they contain "serif") and never loaded any of them.
+const SYSTEM_FAMILIES = new Set([
+  'system-ui', '-apple-system', 'blinkmacsystemfont', 'ui-sans-serif', 'ui-serif', 'ui-monospace', 'ui-rounded',
+  'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'math', 'emoji', 'fangsong',
+  'inherit', 'initial', 'unset', 'revert',
+  'arial', 'helvetica', 'helvetica neue', 'georgia', 'times', 'times new roman', 'courier', 'courier new',
+  'verdana', 'tahoma', 'trebuchet ms', 'segoe ui', 'garamond', 'palatino', 'palatino linotype', 'book antiqua',
+  'impact', 'lucida grande', 'lucida sans unicode', 'menlo', 'monaco', 'consolas', 'sf pro', 'sf pro text',
+])
 
 // Every weight a block can choose between, asked for once. See buildFontHref.
 const FULL_WEIGHTS = '400;500;600;700'
@@ -893,9 +904,16 @@ function sameFamily(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase()
 }
 
+// The typeface a stored value actually names: the first entry of a CSS list
+// ("Inter, sans-serif" -> "Inter"), quotes and stray whitespace stripped. A list
+// used to be passed whole, read as a system font because it mentions
+// "sans-serif", and never loaded.
+function primaryFamily(family: string): string {
+  return (family.split(',')[0] ?? '').trim().replace(/^["']|["']$/g, '').trim()
+}
+
 function isSystemFont(family: string): boolean {
-  const lower = family.toLowerCase()
-  return SYSTEM_KEYWORDS.some(k => lower.includes(k))
+  return SYSTEM_FAMILIES.has(primaryFamily(family).toLowerCase())
 }
 
 // Google Fonts stylesheet URL for a single family value (as stored by a font
@@ -905,7 +923,7 @@ function isSystemFont(family: string): boolean {
 // outside the site-wide tokens (which buildFontHref below already covers).
 export function googleFontHrefForFamily(family?: string, alreadyLoaded?: readonly string[]): string | null {
   if (!family) return null
-  const first = (family.split(',')[0] ?? '').trim().replace(/^["']|["']$/g, '')
+  const first = primaryFamily(family)
   if (!first || isSystemFont(first)) return null
   // Nothing to ask for if the page is already loading this typeface. That is the
   // ordinary case rather than an edge one: a block whose font is set to the site's
@@ -925,10 +943,15 @@ export function buildFontHref(tokens: unknown): string | null {
   const t = (tokens && typeof tokens === 'object' ? tokens : {}) as Partial<DesignTokens>
   const families = new Map<string, Set<string>>()
 
-  function add(family?: string, weight?: string) {
+  function add(rawFamily?: string, weight?: string) {
+    const family = rawFamily ? primaryFamily(rawFamily) : ''
     if (!family || isSystemFont(family)) return
-    if (!families.has(family)) families.set(family, new Set())
-    if (weight) families.get(family)!.add(weight)
+    // Keyed case-insensitively so "inter" in one box and "Inter" in another are
+    // one family in the request, not two.
+    const existing = [...families.keys()].find((f) => sameFamily(f, family))
+    const key = existing ?? family
+    if (!families.has(key)) families.set(key, new Set())
+    if (weight) families.get(key)!.add(weight)
   }
 
   for (const f of t.designSystem?.fonts ?? []) add(f.family, f.weight)
@@ -974,7 +997,7 @@ export function fontFamiliesFromTokens(tokens: unknown): string[] {
   const out = new Set<string>()
   const add = (family?: string) => {
     if (!family || isSystemFont(family)) return
-    const first = (family.split(',')[0] ?? '').trim().replace(/^["']|["']$/g, '')
+    const first = primaryFamily(family)
     if (first) out.add(first)
   }
   for (const f of t.designSystem?.fonts ?? []) add(f.family)

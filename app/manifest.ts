@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
-import { resolveBranding, BRANDING_DEFAULTS } from '@/lib/config/branding'
+import { resolveBranding } from '@/lib/config/branding'
+import { iconLinksFor } from '@/lib/config/favicon-variants'
 
 // Reads the site config, so it must resolve per request rather than being baked
 // at build time.
@@ -11,18 +12,22 @@ export const dynamic = 'force-dynamic'
 // /manifest.webmanifest and links it automatically on every page.
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const b = await resolveBranding()
+  // Nothing known about the site (a failed read, nothing remembered): an error
+  // nobody caches beats a manifest that names the app "Cactus Foundation" and
+  // is held at the edge for an hour. Browsers treat a missing manifest as no
+  // install offer for now, and ask again next time.
+  if (b.state === 'unavailable') {
+    throw new Error('Branding unavailable; not publishing a manifest with Cactus defaults')
+  }
+  const links = iconLinksFor({ known: true, icons: b.icons, version: b.iconVersion })
   return {
     name: b.name,
     short_name: b.shortName,
-    icons: [
-      // purpose 'any' (not 'maskable') because an admin-supplied icon has no
-      // guaranteed safe-zone padding; 'maskable' would let launchers crop it.
-      // This origin's addresses rather than the media host's, for the reason
-      // in app/api/branding/favicon/route.ts - the route behind them resolves
-      // the branding and proxies the bytes.
-      { src: BRANDING_DEFAULTS.icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: BRANDING_DEFAULTS.icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-    ],
+    // purpose 'any' (not 'maskable') because an admin-supplied icon has no
+    // guaranteed safe-zone padding; 'maskable' would let launchers crop it.
+    // This origin's addresses, drawn to the exact size by the icon route - see
+    // lib/config/favicon-variants.ts.
+    icons: links.manifest,
     theme_color: b.themeColor,
     background_color: b.backgroundColor,
     display: 'standalone',

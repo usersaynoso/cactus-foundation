@@ -14,6 +14,8 @@ import type { SiteStatus } from '@prisma/client'
 import { NECESSARY_CATEGORY_KEY, withNecessaryFirst } from '@/lib/consent/types'
 import type { ConsentBannerConfig, ConsentCategory } from '@/lib/consent/types'
 import { parseAdminMenuConfig } from '@/lib/nav/admin-menu'
+import { SITE_ICON_COLUMNS } from '@/lib/config/site-icons'
+import { markMediaOptimised } from '@/lib/media/upload'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -306,7 +308,34 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
+  // Which icon slots this save actually changes. Read before the write so the
+  // cache purge below only happens when an icon really moved, not on every press
+  // of Save branding.
+  const iconKeys = SITE_ICON_COLUMNS.filter((c) => rest[c] !== undefined)
+  let iconsChanged = false
+  if (iconKeys.length > 0) {
+    const before = await prisma.siteConfig.findUnique({ where: { id: 'singleton' } })
+    iconsChanged = iconKeys.some((c) => (before?.[c] ?? null) !== (rest[c] ?? null))
+  }
+
   const updated = await prisma.siteConfig.update({ where: { id: 'singleton' }, data })
+
+  if (iconKeys.length > 0) {
+    // Every icon in use is marked already optimised, so the media library
+    // stops offering to turn it into WebP (the optimiser refuses anyway). A
+    // hand-picked override uploaded through any route lands here too.
+    const ids = iconKeys.map((c) => updated[c]).filter((id): id is string => !!id)
+    await markMediaOptimised(ids, true).catch(() => {})
+  }
+  if (iconsChanged) {
+    // Pages carry ?v=<icon version> on every icon address, so a new icon is a
+    // new address - but only once the page itself is re-rendered. Top-level
+    // pages are held by Next indefinitely and copies sit in the CDN, so throw
+    // both away (best effort, never fatal), as for a page-cache change below.
+    invalidateSiteConfigCache()
+    revalidatePath('/', 'layout')
+    await purgeCdnEverything().catch(() => {})
+  }
 
   // The page cache reads its settings through a short in-memory TTL, so a change
   // would take effect within seconds anyway - but "within seconds" is not what an

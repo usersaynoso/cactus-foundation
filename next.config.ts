@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 import path from 'path'
 import pkg from './package.json'
+import { ICON_PATHS, ICON_ROUTE_BASE } from './lib/config/favicon-variants'
 
 // Prefer an explicit CLOUDFLARE_WORKER_HOSTNAME, else derive it from
 // CLOUDFLARE_WORKER_URL — the admin auto-deploy sets the URL but not the bare
@@ -138,21 +139,15 @@ const config: NextConfig = {
       // /robots.txt, a JSON response - falls back to this address for its tab
       // icon, so it must answer with the site's own favicon and not Cactus's.
       beforeFiles: [
-        { source: '/favicon.ico', destination: '/api/branding/favicon' },
-        // The rest of the icon set, for the second half of the same problem.
-        // These used to be emitted as media-host addresses, so on a page
-        // carrying hundreds of images from that host the icon fetch queued
-        // behind every one of them and Safari was left with no icon for that
-        // page. Routed here they are same-origin like the favicon. Safari also
-        // probes both apple-touch paths at the root when it wants an icon and
-        // the document has none, and those must answer with the site's own,
-        // not Cactus's.
-        { source: '/favicon-16x16.png', destination: '/api/branding/favicon?icon=icon-16' },
-        { source: '/favicon-32x32.png', destination: '/api/branding/favicon?icon=icon-32' },
-        { source: '/apple-touch-icon.png', destination: '/api/branding/favicon?icon=apple-touch' },
-        { source: '/apple-touch-icon-precomposed.png', destination: '/api/branding/favicon?icon=apple-touch' },
-        { source: '/web-app-manifest-192x192.png', destination: '/api/branding/favicon?icon=icon-192' },
-        { source: '/web-app-manifest-512x512.png', destination: '/api/branding/favicon?icon=icon-512' },
+        // Every icon address, each to its own path on the icon route. The
+        // variant is a PATH segment, not a query: under `next start` a query
+        // added by a rewrite never reached the route, and every sized PNG
+        // answered with the 96px favicon. The list lives in one place
+        // (ICON_PATHS) so the route, the layout and this cannot drift apart.
+        ...Object.entries(ICON_PATHS).map(([source, variant]) => ({
+          source,
+          destination: `${ICON_ROUTE_BASE}/${variant}`,
+        })),
       ],
       // afterFiles, so a real file in /public/.well-known still wins and this
       // only answers paths nothing else does. Domain-verification files (Apple

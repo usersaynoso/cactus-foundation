@@ -15,13 +15,23 @@ Your site now serves those fonts itself, from your own address. Same fonts, same
 Two things come with it that are worth knowing:
 
 - **Nobody's browser contacts Google to read your pages any more.** No addresses, no record of who visited what, nothing to mention in a privacy policy. If you have ever wondered whether webfonts were a consent question, they are not one here.
-- **If Google is ever unreachable**, your site quietly falls back to the old way rather than losing its typeface. You would never notice beyond a slightly slower page.
+- **If Google is ever unreachable**, your site carries on with its own copy of your fonts, and only if it has never had one does it fall back to fetching them from Google the old way. You would never notice beyond, at worst, a slightly slower page.
 
 ### One font, asked for once
 
 There was also a plain duplication: if you set one block's font to the same one your site already uses, the page asked for it twice - once for the site, once for that block. It now asks once, and any block using a font your site already loads adds nothing at all.
 
 Pick a font nothing else on the site uses and it is still fetched, as you would expect.
+
+### When the fonts didn't turn up
+
+Fonts loaded nearly every time, and every so often a page came up in a plain system typeface instead. A few separate things could do that, and all of them are dealt with:
+
+- **A brief database hiccup could block the fonts.** Every request for the font list went past the same check that makes sure the site is set up, and that check needs the database. For the few seconds a database is unavailable (an update restarting, say), pages lost their typeface. Fonts no longer depend on the database at all.
+- **One slow or refused answer from Google was the visitor's problem.** Your site now keeps its own copy of every font file and font list it has fetched, waits a sensible time rather than hanging, and tries again once if Google is busy. Once a font has been fetched it is served from your site even if Google is having a bad day.
+- **A failed font could be remembered.** When a font file failed to arrive, the service in front of your site could hold on to that failure for a few minutes, so everyone passing through got system fonts. Failures are now never stored, so the very next page tries again. The reverse is guarded against too: an error page dressed up as a font is refused rather than kept for a year.
+- **The font list was kept for a year.** If Google gave an odd answer once, that answer stuck. Your site now checks with Google for a fresh one in the background, about once an hour, without ever making a visitor wait for the answer.
+- **Some font names were mistaken for built-in ones.** Any Google font with "Serif" in its name (PT Serif, Noto Serif, DM Serif Display, IBM Plex Serif) was treated as a font every computer already has, and never loaded. Neither was a font saved as a list, such as "Inter, sans-serif". Both now load.
 
 ---
 
@@ -219,9 +229,15 @@ Module layout types come with their own starting points, same as headers and foo
 
 ### App icon and favicons
 
-Rather than making you prepare a pile of differently-sized image files, you upload **one square app icon** (at least 512×512) and Cactus generates the whole set for you: the browser favicon at three sizes (16, 32 and 96), the Apple touch icon (for "add to home screen" on iPhone and iPad), and the installable-app icons (192 and 512).
+Rather than making you prepare a pile of differently-sized image files, you upload **one square app icon** and Cactus makes the whole set for you: the browser favicon at every size a browser asks for (16, 32, 48 and 96), the Apple touch icon (for "add to home screen" on iPhone and iPad), and the installable-app icons (192 and 512).
 
-Every generated icon is then shown in its own box, so if you'd rather hand-pick a particular one - say a simpler design for the tiny favicon - just upload a replacement into that box. Your override sticks; re-uploading the source app icon regenerates the others but leaves the ones you set by hand.
+**An SVG is the best thing to upload.** It stays as your favicon for the browsers that can draw one, so the tab icon is crisp at any size, and every other size is drawn from it as a proper PNG. A PNG works perfectly well too - make it at least 512×512 - and JPEG, WebP and GIF are accepted, though they are only ever used as the starting point.
+
+Every icon in the set is then shown in its own box, so if you'd rather hand-pick a particular one - say a simpler design for the tiny favicon - just upload a replacement into that box. Your override sticks; re-uploading the source app icon remakes the others but leaves the ones you set by hand. Upload a new **Favicon** on its own and the 16 and 32 pixel versions are redrawn from it, so the tab shows the same picture at every size.
+
+If something in the set ever looks wrong or has gone missing, **Remake the icon set** (under the app icon box) draws every size afresh from your app icon, or from the favicon if you never set one. Unlike a fresh upload, it replaces the ones you picked by hand too, so it really is a clean slate.
+
+**Icons are kept exactly as you upload them.** Unlike logos and photos they are never squashed into a smaller format, because a browser - Safari especially - will refuse a tab icon that isn't the kind of picture it was promised. They are marked as already optimised the moment they are made, so they won't turn up on the Media page as something left to tidy.
 
 If you don't set an app icon at all, the standard **Favicon** box still works on its own, exactly as before.
 
@@ -252,9 +268,20 @@ Your icon is also handed out from your own web address rather than from wherever
 
 **If Safari has been showing you a blank tab, this is why.** Until now a site with its own favicon offered browsers exactly one tab icon, at an address ending `.ico`, with nothing said about what sort of picture it actually was. Chrome takes that on trust and works it out. Safari does not, and quietly showed nothing at all - on every page, however small, even while the icon itself was perfectly reachable and correct. Oddly, a site using the plain Cactus icon was never affected, because that one always came properly labelled. Turning on your own branding made it worse, which is rather the opposite of the intention.
 
-Your site now hands browsers properly labelled icons at 16 and 32 as well, which is what a tab is actually drawn from. **You will want to re-generate your icons for this to take effect**: go to Appearance → Styles → Branding, upload your app icon again, and press Save. Sites that have not done so yet fall back to the 192 icon, which is properly labelled too, so nobody is left with a blank tab in the meantime.
+Your site now hands browsers properly labelled icons at 16 and 32 as well, which is what a tab is actually drawn from.
 
-Changing the favicon takes up to an hour to show everywhere, since browsers hold on to tab icons rather firmly. A hard refresh hurries it along.
+### Why the Cactus icon kept turning up, and why it won't now
+
+For a long while a branded site could still, now and then, show the Cactus icon in a tab. Each previous fix tidied up one way it could happen; this section is the full list, so that nobody has to rediscover it.
+
+- **A hiccup was mistaken for "no icon".** If the site couldn't reach its database for a moment - which happens briefly during an update, among other times - it concluded you had no icon and handed out the Cactus one instead. Worse, that answer was then remembered for hours by the site's own page store, by the service in front of the site, and by every browser that saw it. Now a site that can't check carries on with the icon it last knew about, and if it has never known one it says "try again shortly" rather than offering Cactus's. The Cactus icon is only ever shown on a site that genuinely has no icon of its own.
+- **Some icon sizes were the wrong picture.** On some hosting setups every sized icon (16, 32, the Apple touch icon, the app icons) was quietly the 96 pixel favicon. Each address now always answers with the icon at exactly its own size.
+- **Icons were being converted into a format Safari won't take.** The media library's optimiser turned the generated icons into WebP, which Safari refuses for a tab icon. Every icon address now draws a fresh, properly formatted picture from whatever you uploaded, so even icons that were converted in the past come out right, and the optimiser leaves icons alone from now on.
+- **Changing your icon took ages to show.** Browsers keep tab icons for a very long time, regardless of what the site tells them. Each icon address now carries a small version mark that changes whenever you change an icon, so browsers fetch the new one straight away, and saving a new icon clears the site's stored pages too.
+
+**Nothing to do on your part**, though pressing **Remake the icon set** once is a tidy way to replace any icons that were converted to WebP in the past with proper PNGs.
+
+A changed favicon shows up on the next page anyone opens. A tab that was already open keeps the old one until it is reloaded, which is browsers being browsers.
 
 ### Your logo in emails
 

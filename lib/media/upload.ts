@@ -1300,6 +1300,16 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
     return { optimised: false, reason: 'Only raster images and 3D models can be optimised' }
   }
 
+  // A site icon is never re-encoded. The icon set is exact-size PNGs on purpose
+  // and WebP behind a .png address is what gave Safari blank tabs; the source
+  // image is what every regeneration starts from. Marked optimised instead, so
+  // the library stops offering it. Lazy import, like organise below.
+  const { siteIconMediaIds } = await import('@/lib/config/site-icons')
+  if ((await siteIconMediaIds()).has(media.id)) {
+    await prisma.media.update({ where: { id: media.id }, data: { optimised: true } })
+    return { optimised: false, reason: 'Site icons are kept exactly as they are' }
+  }
+
   const original = await downloadMedia(media.provider, media.key, media.url)
 
   // Lossy WebP (quality 82) is the sweet spot for library media: near-invisible

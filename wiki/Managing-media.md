@@ -131,7 +131,7 @@ Across the top sits a row of summary tiles, so you can see the state of your lib
 - **Files** - how many you've got, and how many folders you've sorted them into.
 - **Storage used** - the total space everything is taking up.
 - **Unused** - how many files nothing on your site points to, and how much space you'd get back by clearing them out. Click the tile to jump straight to those files. "Nothing points to it" covers the whole site, not just your pages: a product photo, an option or attribute swatch, a 3D model, a downloadable file, a board icon or an article's headline picture all count as in use.
-- **Optimisable** - how many files could still be slimmed down (and how many you've already done). Photos and 3D models both count. Click it to line up exactly those files, ready for a tidy-up - the ones you've already done stay out of the way.
+- **Optimisable** - how many files could still be slimmed down (and how many you've already done). Photos and 3D models both count. Click it to line up exactly those files, ready for a tidy-up - the ones you've already done stay out of the way. Your site's favicon and app icons never count: they are kept exactly as uploaded on purpose (see [Branding](Appearance-and-design#app-icon-and-favicons)), so they are marked as already optimised and the optimiser leaves them alone even if you ask it to.
 
 The Unused and Optimisable tiles light up while there's something worth doing, and clicking either one gathers the matching files from **every** folder in one place. The Optimisable list arrives with a **Still to optimise** chip above it, which you can lift at any time to see everything again.
 

@@ -29,6 +29,7 @@ import {
   rewriteFontFileUrls,
   sanitiseFontQuery,
 } from '@/lib/design/font-proxy'
+import { fetchWithRetry, putFontCache } from '@/lib/design/font-cache'
 
 // A fixed, modern User-Agent rather than the visitor's own. Google varies this
 // response by user agent, handing older browsers `woff` and newer ones `woff2`, so
@@ -79,23 +80,47 @@ export const inlineFontFaceCssSchema = z
     'names a url outside the font file route',
   )
 
+/** The cache key a stylesheet's last-known-good copy is kept under. */
+export function fontCssCacheKey(params: URLSearchParams): string {
+  return `css:${params.toString()}`
+}
+
 /**
  * Fetch Google's stylesheet for a sanitised query and point its font files at this
  * site. Throws on anything that is not a real stylesheet, so each caller decides
- * its own fallback: the stylesheet route redirects to Google, the page links.
+ * its own fallback: the stylesheet route serves its last good copy (then
+ * redirects to Google), the page links.
+ *
+ * Timed out and retried once on the failures that are worth retrying (see
+ * fetchWithRetry): a request that hangs used to hang the stylesheet with it, and
+ * the page waited on it until the browser gave up and drew system fonts.
+ *
+ * A stylesheet that would still send the browser to Google for a file - a font
+ * url this rewrite did not recognise - is refused too: it would pass every other
+ * check, get cached for days at the edge, and fail on any network that cannot
+ * reach Google.
  */
 export async function fetchProxiedFontCss(params: URLSearchParams, fetchImpl: typeof fetch = fetch): Promise<string> {
-  const res = await fetchImpl(`${GOOGLE_FONTS_CSS_ORIGIN}/css2?${params.toString()}`, {
-    headers: { 'User-Agent': FONT_UPSTREAM_USER_AGENT, Accept: 'text/css,*/*;q=0.1' },
-    // Next's own fetch cache would hold this too, but the response is already
-    // cached hard downstream and in memory here, and the upstream is the thing we
-    // are trying not to depend on - so no revalidation window is claimed.
-    cache: 'no-store',
-  })
+  const res = await fetchWithRetry(
+    `${GOOGLE_FONTS_CSS_ORIGIN}/css2?${params.toString()}`,
+    {
+      headers: { 'User-Agent': FONT_UPSTREAM_USER_AGENT, Accept: 'text/css,*/*;q=0.1' },
+      // Next's own fetch cache would hold this too, but the response is already
+      // cached hard downstream and in memory here, and the upstream is the thing we
+      // are trying not to depend on - so no revalidation window is claimed.
+      cache: 'no-store',
+    },
+    fetchImpl,
+    // Shorter than a font file's: the stylesheet blocks the page that links it.
+    { timeoutMs: 5000 },
+  )
   if (!res.ok) throw new Error(`upstream ${res.status}`)
   const css = await res.text()
   if (!css.includes('@font-face')) throw new Error('upstream returned no font faces')
-  return rewriteFontFileUrls(css)
+  const rewritten = rewriteFontFileUrls(css)
+  if (/fonts\.gstatic\.com/.test(rewritten)) throw new Error('upstream named a font file this proxy cannot rewrite')
+  putFontCache(fontCssCacheKey(params), rewritten)
+  return rewritten
 }
 
 type HeldStylesheet = { css: string; fetchedAt: number }

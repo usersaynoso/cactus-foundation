@@ -61,6 +61,9 @@ export type BrandingState = {
   applyMedia: (field: MediaField, preview: PreviewKey, m: { id: string; url: string }) => void
   clearMedia: (field: MediaField, preview: PreviewKey) => void
   handleAppIconUploaded: (m: { id: string; url: string }) => void
+  handleFaviconUploaded: (m: { id: string; url: string }) => void
+  /** Redraw the whole stored set from the current app icon (or favicon). */
+  regenerateIcons: () => void
   generatingIcons: boolean
   iconGenNote: string
   iconGenError: string
@@ -152,13 +155,13 @@ export function useBrandingState(): BrandingState {
     setSaved(false)
   }, [])
 
-  // App-icon source upload: store the source, then ask the server to generate the
-  // favicon / Apple touch / PWA icons from it and drop them into state (persisted
-  // by "Save branding", same as an ordinary upload).
-  const handleAppIconUploaded = useCallback(async (m: { id: string; url: string }) => {
-    setConfig((p) => ({ ...p, appIconMediaId: m.id }))
-    setPreviews((p) => ({ ...p, appIcon: m.url }))
-    setSaved(false)
+  // Asks the server to draw the stored icon set from one image and drops the
+  // results into state (persisted by "Save branding", same as an ordinary
+  // upload). 'all' redraws everything from the app icon; 'tab' redraws just the
+  // 16 and 32 tab sizes from a freshly uploaded favicon. Either way an SVG or a
+  // PNG (or JPEG, WebP, GIF) comes out as the full set of exact-size PNGs, and an
+  // SVG is also kept as the favicon itself so browsers that take one get it.
+  const generateIcons = useCallback(async (sourceMediaId: string, scope: 'all' | 'tab', force = false) => {
     setGeneratingIcons(true)
     setIconGenNote('')
     setIconGenError('')
@@ -166,35 +169,67 @@ export function useBrandingState(): BrandingState {
       const res = await fetch('/api/admin/branding/generate-icons', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceMediaId: m.id }),
+        body: JSON.stringify({ sourceMediaId, scope, force }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Icon generation failed')
-      setConfig((p) => ({
-        ...p,
-        faviconMediaId: d.favicon.id,
-        favicon16MediaId: d.favicon16.id,
-        favicon32MediaId: d.favicon32.id,
-        appleTouchIconMediaId: d.appleTouch.id,
-        webManifest192MediaId: d.icon192.id,
-        webManifest512MediaId: d.icon512.id,
-      }))
-      setPreviews((p) => ({
-        ...p,
-        favicon: d.favicon.url,
-        favicon16: d.favicon16.url,
-        favicon32: d.favicon32.url,
-        appleTouch: d.appleTouch.url,
-        icon192: d.icon192.url,
-        icon512: d.icon512.url,
-      }))
-      setIconGenNote('Generated the favicons (16, 32 and 96), Apple touch icon and app icons from your image. Press Save branding to apply, or replace any individual one below.')
+      type Out = { id: string; url: string } | undefined
+      const pairs: [MediaField, PreviewKey, Out][] = [
+        ['faviconMediaId', 'favicon', d.favicon],
+        ['favicon16MediaId', 'favicon16', d.favicon16],
+        ['favicon32MediaId', 'favicon32', d.favicon32],
+        ['appleTouchIconMediaId', 'appleTouch', d.appleTouch],
+        ['webManifest192MediaId', 'icon192', d.icon192],
+        ['webManifest512MediaId', 'icon512', d.icon512],
+      ]
+      setConfig((p) => {
+        const next = { ...p }
+        for (const [field, , m] of pairs) if (m) next[field] = m.id
+        return next
+      })
+      setPreviews((p) => {
+        const next = { ...p }
+        for (const [, key, m] of pairs) if (m) next[key] = m.url
+        return next
+      })
+      const keptNote = Array.isArray(d.kept) && d.kept.length > 0
+        ? ` ${d.kept.length === 1 ? 'One icon you picked by hand was' : `${d.kept.length} icons you picked by hand were`} left as they were; Remake the icon set replaces those too.`
+        : ''
+      setIconGenNote((
+        scope === 'tab'
+          ? 'Redrew the 16 and 32 pixel tab icons from your new favicon. Press Save branding to apply.'
+          : d.sourceIsSvg
+            ? 'Made the whole set from your SVG: it stays as the favicon for browsers that take one, with exact-size PNGs (16, 32, Apple touch, 192 and 512) for everything else. Press Save branding to apply, or replace any individual one below.'
+            : 'Made the whole set from your image: favicons at 16, 32 and 96, the Apple touch icon and both app icons, all as exact-size PNGs. Press Save branding to apply, or replace any individual one below.'
+      ) + keptNote)
     } catch (err: unknown) {
       setIconGenError(err instanceof Error ? err.message : 'Icon generation failed')
     } finally {
       setGeneratingIcons(false)
     }
   }, [])
+
+  // App-icon source upload: store the source, then draw the whole set from it.
+  const handleAppIconUploaded = useCallback((m: { id: string; url: string }) => {
+    setConfig((p) => ({ ...p, appIconMediaId: m.id }))
+    setPreviews((p) => ({ ...p, appIcon: m.url }))
+    setSaved(false)
+    void generateIcons(m.id, 'all')
+  }, [generateIcons])
+
+  // Favicon upload: it becomes the favicon, and the 16/32 tab sizes are redrawn
+  // from it so the tab shows the same picture at every size.
+  const handleFaviconUploaded = useCallback((m: { id: string; url: string }) => {
+    setConfig((p) => ({ ...p, faviconMediaId: m.id }))
+    setPreviews((p) => ({ ...p, favicon: m.url }))
+    setSaved(false)
+    void generateIcons(m.id, 'tab')
+  }, [generateIcons])
+
+  const regenerateIcons = useCallback(() => {
+    const source = config.appIconMediaId ?? config.faviconMediaId
+    if (source) void generateIcons(source, config.appIconMediaId ? 'all' : 'tab', true)
+  }, [config.appIconMediaId, config.faviconMediaId, generateIcons])
 
   const save = useCallback(async (): Promise<boolean> => {
     setSaving(true)
@@ -226,21 +261,24 @@ export function useBrandingState(): BrandingState {
   return {
     loading, mediaReady, dirty, saving, saved, error, save,
     config, siteName, set, previews, applyMedia, clearMedia,
-    handleAppIconUploaded, generatingIcons, iconGenNote, iconGenError,
+    handleAppIconUploaded, handleFaviconUploaded, regenerateIcons, generatingIcons, iconGenNote, iconGenError,
   }
 }
 
 // A single logo/favicon slot: preview, upload/replace, and remove. Uploads go
 // straight to the media library; the parent stores the returned media id and
-// persists it with "Save branding". Any non-SVG upload is silently optimised
-// (resized, recompressed) server-side straight after upload - SVG is stored
-// as-is since it isn't a raster sharp can shrink.
+// persists it with "Save branding". A logo (`optimise`) is resized and
+// recompressed to WebP straight after upload. An icon never is: icons are kept
+// exactly as uploaded, because every icon address is redrawn from them into an
+// exact-size PNG, ICO or SVG, and a WebP where a PNG was promised is what gave
+// Safari blank tabs.
 function BrandingImageField({
   label,
   hint,
   previewUrl,
   square = false,
   previewBackground,
+  optimise = false,
   onUploaded,
   onRemove,
 }: {
@@ -250,6 +288,8 @@ function BrandingImageField({
   square?: boolean
   /** Fixed preview backdrop (e.g. white behind a light logo) so it stays visible regardless of admin theme. */
   previewBackground?: string
+  /** Recompress to WebP after upload. Logos only - never icons. */
+  optimise?: boolean
   onUploaded: (media: { id: string; url: string }) => void
   onRemove: () => void
 }) {
@@ -281,7 +321,7 @@ function BrandingImageField({
       if (!res.ok) throw new Error(d.error ?? 'Upload failed')
 
       let media = { id: d.id as string, url: d.url as string }
-      if (d.mimeType !== 'image/svg+xml') {
+      if (optimise && d.mimeType !== 'image/svg+xml') {
         try {
           const optRes = await fetch('/api/admin/media/optimise', {
             method: 'POST',
@@ -500,6 +540,7 @@ export function BrandingTab({ b, colours }: { b: BrandingState; colours: GlobalC
         hint="JPEG, PNG, WebP, GIF, or SVG. Uploads are automatically resized and compressed (SVGs are kept as-is). Preview sits on a fixed white backdrop so it stays visible while you're in dark mode."
         previewUrl={previews.logo}
         previewBackground="#ffffff"
+        optimise
         onUploaded={(m) => b.applyMedia('logoMediaId', 'logo', m)}
         onRemove={() => b.clearMedia('logoMediaId', 'logo')}
       />
@@ -508,34 +549,43 @@ export function BrandingTab({ b, colours }: { b: BrandingState; colours: GlobalC
         hint="Optional. Used automatically when a visitor views your site in dark mode. Leave empty to keep the standard logo everywhere. JPEG, PNG, WebP, GIF, or SVG. Preview sits on a fixed black backdrop so it stays visible while you're in light mode."
         previewUrl={previews.logoDark}
         previewBackground="#000000"
+        optimise
         onUploaded={(m) => b.applyMedia('logoDarkMediaId', 'logoDark', m)}
         onRemove={() => b.clearMedia('logoDarkMediaId', 'logoDark')}
       />
 
       <h3 style={heading}>Favicon &amp; app icons</h3>
-      <p style={subNote}>Upload one square app icon and we&apos;ll create the whole set - browser favicon, Apple touch icon, and installable-app icons. Prefer to hand-pick any of them? Replace it below; your override sticks.</p>
+      <p style={subNote}>Upload one square app icon, as an SVG or a PNG, and we&apos;ll make the whole set - browser favicons at every size, the Apple touch icon and the installable-app icons. An SVG stays as the favicon too, for browsers that can draw one. Prefer to hand-pick any of them? Replace it below; your override sticks. Icons are kept exactly as you upload them and are never squashed into WebP, so they won&apos;t turn up in the media library as needing optimising.</p>
       <BrandingImageField
         label="App icon (source)"
-        hint="One square image, at least 512×512. Everything below is generated from it. JPEG, PNG, WebP, GIF, or SVG."
+        hint="One square image. An SVG is best; otherwise a PNG of at least 512×512. Everything below is made from it. JPEG, WebP and GIF work too."
         previewUrl={previews.appIcon}
         square
         onUploaded={b.handleAppIconUploaded}
         onRemove={() => { b.clearMedia('appIconMediaId', 'appIcon') }}
       />
+      {(config.appIconMediaId || config.faviconMediaId) && (
+        <div style={{ marginTop: '-0.75rem', marginBottom: '1.25rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={b.generatingIcons} onClick={b.regenerateIcons}>
+            Remake the icon set
+          </button>
+          <span className="field-hint">Draws every size afresh from the app icon above (or from the favicon, if there is no app icon), replacing any you picked by hand. Handy if some of the set has gone missing or was made before the current rules.</span>
+        </div>
+      )}
       {b.generatingIcons && <span style={{ ...genNote, color: 'var(--color-text-muted)' }}>Generating icons…</span>}
       {!b.generatingIcons && b.iconGenNote && <span style={{ ...genNote, color: 'var(--color-success)' }}>{b.iconGenNote}</span>}
       {!b.generatingIcons && b.iconGenError && <span style={{ ...genNote, color: 'var(--color-destructive)' }}>{b.iconGenError}</span>}
       <BrandingImageField
         label="Favicon"
-        hint="The small icon in browser tabs and bookmarks. Auto-filled from your app icon; replace for full control. A square image of at least 96×96 works best."
+        hint="The small icon in browser tabs and bookmarks. Auto-filled from your app icon; replace for full control and the 16 and 32 pixel versions are redrawn from it. An SVG, or a square PNG of at least 96×96."
         previewUrl={previews.favicon}
         square
-        onUploaded={(m) => b.applyMedia('faviconMediaId', 'favicon', m)}
+        onUploaded={b.handleFaviconUploaded}
         onRemove={() => b.clearMedia('faviconMediaId', 'favicon')}
       />
       <BrandingImageField
         label="Favicon (dark mode)"
-        hint="Optional. Shown when the visitor's browser is set to dark mode. Follows the browser setting rather than the toggle on your site. A square image of at least 96×96 works best."
+        hint="Optional. Shown when the visitor's browser is set to dark mode. Follows the browser setting rather than the toggle on your site. Every dark-mode size is drawn from this one automatically. An SVG, or a square PNG of at least 96×96."
         previewUrl={previews.faviconDark}
         square
         onUploaded={(m) => b.applyMedia('faviconDarkMediaId', 'faviconDark', m)}

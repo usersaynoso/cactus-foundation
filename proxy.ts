@@ -367,6 +367,12 @@ const ALWAYS_PASS = [
   // answer during setup and while the site is closed, exactly as the static
   // file it replaced did.
   '/api/branding/',
+  // The site's own copies of its webfonts (the stylesheet, and kit-shaped font
+  // files, which carry no extension for the matcher to skip). They need nothing
+  // the gates below decide, and the first-run gate reads the database: on a cold
+  // instance during a database blip it answered the stylesheet with a 503, and
+  // that page drew system fonts. Fonts must never depend on the database.
+  '/api/fonts/',
   // The site's own email tracking: the open picture and the link redirect. A
   // stranger's mail program fetches these, from an email that may be weeks old,
   // and they must answer whatever state the site is in - a link in an order

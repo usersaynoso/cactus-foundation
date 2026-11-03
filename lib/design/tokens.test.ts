@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildFontHref, buildTokenStyles, googleFontHrefForFamily } from '@/lib/design/tokens'
+import { buildFontHref, buildTokenStyles, fontFamiliesFromTokens, googleFontHrefForFamily } from '@/lib/design/tokens'
 import { sanitiseFontQuery } from '@/lib/design/font-proxy'
 
 // The blanket element rules the Styles panel emits are the ones that reach
@@ -125,5 +125,34 @@ describe('multi-word Google font families', () => {
     expect(upstream).not.toBeNull()
     expect(upstream!.toString()).not.toContain('%2B')
     expect(upstream!.get('family')).toBe('DM Sans:wght@400')
+  })
+})
+
+describe('which fonts get loaded', () => {
+  const href = (family: string) => buildFontHref({ themeStyle: { body: { family } } })
+
+  it('loads Google fonts whose names contain "serif" or "sans"', () => {
+    // These used to be read as system fonts by a substring test and never loaded.
+    for (const family of ['PT Serif', 'Noto Serif', 'DM Serif Display', 'IBM Plex Serif', 'Noto Sans', 'Instrument Sans']) {
+      expect(href(family)).toContain(encodeURIComponent(family.split(' ')[0]!))
+      expect(googleFontHrefForFamily(family)).not.toBeNull()
+    }
+  })
+
+  it('loads the first family of a CSS list', () => {
+    expect(href('Inter, sans-serif')).toBe('/api/fonts/css?family=Inter%3Awght%40400%3B500%3B600%3B700&display=swap')
+    expect(href('"Playfair Display", Georgia, serif')).toContain('Playfair+Display')
+    expect(fontFamiliesFromTokens({ themeStyle: { body: { family: 'Inter, sans-serif' } } })).toEqual(['Inter'])
+  })
+
+  it('asks for nothing for a font every device already has', () => {
+    for (const family of ['system-ui, sans-serif', 'Arial, sans-serif', 'Georgia, serif', 'Times New Roman, serif', 'Helvetica, sans-serif', 'serif']) {
+      expect(href(family)).toBeNull()
+    }
+  })
+
+  it('asks once for a family typed in two cases', () => {
+    const out = buildFontHref({ themeStyle: { body: { family: 'Inter' }, headingsFont: 'inter' } })
+    expect(out?.match(/family=/g)?.length).toBe(1)
   })
 })

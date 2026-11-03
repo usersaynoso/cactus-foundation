@@ -57,7 +57,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const path = canonicalPath(slug)
   try {
     const branding = await resolveBranding().catch(() => null)
-    const siteName = branding?.name
+    // Never the Cactus default in og:site_name: an unknown name is left out.
+    const siteName = branding && branding.state !== 'unavailable' ? branding.name : undefined
 
     const page = await getPageBySlug(slug)
     if (page) {

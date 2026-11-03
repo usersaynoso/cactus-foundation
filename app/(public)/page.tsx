@@ -53,16 +53,18 @@ export async function generateMetadata(): Promise<Metadata> {
   const home = canonicalPath()
   try {
     const [config, branding] = await Promise.all([getRootConfig(), resolveBranding()])
-    if (!config?.setupCompleted || !config.homepageId) return withPublicSeo({}, home, branding.name)
+    // Never the Cactus default in og:site_name: an unknown name is left out.
+    const siteName = branding.state === 'unavailable' ? undefined : branding.name
+    if (!config?.setupCompleted || !config.homepageId) return withPublicSeo({}, home, siteName)
     const page = await getHomepage(config.homepageId)
-    if (!page || page.status === 'draft') return withPublicSeo({}, home, branding.name)
+    if (!page || page.status === 'draft') return withPublicSeo({}, home, siteName)
     const ogImageUrl = page.ogImageId
       ? await prisma.media.findUnique({ where: { id: page.ogImageId }, select: { url: true } }).then((m) => m?.url)
       : undefined
     return withPublicSeo(
       { title: page.title, description: page.metaDescription ?? undefined, openGraph: ogImageUrl ? { images: [{ url: ogImageUrl }] } : undefined },
       home,
-      branding.name,
+      siteName,
     )
   } catch { return withPublicSeo({}, home) }
 }

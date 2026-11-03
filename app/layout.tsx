@@ -1,79 +1,27 @@
 import type { Metadata, Viewport } from 'next'
 import { mediaPublicOrigin } from '@/lib/media/public-origin'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { resolveBranding, BRANDING_DEFAULTS } from '@/lib/config/branding'
+import { resolveBranding } from '@/lib/config/branding'
+import { iconLinksFor } from '@/lib/config/favicon-variants'
 import { isSpeedInsightsEnabled } from '@/lib/config/site'
 import { detectHostingProvider } from '@/lib/hosting/provider'
 import { resolveSiteUrl } from '@/lib/seo/site-url'
 import './globals.css'
 
-type IconEntry = { url: string; type?: string; sizes?: string; media?: string }
-
 // Root-level metadata so the site's icons + app name apply on EVERY route
 // (public pages, status/error pages and the admin area alike) - not just the
-// public layout. A custom favicon fully replaces the Cactus svg/png/ico set, so
-// browsers no longer fall back to the default cactus icon. The web-app manifest
-// is generated separately by app/manifest.ts (Next auto-links it).
+// public layout. The web-app manifest is generated separately by app/manifest.ts
+// (Next auto-links it).
+//
+// The icon links are decided by iconLinksFor() in lib/config/favicon-variants.ts,
+// which is where the rules live and are tested. The short version: a branded site
+// links only its own addresses (each drawn by the icon route in exactly the
+// format it is labelled with), and a failed branding read links those same
+// addresses rather than the Cactus files - pages are held by Next and the CDN,
+// so whatever this writes during a database blip is what visitors see for hours.
 export async function generateMetadata(): Promise<Metadata> {
   const b = await resolveBranding()
-
-  const icon: IconEntry[] = []
-  if (b.faviconUrl) {
-    // Addresses on THIS origin, not the media host the icon actually lives on.
-    // /favicon.ico proxies the bytes (see app/api/branding/favicon/route.ts).
-    //
-    // Labelled with what that address ACTUALLY answers, because an untyped
-    // link was the whole Safari defect: once the 16/32 renditions exist the
-    // route wraps them into a real ICO container (image/x-icon), and until
-    // then it hands back the uploaded media verbatim, so the media row's own
-    // mime is the honest label. No label at all only when the mime is unknown.
-    const composes =
-      !!(b.icon16Url && b.icon32Url) &&
-      (!b.faviconMimeType || b.faviconMimeType.startsWith('image/png'))
-    const icoMeta: Partial<IconEntry> = composes
-      ? { type: 'image/x-icon', sizes: '16x16 32x32' }
-      : b.faviconMimeType
-        ? { type: b.faviconMimeType }
-        : {}
-    const darkMeta: Partial<IconEntry> = b.faviconDarkMimeType ? { type: b.faviconDarkMimeType } : {}
-    if (b.faviconDarkUrl) {
-      // Both scoped by colour scheme so the favicon follows the browser/OS
-      // dark setting (favicons can't read the in-site theme toggle).
-      icon.push({ url: BRANDING_DEFAULTS.favIco, media: '(prefers-color-scheme: light)', ...icoMeta })
-      icon.push({ url: BRANDING_DEFAULTS.favIcoDark, media: '(prefers-color-scheme: dark)', ...darkMeta })
-    } else {
-      icon.push({ url: BRANDING_DEFAULTS.favIco, ...icoMeta })
-    }
-
-    // A branded site used to stop there, and that single untyped entry was the
-    // whole defect: /favicon.ico is an address ending .ico that answers with
-    // PNG bytes, because the generated favicon is a PNG. Chrome sniffs its way
-    // through that and WebKit's icon loader does not, so Safari showed a blank
-    // tab on EVERY page of a site whose icon was reachable, decodable and
-    // correct - while an install with no custom favicon, which has always
-    // emitted a typed svg + png pair below, was fine. Anything typed and sized
-    // here is something WebKit cannot argue with.
-    //
-    // Scoped to light when a dark favicon exists, so the .ico pair above still
-    // owns the dark case rather than being silently outranked; there is no
-    // dark 16/32 to offer.
-    const media = b.faviconDarkUrl ? '(prefers-color-scheme: light)' : undefined
-    const png = (url: string, sizes: string): IconEntry =>
-      media ? { url, sizes, type: 'image/png', media } : { url, sizes, type: 'image/png' }
-
-    // Only when the admin has actually generated them. Falling back to the
-    // bundled Cactus 16/32 here would advertise somebody else's logo on a
-    // branded site, which is the leak /favicon.ico itself was fixed for.
-    if (b.icon16Url) icon.push(png(BRANDING_DEFAULTS.favicon16, '16x16'))
-    if (b.icon32Url) icon.push(png(BRANDING_DEFAULTS.favicon32, '32x32'))
-    // The 192 has existed on every branded install since icons were generated
-    // at all, so this gives a site that has not re-generated yet a typed PNG
-    // candidate today rather than after the owner remembers to press a button.
-    if (b.icon192Url) icon.push(png(BRANDING_DEFAULTS.icon192, '192x192'))
-  } else {
-    icon.push({ url: BRANDING_DEFAULTS.faviconSvg, type: 'image/svg+xml' })
-    icon.push({ url: BRANDING_DEFAULTS.faviconPng, sizes: '96x96', type: 'image/png' })
-  }
+  const links = iconLinksFor({ known: b.state !== 'unavailable', icons: b.icons, version: b.iconVersion })
 
   // Every relative URL in page metadata - og:image, the canonical link - is
   // resolved against this. Without it Next resolves them against localhost and
@@ -81,22 +29,29 @@ export async function generateMetadata(): Promise<Metadata> {
   // the build machine could fetch.
   const siteUrl = resolveSiteUrl()
 
+  // The same rule for the site's NAME as for its icon: a failed read must not
+  // write "Cactus Foundation" into a page title that Next and the CDN then hold.
+  // With nothing known, page titles stand alone and the default is the site's
+  // own address.
+  const known = b.state !== 'unavailable'
+  const fallbackName = siteUrl ? new URL(siteUrl).hostname.replace(/^www\./, '') : ''
+  const title = known
+    ? { template: `%s | ${b.name}`, default: b.name }
+    : { template: '%s', default: fallbackName }
+
   return {
     ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
-    title: { template: `%s | ${b.name}`, default: b.name },
+    title,
     description: 'A minimal, extensible CMS',
     icons: {
-      icon,
-      shortcut: BRANDING_DEFAULTS.favIco,
-      // Always this origin's address, custom icon or not: the route behind it
-      // resolves the branding and proxies the bytes. Pointing straight at the
-      // media host put Safari's icon fetch at the back of a queue several
+      icon: links.icon,
+      shortcut: links.shortcut,
+      // Always this origin's address, never the media host's: pointing straight
+      // at the media host put Safari's icon fetch at the back of a queue several
       // hundred product images long on a busy category page.
-      apple: BRANDING_DEFAULTS.appleTouch,
+      apple: links.apple,
     },
-    appleWebApp: {
-      title: b.shortName,
-    },
+    ...(known ? { appleWebApp: { title: b.shortName } } : {}),
   }
 }
 

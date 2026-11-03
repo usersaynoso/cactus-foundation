@@ -19,12 +19,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const canonical = canonicalPath(slug, path)
   try {
     const branding = await resolveBranding().catch(() => null)
+    // Never the Cactus default in og:site_name: an unknown name is left out.
+    const siteName = branding && branding.state !== 'unavailable' ? branding.name : undefined
     const resolved = await resolveModulePublicPage(slug, path)
-    if (!resolved?.generateMetadata) return withPublicSeo({}, canonical, branding?.name)
+    if (!resolved?.generateMetadata) return withPublicSeo({}, canonical, siteName)
     // searchParams must travel too, and the await must sit inside the try: a
     // module metadata failure should cost the title, never the page.
     const moduleMeta = await resolved.generateMetadata({ params: Promise.resolve(resolved.mappedParams), searchParams })
-    return withPublicSeo(moduleMeta ?? {}, canonical, branding?.name)
+    return withPublicSeo(moduleMeta ?? {}, canonical, siteName)
   } catch { return withPublicSeo({}, canonical) }
 }
 

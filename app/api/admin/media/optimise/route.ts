@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
+import { siteIconMediaIds } from '@/lib/config/site-icons'
 import { downloadMedia, uploadMedia, saveMediaRecord, deleteMedia, getMediaReferences } from '@/lib/media/upload'
 
 // Largest dimension (px) an optimised logo is scaled down to. Generous enough to
@@ -12,7 +13,8 @@ import { downloadMedia, uploadMedia, saveMediaRecord, deleteMedia, getMediaRefer
 const MAX_DIMENSION = 1024
 
 // Produces a resized, WebP-compressed copy of an existing media item and stores
-// it as a new media row. Used by the Branding tab's "Optimise" button. Once the
+// it as a new media row. Used by the Branding tab for logo uploads (never for
+// icons). Once the
 // optimised copy is saved, the pre-optimise original is deleted (unless something
 // else already references it) so the upload doesn't leave an orphaned duplicate
 // behind in the media library.
@@ -29,6 +31,11 @@ export async function POST(request: NextRequest) {
   if (!media) return errorResponse('Media item not found', 404)
   if (!media.mimeType.startsWith('image/') || media.mimeType === 'image/svg+xml') {
     return errorResponse('Only raster images can be optimised.')
+  }
+  // Site icons stay exactly as they are - see siteIconMediaIds. The Branding
+  // tab no longer asks for them, but an older open tab still might.
+  if ((await siteIconMediaIds()).has(media.id)) {
+    return NextResponse.json({ optimised: false, reason: 'Site icons are kept exactly as they are' })
   }
 
   try {

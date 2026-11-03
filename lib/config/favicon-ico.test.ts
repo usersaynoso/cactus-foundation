@@ -7,7 +7,7 @@ import { buildIco, pngDimensions } from './favicon-ico'
 // exactly what the branding route composes from in production.
 const png16 = new Uint8Array(readFileSync(join(process.cwd(), 'public/cactus-favicon-16x16.png')))
 const png32 = new Uint8Array(readFileSync(join(process.cwd(), 'public/cactus-favicon-32x32.png')))
-const png96 = new Uint8Array(readFileSync(join(process.cwd(), 'public/favicon-96x96.png')))
+const png96 = new Uint8Array(readFileSync(join(process.cwd(), 'public/cactus-favicon-96x96.png')))
 
 describe('pngDimensions', () => {
   it('reads the IHDR of real PNGs', () => {
