@@ -54,7 +54,7 @@ Both need the **View analytics** permission.
 
 1. **Your own tags** (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, and any other `utm_` tag, which is kept) always win.
 2. **Ad click ids** (Google `gclid`, Microsoft `msclkid`, Facebook `fbclid`, TikTok, LinkedIn and others) are used when there are no tags.
-3. **The referring website** is used otherwise: an AI assistant (ChatGPT, Perplexity, Claude, Gemini, Copilot and the rest) is **AI Assistants**, webmail (Gmail, Outlook and friends on the web) is **Email**, a search engine is Organic Search, a social network is Organic Social, anything else is Referral.
+3. **The referring website** is used otherwise: an AI assistant (ChatGPT, Perplexity, Claude, Gemini, Copilot and the rest) is **AI Assistants**, webmail (Gmail, Outlook and friends on the web) is **Email**, a link out of a Google Doc, Drive file or Maps listing is a **Referral** from it, a search engine is Organic Search, a social network is Organic Social, anything else is Referral.
 4. No referrer is **Direct**.
 
 ChatGPT tags the links it hands out with `utm_source=chatgpt.com`; that is filed as ChatGPT under AI Assistants too, not as "Other". Visits and orders recorded before Analytics learned this (and clicks from webmail, which it used to call a Google search) were re-filed automatically when it was updated.
