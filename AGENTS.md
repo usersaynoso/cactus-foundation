@@ -183,7 +183,7 @@ Every module API route is served through the single core dispatcher `app/api/m/[
 
 - In an `after()` pass, order steps cheapest/most-important first. Never strand a critical cheap write (e.g. a delete) behind a slow import - if the function is torn down at 60s, the delete never runs and the UI may still show "success" (it only reflects the fast job the client polls).
 - A google-sheet import ground through ~921 variations then died before the variation delete; three prior "fixes" all fixed the delete *logic* while the delete never *ran*. Real fix: cheap delete BEFORE slow import, and make the import O(n) not O(n²).
-- On the OVH VPS DB (public-internet hop, not co-located), N+1 loops that were invisible on Neon now blow the 60s ceiling and hard-fail. When a read-only "preview" twin mirrors a write path, it must mirror its caching too.
+- On a database that is not co-located with the function (a public-internet hop), N+1 loops that were invisible on Neon now blow the 60s ceiling and hard-fail. When a read-only "preview" twin mirrors a write path, it must mirror its caching too.
 - Ground truth for these jobs is in the DB's own sync-log tables (e.g. `gsp_sync_log`), not the UI.
 
 ---
@@ -196,7 +196,7 @@ Every module API route is served through the single core dispatcher `app/api/m/[
 
 - `VERCEL_API_TOKEN` - Vercel API token. **Note the name is `VERCEL_API_TOKEN`, not `VERCEL_TOKEN`** (older docs/memory say `VERCEL_TOKEN` and are wrong).
 - `DATABASE_URL` / `DIRECT_URL` - **the live Deskwell customer database**, not a sandbox. Not set in this repo; if exported for a run: reads fine, writes only when asked that turn, nothing destructive, no DDL by hand (reconcile files only).
-- `OVH_SERVER` / `OVH_USER` / `OVH_SSH_KEY` (or `OVH_PASSWORD`, which the server has refused for SSH since 2026-10-28) - the OVH VPS SSH credentials (used by the backup round-trip test, which provisions throwaway `cactus_rt_*` databases there).
+- `OVH_SERVER` / `OVH_USER` / `OVH_SSH_KEY` - the SSH login of the database server, `deskwell-sys1` (`51.89.235.208`, user `ubuntu`, key `~/.ssh/deskwell_sys1_ed25519`; key only, no password). Used by the live-database suites, which provision throwaway `cactus_rt_*` databases there. `~/bin/cactus-db-gates.sh` sets them and runs the gates.
 - `B2_BUCKET_NAME` / `B2_ENDPOINT` / `B2_KEY_ID` / `B2_KEY` - Backblaze B2 media storage credentials.
 - `psql` binary lives at `/opt/homebrew/opt/libpq/bin/psql`.
 
