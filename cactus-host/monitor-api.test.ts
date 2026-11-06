@@ -57,6 +57,22 @@ async function setup() {
 }
 
 describe('the monitoring API', () => {
+  it('starts an install and audits it, and will not restart a box that does not need it', async () => {
+    const { call, ctx } = await setup()
+    expect((await call('/admin/monitor/updates/install', { method: 'POST', body: {}, token: null })).status).toBe(401)
+    const started = await call('/admin/monitor/updates/install', { method: 'POST', body: {} })
+    expect(started.status).toBe(200)
+    expect(((await started.json()) as { job: { state: string } }).job.state).toBe('running')
+    expect(readAudit(ctx.config, 5).map((a) => [a.action, a.ok])).toContainEqual(['monitor.install-updates', true])
+    const report = (await (await call('/admin/monitor/updates')).json()) as { job: { state: string } | null }
+    expect(report.job).not.toBeNull()
+
+    const restart = await call('/admin/monitor/updates/restart', { method: 'POST', body: {} })
+    expect(restart.status).toBe(409)
+    expect(ctx.system.calls.some((c) => c.cmd === 'shutdown')).toBe(false)
+    expect(readAudit(ctx.config, 5).map((a) => [a.action, a.ok])).toContainEqual(['monitor.restart-server', false])
+  })
+
   it('answers only the admin token', async () => {
     const { call } = await setup()
     expect((await call('/admin/monitor/live', { token: null })).status).toBe(401)

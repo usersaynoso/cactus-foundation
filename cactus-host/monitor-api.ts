@@ -27,6 +27,7 @@ import { monitorDir, readSettings, writeSettings } from './monitor-settings.ts'
 import { parseAccessLine } from './monitor-traffic.ts'
 import { siteSlice } from './monitor-proc.ts'
 import type { SecuritySnapshot } from './monitor-security.ts'
+import { installUpdates, restartServer, updatesReport } from './monitor-updates.ts'
 import { writeFileAtomic } from './store.ts'
 import { hashToken, newToken, tokenMatches } from './tokens.ts'
 
@@ -622,6 +623,15 @@ export async function handleMonitor(host: Host, method: string, rest: string[], 
       }
       return send(res, 200, report)
     }
+    case 'GET /updates':
+      return send(res, 200, await updatesReport(host))
+    case 'POST /updates/install': {
+      const job = await audited(host.config, () => now, 'admin-api', 'monitor.install-updates', null, () => installUpdates(host))
+      return send(res, 200, { job })
+    }
+    case 'POST /updates/restart':
+      await audited(host.config, () => now, 'admin-api', 'monitor.restart-server', null, () => restartServer(host))
+      return send(res, 200, { ok: true })
     case 'GET /capacity':
       return send(res, 200, capacity(host, now))
     case 'GET /usage': {

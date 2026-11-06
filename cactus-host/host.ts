@@ -310,6 +310,10 @@ export class Host {
     await this.running.get(buildId)
   }
 
+  buildsRunning(): number {
+    return this.running.size
+  }
+
   async waitForAll(): Promise<void> {
     await Promise.all([...this.running.values()])
   }

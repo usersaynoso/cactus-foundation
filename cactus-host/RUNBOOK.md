@@ -579,6 +579,19 @@ port, in Prometheus's text format. It reads figures and nothing else.
 | Monitoring history, live sample, settings | `/var/lib/cactus-host/monitor/` (`metrics.db`, `live.json`, `settings.json`) |
 | Each site's access log | `/var/log/caddy/<site>.access.log` |
 
+### Installing updates from Oasis
+
+Server › Status › Security lists what `apt-get -s dist-upgrade` would do and has a button
+to do it. The install runs in its own unit, `cactus-server-updates.service`, so it survives
+Caddy or cactus-host restarting. It keeps existing config files and never prompts, and
+needrestart only lists services rather than restarting them. Its log is
+`/var/lib/cactus-host/monitor/updates.log`, and it is stopped after 30 minutes.
+
+The restart button appears only when `/var/run/reboot-required` exists, and is refused while
+an install or a site build is running. It runs `shutdown -r +1`, so `shutdown -c` cancels it
+within that minute. Updates held back by Ubuntu's phased rollout are named on the screen and
+are left alone. Both buttons are in the audit log.
+
 ## 15. Direct (grey cloud) domains
 
 Cloudflare's proxy ends the visitor's connection and opens its own to Caddy, so a site

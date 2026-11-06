@@ -37,19 +37,24 @@ export function parseSshdT(output: string): { passwordAuth: boolean | null; root
 export class SecurityCollector {
   private readonly system: System
   private readonly proc: Proc
-  private slow: { at: number; updates: SecurityReport['updates']; ssh: SecurityReport['ssh'] } | null = null
+  private readonly updatesFinishedFile: string
+  private slow: { at: number; finished: string | null; updates: SecurityReport['updates']; ssh: SecurityReport['ssh'] } | null = null
 
-  constructor(system: System, proc: Proc) {
+  constructor(system: System, proc: Proc, updatesFinishedFile: string) {
     this.system = system
     this.proc = proc
+    this.updatesFinishedFile = updatesFinishedFile
   }
 
   async collect(now: number, expectedPorts: number[]): Promise<SecuritySnapshot> {
-    if (!this.slow || now - this.slow.at > 3_600_000) {
+    // An install from the Security screen makes the hourly count wrong straight away.
+    const finished = this.proc.read(this.updatesFinishedFile)
+    if (!this.slow || finished !== this.slow.finished || now - this.slow.at > 3_600_000) {
       const apt = await this.system.run('/usr/lib/update-notifier/apt-check', [], { timeoutMs: 120_000 })
       const sshd = await this.system.run('sshd', ['-T'], { timeoutMs: 10_000 })
       this.slow = {
         at: now,
+        finished,
         updates: apt.code === 0 ? parseAptCheck(apt.output) : null,
         ssh: sshd.code === 0 ? parseSshdT(sshd.output) : null,
       }

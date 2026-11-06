@@ -294,6 +294,29 @@ export type SecurityReport = {
   firewall: { active: boolean | null }
 }
 
+export type UpdatePackage = { name: string; from: string | null; to: string; security: boolean }
+
+/** The latest install from the Security screen. `interrupted` is one that stopped without saying how it ended. */
+export type UpdatesJob = {
+  state: 'running' | 'done' | 'failed' | 'interrupted'
+  startedAt: number
+  finishedAt: number | null
+  exitCode: number | null
+  log: string
+}
+
+export type UpdatesReport = {
+  /** What an install would put on the box. Null mid-install, or when apt would not answer (`error`). */
+  packages: UpdatePackage[] | null
+  removals: string[]
+  /** Ubuntu's gradual rollout has not reached this box for these yet, so an install leaves them. */
+  deferred: string[]
+  error: string | null
+  job: UpdatesJob | null
+  rebootRequired: boolean
+  rebootPackages: string[]
+}
+
 export type Forecast = { label: string; kind: 'disk' | 'database' | 'site'; usedBytes: number; totalBytes: number | null; growthBytesPerDay: number; daysLeft: number | null }
 
 export type CapacityReport = {

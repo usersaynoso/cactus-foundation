@@ -30,6 +30,7 @@ import {
 } from './monitor-proc.ts'
 import type { CollectorState, ListeningPort, LiveSnapshot, MonitorSettings, PgActivity, ServiceLive, SiteHealth, SiteLive, SmartLive } from './monitor-protocol.ts'
 import { SecurityCollector } from './monitor-security.ts'
+import { updatesFinishedFile } from './monitor-updates.ts'
 import { monitorDir, readSettings } from './monitor-settings.ts'
 import { AccessLogTailer, TrafficAggregator, type SiteTrafficSample } from './monitor-traffic.ts'
 import { MetricsStore } from './metrics-store.ts'
@@ -116,7 +117,7 @@ export class Monitor {
     this.tailer = new AccessLogTailer(opts.accessLogDir ?? ACCESS_LOG_DIR)
     this.pg = new PostgresCollector(host.config, host.system)
     this.netacct = new NetAccounting(host.system)
-    this.security = new SecurityCollector(host.system, this.proc)
+    this.security = new SecurityCollector(host.system, this.proc, updatesFinishedFile(host.config))
     this.alerts = new AlertEngine(this.store.db)
   }
 
