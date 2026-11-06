@@ -7,6 +7,18 @@
 import { readFileSync } from 'node:fs'
 import { DEFAULT_LISTEN_PORT } from './protocol.ts'
 
+/** What one site can have on top of the box-wide limits. Both absent means no change to its units. */
+export type SiteTuning = {
+  /**
+   * glibc's limit on malloc arenas. Left alone it allows eight per core, and a site running
+   * a threaded native library holds each arena at its high-water mark, so a busy one
+   * can sit on a gigabyte of it. Trades a little allocator contention for that.
+   */
+  mallocArenaMax?: number
+  /** systemd MemoryHigh: reclaim hard above this, before MemoryMax has to. Must be below it. */
+  memoryHigh?: string
+}
+
 export type HostConfig = {
   listenHost: string
   listenPort: number
@@ -39,7 +51,12 @@ export type HostConfig = {
     timeoutMinutes: number
   }
   /** Limits for each running site process. */
-  site: { memoryMax: string; nodeMaxOldSpaceMb: number }
+  site: {
+    memoryMax: string
+    nodeMaxOldSpaceMb: number
+    /** Extras for one site, by site id. Reaches a site through `cactus-host site refresh` and its next start. */
+    perSite: Record<string, SiteTuning>
+  }
   /** How long a stopped release is given to finish in-flight requests and after() work. */
   stopTimeoutSeconds: number
   healthTimeoutSeconds: number
@@ -87,7 +104,7 @@ export const DEFAULT_CONFIG: HostConfig = {
   basePort: 3100,
   keepReleases: 5,
   build: { cpuQuota: '400%', memoryMax: '6G', nice: 10, timeoutMinutes: 30 },
-  site: { memoryMax: '3G', nodeMaxOldSpaceMb: 2048 },
+  site: { memoryMax: '3G', nodeMaxOldSpaceMb: 2048, perSite: {} },
   stopTimeoutSeconds: 90,
   healthTimeoutSeconds: 120,
   postgres: { osUser: 'postgres', host: 'localhost', port: 5432 },
@@ -126,6 +143,38 @@ const isLetsEncrypt = (v: unknown) =>
     (v.email === undefined || isNullableString(v.email)) &&
     (v.liveDir === undefined || isString(v.liveDir)) &&
     (v.deployHook === undefined || isString(v.deployHook)))
+
+const SIZE_UNITS: Record<string, number> = { '': 1, K: 1024, M: 1024 ** 2, G: 1024 ** 3, T: 1024 ** 4 }
+
+/** A systemd byte size in bytes, or null for anything else ("infinity", a percentage). */
+function sizeInBytes(value: string): number | null {
+  const match = /^(\d+)([KMGT]?)$/.exec(value)
+  return match ? Number(match[1]) * (SIZE_UNITS[match[2] as string] as number) : null
+}
+
+function perSite(site: Json, memoryMax: string): HostConfig['site']['perSite'] {
+  if (!('perSite' in site)) return {}
+  if (!isObject(site.perSite)) throw new Error('cactus-host config: "site.perSite" must be an object')
+  const out: HostConfig['site']['perSite'] = {}
+  const max = sizeInBytes(memoryMax)
+  for (const [id, value] of Object.entries(site.perSite)) {
+    const where = `site.perSite.${id}.`
+    if (!isObject(value)) throw new Error(`cactus-host config: "site.perSite.${id}" must be an object`)
+    const unknown = Object.keys(value).find((key) => key !== 'mallocArenaMax' && key !== 'memoryHigh')
+    if (unknown) throw new Error(`cactus-host config: "${where}${unknown}" is not a setting`)
+    const tuning: SiteTuning = {}
+    if ('mallocArenaMax' in value) tuning.mallocArenaMax = pick<number>(value, 'mallocArenaMax', 0, isPositiveInt, where)
+    if ('memoryHigh' in value) {
+      const high = pick<string>(value, 'memoryHigh', '', (v) => isString(v) && sizeInBytes(v as string) !== null, where)
+      if (max !== null && (sizeInBytes(high) as number) >= max) {
+        throw new Error(`cactus-host config: "${where}memoryHigh" must be below site.memoryMax`)
+      }
+      tuning.memoryHigh = high
+    }
+    out[id] = tuning
+  }
+  return out
+}
 
 function letsEncrypt(raw: Json): HostConfig['letsEncrypt'] {
   const value = pick<Json | null>(raw, 'letsEncrypt', null, isLetsEncrypt, '')
@@ -171,6 +220,7 @@ export function parseConfig(raw: unknown): HostConfig {
     site: {
       memoryMax: pick(site, 'memoryMax', d.site.memoryMax, isString, 'site.'),
       nodeMaxOldSpaceMb: pick(site, 'nodeMaxOldSpaceMb', d.site.nodeMaxOldSpaceMb, isPositiveInt, 'site.'),
+      perSite: perSite(site, pick(site, 'memoryMax', d.site.memoryMax, isString, 'site.')),
     },
     stopTimeoutSeconds: pick(raw, 'stopTimeoutSeconds', d.stopTimeoutSeconds, isPositiveInt, ''),
     healthTimeoutSeconds: pick(raw, 'healthTimeoutSeconds', d.healthTimeoutSeconds, isPositiveInt, ''),

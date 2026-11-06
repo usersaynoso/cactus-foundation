@@ -18,6 +18,7 @@ import type { SitePaths, SiteRecord, SlotName } from './store.ts'
 export function slotUnit(config: HostConfig, site: SiteRecord, paths: SitePaths, slot: SlotName): string {
   const dir = paths.slot(slot)
   const port = site.ports[slot]
+  const tuning = config.site.perSite[site.id]
   return [
     '# Written by cactus-host. Rewritten whenever the site is updated, so edits here are lost.',
     '[Unit]',
@@ -46,6 +47,7 @@ export function slotUnit(config: HostConfig, site: SiteRecord, paths: SitePaths,
     `Environment=HOSTNAME=localhost`,
     `Environment=HOME=${paths.home}`,
     `Environment=NODE_OPTIONS=--max-old-space-size=${config.site.nodeMaxOldSpaceMb}`,
+    ...(tuning?.mallocArenaMax ? [`Environment=MALLOC_ARENA_MAX=${tuning.mallocArenaMax}`] : []),
     `ExecStart=${config.nodeBin} ${dir}/node_modules/next/dist/bin/next start -H localhost -p ${port}`,
     'Restart=on-failure',
     'RestartSec=5',
@@ -56,6 +58,7 @@ export function slotUnit(config: HostConfig, site: SiteRecord, paths: SitePaths,
     'SuccessExitStatus=143',
     `TimeoutStopSec=${config.stopTimeoutSeconds}`,
     `MemoryMax=${config.site.memoryMax}`,
+    ...(tuning?.memoryHigh ? [`MemoryHigh=${tuning.memoryHigh}`] : []),
     'NoNewPrivileges=yes',
     'PrivateTmp=yes',
     'ProtectSystem=strict',

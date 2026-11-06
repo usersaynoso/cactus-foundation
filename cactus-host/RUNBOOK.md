@@ -156,6 +156,7 @@ ones worth a look:
 | `build.cpuQuota` | `400%` | Four cores' worth for a build, at most. |
 | `build.memoryMax` | `6G` | A build that wants more is stopped, rather than the box. |
 | `site.memoryMax` | `3G` | Per running site. |
+| `site.perSite` | `{}` | Per site id: `mallocArenaMax` (a whole number) and `memoryHigh` (a size below `site.memoryMax`). Example: `{"deskwell": {"mallocArenaMax": 2}}`. Run `cactus-host site refresh <id>`; a running slot picks it up at its next start, so the next update. It follows the id, so renaming a site means renaming its key here too. |
 
 Builds also run at low CPU and disk priority, so a build in progress never slows the
 live sites or Postgres down noticeably.
