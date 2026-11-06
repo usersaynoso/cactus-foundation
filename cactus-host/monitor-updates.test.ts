@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import type { Proc } from './monitor-proc.ts'
 import { SecurityCollector } from './monitor-security.ts'
 import { monitorDir } from './monitor-settings.ts'
-import { installUpdates, parseSimulation, restartServer, updatesFinishedFile, updatesReport } from './monitor-updates.ts'
+import { installUpdates, parseScheduledShutdown, parseSimulation, restartServer, updatesFinishedFile, updatesReport } from './monitor-updates.ts'
 import type { RunResult } from './system.ts'
 import { hostWithSite } from './testing.ts'
 
@@ -29,7 +29,7 @@ Conf caddy (2.11.9 source=none:any-version [amd64])
 `
 
 /** A host whose fake system answers apt-get and systemctl as told. */
-function setup(opts: { active?: string; sim?: RunResult } = {}) {
+function setup(opts: { active?: string; sim?: RunResult; scheduled?: string } = {}) {
   const ctx = hostWithSite()
   const inner = ctx.host.system.run.bind(ctx.host.system)
   ctx.host.system.run = async (cmd, args, o) => {
@@ -37,6 +37,7 @@ function setup(opts: { active?: string; sim?: RunResult } = {}) {
       ctx.system.calls.push({ cmd, args })
       return opts.sim ?? { code: 0, output: SIMULATION }
     }
+    if (cmd === 'busctl') return { code: 0, output: `${opts.scheduled ?? '(st) "" 18446744073709551615'}\n` }
     if (cmd === 'systemctl' && args[0] === 'is-active') return { code: 0, output: `${opts.active ?? 'inactive'}\n` }
     return inner(cmd, args, o)
   }
@@ -126,7 +127,31 @@ describe('installing updates', () => {
   })
 })
 
+describe('parseScheduledShutdown', () => {
+  it('reads a scheduled restart and nothing else', () => {
+    expect(parseScheduledShutdown('(st) "reboot" 1794004944000000\n')).toBe(1794004944000)
+    expect(parseScheduledShutdown('(st) "" 18446744073709551615\n')).toBeNull()
+    expect(parseScheduledShutdown('(st) "poweroff" 1794004944000000\n')).toBeNull()
+    expect(parseScheduledShutdown('')).toBeNull()
+  })
+})
+
 describe('restarting the server', () => {
+  const SCHEDULED = '(st) "reboot" 1794004944000000'
+
+  it('leaves a restart already scheduled alone, even once it is no longer owed', async () => {
+    const ctx = setup({ scheduled: SCHEDULED })
+    await expect(restartServer(ctx.host, join(tmpdir(), 'no-such-reboot-file'))).resolves.toBe(1794004944000)
+    expect(ctx.system.calls.some((c) => c.cmd === 'shutdown')).toBe(false)
+  })
+
+  it('reports the scheduled time, and refuses an install that would be cut short', async () => {
+    const ctx = setup({ scheduled: SCHEDULED })
+    expect((await updatesReport(ctx.host)).restartAt).toBe(1794004944000)
+    await expect(installUpdates(ctx.host)).rejects.toMatchObject({ status: 409 })
+    expect(ctx.system.calls.some((c) => c.cmd === 'systemd-run')).toBe(false)
+  })
+
   function owed(): string {
     const file = join(mkdtempSync(join(tmpdir(), 'reboot-')), 'reboot-required')
     writeFileSync(file, '*** System restart required ***\n')

@@ -313,6 +313,8 @@ export type UpdatesReport = {
   deferred: string[]
   error: string | null
   job: UpdatesJob | null
+  /** When the box will restart, if one is scheduled. */
+  restartAt: number | null
   rebootRequired: boolean
   rebootPackages: string[]
 }

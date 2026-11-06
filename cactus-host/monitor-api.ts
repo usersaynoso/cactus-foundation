@@ -629,9 +629,10 @@ export async function handleMonitor(host: Host, method: string, rest: string[], 
       const job = await audited(host.config, () => now, 'admin-api', 'monitor.install-updates', null, () => installUpdates(host))
       return send(res, 200, { job })
     }
-    case 'POST /updates/restart':
-      await audited(host.config, () => now, 'admin-api', 'monitor.restart-server', null, () => restartServer(host))
-      return send(res, 200, { ok: true })
+    case 'POST /updates/restart': {
+      const restartAt = await audited(host.config, () => now, 'admin-api', 'monitor.restart-server', null, () => restartServer(host))
+      return send(res, 200, { restartAt })
+    }
     case 'GET /capacity':
       return send(res, 200, capacity(host, now))
     case 'GET /usage': {

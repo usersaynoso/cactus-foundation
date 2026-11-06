@@ -92,9 +92,22 @@ async function readJob(host: Host): Promise<UpdatesJob | null> {
   return { state: running ? 'running' : 'interrupted', startedAt, finishedAt: null, exitCode: null, log }
 }
 
+/** The output of `busctl get-property ... ScheduledShutdown`: `(st) "reboot" <microseconds>`, or an empty type when nothing is scheduled. */
+export function parseScheduledShutdown(output: string): number | null {
+  const m = /"reboot" (\d+)/.exec(output)
+  return m ? Math.floor(Number(m[1]) / 1000) : null
+}
+
+/** When logind will restart the box, if it has been asked to. A restart is only known to logind, so this is what survives a page reload. */
+async function scheduledRestart(host: Host): Promise<number | null> {
+  const result = await host.system.run('busctl', ['get-property', 'org.freedesktop.login1', '/org/freedesktop/login1', 'org.freedesktop.login1.Manager', 'ScheduledShutdown'], { timeoutMs: 10_000 })
+  return result.code === 0 ? parseScheduledShutdown(result.output) : null
+}
+
 export async function updatesReport(host: Host): Promise<UpdatesReport> {
   const job = await readJob(host)
   const reboot = {
+    restartAt: await scheduledRestart(host),
     rebootRequired: existsSync(REBOOT_FILE),
     rebootPackages: (readText(REBOOT_PACKAGES_FILE) ?? '').split('\n').map((s) => s.trim()).filter(Boolean),
   }
@@ -114,6 +127,7 @@ export async function updatesReport(host: Host): Promise<UpdatesReport> {
 
 export async function installUpdates(host: Host): Promise<UpdatesJob> {
   if ((await readJob(host))?.state === 'running') throw new HostError('Updates are already being installed.', 409)
+  if (await scheduledRestart(host) !== null) throw new HostError('The server is about to restart. Install once it is back.', 409)
   mkdirSync(monitorDir(host.config), { recursive: true, mode: 0o700 })
   const startedAt = host.system.now()
   await mustRun(host.system, 'Starting the install', 'systemd-run', [
@@ -132,11 +146,18 @@ export async function installUpdates(host: Host): Promise<UpdatesJob> {
   return { state: 'running', startedAt, finishedAt: null, exitCode: null, log: '' }
 }
 
-/** Restarts the box in a minute, which gives this answer time to get back to the screen. */
-export async function restartServer(host: Host, rebootFile = REBOOT_FILE): Promise<void> {
+/**
+ * Restarts the box in a minute, which gives this answer time to get back to the
+ * screen, and says when. Asking again changes nothing: a second `shutdown` would
+ * replace the first and start the minute over.
+ */
+export async function restartServer(host: Host, rebootFile = REBOOT_FILE): Promise<number> {
+  const already = await scheduledRestart(host)
+  if (already !== null) return already
   if (!existsSync(rebootFile)) throw new HostError('The server does not need a restart.', 409)
   if ((await readJob(host))?.state === 'running') throw new HostError('Updates are still being installed. Restart once they have finished.', 409)
   // cactus-host waits for builds when it is stopped, so a restart now could hang for half an hour.
   if (host.buildsRunning() > 0) throw new HostError('A site is building. Restart once it has finished.', 409)
   await mustRun(host.system, 'Scheduling the restart', 'shutdown', ['-r', '+1', 'Restart asked for in Oasis'], { timeoutMs: 15_000 })
+  return await scheduledRestart(host) ?? host.system.now() + 60_000
 }
