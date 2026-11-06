@@ -1360,10 +1360,18 @@ current return and is linked back to the original.
 HMRC let you put a mistake right on your next return when the net value of your
 errors is £10,000 or less, or is between £10,000 and £50,000 and no more than 1%
 of your box 6 sales figure. Above that they want telling separately, through their
-online error correction service. The VAT returns page keeps a running total of
-your corrections and tells you which side of the line you are on. Those thresholds
+online error correction service. Each VAT return page adds up the corrections sitting
+on that return and tells you which side of the line you are on. Those thresholds
 are settings rather than fixed numbers, so if HMRC change them it is a quick edit
 rather than waiting for an update.
+
+Only a correction you posted by hand, against an entry on an earlier filed return
+under the same VAT number, goes into that figure. A credit note or void arriving
+from the shop or purchase orders never does, whichever period the original sale or
+bill was in: that is an ordinary transaction of the period it happens in, and it
+reaches the boxes in the usual way. Nor does a return filed in HMRC's sandbox count
+as an earlier return. A first return, with nothing filed before it, shows no message,
+and neither does a return whose corrections cancel out to nothing.
 
 ---
 
