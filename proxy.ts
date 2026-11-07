@@ -28,7 +28,9 @@ import {
   getModuleRouteTiersCached,
   getPageCacheCached,
   getSiteStatusCached,
+  answerFromPageStore,
   isEdgeConfigWritable,
+  isOwnRender,
   isFirstRunComplete,
   refreshFirstRunComplete,
   rememberRequestOrigin,
@@ -37,7 +39,10 @@ import {
 } from '@/lib/proxy/data'
 import { PROXY_DATA_PATH } from '@/lib/proxy/protocol'
 import { detectHostingProvider } from '@/lib/hosting/provider'
-import { carriesAccessKey, cdnCacheControlForWindow, hasPageShapingQuery, pageCacheControl, resolveCacheWindow, vercelCdnCacheControl } from '@/lib/cache/page-cache'
+import { carriesAccessKey, cdnCacheControlForWindow, hasPageShapingQuery, isPrivatePath, pageCacheControl, resolveCacheWindow, SHARED_WINDOW_WITH_PAGE_STORE, vercelCdnCacheControl } from '@/lib/cache/page-cache'
+import { INTERNAL_RENDER_HEADER_NAME } from '@/lib/cache/page-store/header'
+import { isStorablePath, parsePathPatterns } from '@/lib/cache/page-store/policy'
+import { moduleAddressBases } from '@/lib/modules/cache-cookies'
 import { isCdnPurgeConfigured } from '@/lib/cache/cdn-purge'
 import { getMemberAreaPath, MEMBER_INTERNAL } from '@/lib/members/paths'
 import { isPathExcepted, resolveRouteTier } from '@/lib/members/access'
@@ -239,9 +244,65 @@ const SECURITY_HEADERS: [string, string][] = [
 // not already present on the response (sendRenderResult in
 // next/dist/server/send-payload.js), and proxy headers are applied to the
 // response before the render runs - so this one wins.
+// Whether this site holds pages itself and this address is one it would hold. Only
+// ever true on a server under cactus-host. Nowhere else keeps a process running long
+// enough, or knows its own port.
+function pageStoreApplies(request: NextRequest, storeEnabled: boolean | undefined, storePaths: string | undefined): boolean {
+  if (!storeEnabled || detectHostingProvider() !== 'server') return false
+  return isStorablePath(request.nextUrl.pathname, { paths: parsePathPatterns(storePaths), moduleBases: moduleAddressBases }, isPrivatePath)
+}
+
+// Answers a public page from the store when this request is one the store may answer.
+// Null means carry on and render as normal. The first question is the one that keeps
+// a visitor's page personal: pageCacheControl is the same "may this be shared" verdict
+// the CDN header comes from, cookies, flight requests, secrets and all.
+async function answerPublicPage(request: NextRequest): Promise<NextResponse | null> {
+  const { enabled, ttl, storeEnabled, storePaths, storeIgnoreTables } = await getPageCacheCached()
+  if (!enabled || !pageStoreApplies(request, storeEnabled, storePaths)) return null
+  // The store's own request for a render, come back through here. Never answered from
+  // itself, and it has none of the visitor's cookies to carry anywhere.
+  if (isOwnRender(request.headers.get(INTERNAL_RENDER_HEADER_NAME))) return null
+
+  const shareable = pageCacheControl({
+    enabled,
+    ttl,
+    path: request.nextUrl.pathname,
+    hasAccessKey: carriesAccessKey(request.nextUrl.search),
+    method: request.method,
+    header: (name: string) => request.headers.get(name),
+    hasCookie: (name: string) => request.cookies.has(name),
+  })
+  if (!shareable) return null
+
+  const answer = await answerFromPageStore(
+    {
+      method: request.method,
+      host: request.headers.get('host') ?? request.nextUrl.host,
+      path: request.nextUrl.pathname,
+      search: request.nextUrl.search,
+    },
+    { paths: storePaths, ignoreTables: storeIgnoreTables },
+  )
+  if (!answer) return null
+
+  const headers = new Headers(answer.headers)
+  headers.set('x-cactus-page-store', answer.state)
+  if (answer.retryAfterSeconds) headers.set('retry-after', String(answer.retryAfterSeconds))
+  const res = new NextResponse(answer.body ? new Uint8Array(answer.body) : null, { status: answer.status, headers })
+  // A busy page says no-store itself and that has to stand. Everything else takes the
+  // same shared-cache headers a rendered page would have.
+  return withSecurity(answer.state === 'BUSY' ? res : await withPageCache(request, res))
+}
+
 async function withPageCache(request: NextRequest, res: NextResponse): Promise<NextResponse> {
-  const { enabled, ttl, longTtl, vercelEdgeTtl, behindCloudflare } = await getPageCacheCached()
+  const { enabled, ttl: ownerTtl, longTtl: ownerLongTtl, vercelEdgeTtl, behindCloudflare, storeEnabled, storePaths } = await getPageCacheCached()
   if (!enabled) return res
+  // A page the origin holds itself gets the short window, whatever the owner's is: a
+  // miss costs next to nothing now, and a CDN's copy is the one part of a price change
+  // nothing here can reach in and clear. See lib/cache/page-store/engine.ts.
+  const heldHere = pageStoreApplies(request, storeEnabled, storePaths)
+  const ttl = heldHere ? SHARED_WINDOW_WITH_PAGE_STORE : ownerTtl
+  const longTtl = heldHere ? 0 : ownerLongTtl
   const decision = {
     enabled,
     ttl,
@@ -676,6 +737,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // for it, and the client component that could would mean shipping JavaScript
   // to every page to answer a question this file already knows the answer to.
   // Set as a REQUEST header, so it reaches the render rather than the browser.
+  const stored = await answerPublicPage(request)
+  if (stored) return stored
+
   const forwarded = new Headers(request.headers)
   forwarded.set('x-cactus-path', pathname)
   return withSecurity(await withPageCache(request, NextResponse.next({ request: { headers: forwarded } })))

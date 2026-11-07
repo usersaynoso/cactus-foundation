@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client'
 import type { ITXClientDenyList } from '@prisma/client/runtime/library'
 
 import { retryOnClosedConnection } from './connection-retry'
+import { noteDbError } from './infra-errors'
 import { retryOnStalePlan } from './stale-plan'
 
 const globalForPrisma = globalThis as unknown as {
@@ -26,7 +27,11 @@ export const stalePlanRetryExtension = Prisma.defineExtension({
     // $allOperations covers raw queries as well as model calls, which matters:
     // the modules do most of their reading through $queryRaw.
     $allOperations({ operation, args, query }) {
-      return retryOnClosedConnection(operation, args, () => retryOnStalePlan(() => query(args)))
+      return retryOnClosedConnection(operation, args, () => retryOnStalePlan(() => query(args))).catch((err: unknown) => {
+        // Counted for the page store, which will not keep a page rendered through one.
+        noteDbError(err)
+        throw err
+      })
     },
   },
 })

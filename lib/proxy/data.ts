@@ -25,6 +25,7 @@ import { validateMemberSession as coreValidateMemberSession } from '@/lib/member
 import { getModuleRouteTiersCached as moduleRouteTiersCached } from '@/lib/modules/member-extensions'
 import type { SiteStatus } from '@prisma/client'
 import { prismaGateFailureMeansUnconfigured } from './gate-failure'
+import { answerFromPageStore as storeAnswer, isOwnRender as storeIsOwnRender } from '@/lib/cache/page-store/engine'
 
 /** The parts of an admin user the proxy looks at. */
 export type ProxyAdminUser = { id: string; role: { isProtected: boolean } }
@@ -36,6 +37,9 @@ export type ProxyPageCache = {
   longTtl: number
   vercelEdgeTtl: number
   behindCloudflare: boolean
+  storeEnabled: boolean
+  storePaths: string
+  storeIgnoreTables: string
 }
 export type ProxyRouteTier = { pathPrefix: string; tier: 'PUBLIC' | 'MEMBER' | 'TRUSTED_MEMBER' }
 
@@ -49,6 +53,8 @@ export const validateMemberSession: (token: string) => Promise<ProxyMember | nul
 export const getMembersConfigCached: () => Promise<MembersConfig> = membersConfigCached
 export const getModuleRouteTiersCached: () => Promise<ProxyRouteTier[]> = moduleRouteTiersCached
 export const isEdgeConfigWritable: () => boolean = envEdgeConfigWritable
+export const answerFromPageStore: typeof storeAnswer = storeAnswer
+export const isOwnRender: (secretHeader: string | null) => boolean = storeIsOwnRender
 
 // The Netlify version needs its own address to call its data route; the Node
 // proxy reads the database directly and has no use for it.

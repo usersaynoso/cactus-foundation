@@ -54,6 +54,7 @@ type SiteConfig = {
   adminPath: string; status: string; hideFromCrawlers: boolean;
   speedInsightsEnabled: boolean;
   pageCacheEnabled: boolean; pageCacheTtl: number; pageCacheLongTtl: number; vercelEdgeTtl: number; behindCloudflare: boolean;
+  pageStoreEnabled: boolean; pageStorePaths: string; pageStoreIgnoreTables: string;
   cloudflareImageResizing: boolean;
   trustDeviceDays: number;
   emailFromName: string; emailFromAddress: string; emailProvider: 'brevo' | 'smtp' | null;
@@ -2455,6 +2456,61 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <option value="86400">24 hours (recommended)</option>
                   <option value="604800">A week</option>
                 </select>
+              </div>
+            )}
+            {(config.pageCacheEnabled ?? false) && (
+              <div id="speed-page-store" className="field field--wide admin-anchor">
+                <label className="settings-check">
+                  <input
+                    type="checkbox"
+                    checked={config.pageStoreEnabled ?? false}
+                    onChange={(e) => set('pageStoreEnabled', e.target.checked)}
+                  />
+                  Hold finished pages on this server too
+                  <InfoTip>
+                    For a site on your own server. Pages are kept ready inside the site itself, so a sudden crowd gets
+                    them without building anything, and only a few pages are ever built at once. Baskets, checkouts,
+                    accounts and anyone signed in are never involved. While this is on, Cloudflare&apos;s copy of these
+                    pages is kept to a minute, and a price or stock change reaches visitors within five minutes.
+                  </InfoTip>
+                </label>
+              </div>
+            )}
+            {(config.pageCacheEnabled ?? false) && (config.pageStoreEnabled ?? false) && (
+              <div id="speed-page-store-paths" className="field field--wide admin-anchor">
+                <label htmlFor="speed-store-paths">
+                  Other addresses to hold
+                  <InfoTip>
+                    Top-level pages are held already. List anything deeper, one to a line, with a star for a whole
+                    section. Only list addresses that look the same to everybody.
+                  </InfoTip>
+                </label>
+                <textarea
+                  id="speed-store-paths"
+                  rows={5}
+                  value={config.pageStorePaths ?? ''}
+                  placeholder={'/shop\n/shop/categories/*'}
+                  onChange={(e) => set('pageStorePaths', e.target.value)}
+                />
+              </div>
+            )}
+            {(config.pageCacheEnabled ?? false) && (config.pageStoreEnabled ?? false) && (
+              <div id="speed-page-store-tables" className="field field--wide admin-anchor">
+                <label htmlFor="speed-store-tables">
+                  Data that never shows on a public page
+                  <InfoTip>
+                    Any change to your data makes the held pages get rebuilt, so that prices stay right. Tables listed
+                    here are left out of that, one to a line, with a star for a whole family. If in doubt, leave it out:
+                    the worst a missing line does is rebuild some pages for nothing.
+                  </InfoTip>
+                </label>
+                <textarea
+                  id="speed-store-tables"
+                  rows={5}
+                  value={config.pageStoreIgnoreTables ?? ''}
+                  placeholder={'analytics_*\nchat_messages'}
+                  onChange={(e) => set('pageStoreIgnoreTables', e.target.value)}
+                />
               </div>
             )}
             {(config.pageCacheEnabled ?? false) && (

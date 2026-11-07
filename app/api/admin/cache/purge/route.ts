@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
 import { isCdnPurgeConfigured, purgeCdnEverythingOrThrow } from '@/lib/cache/cdn-purge'
+import { clearPageStore } from '@/lib/cache/page-store/signal'
 import { errorResponse } from '@/lib/utils'
 
 // Manual "Purge everything now" button on Settings → Speed. Everything else that
@@ -12,6 +13,10 @@ export async function POST() {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!isAdmin(user)) return errorResponse('Forbidden', 403)
+
+  // Before the CDN check: the copies this site holds itself are the owner's to clear
+  // whether or not a Cloudflare token was ever set.
+  clearPageStore()
 
   if (!isCdnPurgeConfigured()) {
     return errorResponse('Set CLOUDFLARE_ZONE_ID and CLOUDFLARE_PURGE_API_TOKEN first.', 400)

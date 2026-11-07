@@ -8,6 +8,7 @@ import { isBlocklisted } from '@/lib/config/site'
 import { syncToEdgeConfig, waitForAdminPathPropagation } from '@/lib/config/edge-config'
 import { invalidateSiteConfigCache } from '@/lib/config/site'
 import { PAGE_CACHE_LONG_TTL_OPTIONS, PAGE_CACHE_TTL_OPTIONS, VERCEL_EDGE_TTL_OPTIONS } from '@/lib/cache/page-cache'
+import { invalidatePageStore } from '@/lib/cache/page-store/signal'
 import { purgeCdnEverything } from '@/lib/cache/cdn-purge'
 import { errorResponse } from '@/lib/utils'
 import type { SiteStatus } from '@prisma/client'
@@ -200,6 +201,9 @@ const Patch = z.object({
     .refine((n) => (VERCEL_EDGE_TTL_OPTIONS as readonly number[]).includes(n), 'Not one of the offered caching windows')
     .optional(),
   behindCloudflare: z.boolean().optional(),
+  pageStoreEnabled: z.boolean().optional(),
+  pageStorePaths: z.string().max(4000).optional(),
+  pageStoreIgnoreTables: z.string().max(8000).optional(),
   cloudflareImageResizing: z.boolean().optional(),
   trustDeviceDays: z.number().int().min(1).max(365).optional(),
   emailFromName: z.string().max(100).optional().nullable(),
@@ -355,6 +359,10 @@ export async function PATCH(request: NextRequest) {
     }
   }
   if (rest.behindCloudflare !== undefined || rest.cloudflareImageResizing !== undefined) invalidateSiteConfigCache()
+  if (rest.pageStoreEnabled !== undefined || rest.pageStorePaths !== undefined || rest.pageStoreIgnoreTables !== undefined) invalidateSiteConfigCache()
+  // Any saved setting can show on a public page, and SiteConfig is too busy with its
+  // own bookkeeping for the store's table watcher to count (lib/cache/page-store).
+  invalidatePageStore('SiteConfig')
 
   // Moving the homepage moves a redirect with it: the page assigned to the root
   // sends its own /slug there permanently, and the page that used to hold the job

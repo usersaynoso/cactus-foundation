@@ -250,6 +250,13 @@ model SiteConfig {
   // The cost of a non-zero value is that a publish's purge takes this long to be
   // visible everywhere; 0 restores the instant-purge behaviour.
   vercelEdgeTtl          Int        @default(60)
+  // Hold finished public pages inside the running site (lib/cache/page-store), on a
+  // server under cactus-host. Needs pageCacheEnabled too. pageStorePaths: deeper
+  // addresses to hold besides the single-segment default. pageStoreIgnoreTables:
+  // tables whose writes never change a public page. Both one entry per line.
+  pageStoreEnabled       Boolean    @default(false)
+  pageStorePaths         String     @default("")
+  pageStoreIgnoreTables  String     @default("")
   // Settings > General > Speed. True when the site's media host sits behind a
   // Cloudflare zone with Image Transformations switched on, which lets a picture be
   // asked for at the size it is actually drawn (and re-encoded to AVIF on the way):

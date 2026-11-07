@@ -14,7 +14,7 @@ let cachedPendingRedeployId: string | null = null
 let cachedPendingRedeployIdAt: number = 0
 let cachedSpeedInsights: boolean = true
 let cachedSpeedInsightsAt: number = 0
-let cachedPageCache: { enabled: boolean; ttl: number; longTtl: number; vercelEdgeTtl: number; behindCloudflare: boolean } = { enabled: false, ttl: DEFAULT_PAGE_CACHE_TTL, longTtl: DEFAULT_PAGE_CACHE_LONG_TTL, vercelEdgeTtl: DEFAULT_VERCEL_EDGE_TTL, behindCloudflare: false }
+let cachedPageCache: { enabled: boolean; ttl: number; longTtl: number; vercelEdgeTtl: number; behindCloudflare: boolean; storeEnabled: boolean; storePaths: string; storeIgnoreTables: string } = { enabled: false, ttl: DEFAULT_PAGE_CACHE_TTL, longTtl: DEFAULT_PAGE_CACHE_LONG_TTL, vercelEdgeTtl: DEFAULT_VERCEL_EDGE_TTL, behindCloudflare: false, storeEnabled: false, storePaths: '', storeIgnoreTables: '' }
 let cachedPageCacheAt: number = 0
 let cachedBehindCloudflare: boolean = false
 let cachedBehindCloudflareAt: number = 0
@@ -115,7 +115,7 @@ export async function isSpeedInsightsEnabled(): Promise<boolean> {
 // behindCloudflare rides along because proxy.ts needs it in the same breath and
 // on the same request: it is what decides whether Vercel may keep a copy of its
 // own. It cannot use the purge credentials for that - see the note in proxy.ts.
-export async function getPageCacheCached(): Promise<{ enabled: boolean; ttl: number; longTtl: number; vercelEdgeTtl: number; behindCloudflare: boolean }> {
+export async function getPageCacheCached(): Promise<{ enabled: boolean; ttl: number; longTtl: number; vercelEdgeTtl: number; behindCloudflare: boolean; storeEnabled: boolean; storePaths: string; storeIgnoreTables: string }> {
   const now = Date.now()
   if (cachedPageCacheAt > 0 && now - cachedPageCacheAt < CACHE_TTL_MS) {
     return cachedPageCache
@@ -123,7 +123,7 @@ export async function getPageCacheCached(): Promise<{ enabled: boolean; ttl: num
   const config = await prisma.siteConfig
     .findUnique({
       where: { id: 'singleton' },
-      select: { pageCacheEnabled: true, pageCacheTtl: true, pageCacheLongTtl: true, vercelEdgeTtl: true, behindCloudflare: true },
+      select: { pageCacheEnabled: true, pageCacheTtl: true, pageCacheLongTtl: true, vercelEdgeTtl: true, behindCloudflare: true, pageStoreEnabled: true, pageStorePaths: true, pageStoreIgnoreTables: true },
     })
     .catch(() => undefined)
   if (config === undefined) return cachedPageCache
@@ -133,6 +133,9 @@ export async function getPageCacheCached(): Promise<{ enabled: boolean; ttl: num
     longTtl: normalisePageCacheLongTtl(config?.pageCacheLongTtl),
     vercelEdgeTtl: normaliseVercelEdgeTtl(config?.vercelEdgeTtl),
     behindCloudflare: config?.behindCloudflare ?? false,
+    storeEnabled: config?.pageStoreEnabled ?? false,
+    storePaths: config?.pageStorePaths ?? '',
+    storeIgnoreTables: config?.pageStoreIgnoreTables ?? '',
   }
   cachedPageCacheAt = now
   return cachedPageCache
@@ -209,7 +212,7 @@ export function invalidateSiteConfigCache() {
   cachedPendingRedeployIdAt = 0
   cachedSpeedInsights = true
   cachedSpeedInsightsAt = 0
-  cachedPageCache = { enabled: false, ttl: DEFAULT_PAGE_CACHE_TTL, longTtl: DEFAULT_PAGE_CACHE_LONG_TTL, vercelEdgeTtl: DEFAULT_VERCEL_EDGE_TTL, behindCloudflare: false }
+  cachedPageCache = { enabled: false, ttl: DEFAULT_PAGE_CACHE_TTL, longTtl: DEFAULT_PAGE_CACHE_LONG_TTL, vercelEdgeTtl: DEFAULT_VERCEL_EDGE_TTL, behindCloudflare: false, storeEnabled: false, storePaths: '', storeIgnoreTables: '' }
   cachedPageCacheAt = 0
   cachedBehindCloudflare = false
   cachedBehindCloudflareAt = 0

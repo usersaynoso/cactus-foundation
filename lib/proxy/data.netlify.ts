@@ -192,3 +192,13 @@ export function isEdgeConfigWritable(): boolean {
 export function gateFailureMeansUnconfigured(err: unknown): boolean {
   return err instanceof ProxyDataError && err.unconfigured
 }
+
+// The page store needs a long-lived process that knows its own port, which an edge
+// function is not. The proxy only asks on a server (hosting provider 'server').
+export async function answerFromPageStore(): Promise<null> {
+  return null
+}
+
+export function isOwnRender(): boolean {
+  return false
+}

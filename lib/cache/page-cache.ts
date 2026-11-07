@@ -111,8 +111,23 @@ const MACHINE_READ_PATH = /^\/(?:robots\.txt|llms\.txt|llms-full\.txt|sitemap[\w
 const TRACKING_ONLY_PARAMS = new Set([
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id',
   'gclid', 'gbraid', 'wbraid', 'dclid', 'gclsrc', 'gad_source', 'srsltid',
-  'fbclid', 'msclkid', 'ttclid', 'twclid', 'igshid', 'mc_cid', 'mc_eid',
+  'gad_campaignid', 'fbclid', 'msclkid', 'ttclid', 'twclid', 'igshid', 'mc_cid', 'mc_eid',
 ])
+
+/** Whether this query parameter says where a visitor came from and nothing about the page. */
+export function isTrackingParam(name: string): boolean {
+  return TRACKING_ONLY_PARAMS.has(name.toLowerCase())
+}
+
+// decodeURIComponent throws on a stray %, and these run in the proxy on every request.
+function paramName(pair: string): string {
+  const raw = pair.split('=')[0]?.replace(/\+/g, ' ') ?? ''
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
 
 /**
  * Whether this request's query string actually asks for a different page.
@@ -128,8 +143,7 @@ export function hasPageShapingQuery(search: string): boolean {
   if (query === '') return false
   for (const pair of query.split('&')) {
     if (pair === '') continue
-    const name = decodeURIComponent(pair.split('=')[0]?.replace(/\+/g, ' ') ?? '')
-    if (!TRACKING_ONLY_PARAMS.has(name.toLowerCase())) return true
+    if (!isTrackingParam(paramName(pair))) return true
   }
   return false
 }
@@ -155,11 +169,31 @@ export function carriesAccessKey(search: string): boolean {
   if (query === '') return false
   for (const pair of query.split('&')) {
     if (pair === '') continue
-    const name = decodeURIComponent(pair.split('=')[0]?.replace(/\+/g, ' ') ?? '')
-    if (ACCESS_KEY_PARAMS.has(name.toLowerCase())) return true
+    if (ACCESS_KEY_PARAMS.has(paramName(pair).toLowerCase())) return true
   }
   return false
 }
+
+// Address segments that mean one person's business: a basket, a checkout, an order, an
+// account. No shared cache may hold these, whatever the page itself turns out to read,
+// and it is decided from the address because the proxy cannot see into the render.
+// Matched as whole segments, so /shop/cart is out and /cart-trolleys is not.
+const PRIVATE_PATH_SEGMENTS = new Set([
+  'cart', 'basket', 'checkout', 'account', 'accounts', 'cactus-account', 'track-order',
+  'order', 'orders', 'invoice', 'proforma', 'credit-note', 'receipt', 'downloads',
+  'login', 'logout', 'logged-out', 'register', 'signin', 'signup', 'password',
+  'members', 'preview', 'page-preview', 'layout-preview', 'purchase-order', 'quote', 'setup',
+])
+
+/** Whether this address is somebody's own, so no shared cache may ever keep it. */
+export function isPrivatePath(path: string): boolean {
+  return path.split('/').some((segment) => PRIVATE_PATH_SEGMENTS.has(segment.toLowerCase()))
+}
+
+// How long a shared cache may keep a page the origin's own store also holds. Short,
+// because the store answers a miss for almost nothing, and because it is the one part
+// of "how out of date can a page get" that nothing here can reach in and clear.
+export const SHARED_WINDOW_WITH_PAGE_STORE = 60
 
 export function usesLongCacheWindow(path: string, hasQuery: boolean): boolean {
   return hasQuery || MACHINE_READ_PATH.test(path)
@@ -248,12 +282,25 @@ export function pageCacheControl(input: PageCacheDecisionInput): string | null {
   if (input.header('next-router-prefetch')) return null
   if (input.header('next-router-state-tree')) return null
 
+  // Those three only catch a caller other than the proxy. Next deletes its flight
+  // headers and the _rsc parameter from the request before the proxy sees it
+  // (next/dist/server/web/adapter.js), so inside proxy.ts a client-side navigation looks
+  // exactly like a page load. What the browser says about the fetch survives: a document
+  // is 'document', and the router's fetch is 'empty'. A browser too old to send this gets
+  // HTML back from the page store, and Next's router answers a non-flight response with
+  // a full page load, so being wrong here costs a reload rather than a broken page.
+  const fetchDest = input.header('sec-fetch-dest')
+  if (fetchDest && fetchDest !== 'document') return null
+
   // Range requests get their own entry semantics; not worth the surface area.
   if (input.header('range')) return null
 
   // Opened with a secret: a feed or export for one reader, which must always get
   // the current document. See carriesAccessKey.
   if (input.hasAccessKey) return null
+
+  // A basket, a checkout, an order. Not a page to share, whoever is asking.
+  if (input.path && isPrivatePath(input.path)) return null
 
   // Signed in, or carrying a basket, or carrying anything a module said makes a
   // page personal. Left alone, so the response keeps whatever Next.js decides -

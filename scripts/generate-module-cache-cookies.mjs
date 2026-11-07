@@ -18,7 +18,7 @@
  * characters RFC 6265 allows in a cookie name, and nothing else.
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { getModuleNames as registeredModuleNames } from './lib/module-names.mjs'
@@ -40,8 +40,19 @@ function getModuleNames() {
 }
 
 const collected = new Set()
+const addressBases = new Set()
 
 for (const moduleName of getModuleNames()) {
+  // A module's public pages live under app/public/<base>/. The page store only holds
+  // one of these if the owner names it, because the store cannot tell a catalogue
+  // index from somebody's private document just by looking at the address.
+  const publicDir = join(modulesDir, moduleName, 'app', 'public')
+  if (existsSync(publicDir)) {
+    for (const entry of readdirSync(publicDir, { withFileTypes: true })) {
+      if (entry.isDirectory() && !entry.name.startsWith('[') && !entry.name.startsWith('(')) addressBases.add(entry.name)
+    }
+  }
+
   const manifestPath = join(modulesDir, moduleName, 'cactus.module.json')
   if (!existsSync(manifestPath)) continue
 
@@ -84,6 +95,9 @@ writeFileSync(
 // a public page request carrying any of them is never made shareable.
 
 export const moduleCacheBypassCookies: string[] = [${names.map((n) => JSON.stringify(n)).join(', ')}]
+
+// The first address segment of every installed module's public pages.
+export const moduleAddressBases: string[] = [${[...addressBases].sort().map((n) => JSON.stringify(n)).join(', ')}]
 `
 )
 
