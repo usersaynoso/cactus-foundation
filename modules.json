@@ -161,6 +161,11 @@
       "version": "v0.1.7"
     },
     {
+      "name": "google-reviews",
+      "repoUrl": "https://github.com/cactus-foundation-modules/Google-Reviews",
+      "version": "v0.1.0"
+    },
+    {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
       "version": "v0.1.60"
