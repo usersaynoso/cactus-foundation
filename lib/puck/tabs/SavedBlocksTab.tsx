@@ -22,6 +22,7 @@ export default function SavedBlocksTab() {
   const appState = usePuck(s => s.appState)
   const dispatch = usePuck(s => s.dispatch)
   const selectedItem = usePuck(s => s.selectedItem)
+  const config = usePuck(s => s.config)
   const [blocks, setBlocks] = useState<SavedBlock[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -62,6 +63,14 @@ export default function SavedBlocksTab() {
   }
 
   function insertBlock(block: SavedBlock) {
+    // Each editor offers its own set of blocks (a footer layout only knows the ones
+    // declared for footers). Puck drops an insert of a type its config lacks without
+    // a word, so say so instead of leaving the button looking broken.
+    if (!config.components[block.componentType]) {
+      setError(`"${block.name}" uses a block this editor doesn't offer, so it can't be inserted here.`)
+      return
+    }
+    setError('')
     const id = `${block.componentType}-${crypto.randomUUID()}`
     const destinationIndex = appState.data.content?.length ?? 0
 
