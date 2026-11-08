@@ -53,11 +53,11 @@ The block's sidebar is split into **Block**, **Appearance** and **Layout** tabs,
 
 ### Block tab
 
-Display style, heading and heading level, introduction, the overall rating under the heading, most reviews to show, lowest star rating, words only, order (newest, highest, lowest, longest), moving on by itself, seconds between moves, slide speed, ticker lap time, pausing under the pointer, arrows, dots, reviewer photos, review date (how long ago, the date, or nothing), "Posted on Google", a link from each review to Google, a link to all your Google reviews, a link to leave a review, and a message for when there are none.
+Display style, heading and heading level, introduction, the overall rating under the heading, most reviews to show, lowest star rating, words only, order (newest, highest, lowest, longest), moving on by itself, seconds between moves, slide speed, ticker lap time, pausing under the pointer, showing the pause button, arrows, dots, reviewer photos, review date (how long ago, the date, or nothing), "Posted on Google", a link from each review to Google, a link to all your Google reviews, a link to leave a review, and a message for when there are none.
 
 ### Appearance tab
 
-Card style (outlined, filled, raised, or no card), shadow, corner radius, border width, review text size and style, cutting long reviews off after a number of lines, heading size, star size, a large quote mark, reviewer photo shape, and fifteen colours: section background, card background, review text, card border, heading and score, introduction, dates and counts, stars, empty stars, quote mark, links, arrow and pause button background and icon, dots and the current dot.
+Card style (outlined, filled, raised, or no card), shadow, corner radius, border width, review text size and style, cutting long reviews off after a number of lines, heading size, heading font, rating number font, star size, a large quote mark, reviewer photo shape, and fifteen colours: section background, card background, review text, card border, heading and score, introduction, dates and counts, stars, empty stars, quote mark, links, arrow and pause button background and icon, dots and the current dot.
 
 Every colour picks from the site's own palette (**Appearance → Styles → Colours**) or takes any colour you like, and each has its own **dark mode colour**. Leave one blank and it follows the site's theme in both modes.
 
@@ -67,7 +67,9 @@ Reviews across on a computer, tablet and phone, space between reviews, space ins
 
 ### Moving displays and accessibility
 
-The carousel, spotlight and ticker all have a pause button, pause while the pointer or keyboard focus is on them (unless you switch that off), stop while the browser tab is in the background, and start paused for visitors whose device asks for reduced motion. Reviewer names link to their Google profiles, as Google's terms ask.
+The heading font and the rating number font are picked from your own fonts (Appearance, Styles, Typography) first, then from Google's catalogue; left blank, the heading keeps the site's heading font and the number matches the text around it. The rating number font also sets the number on the rating badge.
+
+The carousel, spotlight and ticker all have a pause button (which you can hide, though it is there for visitors who find moving text hard to read), pause while the pointer or keyboard focus is on them (unless you switch that off), stop while the browser tab is in the background, and start paused for visitors whose device asks for reduced motion. Reviewer names link to their Google profiles, as Google's terms ask.
 
 Until the module has fetched anything, the block shows labelled sample reviews in the page editor so you can design it first. Visitors never see the samples - with no reviews and no empty message, the block draws nothing.
 
