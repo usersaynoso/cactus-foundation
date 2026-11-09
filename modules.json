@@ -168,7 +168,7 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.60"
+      "version": "v0.1.61"
     },
     {
       "name": "unified-inbox",

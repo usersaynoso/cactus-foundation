@@ -1038,6 +1038,8 @@ Anything typed into the note box - **Add a note**, in the bar - travels with it,
 
 Once an order has gone, the button becomes **Email it again** and stops being the solid one. A prominent "send" on an order sent ten minutes ago is how a supplier gets the same order twice.
 
+If nothing has changed since it went - the supplier simply lost the email - **Email it again** sends exactly what they had the first time: the original wording, the same sheet, and no talk of revisions. The history records it as **Resent**, and the supplier's link says "We sent you this order again." Only an order amended since it last went out gets the "revised, please ignore the previous one" email.
+
 If your site has no email set up, or the supplier has no email address on file, you are told so plainly - and the PDF is still there to attach to your own email by hand. Marking an order as sent without emailing it is still there too, under **More**: plenty of orders go by phone or over a trade counter.
 
 **An order over your approval threshold cannot be emailed until it has been approved.** That holds whichever button you press.
@@ -1052,7 +1054,7 @@ Edit an order that has gone out and Cactus asks one question: **what has changed
 
 - The version the supplier is holding is filed as a **revision**, exactly as it was printed, and never changes again.
 - The live order moves on to Rev 2, Rev 3 and so on, and the document prints that revision number where nobody can miss it.
-- **Email it again** emails them the replacement, on the amendment wording rather than the original.
+- **Email it again** emails them the replacement, on the amendment wording rather than the original. Pressed again once that revision has gone, it sends the same revision again on the ordinary wording - the amendment email goes once per change, not once per click.
 
 Past revisions are listed on the order with who made each change, when, and why.
 
