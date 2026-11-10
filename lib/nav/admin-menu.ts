@@ -77,14 +77,15 @@ export const CORE_NAV_ITEMS: CanonicalNavItem[] = [
   { id: 'pages', label: 'Pages', path: '/pages', icon: 'pages', iconIsSvg: false, section: 'content', defaultPermissions: ['pages.read'], isModule: false, createAction: { label: 'New page', path: '/pages/new' } },
   { id: 'menus', label: 'Menus', path: '/menus', icon: 'menus', iconIsSvg: false, section: 'content', defaultPermissions: ['menus.manage'], isModule: false, createAction: { label: 'New menu', path: '/menus' } },
   { id: 'media', label: 'Media', path: '/media', icon: 'media', iconIsSvg: false, section: 'content', defaultPermissions: ['media.upload', 'media.delete'], isModule: false, createAction: { label: 'Upload media', path: '/media' } },
-  { id: 'system', label: 'System', path: '/config', icon: 'config', iconIsSvg: false, section: 'system', defaultPermissions: ['config.manage'], isModule: false },
+  // members.settings opens Settings › Users and nothing else there.
+  { id: 'system', label: 'System', path: '/config', icon: 'config', iconIsSvg: false, section: 'system', defaultPermissions: ['config.manage', 'members.settings'], isModule: false },
   { id: 'appearance', label: 'Appearance', path: '/appearance', icon: 'appearance', iconIsSvg: false, section: 'system', defaultPermissions: ['appearance.manage'], isModule: false },
   { id: 'layouts', label: 'Layouts', path: '/layouts', icon: 'layouts', iconIsSvg: false, section: 'system', defaultPermissions: ['layouts.manage'], isModule: false },
   { id: 'modules', label: 'Modules', path: '/modules', icon: 'modules', iconIsSvg: false, section: 'system', defaultPermissions: ['modules.manage'], isModule: false },
-  // Roles and the member/registration settings moved onto this screen from
-  // Settings, so a role holding either of those keys and not users.manage still
-  // needs the link - the page gates each of its tabs separately.
-  { id: 'users', label: 'Users', path: '/users', icon: 'users', iconIsSvg: false, section: 'system', defaultPermissions: ['users.manage', 'members.settings', 'roles.manage'], isModule: false },
+  // Roles live on this screen, so a role holding roles.manage and not users.manage
+  // still needs the link - the page gates each of its tabs separately. The
+  // registration settings are under System (Settings › Users) instead.
+  { id: 'users', label: 'Users', path: '/users', icon: 'users', iconIsSvg: false, section: 'system', defaultPermissions: ['users.manage', 'roles.manage'], isModule: false },
 ]
 
 /** Every core permission key the sidebar consults — resolved in one batch query. */

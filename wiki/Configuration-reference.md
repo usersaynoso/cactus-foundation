@@ -415,7 +415,7 @@ This table lists every environment variable Cactus recognises. Variables marked 
 
 ## Users tab
 
-Only shown once you (or someone) holds at least one of the permissions below - see [Managing users](Managing-users). The member-settings sub-tabs below (Registration through Data & deletion) sit directly on the Users tab, alongside Roles - see [Members](Members) for a plain-English walkthrough. Email wording moved off this tab: it is on the **Email** tab now, covering every email the site sends rather than only the member ones.
+Only shown once you (or someone) holds at least one of the permissions below - see [Managing users](Managing-users). This is **Settings → Users** (`?tab=users`); the cog at the right of the Users page heading opens it. Its sub-tabs are Registration, Avatars, Usernames, Account sections and Access control, all saved with the one **Save** button under them. Roles are not here - they are a tab on the Users page - see [Members](Members) for a plain-English walkthrough. Email wording moved off this tab: it is on the **Email** tab now, covering every email the site sends rather than only the member ones.
 
 ### Registration
 
@@ -425,7 +425,7 @@ Only shown once you (or someone) holds at least one of the permissions below - s
 | Registration mode | `Open`, `Invite only`, or `Approval required` | `Open` |
 | Require email verification | New accounts must click a verification link before they're active | On |
 | Ask new members to choose a username | Off hides the box and makes one up from their email address, with a few random digits after it | On |
-| Ask new members for a display name | Off hides the optional display-name box | On |
+| Ask new members for a display name | Off hides the optional display-name box on sign-up, the member's profile and every staff **My account** page. A saved name is kept | On |
 | Ask new members to set a password | Off hides the password box at sign-up; members add one later from their account security page. Only shown while Password (below) is Optional | On |
 | Allowed email domains | If set, only these domains can register | — |
 | Blocked email domains | Domains that are never allowed to register | — |

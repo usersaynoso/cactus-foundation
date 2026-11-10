@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { headers } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie, type SessionUser } from '@/lib/auth/session'
 import { hasPermissions, isAdmin } from '@/lib/permissions/check'
@@ -5,12 +7,14 @@ import { MEMBERS_ROLE_NAME } from '@/lib/members/default-role'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { AdminTooltip } from '@/components/admin/Tooltip'
+import { SettingsIcon } from '@/components/admin/notification-icons'
 import PeopleListClient from './PeopleListClient'
 import PendingApprovalClient from './PendingApprovalClient'
 import InvitesClient from './InvitesClient'
-import MembersSettingsTab, { type MembersSettingsTabKey } from '../config/MembersSettingsTab'
 import RolesClient from '../config/RolesClient'
 import { adminScreenTitle } from '@/lib/nav/admin-menu'
+import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
@@ -18,28 +22,18 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   return { title: adminScreenTitle('Users', tab) }
 }
 
-// Everything about the people on this site lives here: the staff and member
-// lists, the approval queue, invites, roles and the registration/account
-// settings. Roles and those settings used to be a tab on Settings, which meant
-// looking after one person's account and deciding what accounts can do were two
-// different screens. /config?tab=users still redirects here.
+// The people on this site: the staff and member lists, the approval queue,
+// invites and roles. The registration/account settings that apply to all of them
+// live under Settings › Users, reached from the cog beside the heading; the old
+// ?tab=settings links are sent on there.
 //
-// The page is no longer gated on users.manage alone - somebody who may edit
-// roles but not users would have lost the roles editor entirely in the move. Each
-// tab carries its own gate instead, and a role with none of the three keys is
-// still turned away at the door.
+// The page is not gated on users.manage alone - somebody who may edit roles but
+// not users would lose the roles editor. Each tab carries its own gate instead,
+// and a role with neither key is turned away at the door.
 
 // The pending-approval queue is a work list, not an archive - cap it rather than
 // reading the whole table, and say so when there are more waiting.
 const PENDING_LIMIT = 200
-
-const SETTINGS_SUB_TABS: { key: MembersSettingsTabKey; label: string }[] = [
-  { key: 'registration', label: 'Registration' },
-  { key: 'avatars', label: 'Avatars' },
-  { key: 'usernames', label: 'Usernames' },
-  { key: 'sections', label: 'Account sections' },
-  { key: 'access', label: 'Access control' },
-]
 
 type ExtensionPointEntry = { point: string; id: string; permission?: string }
 
@@ -48,6 +42,13 @@ type Props = { searchParams: Promise<Record<string, string>> }
 export default async function UsersPage({ searchParams }: Props) {
   const currentUser = await getSessionFromCookie()
   if (!currentUser) return null
+
+  const sp = await searchParams
+  const adminPath = (await headers()).get('x-cactus-admin-path') ?? 'cactus-admin'
+  if (sp.tab === 'settings') {
+    const sub = sp.sub ? `&sub=${encodeURIComponent(sp.sub)}` : ''
+    return redirect(`/${adminPath}/config?tab=users${sub}`)
+  }
 
   // Every gate resolved in a single query rather than a round-trip apiece.
   const granted = await hasPermissions(currentUser, [
@@ -66,11 +67,10 @@ export default async function UsersPage({ searchParams }: Props) {
   const canManageSettings = granted['members.settings'] === true
   const canManageRoles = granted['roles.manage'] === true
 
-  if (!canManageUsers && !canManageSettings && !canManageRoles) {
+  if (!canManageUsers && !canManageRoles) {
     return <div className="alert alert-danger">You do not have permission to manage users.</div>
   }
 
-  const sp = await searchParams
   // Each tab is only selectable by a role that may open it, so a hand-typed or
   // stale ?tab= falls through to the first tab this role does have.
   const available = [
@@ -78,7 +78,6 @@ export default async function UsersPage({ searchParams }: Props) {
     ...(canManageUsers && canApprove ? ['pending-approval'] : []),
     ...(canManageUsers && canInvite ? ['invites'] : []),
     ...(canManageRoles ? ['roles'] : []),
-    ...(canManageSettings ? ['settings'] : []),
   ]
   const tab = available.includes(sp.tab ?? '') ? sp.tab! : available[0]!
 
@@ -87,17 +86,19 @@ export default async function UsersPage({ searchParams }: Props) {
     ...(canManageUsers && canApprove ? [{ key: 'pending-approval', label: 'Pending Approval', href: '?tab=pending-approval' }] : []),
     ...(canManageUsers && canInvite ? [{ key: 'invites', label: 'Invites', href: '?tab=invites' }] : []),
     ...(canManageRoles ? [{ key: 'roles', label: 'Roles', href: '?tab=roles' }] : []),
-    ...(canManageSettings ? [{ key: 'settings', label: 'Settings', href: '?tab=settings' }] : []),
   ].map((t) => ({ ...t, active: t.key === tab }))
-
-  // Which settings panel, on its own second row - the five of them plus the four
-  // above would be one long unreadable strip.
-  const sub = (SETTINGS_SUB_TABS.some((s) => s.key === sp.sub) ? sp.sub : 'registration') as MembersSettingsTabKey
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Users</h1>
+        {canManageSettings && (
+          <AdminTooltip body="User settings">
+            <Link href={`/${adminPath}/config?tab=users`} className="admin-icon-btn" aria-label="User settings">
+              {SettingsIcon}
+            </Link>
+          </AdminTooltip>
+        )}
       </div>
 
       {tabItems.length > 1 && <TabStrip items={tabItems} />}
@@ -106,21 +107,6 @@ export default async function UsersPage({ searchParams }: Props) {
       {tab === 'pending-approval' && canManageUsers && canApprove && <PendingApprovalTab />}
       {tab === 'invites' && canManageUsers && canInvite && <InvitesClient />}
       {tab === 'roles' && canManageRoles && <RolesTab granted={granted} />}
-
-      {tab === 'settings' && canManageSettings && (
-        <>
-          <TabStrip
-            style={{ marginBottom: '1.5rem' }}
-            items={SETTINGS_SUB_TABS.map((s) => ({
-              key: s.key,
-              label: s.label,
-              href: `?tab=settings&sub=${s.key}`,
-              active: s.key === sub,
-            }))}
-          />
-          <MembersSettingsTab tab={sub} />
-        </>
-      )}
     </div>
   )
 }

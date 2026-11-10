@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { firstDialler } from '@/lib/dialler/registry'
+import { getMembersConfig } from '@/lib/members/config'
 import AccountPageClient from './AccountPageClient'
 import type { Metadata } from 'next'
 
@@ -50,9 +51,14 @@ export default async function AccountPage() {
   // whether it is configured is a provider round trip this page need not pay for.
   const showPhone = (await firstDialler(user)) !== null
 
+  // One "ask for a display name" switch for everybody with an account here, staff
+  // as well as members - the profile route drops the field when it is off.
+  const { registrationCollectDisplayName } = await getMembersConfig()
+
   return (
     <AccountPageClient
       showPhone={showPhone}
+      showDisplayName={registrationCollectDisplayName}
       extensionSections={sectionIds.map((id) => {
         const Section = sectionComponents[id]
         return Section ? <Section key={id} /> : null

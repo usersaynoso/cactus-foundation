@@ -5,6 +5,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { errorResponse } from '@/lib/utils'
 import { toE164 } from '@/lib/phone'
 import { siteDiallingCode } from '@/lib/phone.server'
+import { getMembersConfig } from '@/lib/members/config'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -50,9 +51,17 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
+  // With the site's display-name switch off the field is not on the form, so a
+  // value here is crafted and is dropped - and the saved name is left alone
+  // rather than cleared, so switching it back on brings the old name back.
+  const { registrationCollectDisplayName } = await getMembersConfig()
+
   await prisma.user.update({
     where: { id: user.id },
-    data: { displayName: parsed.data.displayName ?? null, phone },
+    data: {
+      ...(registrationCollectDisplayName ? { displayName: parsed.data.displayName ?? null } : {}),
+      phone,
+    },
   })
 
   return NextResponse.json({ ok: true, phone })

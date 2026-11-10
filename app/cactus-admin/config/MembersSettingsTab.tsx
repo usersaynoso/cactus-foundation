@@ -119,6 +119,7 @@ function textToList(text: string): string[] {
 export default function MembersSettingsTab({ tab }: { tab: Tab }) {
   const [config, setConfig] = useState<Config | null>(null)
   const [memberAreaPath, setMemberAreaPath] = useState('')
+  const [smsProviderInstalled, setSmsProviderInstalled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -127,6 +128,7 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
     fetch('/api/admin/members/settings').then((r) => r.json()).then((d) => {
       setConfig(d.config)
       setMemberAreaPath(d.memberAreaPath)
+      setSmsProviderInstalled(d.smsProviderInstalled === true)
     })
   }, [])
 
@@ -194,10 +196,14 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
           <p className="field-hint" style={{ margin: '0 0 var(--space-3)' }}>
             Off hides the field and makes one up from their email address, with a few random digits on the end.
           </p>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)', cursor: 'pointer' }}>
             <input type="checkbox" checked={config.registrationCollectDisplayName} onChange={(e) => update('registrationCollectDisplayName', e.target.checked)} />
             Ask new members for a display name
           </label>
+          <p className="field-hint" style={{ margin: '0 0 var(--space-3)' }}>
+            Off hides the field everywhere - sign-up, a member&apos;s profile and every staff account page. A name
+            already saved is kept, and comes back if you switch this on again.
+          </p>
           {/* Only shown while passwords are optional. Off, there is no password
               to ask about; required, the sign-up form has to ask, so a switch
               that changed nothing would be worse than no switch at all. */}
@@ -399,7 +405,9 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
               both set up from inside an account they can&apos;t reach yet. Existing members are unaffected.
             </div>
           )}
-          <div className="field">
+          {/* Hidden without a text-message module: there is nothing to send the
+              codes with, and the saved choice waits untouched for one to arrive. */}
+          {smsProviderInstalled && <div className="field">
             <label>Mobile number for sign-in codes</label>
             <select value={config.smsTwoFactorPolicy} onChange={(e) => update('smsTwoFactorPolicy', e.target.value as Config['smsTwoFactorPolicy'])}>
               <option value="OPTIONAL">Optional - members may add one if they like</option>
@@ -410,7 +418,7 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
               is installed and configured. Members without a number are still let in with email codes,
               but are prompted to add one until they do.
             </span>
-          </div>
+          </div>}
           <div className="field">
             <label>Session duration (days)</label>
             <input type="number" min={1} value={config.sessionDays} onChange={(e) => update('sessionDays', Number(e.target.value))} />

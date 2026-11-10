@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { MembersConfigSchema, getMembersConfig, invalidateMembersConfigCache } from '@/lib/members/config'
 import { hasAnyAuthMethod } from '@/lib/members/auth-policy'
 import { getMemberAreaPath } from '@/lib/members/paths'
+import { isSmsProviderInstalled } from '@/lib/auth/sms'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -13,11 +14,14 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const config = await getMembersConfig()
+  const [config, smsProviderInstalled] = await Promise.all([getMembersConfig(), isSmsProviderInstalled()])
 
   return NextResponse.json({
     config,
     memberAreaPath: getMemberAreaPath(),
+    // The "mobile number for sign-in codes" choice only means anything with a
+    // text-message module installed, so the page hides it otherwise.
+    smsProviderInstalled,
   })
 }
 

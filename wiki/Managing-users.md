@@ -4,7 +4,7 @@ The **Users** section in the admin lets you see who has access to your site and 
 
 This covers admin **Users** only - people who can access your admin area. For visitor accounts (registration, sign-in, public profiles), see [Members](Members).
 
-> **New home for roles and member settings.** Roles used to be tucked away under Settings, which meant looking after one person's account and deciding what accounts can do were two different screens. Both now live here, as tabs across the top of the Users page: **Users**, **Pending Approval**, **Invites**, **Roles** and **Settings** (registration, avatars, usernames, account sections, access control). Old links into Settings still work - they carry you here. If your role lets you edit roles but not users, you still get in; you simply see the tabs you are allowed.
+> **Where things live.** The Users page has tabs for **Users**, **Pending Approval**, **Invites** and **Roles**. The settings that decide what accounts can do - registration, avatars, usernames, account sections, access control - are on **Settings → Users**; the cog at the right of the Users page heading takes you there. Old links to the Users page's former Settings tab still work - they carry you across. If your role lets you edit roles but not users, you still get in; you simply see the tabs you are allowed.
 
 ---
 
@@ -85,7 +85,7 @@ Deleting an account is permanent. Their pages and other content are not automati
 
 ## Your own account
 
-To change your display name, email address, or password, click **My account** at the bottom of the admin sidebar (or go to `/<your-admin-path>/account`).
+To change your display name, email address, or password, click **My account** at the bottom of the admin sidebar (or go to `/<your-admin-path>/account`). The display-name box only appears while **Settings → Users → Registration → Ask new members for a display name** is ticked - one switch for members and staff alike. Untick it and the box goes, but any name already saved stays put.
 
 ### Your phone number
 

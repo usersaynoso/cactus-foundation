@@ -49,10 +49,13 @@ function Row({ children, action }: { children: React.ReactNode; action?: React.R
 export default function AccountPageClient({
   extensionSections,
   showPhone = false,
+  showDisplayName = true,
 }: {
   extensionSections?: React.ReactNode
   /** True only when an installed module can place calls - nothing else reads the number */
   showPhone?: boolean
+  /** The site's "ask for a display name" switch under Settings › Users › Registration */
+  showDisplayName?: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -462,12 +465,15 @@ export default function AccountPageClient({
           <h2 className="card-title">Profile</h2>
           {profile === null ? <p>Loading…</p> : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              {/* Display name follows the same switch members get, so a site that
+                  never asks for one does not ask its staff either. Hidden, a name
+                  already saved round-trips untouched, as the phone does below. */}
+              <div style={{ display: 'grid', gridTemplateColumns: showDisplayName ? '1fr 1fr' : '1fr', gap: '0.75rem' }}>
                 <div className="field">
                   <label>Username</label>
                   <input type="text" value={profile.username} disabled />
                 </div>
-                <div className="field">
+                {showDisplayName && <div className="field">
                   <label>Display name</label>
                   <input
                     type="text"
@@ -475,7 +481,7 @@ export default function AccountPageClient({
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Optional — shown instead of your username"
                   />
-                </div>
+                </div>}
               </div>
               {/* Your own number, so the site can ring you first when you place
                   a call from it - and so you are not typing your mobile in from
@@ -498,13 +504,13 @@ export default function AccountPageClient({
                   A number without a country code is taken as {profile.diallingCode}.
                 </span>
               </div>}
-              <button
+              {(showDisplayName || showPhone) && <button
                 className="btn btn-primary"
                 disabled={profileLoading || !profileDirty}
                 onClick={handleSaveProfile}
               >
                 {profileLoading ? 'Saving…' : 'Save profile'}
-              </button>
+              </button>}
             </>
           )}
         </div>

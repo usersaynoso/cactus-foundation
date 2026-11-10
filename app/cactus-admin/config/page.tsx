@@ -24,20 +24,19 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 type ModuleSettingsTab = { id: string; label: string; permission?: string; host?: string; parent?: string }
 type ExtensionPointEntry = { point: string; id: string; permission?: string }
 
-// Roles and the member/registration settings used to be the "Users" tab here.
-// They now live on the Users screen alongside the people they apply to, so any
-// link still pointing at the old tab (a bookmark, a command-palette entry from a
-// stale bundle, an older module) is sent on rather than quietly showing General.
-const MOVED_TO_USERS_SUBS = new Set(['registration', 'avatars', 'usernames', 'sections', 'access', 'roles'])
+// The registration/account settings are the Users tab here (?tab=users&sub=…).
+// For a while they were ?sub=<key> on whatever tab, and roles were ?sub=roles
+// before moving to the Users screen - both old shapes are still sent on to where
+// they now live rather than quietly showing General.
+const USERS_SETTINGS_SUBS = new Set(['registration', 'avatars', 'usernames', 'sections', 'access'])
 
 export default async function ConfigPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const sp = await searchParams
-  if (sp.tab === 'users' || (sp.sub && MOVED_TO_USERS_SUBS.has(sp.sub))) {
+  if (sp.sub === 'roles' || (sp.tab !== 'users' && sp.sub && USERS_SETTINGS_SUBS.has(sp.sub))) {
     const adminPath = (await headers()).get('x-cactus-admin-path') ?? 'cactus-admin'
-    const target = sp.sub === 'roles' ? 'roles'
-      : sp.sub && MOVED_TO_USERS_SUBS.has(sp.sub) ? `settings&sub=${sp.sub}`
-      : 'users'
-    return redirect(`/${adminPath}/users?tab=${target}`)
+    return redirect(sp.sub === 'roles'
+      ? `/${adminPath}/users?tab=roles`
+      : `/${adminPath}/config?tab=users&sub=${sp.sub}`)
   }
 
   const [user, activeModules] = await Promise.all([
@@ -60,6 +59,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
       [
         'emails.templates',
         'members.gdpr',
+        'members.settings',
         'config.manage',
         ...manifests.flatMap((m) => (m?.settingsTabs ?? []).map((t) => t.permission)),
         ...manifests.flatMap((m) => (m?.extensionPoints ?? []).map((e) => e.permission)),
@@ -102,6 +102,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
   const canManageConfig = granted['config.manage'] === true
   const canManageEmailTemplates = granted['emails.templates'] === true
   const canViewMembersGdpr = granted['members.gdpr'] === true
+  const canManageMembersSettings = granted['members.settings'] === true
   const canManageNav = canManageConfig
   // Same key as the navigation editor: Schedules is site-wide plumbing, not a per-section
   // setting, and the permission batch above already resolved it.
@@ -113,7 +114,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
   // all", and each tab is gated again on its own key below and in the client. Without
   // this, any signed-in staff account could open the site's settings by typing the
   // address, whatever its role held.
-  if (!canManageConfig && !canManageEmailTemplates && !canViewMembersGdpr && moduleTabs.length === 0) {
+  if (!canManageConfig && !canManageEmailTemplates && !canViewMembersGdpr && !canManageMembersSettings && moduleTabs.length === 0) {
     return <div className="alert alert-danger">You do not have permission to view site settings.</div>
   }
 
@@ -219,6 +220,7 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
         hostedSettingsPanels={hostedSlotPanels}
         canManageEmailTemplates={canManageEmailTemplates}
         canViewMembersGdpr={canViewMembersGdpr}
+        canManageMembersSettings={canManageMembersSettings}
         canManageNav={canManageNav}
         canManageSchedules={canManageSchedules}
         canManageEncryptionKey={!!user && isAdmin(user)}

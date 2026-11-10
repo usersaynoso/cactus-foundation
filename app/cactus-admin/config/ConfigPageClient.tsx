@@ -20,6 +20,7 @@ import { moduleSettingsTabComponents } from '@/lib/modules/settings-tabs'
 import type { HostedSettingsPanels, HostedSettingsSlots } from '@/lib/modules/hosted-settings'
 import MembersGdprClient from './MembersGdprClient'
 import EmailTemplatesClient from './EmailTemplatesClient'
+import MembersSettingsTab, { type MembersSettingsTabKey } from './MembersSettingsTab'
 import NavBuilder from './NavBuilder'
 import ScheduledJobsClient from './ScheduledJobsClient'
 import NotificationsSettingsClient from './NotificationsSettingsClient'
@@ -126,9 +127,20 @@ const INTEGRATION_SUBS: readonly SubTabDef[] = [
   { key: 'protection', label: 'Protection & monitoring', anchors: ['section-turnstile', 'section-sentry'] },
 ]
 
+// Who may register, how, and what their account area holds - staff and members
+// alike. Was a tab on the Users screen; that screen keeps a cog linking here.
+const USERS_SUBS: readonly SubTabDef[] = [
+  { key: 'registration', label: 'Registration', anchors: [] },
+  { key: 'avatars', label: 'Avatars', anchors: [] },
+  { key: 'usernames', label: 'Usernames', anchors: [] },
+  { key: 'sections', label: 'Account sections', anchors: [] },
+  { key: 'access', label: 'Access control', anchors: [] },
+] satisfies ReadonlyArray<SubTabDef & { key: MembersSettingsTabKey }>
+
 const SUBS_BY_TAB: Record<string, readonly SubTabDef[] | undefined> = {
   email: EMAIL_SUBS,
   integrations: INTEGRATION_SUBS,
+  users: USERS_SUBS,
 }
 
 // Which page (and, on Email and Integrations, which sub-tab) renders a deep-link
@@ -723,6 +735,9 @@ type ConfigPageInnerProps = {
   canManageConfig: boolean
   canManageEmailTemplates: boolean
   canViewMembersGdpr: boolean
+  // members.settings: the Users tab (registration, avatars, usernames, account
+  // sections, access control). Saves through its own button, not the bar's.
+  canManageMembersSettings: boolean
   canManageNav: boolean
   // Settings > Schedules. Same key as the navigation editor (config.manage): both are
   // site-wide plumbing rather than anything a section owner should be reaching for.
@@ -740,7 +755,7 @@ type ConfigPageInnerProps = {
   settingsSidebar: SettingsSidebarPrefs
 }
 
-function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageConfig, canManageEmailTemplates, canViewMembersGdpr, canManageNav, canManageSchedules, canManageEncryptionKey, navEditorData, membersGdprExtensions, backupExtensions, settingsSidebar }: ConfigPageInnerProps) {
+function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels, canManageConfig, canManageEmailTemplates, canViewMembersGdpr, canManageMembersSettings, canManageNav, canManageSchedules, canManageEncryptionKey, navEditorData, membersGdprExtensions, backupExtensions, settingsSidebar }: ConfigPageInnerProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -773,6 +788,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     ...(generalPages.length > 0 ? [{ key: 'general', label: 'General' }] : []),
     ...(canManageConfig || canManageEmailTemplates ? [{ key: 'email', label: 'Email' }] : []),
     ...(canManageConfig ? [{ key: 'integrations', label: 'Integrations' }] : []),
+    ...(canManageMembersSettings ? [{ key: 'users', label: 'Users' }] : []),
     ...moduleTabs.filter((t) => t.parent !== 'general').map((t) => ({ key: t.id, label: t.label })),
   ]
   const isModuleTab = (t: string): boolean => moduleTabs.some((mt) => mt.id === t)
@@ -805,9 +821,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     if (!defs) return []
     return defs.filter((d) => {
       if (t === 'email') return d.key === 'delivery' ? canManageConfig : canManageEmailTemplates
+      if (t === 'users') return canManageMembersSettings
       return canManageConfig
     })
-  }, [canManageConfig, canManageEmailTemplates])
+  }, [canManageConfig, canManageEmailTemplates, canManageMembersSettings])
 
   const tabSubs = visibleSubsFor(tab)
   const activeSub = tabSubs.find((d) => d.key === sub)?.key ?? tabSubs[0]?.key ?? ''
@@ -2639,6 +2656,10 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         </div>
       )}
       {tab === 'email' && activeSub === 'templates' && canManageEmailTemplates && <EmailTemplatesClient />}
+
+      {/* One instance across the five sub-tabs, so edits on one survive a hop to
+          another and its own Save writes them all (hence no page-level Save). */}
+      {tab === 'users' && canManageMembersSettings && <MembersSettingsTab tab={activeSub as MembersSettingsTabKey} />}
 
       {tab === 'email' && activeSub === 'delivery' && canManageConfig && (
         <div className="settings-cols">

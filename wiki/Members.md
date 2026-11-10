@@ -8,7 +8,7 @@ This is a different system from admin **Users** (see [Managing users](Managing-u
 
 ## Turning it on
 
-Go to **Users → Settings** in the admin and tick **Members system enabled** (the checkbox sits above the Registration/Avatars/Usernames/Account sections/Access control tabs - it's visible no matter which one you're on). Nothing changes for visitors until you do this.
+Go to **Settings → Users** in the admin and tick **Members system enabled** (the checkbox sits above the Registration/Avatars/Usernames/Account sections/Access control tabs - it's visible no matter which one you're on). Nothing changes for visitors until you do this.
 
 Once it's on, your site gets:
 
@@ -20,7 +20,7 @@ Once it's on, your site gets:
 
 ## How people sign in
 
-Members can sign in three ways, and each one has its own setting (**Users → Settings → Access control**):
+Members can sign in three ways, and each one has its own setting (**Settings → Users → Access control**):
 
 - **Passkey** - fingerprint, face unlock, or a security key. The quickest and most secure option. **Optional** by default.
 - **Email sign-in link** - a one-time link emailed to them. No password to remember. **Optional** by default, and it's what a brand-new member uses the very first time, before they've set anything else up.
@@ -64,7 +64,7 @@ If the site can't reach its own settings for a moment - a wobbly connection at t
 
 ### Sign-in codes by text message
 
-If a text-message module (such as [Twilio](Twilio)) is installed and configured, members using a password can have their sign-in codes texted to a mobile number instead of emailed. **Users → Settings → Access control → Mobile number for sign-in codes** controls whether that's their choice:
+If a text-message module (such as [Twilio](Twilio)) is installed and configured, members using a password can have their sign-in codes texted to a mobile number instead of emailed. **Settings → Users → Access control → Mobile number for sign-in codes** controls whether that's their choice (the setting only appears once a text-message module is installed - without one there is nothing to send the codes with):
 
 - **Optional** (the default) - members may add a mobile number from their account page if they fancy it.
 - **Required** - members with a password must add one. Anyone who hasn't yet is still let in with an email code (nobody gets locked out), but they're taken straight to the add-your-number card after signing in and reminded on every account page until it's done.
@@ -104,7 +104,7 @@ The block only appears on your site at all when members are switched on. Turn me
 
 ## Registration modes
 
-**Users → Settings → Registration** controls who can sign up:
+**Settings → Users → Registration** controls who can sign up:
 
 - **Open** - anyone can register.
 - **Invite only** - people need an invite link, which you generate from **Users → Invites**. Each invite can be used once and expires after however many days you set.
@@ -117,11 +117,11 @@ You can also require email verification before an account becomes active (on by 
 The sign-up form asks for an email address, a username and an optional display name, plus a password if you offer them. All but the email address can go:
 
 - **Ask new members to choose a username** - turn it off and the box disappears. Cactus makes one up from their email address instead, with a few random digits after it, so `chris@example.com` becomes something like `chris4821`.
-- **Ask new members for a display name** - turn it off and the optional display-name box disappears too.
+- **Ask new members for a display name** - turn it off and the optional display-name box disappears too. It goes from your staff's own **My account** page as well, since a site that never asks members for one has no business asking its staff either. A name already saved is kept, not wiped, and comes back if you switch it on again.
 
 Both switches follow the member into their account, not just the sign-up form. Turn one off and the matching box vanishes from **Profile** as well, along with anything else that mentions it: no "change your username" offer for a handle they never picked, and the overview stops listing a missing display name among the things they still ought to fill in. With the username switch off, the overview greets them by the front half of their email address rather than by the made-up handle, on the grounds that being welcomed by a name you've never seen before is unsettling.
 
-The offer to change a username now also waits until you've actually allowed username changes (**Users → Settings → Usernames**), which is off to begin with. Members used to get the box and the button regardless, and pressing it was politely refused every single time.
+The offer to change a username now also waits until you've actually allowed username changes (**Settings → Users → Usernames**), which is off to begin with. Members used to get the box and the button regardless, and pressing it was politely refused every single time.
 - **Ask new members to set a password** - turn it off and signing up asks for nothing to remember. This one only appears while passwords are set to optional: with passwords off there is nothing to ask about, and with them required the form has to ask.
 
 Turning the password box off doesn't take passwords away. Members can add one whenever they like from **Account & Security** in their account, which is where they'd set up the short code that goes with it anyway. It's often the kinder order of events: signing up takes one box and a click on an emailed link, and the password conversation waits until they've decided they're staying.
@@ -160,13 +160,13 @@ A link that has expired, or has already been used, still says so on the verifica
 
 ## The member account area
 
-Once signed in, members land on an **overview** page that tries to answer the obvious questions before they have to go looking: who they're signed in as, when they joined, whether their email address still needs confirming (with a button to send the link again), how their sign-in is set up, what's still blank on their profile, and the last few things that happened on their account. Everything else lives behind the tabs above it, which you can individually switch on or off (**Users → Settings → Account sections**):
+Once signed in, members land on an **overview** page that tries to answer the obvious questions before they have to go looking: who they're signed in as, when they joined, whether their email address still needs confirming (with a button to send the link again), how their sign-in is set up, what's still blank on their profile, and the last few things that happened on their account. Everything else lives behind the tabs above it, which you can individually switch on or off (**Settings → Users → Account sections**):
 
 The greeting at the top uses their first name once they've given one - just the first word of it, since "Hi, Chris" is what a person says and "Hi, Chris Taylor-Guest" is what a bank says. Without one it falls back to their display name, then their username, then the part of their email address before the @. A member with no full name on a site that's also turned the Profile tab off simply gets "Hi there", because there'd be nowhere for them to correct a name we'd guessed at.
 
 Sitting near the top of that page is **Your details**, holding the member's full name and, beside it, an optional **Organisation name** - the company, school or practice they buy on behalf of. They can change either whenever they like. On a narrow screen the two sit one under the other rather than shoulder to shoulder. It only appears where something on the site actually uses the name - today that means the Shop, with **Ask members for their name on their account page** ticked in its settings (it is on unless you turn it off). There, both are filled in for them at the checkout, so a returning customer types them once and never again. A site with no shop doesn't ask at all, which saves members filling in a box that goes nowhere. It's deliberately not part of the Profile tab and doesn't disappear with it: a display name is a public handle you may not even ask for, whereas this is simply who an order is made out to, and a shop whose accounts exist purely to sign in and pay still needs one.
 
-The organisation box can be switched off under **Users → Settings → Sections** if your site has no use for it, and then it's properly gone - not merely hidden, since nothing new can be saved into it either. Anything already there is left alone, so switching it back on brings everything back. It's on to begin with, being one optional box and rather useful to anyone selling to businesses.
+The organisation box can be switched off under **Settings → Users → Sections** if your site has no use for it, and then it's properly gone - not merely hidden, since nothing new can be saved into it either. Anything already there is left alone, so switching it back on brings everything back. It's on to begin with, being one optional box and rather useful to anyone selling to businesses.
 
 Underneath that switch sits **Make it required**, which does what it says: the box stops calling itself optional, the Save button won't go until there's something in it, and the same rule is applied when the details are saved rather than only in the browser. Off to begin with, since a shop selling to the public would otherwise be stopping people saving their own name until they'd invented a company. Nobody who signed up years ago is chased for it - they're simply asked the next time they open the page.
 
@@ -175,7 +175,7 @@ Members who arrived through the checkout don't start empty either. Once the emai
 There's no phone number beside any of this, on purpose - a number is how a courier reaches whoever's at a particular door, so the Shop keeps one against each saved address instead.
 
 
-- **Profile** - display name, bio, website, avatar (uploaded photo, Gravatar, or automatically generated initials), and which of these show up on their public profile. The three picture sources sit behind a set of radio buttons under the avatar, and only the ones actually available are offered: no Gravatar unless you have allowed it (**Users → Settings → Avatars**), and no uploaded photo until there is one. Where Gravatar is allowed, new members start on it, so a member who already has a picture attached to their email address at gravatar.com arrives with it in place rather than having to go and find the setting. Anybody who hasn't simply gets their initials, which is what they would have had anyway. The username and display-name boxes only appear if you ask for them at sign-up (see [Shortening the sign-up form](#shortening-the-sign-up-form)). The website box only accepts an ordinary web address beginning `http://` or `https://`, since that box becomes a real link on a public page and anything else there is either a mistake or somebody being clever. The same applies when an admin edits a member's website on their behalf, and an address saved before that rule existed simply stops being rendered as a link.
+- **Profile** - display name, bio, website, avatar (uploaded photo, Gravatar, or automatically generated initials), and which of these show up on their public profile. The three picture sources sit behind a set of radio buttons under the avatar, and only the ones actually available are offered: no Gravatar unless you have allowed it (**Settings → Users → Avatars**), and no uploaded photo until there is one. Where Gravatar is allowed, new members start on it, so a member who already has a picture attached to their email address at gravatar.com arrives with it in place rather than having to go and find the setting. Anybody who hasn't simply gets their initials, which is what they would have had anyway. The username and display-name boxes only appear if you ask for them at sign-up (see [Shortening the sign-up form](#shortening-the-sign-up-form)). The website box only accepts an ordinary web address beginning `http://` or `https://`, since that box becomes a real link on a public page and anything else there is either a mistake or somebody being clever. The same applies when an admin edits a member's website on their behalf, and an address saved before that rule existed simply stops being rendered as a link.
   Switch this one off and the page genuinely goes: the tab disappears, the card on the overview disappears, and typing the address in by hand gets a **Not found** rather than the page. Nothing on it can be saved either, so a member with it already open in an old tab is told it's been switched off instead of quietly getting their changes dropped. Worth doing on a site where an account is only ever a way to sign in and pay, and a bio nobody will read is just another empty box to look at. Their existing details aren't deleted - switch it back on and everything is where they left it.
 - **Account & Security** - their email address, passkeys, password, two-factor authentication, active sessions, and trusted browsers. See [Changing their email address](#changing-their-email-address) just below.
 - **Notifications** - how members want to hear about anything your installed modules notify them about: by email, by text message, or both. The text column only appears where the site can actually send one (the Twilio module, with a text-enabled number added) and where the module in question offers it. Some things can be moved but not switched off - order updates, for one - so a member can choose email or text or both, but not silence. Nothing installed offers any notifications yet? The tab hides itself rather than sending members to a page that only tells them there is nothing to choose. Texts go to the phone number on the order they're about, which is why there's no separate mobile number box on the account.
@@ -186,7 +186,7 @@ Switching any of the other four off takes its tab away, and its card off the ove
 
 ### The whole account on one page
 
-**Users → Settings → Account sections → Put the whole account on one page** does what it says: every section a member can see is drawn down the overview, one under the next, instead of sitting behind a page each. The tabs stay exactly where they were - clicking one glides down to that part of the page rather than loading anything - and the tab bar pins itself under your site header as they scroll, so it's never more than a glance away. Whichever section they're reading is the one lit up in the bar.
+**Settings → Users → Account sections → Put the whole account on one page** does what it says: every section a member can see is drawn down the overview, one under the next, instead of sitting behind a page each. The tabs stay exactly where they were - clicking one glides down to that part of the page rather than loading anything - and the tab bar pins itself under your site header as they scroll, so it's never more than a glance away. Whichever section they're reading is the one lit up in the bar.
 
 It suits an account with three or four short sections on it, where a tab per page is more clicking than reading. Leave it off for a busier one: a long page of everything is its own kind of unhelpful.
 
@@ -231,7 +231,7 @@ Members can request a copy of all their data at any time - it's bundled up and a
 
 ## Public profiles and directory
 
-Every member gets a profile page at `/members/<username>`. You control who can see it (**Users → Settings → Account sections → Public profile visibility**):
+Every member gets a profile page at `/members/<username>`. You control who can see it (**Settings → Users → Account sections → Public profile visibility**):
 
 - **Public** - anyone, including visitors who aren't signed in.
 - **Members only** - only people signed in as a member.
@@ -253,13 +253,13 @@ Member management lives alongside your ordinary admin Users, rather than in a se
 - A **member detail page** for each person (click their row in Users) - edit their profile, suspend or approve them, mark them as trusted, revoke their sign-in sessions, reset their password and two-factor setup, trigger a data export on their behalf, leave internal notes, and see a full history of admin actions taken on their account. This is also where you suspend/approve/trust/delete an individual member - the old bulk multi-select list is gone now that Members lives inside the combined Users table.
 - Your **Settings** page gains:
   - A **GDPR & Legal** section covering consent records, data export requests, and pending deletions, all in one place.
-  - A **Users** tab holding **Registration**, **Avatars**, **Usernames**, **Account sections** and **Access control** (all the member settings covered on this page), plus **Roles** (who can do what - see [Managing users](Managing-users)). The wording of member emails is no longer edited here: it lives on **Settings → Email → Templates** with every other email the site sends - see [Configuration reference](Configuration-reference#templates).
+  - A **Users** tab holding **Registration**, **Avatars**, **Usernames**, **Account sections** and **Access control** (all the member settings covered on this page). The cog beside the **Users** page heading jumps straight here. **Roles** (who can do what) live on the Users page itself - see [Managing users](Managing-users). The wording of member emails is no longer edited here: it lives on **Settings → Email → Templates** with every other email the site sends - see [Configuration reference](Configuration-reference#templates).
 
 ---
 
 ## Making the whole site members-only
 
-**Users → Settings → Access control → Site-wide members-only mode** locks your entire public site behind sign-in - visitors must be a member to see anything. You can list specific pages as exceptions (for example, your homepage or a "why join" page), and admins always get through regardless.
+**Settings → Users → Access control → Site-wide members-only mode** locks your entire public site behind sign-in - visitors must be a member to see anything. You can list specific pages as exceptions (for example, your homepage or a "why join" page), and admins always get through regardless.
 
 If you'd rather show a locked-down preview to guests instead of blocking them outright, turn on **Guest preview** as well.
 

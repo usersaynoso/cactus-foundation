@@ -52,6 +52,7 @@ const S = {
   backup: 'Settings › General › Backup & restore',
   integrations: 'Settings › Integrations',
   users: 'Users',
+  userSettings: 'Settings › Users',
   nav: 'Settings › General › Admin Menu',
   styles: 'Appearance › Styles',
   appearance: 'Appearance',
@@ -116,12 +117,13 @@ const ALL_ADMIN_SEARCH_ENTRIES: AdminSearchEntry[] = [
   { id: 'integrations-sentry', label: 'Sentry error reporting', section: S.integrations, path: '/config?tab=integrations#section-sentry', requires: '/config', keywords: ['sentry', 'errors', 'logging', 'monitoring'] },
   { id: 'integrations-neon', label: 'Neon database provisioning', section: S.integrations, path: '/config?tab=integrations#section-neon', requires: '/config', keywords: ['neon', 'database', 'postgres', 'provisioning'] },
 
-  // ── Users settings sub-tabs ────────────────────────────────────────────────
-  { id: 'users-registration', label: 'Registration settings', section: S.users, path: '/users?tab=settings&sub=registration', requires: '/users', keywords: ['sign up', 'registration', 'members', 'open registration'] },
-  { id: 'users-avatars', label: 'Avatars', section: S.users, path: '/users?tab=settings&sub=avatars', requires: '/users', keywords: ['avatar', 'profile picture', 'gravatar'] },
-  { id: 'users-usernames', label: 'Usernames', section: S.users, path: '/users?tab=settings&sub=usernames', requires: '/users', keywords: ['username', 'handle', 'display name'] },
-  { id: 'users-account-sections', label: 'Account sections', section: S.users, path: '/users?tab=settings&sub=sections', requires: '/users', keywords: ['account page', 'profile sections'] },
-  { id: 'users-access', label: 'Access control', section: S.users, path: '/users?tab=settings&sub=access', requires: '/users', keywords: ['access', 'restrict', 'membership'] },
+  // ── Settings › Users sub-tabs ──────────────────────────────────────────────
+  { id: 'tab-users', label: 'User settings', section: 'Settings', path: '/config?tab=users', requires: '/config', keywords: ['members', 'accounts', 'sign up', 'registration'] },
+  { id: 'users-registration', label: 'Registration settings', section: S.userSettings, path: '/config?tab=users&sub=registration', requires: '/config', keywords: ['sign up', 'registration', 'members', 'open registration', 'display name'] },
+  { id: 'users-avatars', label: 'Avatars', section: S.userSettings, path: '/config?tab=users&sub=avatars', requires: '/config', keywords: ['avatar', 'profile picture', 'gravatar'] },
+  { id: 'users-usernames', label: 'Usernames', section: S.userSettings, path: '/config?tab=users&sub=usernames', requires: '/config', keywords: ['username', 'handle'] },
+  { id: 'users-account-sections', label: 'Account sections', section: S.userSettings, path: '/config?tab=users&sub=sections', requires: '/config', keywords: ['account page', 'profile sections'] },
+  { id: 'users-access', label: 'Access control', section: S.userSettings, path: '/config?tab=users&sub=access', requires: '/config', keywords: ['access', 'restrict', 'membership'] },
   { id: 'users-roles', label: 'Roles & permissions', section: S.users, path: '/users?tab=roles', requires: '/users', keywords: ['roles', 'permissions', 'capabilities', 'access rights'] },
 
   // ── Appearance / Styles ────────────────────────────────────────────────────

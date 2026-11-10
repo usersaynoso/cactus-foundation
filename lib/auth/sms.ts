@@ -38,6 +38,18 @@ export async function getActiveSmsProvider(): Promise<SmsProvider | null> {
   return null
 }
 
+// Whether an active module offers an SMS provider at all, configured or not -
+// for settings that only make sense with one around. A cheap installed-module
+// check; it never asks the provider anything.
+export async function isSmsProviderInstalled(): Promise<boolean> {
+  if (moduleSmsProviders.length === 0) return false
+  const providerModules = moduleSmsProviders.map((entry) => entry.module)
+  const count = await prisma.module.count({
+    where: { ...INSTALLED_MODULE_WHERE, name: { in: providerModules } },
+  })
+  return count > 0
+}
+
 export async function sendLoginCodeSms(
   provider: SmsProvider,
   to: string,
