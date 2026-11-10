@@ -259,7 +259,8 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
   async function handleRemovePasskey(id: string) {
     setError('')
     const res = await fetch(`/api/account/passkeys/${id}`, { method: 'DELETE' })
-    if (res.ok) {
+    // 404 = already gone (removed in another tab), so the outcome the user wanted
+    if (res.ok || res.status === 404) {
       setPasskeys((p) => p.filter((x) => x.id !== id))
     } else {
       const d = await res.json().catch(() => ({}))
@@ -398,6 +399,9 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
 
   const profileDirty = profile
     && (displayName !== (profile.displayName ?? '') || phone.trim() !== (profile.phone ?? ''))
+
+  // Mirrors the server's lockout guard on DELETE /api/account/passkeys/[id]
+  const lastPasskeyLocked = passkeys.length === 1 && passwordInfo?.hasPassword === false
 
   return (
     <div className="account-grid-container">
@@ -547,7 +551,12 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
                 <Row
                   key={pk.id}
                   action={
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleRemovePasskey(pk.id)}>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={lastPasskeyLocked}
+                      title={lastPasskeyLocked ? 'Add a password or another passkey first' : undefined}
+                      onClick={() => handleRemovePasskey(pk.id)}
+                    >
                       Remove
                     </button>
                   }
@@ -556,6 +565,11 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
                 </Row>
               ))}
             </div>
+          )}
+          {lastPasskeyLocked && (
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', margin: '0 0 1rem' }}>
+              This is your only way in. Add a password or a second passkey before removing it.
+            </p>
           )}
           <button
             className="btn btn-secondary"

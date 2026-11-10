@@ -27,7 +27,7 @@ export async function DELETE(
       select: { passwordHash: true },
     })
     if (!dbUser?.passwordHash) {
-      return errorResponse('Cannot remove your only passkey without a password set — you would be locked out.', 400)
+      return errorResponse('Cannot remove your only passkey without a password set. You would be locked out.', 400)
     }
   }
 
