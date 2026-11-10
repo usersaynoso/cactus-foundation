@@ -3,6 +3,7 @@ import { hasPermissions } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { firstDialler } from '@/lib/dialler/registry'
 import AccountPageClient from './AccountPageClient'
 import type { Metadata } from 'next'
 
@@ -45,8 +46,13 @@ export default async function AccountPage() {
     : []
   const sectionComponents = moduleExtensionPointComponents['admins.account-section'] ?? {}
 
+  // The phone field only feeds a dialler. The cheap "is one installed" check -
+  // whether it is configured is a provider round trip this page need not pay for.
+  const showPhone = (await firstDialler(user)) !== null
+
   return (
     <AccountPageClient
+      showPhone={showPhone}
       extensionSections={sectionIds.map((id) => {
         const Section = sectionComponents[id]
         return Section ? <Section key={id} /> : null

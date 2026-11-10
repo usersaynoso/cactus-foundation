@@ -46,7 +46,14 @@ function Row({ children, action }: { children: React.ReactNode; action?: React.R
   )
 }
 
-export default function AccountPageClient({ extensionSections }: { extensionSections?: React.ReactNode }) {
+export default function AccountPageClient({
+  extensionSections,
+  showPhone = false,
+}: {
+  extensionSections?: React.ReactNode
+  /** True only when an installed module can place calls - nothing else reads the number */
+  showPhone?: boolean
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const { dirtyRef, pendingHref, setPendingHref } = useUnsavedChanges()
@@ -74,6 +81,9 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
 
   // Passkeys
   const [newPasskeyLoading, setNewPasskeyLoading] = useState(false)
+  // Passkey errors render inside the passkey card; the page-top banner is a
+  // screen away from the button, so a failure there looked like nothing happened
+  const [passkeyError, setPasskeyError] = useState('')
   const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([])
 
   // Authenticator app (TOTP)
@@ -257,14 +267,14 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
   }
 
   async function handleRemovePasskey(id: string) {
-    setError('')
+    setPasskeyError('')
     const res = await fetch(`/api/account/passkeys/${id}`, { method: 'DELETE' })
     // 404 = already gone (removed in another tab), so the outcome the user wanted
     if (res.ok || res.status === 404) {
       setPasskeys((p) => p.filter((x) => x.id !== id))
     } else {
       const d = await res.json().catch(() => ({}))
-      setError((d as { error?: string }).error ?? 'Failed to remove passkey')
+      setPasskeyError((d as { error?: string }).error ?? 'Failed to remove passkey')
     }
   }
 
@@ -314,12 +324,39 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
     }
   }
 
+  // Re-proves identity with an existing passkey, which mints a fresh session -
+  // the same as signing out and back in, without leaving the page
+  async function reconfirmWithPasskey(): Promise<void> {
+    const { startAuthentication } = await import('@simplewebauthn/browser')
+    const optRes = await fetch('/api/auth/passkey/authenticate-options', { method: 'POST' })
+    if (!optRes.ok) throw new Error('Could not start the sign-in check. Sign out, sign back in, and try again.')
+    const assertion = await startAuthentication({ optionsJSON: await optRes.json() })
+    const verifyRes = await fetch('/api/auth/passkey/authenticate-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(assertion),
+    })
+    if (!verifyRes.ok) {
+      const d = await verifyRes.json().catch(() => ({}))
+      throw new Error((d as { error?: string }).error ?? 'Sign-in check failed')
+    }
+  }
+
   async function handleAddPasskey() {
     setNewPasskeyLoading(true)
-    setError('')
+    setPasskeyError('')
     try {
       const { startRegistration } = await import('@simplewebauthn/browser')
-      const optRes = await fetch('/api/auth/passkey/register-options', { method: 'POST' })
+      let optRes = await fetch('/api/auth/passkey/register-options', { method: 'POST' })
+      if (optRes.status === 403) {
+        const d = await optRes.clone().json().catch(() => ({}))
+        // Adding a passkey needs a sign-in from the last ten minutes. With a
+        // passkey already on the account, confirm with it here and carry on
+        if ((d as { reauthRequired?: boolean }).reauthRequired && passkeys.length > 0) {
+          await reconfirmWithPasskey()
+          optRes = await fetch('/api/auth/passkey/register-options', { method: 'POST' })
+        }
+      }
       if (!optRes.ok) {
         const d = await optRes.json().catch(() => ({}))
         throw new Error((d as { error?: string }).error ?? 'Failed to get registration options')
@@ -338,7 +375,7 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
       setMessage('New passkey registered successfully.')
       fetchPasskeys()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Registration failed')
+      setPasskeyError(err instanceof Error ? err.message : 'Registration failed')
     } finally {
       setNewPasskeyLoading(false)
     }
@@ -443,8 +480,10 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
               {/* Your own number, so the site can ring you first when you place
                   a call from it - and so you are not typing your mobile in from
                   memory every time. Saved in international form whichever way it
-                  is typed; nobody outside this account sees it. */}
-              <div className="field">
+                  is typed; nobody outside this account sees it. Hidden when no
+                  module can place a call, since then nothing ever reads it; a
+                  number already saved still round-trips untouched on save. */}
+              {showPhone && <div className="field">
                 <label htmlFor="account-phone">Your phone number</label>
                 <input
                   id="account-phone"
@@ -458,7 +497,7 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
                   Filled in for you when you place a call from the site, and changeable there.
                   A number without a country code is taken as {profile.diallingCode}.
                 </span>
-              </div>
+              </div>}
               <button
                 className="btn btn-primary"
                 disabled={profileLoading || !profileDirty}
@@ -545,6 +584,7 @@ export default function AccountPageClient({ extensionSections }: { extensionSect
           <h2 className="card-title">Passkeys &amp; authenticator app</h2>
 
           <h3 style={{ fontSize: 'var(--text-sm)', margin: '0 0 0.5rem', color: 'var(--color-text-muted)' }}>Passkeys</h3>
+          {passkeyError && <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{passkeyError}</div>}
           {passkeys.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
               {passkeys.map((pk, i) => (
