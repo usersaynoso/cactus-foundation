@@ -621,6 +621,8 @@ Where a courier gives the name and the time but no picture, you still get the li
 
 When the courier hands over a signature, the shop takes its own copy of it. Who signed, when they signed and the signature itself appear on the customer's order page under that parcel, and on your own order screen. The copy is the point: the picture sits on the courier's server under a filename of their choosing, and a proof of delivery that disappears when somebody tidies up is not proof of anything. It is fetched once, and a delivery is still recorded as delivered even if the picture cannot be had.
 
+Some couriers give both. Multidrop's delivered page carries the signature and a photograph of the goods where they were left, and the shop keeps the two: the signature as above, the photograph underneath it (click it for the full size), on your order screen and the customer's order page alike. A drop where nobody took a photograph simply shows the signature. The shop keeps looking for one for a week after delivery, in case their storage was having an off day, then stops pestering.
+
 **Once it has arrived.** The progress bar's delivery step stops showing the plan and shows the fact - "Delivered today", "Delivered yesterday", then "Delivered 8/9/26" once it is older than that - and the parcel's own line underneath reads "Delivered on 8th of September 2026". Both wait for the courier to give a time. Where the courier gives none, the arrangement stays as it was rather than the shop guessing from the clock.
 
 The delivery questions stop being offered on a parcel that has arrived, since all of them are about something that has not happened yet. A link from an older delivery message still opens the order page as normal; it simply has no questions to show.
