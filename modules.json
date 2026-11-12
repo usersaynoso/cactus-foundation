@@ -31,6 +31,11 @@
       "version": "v0.1.36"
     },
     {
+      "name": "chatgpt-product-feed-for-shop",
+      "repoUrl": "https://github.com/cactus-foundation-modules/ChatGPT-Product-Feed-for-Shop",
+      "version": "v0.1.0"
+    },
+    {
       "name": "stock-import-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/stock-import-for-shop",
       "version": "v0.1.5"
