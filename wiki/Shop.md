@@ -404,6 +404,16 @@ A part refund doesn't stop an order finishing. Two chairs of five refunded befor
 
 If a refund was started and nobody can tell whether it went through, a notice in the admin bell lists the orders to check against your payment provider, and you're emailed when that list changes rather than every hour it stands.
 
+### A customer's sales on their member page
+
+When a shopper has an account, their member page (**Users**, then click their row) opens with a **Sales** card, for anyone with the customers permission. It shows what they have actually spent - paid orders, less anything refunded - how many paid orders that is, the average, anything still awaiting payment, when they first and last ordered, their six most recent orders (each a link to the order) and the three things they have spent most on. **All orders** goes to their full customer record.
+
+Guest orders placed with the same email address count too, marked **Guest**, because somebody who bought twice before making an account is a returning customer rather than a new one. The card says how many there are. If the address is verified, those orders join the account the next time the customer looks at their orders; if it is not, they stay put until it is - see [Marking an email address as verified](Members#marking-an-email-address-as-verified). Looking at the card never moves an order anywhere.
+
+If the name or company on their newest order isn't on the account - common for somebody who ordered as a guest and never verified their email - the card shows **Ordered as** with both.
+
+At the bottom it says which order their marketing answer came from, so a "no" on the account can be traced back to the checkout where they said it.
+
 ### Orders held when they're paid for
 
 When the money lands and something about the order is wrong, it is put **On hold** with a note on its timeline saying what: the last of the stock had already gone to somebody who paid first, a pre-order went past its limit, or a card or PayPal payment came in for a different amount or currency from the order. The payment is kept either way - nothing is lost - but nobody should send the goods without looking. A coupon used past its limits gets a note and no hold, since the discount has been given and the goods can still go. Held orders are never marked complete automatically; lift the hold when you're happy.

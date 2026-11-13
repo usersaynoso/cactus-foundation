@@ -4,7 +4,11 @@ import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission, hasPermissions } from '@/lib/permissions/check'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { getMembersConfig } from '@/lib/members/config'
+import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
+import { isAccountSectionEnabled } from '@/lib/members/config'
 import MemberDetailClient from './MemberDetailClient'
+import type { MemberDetail, MemberSecuritySummary } from './member-detail-types'
 import type { Metadata } from 'next'
 
 type ExtensionPointEntry = { point: string; id: string; permission?: string }
@@ -37,14 +41,40 @@ export default async function MemberDetailPage({ params }: Props) {
   }
 
   const { id } = await params
-  const [member, extensionModules] = await Promise.all([
-    prisma.member.findUnique({ where: { id } }),
+  const [member, extensionModules, config] = await Promise.all([
+    prisma.member.findUnique({
+      where: { id },
+      include: {
+        role: { select: { name: true } },
+        password: { select: { id: true } },
+        twoFactorConfigs: { where: { verified: true }, select: { method: true } },
+        _count: { select: { passkeys: true, adminNotes: true } },
+      },
+    }),
     prisma.module.findMany({
       where: { ...INSTALLED_MODULE_WHERE },
       select: { manifest: true },
     }),
+    getMembersConfig(),
   ])
   if (!member) notFound()
+
+  const now = new Date()
+  const [sessionStats, lastLogin, avatarMedia] = await Promise.all([
+    prisma.memberSession.aggregate({
+      where: { memberId: id, expiresAt: { gt: now } },
+      _count: { _all: true },
+      _max: { lastActiveAt: true },
+    }),
+    prisma.memberActivityEvent.findFirst({
+      where: { memberId: id, type: 'login' },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    }),
+    member.avatarMediaId
+      ? prisma.media.findUnique({ where: { id: member.avatarMediaId }, select: { url: true } })
+      : Promise.resolve(null),
+  ])
 
   const sectionEntries: ExtensionPointEntry[] = []
   for (const mod of extensionModules) {
@@ -68,40 +98,74 @@ export default async function MemberDetailPage({ params }: Props) {
       ...sectionEntries.map((e) => e.permission).filter((p): p is string => !!p),
     ]),
   ])
-  const canEdit = granted['members.edit'] === true
-  const canSuspend = granted['members.suspend'] === true
-  const canApprove = granted['members.approve'] === true
-  const canTrust = granted['members.trust'] === true
-  const canNotes = granted['members.notes'] === true
-  const canDelete = granted['members.delete'] === true
 
   const sectionIds = sectionEntries
     .filter((entry) => !entry.permission || granted[entry.permission])
     .map((entry) => entry.id)
   const sectionComponents = moduleExtensionPointComponents['members.admin-member-detail'] ?? {}
 
+  const avatarChoice = resolveEffectiveAvatarChoice(member.avatarChoice, config)
+  const detail: MemberDetail = {
+    id: member.id,
+    email: member.email,
+    username: member.username,
+    displayName: member.displayName,
+    fullName: member.fullName,
+    organisation: member.organisation,
+    bio: member.bio,
+    websiteUrl: member.websiteUrl,
+    status: member.status,
+    trusted: member.trusted,
+    emailVerified: member.emailVerified,
+    emailVerifiedAt: member.emailVerifiedAt?.toISOString() ?? null,
+    marketingConsent: member.marketingConsent,
+    roleName: member.role?.name ?? null,
+    avatarChoice,
+    avatarUrl: avatarChoice === 'UPLOAD' ? avatarMedia?.url ?? null : null,
+    suspensionReason: member.suspensionReason,
+    suspendedUntil: member.suspendedUntil?.toISOString() ?? null,
+    deletionScheduledAt: member.deletionScheduledAt?.toISOString() ?? null,
+    createdAt: member.createdAt.toISOString(),
+    isStaff: member.userId !== null,
+  }
+  const security: MemberSecuritySummary = {
+    hasPassword: member.password !== null,
+    passkeyCount: member._count.passkeys,
+    twoFactorMethods: member.twoFactorConfigs.map((c) => c.method),
+    activeSessionCount: sessionStats._count._all,
+    lastActiveAt: sessionStats._max.lastActiveAt?.toISOString() ?? null,
+    lastLoginAt: lastLogin?.createdAt.toISOString() ?? null,
+  }
+
   return (
     <MemberDetailClient
-      member={{
-        id: member.id,
-        email: member.email,
-        username: member.username,
-        displayName: member.displayName,
-        bio: member.bio,
-        websiteUrl: member.websiteUrl,
-        status: member.status,
-        trusted: member.trusted,
-        marketingConsent: member.marketingConsent,
-        suspensionReason: member.suspensionReason,
-        suspendedUntil: member.suspendedUntil?.toISOString() ?? null,
-        deletionScheduledAt: member.deletionScheduledAt?.toISOString() ?? null,
-        createdAt: member.createdAt.toISOString(),
+      member={detail}
+      security={security}
+      noteCount={member._count.adminNotes}
+      hasModuleSections={sectionIds.some((sid) => sectionComponents[sid])}
+      renderedAt={now.getTime()}
+      fields={{
+        // The profile card shows what the site actually asks members for, and
+        // nothing else: a display name only where sign-up asks for one, a bio
+        // and website only where members have the Profile section to fill them
+        // in. Organisation follows the account page's own switch, and is shown
+        // anyway where one was given (an order can carry it in).
+        displayName: config.registrationCollectDisplayName,
+        bioAndWebsite: isAccountSectionEnabled(config, 'profile'),
+        organisation: config.accountCollectOrganisation,
       }}
-      permissions={{ canEdit, canSuspend, canApprove, canTrust, canNotes, canDelete }}
+      permissions={{
+        canEdit: granted['members.edit'] === true,
+        canSuspend: granted['members.suspend'] === true,
+        canApprove: granted['members.approve'] === true,
+        canTrust: granted['members.trust'] === true,
+        canNotes: granted['members.notes'] === true,
+        canDelete: granted['members.delete'] === true,
+      }}
     >
-      {sectionIds.map((id) => {
-        const Section = sectionComponents[id]
-        return Section ? <Section key={id} memberId={member.id} /> : null
+      {sectionIds.map((sid) => {
+        const Section = sectionComponents[sid]
+        return Section ? <Section key={sid} memberId={member.id} /> : null
       })}
     </MemberDetailClient>
   )

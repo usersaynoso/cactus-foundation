@@ -11,9 +11,11 @@ type Props = {
   targetUser: TargetUser
   currentUserIsAdmin: boolean
   roles: Role[]
+  /** Called after a change lands, so a list that fetched its rows itself can reload them. */
+  onChanged?: () => void
 }
 
-export default function UserActions({ targetUser, currentUserIsAdmin, roles }: Props) {
+export default function UserActions({ targetUser, currentUserIsAdmin, roles, onChanged }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -37,6 +39,7 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles }: P
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Action failed')
       router.refresh()
+      onChanged?.()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Action failed')
     } finally {
@@ -53,6 +56,7 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles }: P
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Delete failed')
       router.refresh()
+      onChanged?.()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Delete failed')
       setLoading(false)

@@ -4,12 +4,14 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie, type SessionUser } from '@/lib/auth/session'
 import { hasPermissions, isAdmin } from '@/lib/permissions/check'
 import { MEMBERS_ROLE_NAME } from '@/lib/members/default-role'
+import { getMembersConfig } from '@/lib/members/config'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { TabStrip } from '@/components/admin/TabStrip'
 import { AdminTooltip } from '@/components/admin/Tooltip'
 import { SettingsIcon } from '@/components/admin/notification-icons'
 import PeopleListClient from './PeopleListClient'
+import { parsePeopleFilters, type PeopleFilters } from './people-list-filters'
 import PendingApprovalClient from './PendingApprovalClient'
 import InvitesClient from './InvitesClient'
 import RolesClient from '../config/RolesClient'
@@ -103,7 +105,7 @@ export default async function UsersPage({ searchParams }: Props) {
 
       {tabItems.length > 1 && <TabStrip items={tabItems} />}
 
-      {tab === 'users' && canManageUsers && <UsersTab currentUser={currentUser} canViewMembers={canViewMembers} />}
+      {tab === 'users' && canManageUsers && <UsersTab currentUser={currentUser} canViewMembers={canViewMembers} initialFilters={parsePeopleFilters(sp)} />}
       {tab === 'pending-approval' && canManageUsers && canApprove && <PendingApprovalTab />}
       {tab === 'invites' && canManageUsers && canInvite && <InvitesClient />}
       {tab === 'roles' && canManageRoles && <RolesTab granted={granted} />}
@@ -111,13 +113,16 @@ export default async function UsersPage({ searchParams }: Props) {
   )
 }
 
-async function UsersTab({ currentUser, canViewMembers }: { currentUser: SessionUser; canViewMembers: boolean }) {
+async function UsersTab({ currentUser, canViewMembers, initialFilters }: { currentUser: SessionUser; canViewMembers: boolean; initialFilters: PeopleFilters }) {
   // Members role is Member-facing, not assignable to staff accounts.
-  const roles = await prisma.role.findMany({
-    where: { name: { not: MEMBERS_ROLE_NAME } },
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, isProtected: true },
-  })
+  const [roles, membersConfig] = await Promise.all([
+    prisma.role.findMany({
+      where: { name: { not: MEMBERS_ROLE_NAME } },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, isProtected: true },
+    }),
+    getMembersConfig(),
+  ])
 
   return (
     <PeopleListClient
@@ -125,6 +130,8 @@ async function UsersTab({ currentUser, canViewMembers }: { currentUser: SessionU
       currentUserId={currentUser.id}
       currentUserIsAdmin={isAdmin(currentUser)}
       canViewMembers={canViewMembers}
+      initialFilters={initialFilters}
+      displayNamesOn={membersConfig.registrationCollectDisplayName}
     />
   )
 }
