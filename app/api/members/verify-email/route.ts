@@ -8,6 +8,7 @@ import { deriveActivatedStatus, loginRejectionForStatus } from '@/lib/members/re
 import { notifyAdminMemberPendingApproval } from '@/lib/members/admin-notify'
 import { createMemberSession, setMemberSessionCookie } from '@/lib/members/session'
 import { recordMemberActivity } from '@/lib/members/activity'
+import { notifyMemberEmailVerified } from '@/lib/members/email-verified'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 
 const Body = z.object({ token: z.string() })
@@ -37,6 +38,10 @@ export async function POST(request: NextRequest) {
     data: { emailVerified: true, emailVerifiedAt: new Date(), status },
     select: { status: true, username: true },
   })
+
+  // The address is proven, so modules may now match things up by it (the shop's
+  // guest orders, say). Never throws, and never fails this request.
+  await notifyMemberEmailVerified(result.memberId)
 
   if (member.status === 'PENDING_APPROVAL' && config.notifyAdminOnPendingApproval) {
     await notifyAdminMemberPendingApproval(result.memberId, member.username).catch(() => {})

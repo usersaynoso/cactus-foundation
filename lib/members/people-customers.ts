@@ -43,6 +43,46 @@ export type PeopleCustomerSummary = {
 export type PeopleCustomerProvider = {
   isCustomerSql: (refs: PeopleCustomerRefs) => Prisma.Sql
   summarise: (people: ReadonlyArray<{ memberId: string; email: string }>) => Promise<Record<string, PeopleCustomerSummary>>
+  /**
+   * Optional. A name and organisation the module knows for members who have
+   * none on their account, so Admin shows what their orders say rather than a
+   * blank. Display only - nothing is written. Core only asks about members
+   * whose email is verified, and the module must answer only from records that
+   * address owns. The first provider with an answer for a field wins.
+   */
+  contactDetails?: (people: ReadonlyArray<{ memberId: string; email: string }>) => Promise<Record<string, PeopleContactDetails>>
+}
+
+export type PeopleContactDetails = { fullName?: string | null; organisation?: string | null }
+
+/** Fills blank name / organisation from providers. Never overwrites a value, never throws. */
+export async function fillContactDetailsFromProviders<T extends { memberId: string; email: string; fullName: string | null; organisation: string | null }>(
+  providers: PeopleCustomerProvider[],
+  people: T[],
+): Promise<T[]> {
+  const blank = people.filter((p) => !p.fullName?.trim() || !p.organisation?.trim())
+  const askable = providers.filter((p) => p.contactDetails)
+  if (blank.length === 0 || askable.length === 0) return people
+  const asked = blank.map((p) => ({ memberId: p.memberId, email: p.email }))
+  const answers = await Promise.all(
+    askable.map((p) =>
+      p.contactDetails!(asked).catch((err: unknown) => {
+        console.error('[people-customers] provider contact details failed', err)
+        return {} as Record<string, PeopleContactDetails>
+      }),
+    ),
+  )
+  return people.map((p) => {
+    let fullName = p.fullName
+    let organisation = p.organisation
+    for (const answer of answers) {
+      const found = answer[p.memberId]
+      if (!found) continue
+      if (!fullName?.trim() && found.fullName?.trim()) fullName = found.fullName.trim()
+      if (!organisation?.trim() && found.organisation?.trim()) organisation = found.organisation.trim()
+    }
+    return fullName === p.fullName && organisation === p.organisation ? p : { ...p, fullName, organisation }
+  })
 }
 
 /** Every provider's summaries for one page of members, merged. A provider that fails is skipped, not fatal. */

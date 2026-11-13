@@ -4331,3 +4331,25 @@ a[data-eml] {
 .dash-mod-meta dt { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
 .dash-mod-meta dd { margin: 0; font-size: var(--text-sm); font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .dash-hero { padding: var(--space-5); } }
+
+/* ---- HQ on a touch screen: no box small enough to zoom the page --------- */
+/* iOS zooms the whole page in when a text box under 16px takes focus, and
+   leaves it there. HQ's boxes are 13-14px by design, so every tap into a
+   search or a field used to zoom. Lifting them to 16px where the pointer is a
+   finger takes the trigger away at the source, whatever the viewport says.
+   body:has(.admin-shell) rather than .admin-shell, because dialogs and menus
+   are portalled onto the body, outside the shell. !important because this has
+   to beat every component's own size, module stylesheets included, and is the
+   one rule here whose job is exactly that. Checkboxes, radios, sliders,
+   colour and file pickers do not zoom and keep their own sizes. */
+@media (pointer: coarse) {
+  body:has(.admin-shell) :is(
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"], [type="image"]),
+    textarea,
+    select,
+    [contenteditable="true"],
+    [contenteditable=""]
+  ) {
+    font-size: max(16px, 1em) !important;
+  }
+}

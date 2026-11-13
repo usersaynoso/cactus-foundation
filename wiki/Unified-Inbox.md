@@ -28,7 +28,7 @@ You will find it under **Inbox** in the admin sidebar, as a tab called **Unified
 | **Collecting** | How far back to go, how long to keep things, attachments, and which way round a conversation reads. |
 | **Sent replies** | Whether to find out what became of a reply after it left. |
 | **People** | Telling colleagues from customers, whether shop customers are added to your contacts (only where the shop is installed), the categories you file contacts under, and the shape of your order and quote numbers. |
-| **Campaigns** | Your business name and address for the unsubscribe footer, how long to leave between writing to the same person twice, and how long a finished campaign's log is kept. |
+| **Campaigns** | Your business address for the unsubscribe footer (the site's name goes in front of it on its own), how long to leave between writing to the same person twice, and how long a finished campaign's log is kept. |
 | **Other apps** | Telling something else on the internet when the post arrives, or when a colleague asks for somebody. |
 
 Start a form on one tab, wander off to another and come back, and what you had typed is still there. Nothing is saved until you press the Save button on that tab, mind.
@@ -356,7 +356,11 @@ To the top of the list. An email you send on a conversation moves it up as if a 
 
 ### On a phone
 
-The page holds still: it does not zoom in when you tap into a box, and it cannot be pinched out of shape. The dots beside any message offer **Open full screen**, which gives that one message the whole of the phone with a cross to come back. A message written narrower than the screen sits in the middle of it rather than hugging the left edge.
+The page holds still: it does not zoom in when you tap into a box. If it ever does end up zoomed, pinch out as normal - nothing stops you.
+
+### One message, full screen
+
+The dots beside any message, on a phone, a tablet or a desktop, offer **Open full screen**, which gives that one message the whole window with a cross (or Escape) to come back. A message written narrower than the window sits in the middle of it rather than hugging the left edge.
 
 ### Send it and put it to bed
 
@@ -424,7 +428,7 @@ Everything above is Brevo telling the site what it saw. An inbox set to **Sent t
 
 What an ordinary mail account cannot give you is *Delivered*. The mail server takes the message, says "accepted", and goes quiet unless something goes wrong. So the label says exactly that - **Accepted by the mail server** - and once two days have gone by with nothing bouncing back it changes to **Accepted, nothing bounced back**, which is as close to *Delivered* as anybody can honestly get. If it does bounce, the bounce comes back to the mailbox you send from; as long as the inbox collects that mailbox, the bounce is matched to the message it is about and the label turns to *It did not arrive*, with the reason in the history. The bounce itself still appears on the conversation too, as the machinery it is.
 
-A few things are never touched: `mailto:` and phone links, links within the message, anything that looks like an unsubscribe or preferences link, and links already going through Brevo. Campaigns are left entirely alone - they stay on Brevo, which counts them and carries the unsubscribe link, even when the site's own mail goes by SMTP. And the site never counts its own staff: a link followed by somebody signed in to the admin is not recorded, pictures in our own sent mail and in quoted copies under a customer's reply are never fetched, and a tracked link in your own sent mail opens straight at its real address when you press it here, rather than going through the counter.
+A few things are never touched: `mailto:` and phone links, links within the message, anything that looks like an unsubscribe or preferences link, and links already going through Brevo. Campaigns go out exactly the way an ordinary reply from the same address does - the inbox's own account if it has one, otherwise whatever the site uses under Settings → Emails - so a campaign "from" hi@ leaves through the same mail server as everything else from hi@. The unsubscribe link rides in the message either way. And the site never counts its own staff: a link followed by somebody signed in to the admin is not recorded, pictures in our own sent mail and in quoted copies under a customer's reply are never fetched, and a tracked link in your own sent mail opens straight at its real address when you press it here, rather than going through the counter.
 
 **Opens are a rough guide, clicks are the signal.** Apple Mail downloads every picture the moment a message arrives - recorded as *Their email app fetched it*, never as an open - and Outlook in an office often blocks pictures, so a message read there may never register as opened at all.
 
@@ -1311,7 +1315,7 @@ You can switch the footer off per campaign. If every message carries `{{unsubscr
 
 The **Do-not-email list** - the button above the campaign list - holds everybody who is off the list, and why. You can add an address by hand - somebody who asked you at a trade show - and take one off, for the address that bounced during an outage and works again on Thursday. It stops campaigns only: replies, order confirmations and anything somebody has specifically asked you for still go out, which is right and is what the law expects.
 
-Your business name and address for that footer go in **Settings → Unified Inbox → Campaigns**, along with how many days must pass before any campaign may write to the same person again. Seven is the default and it is a guard rather than a preference: two campaigns should not both land on the same customer on the same morning.
+Your business address for that footer goes in **Settings → Unified Inbox → Campaigns** (the site's own name is printed in front of it, so there is no need to type that), along with how many days must pass before any campaign may write to the same person again. Seven is the default and it is a guard rather than a preference: two campaigns should not both land on the same customer on the same morning.
 
 ### What keeps it moving
 

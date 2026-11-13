@@ -14,6 +14,7 @@ import { isEmailDomainAllowed } from '@/lib/members/registration'
 import { sendMemberEmail } from '@/lib/email/templates'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
 import { recordMemberActivity } from '@/lib/members/activity'
+import { notifyMemberEmailVerified } from '@/lib/members/email-verified'
 import { isEmailConfigured } from '@/lib/config/env'
 
 // A member changing their own sign-in address, in two steps and deliberately so
@@ -215,6 +216,9 @@ export async function PUT(request: NextRequest) {
   await recordMemberActivity(member.id, 'email_changed', {
     metadata: { from: previousEmail, to: newEmail },
   })
+
+  // A new address, freshly proven: orders placed as a guest at it are now theirs.
+  await notifyMemberEmailVerified(member.id)
 
   // To the address it moved away from, not the new one: whoever is reading the
   // new mailbox already knows, and the person who needs telling is the one who

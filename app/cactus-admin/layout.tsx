@@ -16,7 +16,22 @@ import { getSiteConfig } from '@/lib/config/site'
 import { prisma } from '@/lib/db/prisma'
 import { parseFavourites } from '@/lib/nav/favourites'
 import pkg from '@/package.json'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
+
+// HQ does not zoom. Everything in it is laid out to the width of the screen,
+// and the zoom people met was never one they asked for: iOS zooms in on its own
+// when a box takes focus, and a screen pinned to the window leaves little to
+// pinch against on the way back out. maximum-scale=1 is what stops that
+// automatic zoom; iOS still lets somebody pinch if they truly need to, so
+// nobody is ever left stuck. Here rather than in the root layout because the
+// root's viewport is the public site's too, and a shop visitor squinting at a
+// photo of a chair is entitled to zoom in on it. Merged with the root's
+// (themeColor carries through untouched).
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+}
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },

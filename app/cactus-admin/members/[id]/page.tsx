@@ -5,6 +5,8 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission, hasPermissions } from '@/lib/permissions/check'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { getMembersConfig } from '@/lib/members/config'
+import { peopleCustomerProviders } from '@/lib/members/people-customer-providers'
+import { fillContactDetailsFromProviders } from '@/lib/members/people-customers'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
 import { isAccountSectionEnabled } from '@/lib/members/config'
 import MemberDetailClient from './MemberDetailClient'
@@ -104,14 +106,23 @@ export default async function MemberDetailPage({ params }: Props) {
     .map((entry) => entry.id)
   const sectionComponents = moduleExtensionPointComponents['members.admin-member-detail'] ?? {}
 
+  // A verified member whose account is still blank but whose orders say who they
+  // are: show that, as the People list does. Display only, and a module the
+  // viewer may not see the customers of is not asked.
+  const [shown] = member.emailVerified
+    ? await fillContactDetailsFromProviders(await peopleCustomerProviders(user), [
+        { memberId: member.id, email: member.email, fullName: member.fullName, organisation: member.organisation },
+      ])
+    : [{ fullName: member.fullName, organisation: member.organisation }]
+
   const avatarChoice = resolveEffectiveAvatarChoice(member.avatarChoice, config)
   const detail: MemberDetail = {
     id: member.id,
     email: member.email,
     username: member.username,
     displayName: member.displayName,
-    fullName: member.fullName,
-    organisation: member.organisation,
+    fullName: shown?.fullName ?? member.fullName,
+    organisation: shown?.organisation ?? member.organisation,
     bio: member.bio,
     websiteUrl: member.websiteUrl,
     status: member.status,

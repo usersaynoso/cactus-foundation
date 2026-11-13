@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { summariseCustomers, type PeopleCustomerProvider, type PeopleCustomerSummary } from '@/lib/members/people-customers'
+import { fillContactDetailsFromProviders, summariseCustomers, type PeopleCustomerProvider, type PeopleCustomerSummary } from '@/lib/members/people-customers'
 
 // Unified staff (User) + site member (Member) directory for Admin › Users.
 // The two are separate tables and separate sign-in systems; this joins them
@@ -185,8 +185,27 @@ export async function listPeople(opts: {
   const summaries = b.customersEnabled ? await summariseCustomers(opts.providers, customers) : {}
   const f = facetRows[0]
 
+  // A verified member whose account has no name or organisation but whose
+  // orders do: show what the orders say. Display only; the account itself is
+  // filled in when the address is verified (lib/members/email-verified.ts).
+  const memberRows = people.filter((p) => p.kind === 'member' && p.emailVerified)
+  const filled = new Map(
+    (await fillContactDetailsFromProviders(
+      opts.providers,
+      memberRows.map((p) => ({ memberId: p.id, email: p.email, fullName: p.fullName, organisation: p.organisation })),
+    )).map((p) => [p.memberId, p]),
+  )
+
   return {
-    people: people.map((p) => ({ ...p, customerSummary: p.kind === 'member' ? summaries[p.id] ?? null : null })),
+    people: people.map((p) => {
+      const f2 = filled.get(p.id)
+      return {
+        ...p,
+        fullName: f2?.fullName ?? p.fullName,
+        organisation: f2?.organisation ?? p.organisation,
+        customerSummary: p.kind === 'member' ? summaries[p.id] ?? null : null,
+      }
+    }),
     total: Number(countResult[0]?.count ?? 0),
     customersEnabled: b.customersEnabled,
     facets: f

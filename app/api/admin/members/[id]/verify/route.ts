@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions/check'
 import { logMemberAdminAction } from '@/lib/members/admin-log'
 import { getMembersConfig } from '@/lib/members/config'
 import { deriveActivatedStatus } from '@/lib/members/registration'
+import { notifyMemberEmailVerified } from '@/lib/members/email-verified'
 
 // Marks a member's email address as confirmed by hand - the admin's word in
 // place of the member clicking the link in their inbox. For the customer who
@@ -65,6 +66,8 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     prisma.memberVerificationToken.deleteMany({ where: { memberId: id } }),
   ])
   await logMemberAdminAction(user, id, 'verify_email', { previousStatus: member.status, status: updated.status })
+  // Same as the member clicking their link: modules get to match up by the address.
+  await notifyMemberEmailVerified(id)
 
   return NextResponse.json({
     emailVerified: true,
