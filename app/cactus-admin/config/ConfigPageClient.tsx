@@ -26,6 +26,7 @@ import ScheduledJobsClient from './ScheduledJobsClient'
 import NotificationsSettingsClient from './NotificationsSettingsClient'
 import MediaServingModeCard from './MediaServingModeCard'
 import EncryptionKeyCard from './EncryptionKeyCard'
+import { StepUpField } from './StepUpField'
 import AutomaticBackupsCard from './AutomaticBackupsCard'
 import { MEDIA_SERVING_MODE_VAR, MEDIA_DIRECT_RESIZE_VAR, canServeDirect, mediaServingMode } from '@/lib/media/serving-mode'
 import { MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual-message'
@@ -942,6 +943,12 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   // Database backup state
   const [downloadingBackup, setDownloadingBackup] = useState(false)
+  // Passwords typed again for the dangerous buttons (see StepUpField). One per
+  // action so a half-typed one never leaks into a different button.
+  const [backupPassword, setBackupPassword] = useState('')
+  const [restorePassword, setRestorePassword] = useState('')
+  const [dbResetPassword, setDbResetPassword] = useState('')
+  const [envResetPassword, setEnvResetPassword] = useState('')
   const [backupError, setBackupError] = useState('')
 
   // Database restore state
@@ -1432,7 +1439,11 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     setDownloadingBackup(true)
     setBackupError('')
     try {
-      const res = await fetch('/api/admin/backup/database')
+      const res = await fetch('/api/admin/backup/database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: backupPassword }),
+      })
       if (!res.ok) {
         const d = (await res.json().catch(() => null)) as { error?: string } | null
         throw new Error(d?.error ?? 'Backup failed')
@@ -1450,6 +1461,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       } finally {
         URL.revokeObjectURL(url)
       }
+      setBackupPassword('')
     } catch (err: unknown) {
       setBackupError(err instanceof Error ? err.message : 'Backup failed')
     } finally {
@@ -1464,6 +1476,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     try {
       const body = new FormData()
       body.append('file', restoreFile)
+      body.append('password', restorePassword)
       const res = await fetch('/api/admin/backup/import', { method: 'POST', body })
       const d = (await res.json().catch(() => null)) as
         | { ok?: boolean; error?: string; loginPath?: string; clearedSecrets?: string[]; mediaWarnings?: string[] }
@@ -1495,7 +1508,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       const res = await fetch('/api/admin/reset-database', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deleteSetupData: dbResetDeleteSetupData }),
+        body: JSON.stringify({ deleteSetupData: dbResetDeleteSetupData, password: dbResetPassword }),
       })
       const d = (await res.json()) as { ok?: boolean; error?: string; redirectToSetup?: boolean }
       if (!res.ok) throw new Error(d.error ?? 'Reset failed')
@@ -2166,6 +2179,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
             {backupError && (
               <div className="alert alert-danger" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{backupError}</div>
             )}
+            <StepUpField value={backupPassword} onChange={setBackupPassword} disabled={downloadingBackup} />
             <button
               className="btn btn-primary"
               disabled={downloadingBackup}
@@ -2241,6 +2255,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                 <p style={{ fontSize: '0.875rem', margin: '0 0 1rem' }}>
                   This <strong>permanently replaces all current data</strong> with the backup and cannot be undone.
                 </p>
+                <StepUpField value={restorePassword} onChange={setRestorePassword} disabled={restoring} />
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                   <button className="btn btn-danger" disabled={restoring} onClick={handleRestoreBackup}>
                     {restoring ? 'Restoring…' : 'Restore and replace everything'}
@@ -2251,6 +2266,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                     onClick={() => {
                       setRestoreFile(null)
                       setRestoreError('')
+                      setRestorePassword('')
                       if (restoreInputRef.current) restoreInputRef.current.value = ''
                     }}
                   >
@@ -2299,6 +2315,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                     <strong>Also delete setup data</strong> - removes your admin account, site name, admin path, and all settings. You will be taken to the setup wizard to start completely from scratch.
                   </span>
                 </label>
+                <StepUpField value={dbResetPassword} onChange={setDbResetPassword} disabled={dbResetting} />
                 {dbResetError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>{dbResetError}</div>}
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                   <button
@@ -2311,7 +2328,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   <button
                     className="btn btn-secondary"
                     disabled={dbResetting}
-                    onClick={() => { setShowDbResetConfirm(false); setDbResetError(''); setDbResetDeleteSetupData(false) }}
+                    onClick={() => { setShowDbResetConfirm(false); setDbResetError(''); setDbResetDeleteSetupData(false); setDbResetPassword('') }}
                   >
                     Cancel
                   </button>
@@ -2347,6 +2364,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   email credentials, media provider keys, integrations, and everything else.
                   A redeployment will be triggered automatically. You will need to reconfigure these settings afterwards.
                 </p>
+                <StepUpField value={envResetPassword} onChange={setEnvResetPassword} disabled={resetting} />
                 {resetError && <div className="alert alert-danger" style={{ fontSize: '0.875rem', marginBottom: '0.75rem' }}>{resetError}</div>}
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                   <button
@@ -2356,13 +2374,18 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                       setResetting(true)
                       setResetError('')
                       try {
-                        const res = await fetch('/api/admin/env', { method: 'DELETE' })
+                        const res = await fetch('/api/admin/env', {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ password: envResetPassword }),
+                        })
                         const d = (await res.json()) as { ok?: boolean; error?: string; deleted?: number; failed?: Array<{ key: string; error: string }>; redeployTriggered?: boolean }
                         if (!res.ok) throw new Error(d.error ?? 'Reset failed')
                         // A redeploy was triggered - surface live status via the notification bell
                         if (d.redeployTriggered) announceRedeployStarted()
                         setEnvStatus({})
                         setShowResetConfirm(false)
+                        setEnvResetPassword('')
                         setResetDeletedCount(d.deleted ?? 0)
                         if (d.failed && d.failed.length > 0) {
                           setResetPartialError(`${d.failed.length} variable(s) could not be deleted: ${d.failed.map((f) => `${f.key} (${f.error})`).join(', ')}`)
@@ -2377,7 +2400,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
                   >
                     {resetting ? 'Resetting…' : 'Reset'}
                   </button>
-                  <button className="btn btn-secondary" disabled={resetting} onClick={() => { setShowResetConfirm(false); setResetError('') }}>
+                  <button className="btn btn-secondary" disabled={resetting} onClick={() => { setShowResetConfirm(false); setResetError(''); setEnvResetPassword('') }}>
                     Cancel
                   </button>
                 </div>

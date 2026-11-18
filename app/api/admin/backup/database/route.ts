@@ -1,11 +1,13 @@
 import { readFileSync } from 'fs'
 import path from 'path'
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { buildBackupSql } from '@/lib/backup/dump'
 import { UnsupportedColumnError, UnrestorableBackupError } from '@/lib/backup/serialize'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
+import { confirmStepUp } from '@/lib/auth/step-up'
 
 // Full logical SQL backup (schema + data + sequence counters) of the live
 // database, generated on demand and streamed straight to the browser - no object
@@ -23,10 +25,20 @@ const SCHEMA_MIGRATION_PATH = path.join(
   'prisma/migrations/20260626000000_init/migration.sql',
 )
 
-export async function GET() {
+// POST, not GET, and only with the password typed again (lib/auth/step-up.ts).
+// This file is every customer, order and account on the site in one download, so
+// a signed-in session alone - a borrowed laptop, a stolen cookie - is not enough.
+const BodySchema = z.object({ password: z.string().max(1024).optional() })
+
+export async function POST(req: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   if (!isAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const parsed = BodySchema.safeParse(await req.json().catch(() => ({})))
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+  const step = await confirmStepUp(user, parsed.data.password)
+  if (!step.ok) return NextResponse.json({ error: step.error }, { status: step.status })
 
   let schemaSql: string
   try {

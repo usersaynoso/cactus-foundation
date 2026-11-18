@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuthentication } from '@/lib/auth/passkey'
 import { createSession, setSessionCookie } from '@/lib/auth/session'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
+import { noteSuccessfulSignIn } from '@/lib/auth/sign-in-alerts'
 
 export async function POST(request: NextRequest) {
   const ip = await getClientIp(request)
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
 
     const token = await createSession(user.id)
     await setSessionCookie(token)
+    await noteSuccessfulSignIn(user)
 
     return NextResponse.json({ verified: true, userId: user.id })
   } catch (err: unknown) {

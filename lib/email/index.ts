@@ -597,6 +597,23 @@ export async function sendPasswordChangedNotification(
   await sendTemplateEmail(to, 'auth.password-changed', { siteName })
 }
 
+// Sent when an account is signed in to from a browser that has not signed in to
+// it before (lib/auth/sign-in-alerts.ts decides which).
+export async function sendNewSignInNotice(
+  to: string,
+  vars: { siteName: string; when: string; device: string; ipAddress: string }
+) {
+  await sendTemplateEmail(to, 'auth.new-sign-in', vars)
+}
+
+// Sent once per window when wrong passwords for one account pile up.
+export async function sendFailedSignInsNotice(
+  to: string,
+  vars: { siteName: string; attempts: string; windowMinutes: string; ipAddress: string; device: string }
+) {
+  await sendTemplateEmail(to, 'auth.failed-sign-ins', vars)
+}
+
 async function testEmailPayload(to: string, siteName: string): Promise<EmailPayload> {
   const { renderEmailTemplate } = await import('@/lib/email/render')
   const rendered = await renderEmailTemplate('system.test-email', { siteName })

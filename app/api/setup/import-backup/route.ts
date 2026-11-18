@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { restoreDatabaseFromSql, type RestoreGuardDb } from '@/lib/backup/restore'
 
-// Restore a Cactus backup (.sql from GET /api/admin/backup/database) during the
+// Restore a Cactus backup (.sql from POST /api/admin/backup/database) during the
 // first-run setup wizard, once the database is connected but before an admin
 // exists. This is an unauthenticated endpoint, so it refuses the moment anyone
 // could have a stake in the database: once setup is complete, and also as soon

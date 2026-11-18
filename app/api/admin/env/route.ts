@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse, after } from 'next/server'
+import { z } from 'zod'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
+import { confirmStepUp } from '@/lib/auth/step-up'
 import { getHostEnvVarKeys, upsertHostEnvVars, deleteHostEnvVars } from '@/lib/hosting/env'
 import { triggerRedeploy } from '@/lib/hosting/deploy'
 import { getHostingCredentials, missingCredentialsMessage } from '@/lib/hosting/provider'
@@ -216,10 +218,17 @@ export async function POST(req: NextRequest) {
 // DELETE — removes all managed env vars then triggers a redeploy (factory reset).
 // The redeploy is scheduled via after() so it runs after the response is sent
 // and never races against the function timeout.
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return errorResponse('Not authenticated', 401)
   if (!isAdmin(user)) return errorResponse('Forbidden', 403)
+
+  // Deleting every environment variable takes the site's keys, mail and storage
+  // with it, so it needs the password typed again (lib/auth/step-up.ts).
+  const parsed = z.object({ password: z.string().max(1024).optional() }).safeParse(await req.json().catch(() => ({})))
+  if (!parsed.success) return errorResponse('Invalid input', 400)
+  const step = await confirmStepUp(user, parsed.data.password)
+  if (!step.ok) return errorResponse(step.error, step.status)
 
   if (isLocalMode()) {
     return errorResponse('Environment variables are managed via .env.local in local-development mode. There is nothing to reset here.', 503)

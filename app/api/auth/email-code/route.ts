@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma'
 import { verifyEmailChallenge } from '@/lib/auth/email-challenge'
 import { createSession, setSessionCookie, createTrustedDevice, setTrustedDeviceCookie, isTrustedDevice } from '@/lib/auth/session'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
+import { noteSuccessfulSignIn } from '@/lib/auth/sign-in-alerts'
 
 const Body = z.object({
   userId: z.string(),
@@ -64,6 +65,8 @@ export async function POST(request: NextRequest) {
 
   const token = await createSession(userId)
   await setSessionCookie(token)
+  const signedIn = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } })
+  if (signedIn) await noteSuccessfulSignIn(signedIn)
 
   if (trustDevice && !trusted) {
     const deviceToken = await createTrustedDevice(userId, days)

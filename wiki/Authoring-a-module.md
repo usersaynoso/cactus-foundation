@@ -1314,6 +1314,36 @@ It exists because the alternative was worse in a way worth spelling out. Setting
 A module must never import another module's code. Where two modules want the same
 machinery, it belongs in core and both import it from there.
 
+**Rate limits that hold** - `checkSharedRateLimit` in `lib/auth/rate-limit.ts` (core 0.5.1960+,
+so set `requiresCoreVersion`). Counted in core's `RateLimit` table, so it holds across processes
+and restarts. Use it wherever the limit is the actual defence: a route that checks a code, an
+order number or an email address, sends mail, takes a file or touches money. It costs one
+database write per request, so a busy read-only route (a product list, a cart refresh) is
+better off with an in-memory counter.
+
+```ts
+import { checkSharedRateLimit, getClientIp } from '@/lib/auth/rate-limit'
+
+if (!(await checkSharedRateLimit(`my-module-lookup:${await getClientIp()}`, 20, 15 * 60 * 1000))) {
+  return NextResponse.json({ error: 'Too many tries. Give it a few minutes.' }, { status: 429 })
+}
+```
+
+**Fetching an address somebody typed** - `safeFetch` in `lib/security/safe-fetch.ts`. Any
+server-side request to a URL that came from a person or another system (a feed, a link preview,
+an image by URL, a webhook target) goes through this, never plain `fetch`. It refuses anything
+that is not http(s) on the public internet, checks the address it actually connects to (so a DNS
+answer that changes between the check and the request gets nowhere), re-checks every redirect and
+caps the body size. Do not use it for your own provider's API or the site's own storage.
+
+```ts
+import { safeFetch, UnsafeUrlError } from '@/lib/security/safe-fetch'
+
+const res = await safeFetch(feedUrl, { maxBytes: 2 * 1024 * 1024 })
+if (res.status !== 200) throw new Error(`The feed answered ${res.status}`)
+const xml = res.body.toString('utf8')
+```
+
 **The encryption key and signed links** - `lib/crypto/keyring.ts` and `lib/crypto/secrets.ts`.
 Never read `process.env.ENCRYPTION_KEY` yourself: a site can change its key, and anything
 reading the raw variable breaks every link it has sent the moment it does. The key-rotation

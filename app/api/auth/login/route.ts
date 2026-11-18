@@ -12,6 +12,7 @@ import { getActiveSmsProvider, sendLoginCodeSms, maskPhone } from '@/lib/auth/sm
 import { decryptSecret } from '@/lib/crypto/secrets'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
+import { noteFailedPassword } from '@/lib/auth/sign-in-alerts'
 
 const Body = z.object({
   email: z.string().email(),
@@ -50,6 +51,9 @@ export async function POST(request: NextRequest) {
   const valid = await verifyPassword(password, hash)
 
   if (!user || !valid) {
+    // A wrong password for a real account counts toward the owner's "someone is
+    // trying to get in" email. Same response either way, so nothing is revealed.
+    if (user) await noteFailedPassword(user)
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
   }
 

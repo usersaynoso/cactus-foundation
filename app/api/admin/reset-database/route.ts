@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { isAdmin } from '@/lib/permissions/check'
+import { confirmStepUp } from '@/lib/auth/step-up'
 import { seedDefaultLayouts } from '@/lib/setup/starterLayouts'
 import { upsertStylesInfoPage } from '@/lib/setup/stylesInfoPage'
 import pkg from '@/package.json'
@@ -30,14 +32,24 @@ async function seedStarterContent() {
   })
 }
 
+const ResetBodySchema = z.object({
+  deleteSetupData: z.boolean().optional(),
+  password: z.string().max(1024).optional(),
+})
+
 export async function POST(req: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   if (!isAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  let body: { deleteSetupData?: boolean } = {}
-  try { body = await req.json() } catch { /* no body */ }
-  const deleteSetupData = body.deleteSetupData ?? false
+  const parsed = ResetBodySchema.safeParse(await req.json().catch(() => ({})))
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+  const deleteSetupData = parsed.data.deleteSetupData ?? false
+
+  // Wiping the site needs the password typed again (lib/auth/step-up.ts): a
+  // signed-in session alone - a borrowed laptop, a stolen cookie - is not enough.
+  const step = await confirmStepUp(user, parsed.data.password)
+  if (!step.ok) return NextResponse.json({ error: step.error }, { status: step.status })
 
   if (deleteSetupData) {
     // Hard reset: wipe everything, preserve only adminPath for the setup wizard.

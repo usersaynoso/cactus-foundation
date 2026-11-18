@@ -15,6 +15,9 @@ type RateLimitAction =
   | 'totp_verify'
   | 'email_change'
   | 'step_up'
+  // Wrong passwords for one admin account. Never refuses anything - it only
+  // counts, so lib/auth/sign-in-alerts.ts can tell the owner once per window.
+  | 'login_failure'
   // Members system (see MEMBERS_SPEC.md)
   | 'member_register'
   | 'member_magic_link'
@@ -45,6 +48,8 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   // the person is already signed in, so a wrong guess is either a typo or someone
   // at a borrowed browser working through a list.
   step_up: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
+  // maxAttempts here is the alert threshold, not a block (see countAttempt).
+  login_failure: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
   member_register: { windowMs: 60 * 60 * 1000, maxAttempts: 5 },
   // Requesting a sign-in link sends an email, so it stays tight.
   member_magic_link: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
@@ -208,4 +213,79 @@ export async function checkAndRecord(
     return { allowed: false, retryAfterMs: blocked.retryAfterMs }
   }
   return { allowed: true }
+}
+
+/** The window and threshold an action is counted against, for callers that
+ *  need to say them out loud (an alert email's "in the last 15 minutes"). */
+export function rateLimitConfig(action: RateLimitAction): RateLimitConfig {
+  return LIMITS[action]
+}
+
+// Counts one attempt against a single key and returns how many the current
+// window now holds. Same atomic upsert as checkAndRecord, but it decides
+// nothing: for counters whose job is to notice a pattern (and fire exactly once,
+// when the count lands on a threshold) rather than to refuse a request.
+export async function countAttempt(action: RateLimitAction, key: string): Promise<number> {
+  const windowStart = new Date(Date.now() - LIMITS[action].windowMs)
+  const rows = await prisma.$queryRaw<Array<{ attempts: number }>>`
+    INSERT INTO "RateLimit" (id, key, action, attempts, "windowStart")
+    VALUES (${randomUUID()}, ${key}, ${action}, 1, now())
+    ON CONFLICT (key, action) DO UPDATE SET
+      attempts = CASE
+        WHEN "RateLimit"."windowStart" <= ${windowStart} THEN 1
+        ELSE "RateLimit".attempts + 1
+      END,
+      "windowStart" = CASE
+        WHEN "RateLimit"."windowStart" <= ${windowStart} THEN now()
+        ELSE "RateLimit"."windowStart"
+      END
+    RETURNING attempts
+  `
+  return rows[0]?.attempts ?? 0
+}
+
+// ---------------------------------------------------------------------------
+// Shared window limiter for modules
+// ---------------------------------------------------------------------------
+//
+// Modules used to keep their own in-memory counters (a Map per process). Those
+// reset on every restart and are per-process, so anything spread across several
+// processes, or patient enough to wait for a restart, gets a fresh allowance.
+// This is the same table-backed count the sign-in limits use, open to any caller
+// with its own key and limits - for the routes where a limit is a real defence:
+// anything that guesses a code, a number or an email address, sends mail, takes
+// a file or touches money. A busy read-only route (a product list, a cart
+// refresh) is better left on its in-memory counter: this costs one database
+// write per request.
+//
+// The window length is part of the stored action, so two callers that happen to
+// share a key but count over different windows can never reset each other.
+
+const SHARED_SWEEP_CHANCE = 1 / 500
+
+export async function checkSharedRateLimit(key: string, maxAttempts: number, windowMs: number): Promise<boolean> {
+  const action = `shared:${windowMs}`
+  const windowStart = new Date(Date.now() - windowMs)
+  const rows = await prisma.$queryRaw<Array<{ attempts: number }>>`
+    INSERT INTO "RateLimit" (id, key, action, attempts, "windowStart")
+    VALUES (${randomUUID()}, ${key}, ${action}, 1, now())
+    ON CONFLICT (key, action) DO UPDATE SET
+      attempts = CASE
+        WHEN "RateLimit"."windowStart" <= ${windowStart} THEN 1
+        ELSE "RateLimit".attempts + 1
+      END,
+      "windowStart" = CASE
+        WHEN "RateLimit"."windowStart" <= ${windowStart} THEN now()
+        ELSE "RateLimit"."windowStart"
+      END
+    RETURNING attempts
+  `
+  // Every row is one key per window, and nothing else ever deletes them. No
+  // limit anywhere counts over more than a day, so a row whose window opened two
+  // days ago is dead whatever action wrote it. Amortised rather than scheduled,
+  // and never awaited: a failed sweep only means it happens next time.
+  if (Math.random() < SHARED_SWEEP_CHANCE) {
+    void prisma.$executeRaw`DELETE FROM "RateLimit" WHERE "windowStart" < now() - interval '2 days'`.catch(() => {})
+  }
+  return (rows[0]?.attempts ?? 0) <= maxAttempts
 }

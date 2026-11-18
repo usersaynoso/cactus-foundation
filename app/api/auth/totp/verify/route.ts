@@ -6,6 +6,7 @@ import { verifyTotpCode } from '@/lib/auth/totp'
 import { tryDecryptSecret } from '@/lib/crypto/secrets'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { errorResponse, successResponse } from '@/lib/utils'
+import { noteSuccessfulSignIn } from '@/lib/auth/sign-in-alerts'
 
 const Body = z.object({
   email: z.string().email(),
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, totpSecretEncrypted: true, totpVerifiedAt: true, totpLastStep: true, suspendedAt: true },
+    select: { id: true, email: true, totpSecretEncrypted: true, totpVerifiedAt: true, totpLastStep: true, suspendedAt: true },
   })
 
   // Same generic error whether the account exists, has no TOTP configured, or
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
 
   const token = await createSession(user.id)
   await setSessionCookie(token)
+  await noteSuccessfulSignIn(user)
 
   return successResponse({ verified: true, userId: user.id })
 }

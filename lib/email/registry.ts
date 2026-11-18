@@ -281,6 +281,24 @@ const AUTH_TEMPLATES: CoreTemplate[] = [
     mergeTags: ['siteName'],
     transactional: true,
   },
+  {
+    key: 'auth.new-sign-in',
+    groupLabel: 'Account and security',
+    label: 'New sign-in',
+    subject: 'New sign-in to your {{siteName}} account',
+    bodyHtml: '<p>Your {{siteName}} account was just signed in to from a browser it has not seen before.</p><p><strong>When:</strong> {{when}}<br><strong>Device:</strong> {{device}}<br><strong>Address:</strong> {{ipAddress}}</p><p>If this was you, there is nothing to do.</p><p>If it was not, sign in now, change your password, and sign out every other session from your account page.</p>',
+    mergeTags: ['siteName', 'when', 'device', 'ipAddress'],
+    transactional: true,
+  },
+  {
+    key: 'auth.failed-sign-ins',
+    groupLabel: 'Account and security',
+    label: 'Repeated failed sign-ins',
+    subject: 'Someone is trying to sign in to your {{siteName}} account',
+    bodyHtml: '<p>There have been <strong>{{attempts}} failed attempts</strong> to sign in to your {{siteName}} account with a wrong password in the last {{windowMinutes}} minutes.</p><p>The most recent came from {{ipAddress}} ({{device}}).</p><p>Nobody got in. If it was not you, it is worth changing your password to something long and unique, and adding a passkey if you have not already.</p>',
+    mergeTags: ['siteName', 'attempts', 'windowMinutes', 'ipAddress', 'device'],
+    transactional: true,
+  },
 ]
 
 // ---------------------------------------------------------------------------
