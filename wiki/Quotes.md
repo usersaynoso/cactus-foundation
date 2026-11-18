@@ -70,6 +70,12 @@ You can also see whether the customer has actually opened their quote, and when.
 
 > Nothing is saved until you press Save. If you wander off with prices half typed, your browser will ask whether you meant to.
 
+### Quotes made on the phone
+
+With the **AI Call Answering** module installed, the phone assistant saves a caller's basket here as a quote, under the name and email address they gave on the call. It behaves exactly like a basket a shopper saved themselves: same code, same link, same email to the customer (if **Email the shopper their code** is on) and the same alert to you (if you asked for one on saved baskets). Their phone number is filled in, and the internal notes say it came from the phone assistant.
+
+For a module author: the same saving is open to any module on the server, through the extension point `shop.basket-quote-saver` (`modules/quote-for-shop/lib/save-basket.ts`, `basketQuoteSaver`). It prices the lines with the shop's resolver, follows every setting above, and answers in plain data, so the caller needs no import of this module and carries on without it when it is not installed.
+
 ### Turning a quote into an order
 
 Two things a quote genuinely does not know, and both are handled honestly rather than guessed at:

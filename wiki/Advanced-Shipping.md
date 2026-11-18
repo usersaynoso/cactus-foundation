@@ -19,7 +19,8 @@ It needs the **Shop** and **Product Attributes** modules installed.
   is answered on the page the shopper is already reading. It carries a heading
   you can rename or empty, and it follows whichever basket picker style is set in
   Delivery settings. A choice made here is remembered for that product for the
-  rest of the visit, moves that product's basket line straight away if it is
+  rest of the visit (a reload or a trip away and back still adds it to the
+  basket, not just shows it), moves that product's basket line straight away if it is
   already in the basket, and otherwise rides along onto the line the next
   add-to-cart creates - including when the shopper picks a different variation on
   the way, in which case a service that variation is not offered quietly falls
