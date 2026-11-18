@@ -197,6 +197,19 @@ are, and they are shown to shoppers the same way too: if Shop is set to
 "+£4.95" on a delivery upgrade has the tax added on exactly as the item price
 beside it does. Nothing about what you charge changes - only what is printed.
 
+**Every price row carries two figures: a cost price and a sales price.** The
+sales price is what the shopper is charged, and is the only one they ever see.
+The cost price is what the service costs you - the courier or the supplier's
+rate - and it is the figure that goes on a
+[purchase order](Purchase-Orders) raised from the order, so the supplier is
+paid their rate and the difference stays with you. The row shows the margin
+between the two, in pounds and as a share of the sales price, and goes red when
+a row sells below cost. Each order line keeps the cost price it was sold at, so
+changing a cost later never rewrites what an older order buys the service back
+for. On an install that had delivery prices before this split, both figures
+started out as the old price: nothing a shopper sees moved until a sales price
+was changed.
+
 A price row says where the service is offered and what it costs there. Rows can
 apply to everything, to one supplier, one category, or one value of your
 **shipping attribute** (a product attribute you nominate, e.g. Hyphen or Aero),

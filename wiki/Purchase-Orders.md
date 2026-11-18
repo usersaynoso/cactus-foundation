@@ -652,8 +652,14 @@ carriage came off and a supplier can check it against their own rates without
 reading a sentence. The money itself still sits on the order as carriage rather
 than in the line total, which is where this module has always kept delivery
 money - a line total that swallowed it would disagree with every supplier
-invoice you ever match against it. A service the customer paid nothing for
-prints its name and no figures, because there is nothing to buy back. The
+invoice you ever match against it. **What the service costs is its cost price,
+not what the customer paid for it**: with
+[Advanced Shipping](Advanced-Shipping) each delivery price row has a cost price
+and a sales price, the order line records the cost price at checkout, and that
+is the figure put on the purchase order - so marking delivery up never hands the
+supplier your margin. Orders placed before cost prices existed fall back to what
+the customer paid, which was the cost back then. A service that costs you
+nothing prints its name and no figures, because there is nothing to buy back. The
 emailed copy has no columns to use, so it still says the same two figures in
 words.
 
