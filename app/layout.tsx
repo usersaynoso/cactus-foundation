@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { mediaPublicOrigin } from '@/lib/media/public-origin'
+import { resizeFallbackScript } from '@/lib/media/resize-fallback'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { resolveBranding } from '@/lib/config/branding'
 import { iconLinksFor } from '@/lib/config/favicon-variants'
@@ -111,6 +112,9 @@ export default async function RootLayout({
             site's CSP already allows inline scripts. */}
         <script id="theme-init" dangerouslySetInnerHTML={{ __html: flashPreventionScript }} />
         <script id="consent-init" dangerouslySetInnerHTML={{ __html: consentInitScript }} />
+        {/* Shows the original picture when Cloudflare refuses to resize one (quota
+            spent, Transformations off). See lib/media/resize-fallback.ts. */}
+        <script id="resize-fallback" dangerouslySetInnerHTML={{ __html: resizeFallbackScript }} />
         {/* No crossOrigin, unlike the font one below: pictures are fetched in
             no-cors mode, and a connection opened in CORS mode is a different
             pool the <img> requests would not reuse - the tag would look right
