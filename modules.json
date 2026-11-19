@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.542"
+      "version": "v0.1.543"
     },
     {
       "name": "address-lookup-for-shop",
@@ -13,7 +13,7 @@
     {
       "name": "shop-variations",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop-variations",
-      "version": "v0.1.208"
+      "version": "v0.1.210"
     },
     {
       "name": "product-addons-for-shop",
@@ -68,7 +68,7 @@
     {
       "name": "gocardless-instant-bank-pay-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/gocardless-instant-bank-pay-for-shop",
-      "version": "v0.1.22"
+      "version": "v0.1.23"
     },
     {
       "name": "square-payment-for-shop",
@@ -83,17 +83,17 @@
     {
       "name": "advanced-shipping-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/advanced-shipping-for-shop",
-      "version": "v0.1.59"
+      "version": "v0.1.61"
     },
     {
       "name": "quote-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/quote-for-shop",
-      "version": "v0.1.40"
+      "version": "v0.1.43"
     },
     {
       "name": "abandoned-carts-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/abandoned-carts-for-shop",
-      "version": "v0.1.16"
+      "version": "v0.1.17"
     },
     {
       "name": "space-planner-for-shop",
@@ -108,7 +108,7 @@
     {
       "name": "reviews-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/reviews-for-shop",
-      "version": "v0.1.23"
+      "version": "v0.1.24"
     },
     {
       "name": "directory",
@@ -153,12 +153,12 @@
     {
       "name": "chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat",
-      "version": "v0.1.26"
+      "version": "v0.1.27"
     },
     {
       "name": "uk-bookkeeping",
       "repoUrl": "https://github.com/cactus-foundation-modules/uk-bookkeeping",
-      "version": "v0.2.60"
+      "version": "v0.2.61"
     },
     {
       "name": "google-tag",
@@ -173,7 +173,7 @@
     {
       "name": "purchase-orders",
       "repoUrl": "https://github.com/cactus-foundation-modules/purchase-orders",
-      "version": "v0.1.63"
+      "version": "v0.1.65"
     },
     {
       "name": "unified-inbox",
@@ -188,7 +188,7 @@
     {
       "name": "social-hub",
       "repoUrl": "https://github.com/cactus-foundation-modules/social-hub",
-      "version": "v0.1.27"
+      "version": "v0.1.28"
     },
     {
       "name": "pay-via-worldfirst-for-shop",
@@ -198,7 +198,7 @@
     {
       "name": "ai-call-answering",
       "repoUrl": "https://github.com/cactus-foundation-modules/AI-Call-Answering",
-      "version": "v0.1.21"
+      "version": "v0.1.28"
     },
     {
       "name": "analytics",
