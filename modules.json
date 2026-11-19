@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.536"
+      "version": "v0.1.540"
     },
     {
       "name": "address-lookup-for-shop",
@@ -178,7 +178,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.148"
+      "version": "v0.1.153"
     },
     {
       "name": "google-ai-studio",
