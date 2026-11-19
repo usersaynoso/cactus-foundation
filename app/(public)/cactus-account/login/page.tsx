@@ -30,6 +30,11 @@ export default async function MemberLoginPage({ searchParams }: Props) {
   // somebody who has just signed in wants their account, not the homepage.
   const target = sanitizeRedirect(redirect, basePath)
   const safeTarget = isPublicMemberPath(target, basePath) ? basePath : target
+  // The emailed sign-in link carries the same destination, but only when the
+  // visitor asked for one: with no ?redirect= the link is left exactly as it
+  // was, landing on the account. The link brings it back here as ?redirect=,
+  // and the line above sanitises it again on the way in.
+  const emailLinkRedirect = redirect ? safeTarget : undefined
 
   // A signed-in admin who has landed here has either signed out of the member
   // area deliberately or come straight to this URL. Either way the offer beats
@@ -83,7 +88,7 @@ export default async function MemberLoginPage({ searchParams }: Props) {
         </div>
       )}
 
-      <LoginForm redirectTo={safeTarget} magicToken={magicToken} />
+      <LoginForm redirectTo={safeTarget} magicToken={magicToken} magicLinkRedirect={emailLinkRedirect} />
     </div>
   )
 

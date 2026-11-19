@@ -5,6 +5,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { logMemberAdminAction } from '@/lib/members/admin-log'
 import { isHttpUrl } from '@/lib/utils'
+import { notifyMembersDeleting } from '@/lib/members/member-deleted'
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionFromCookie()
@@ -72,6 +73,8 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   // audit trail are tied together) - a row written here would be deleted in
   // the very same statement as the member it describes. Flagged as a Phase 10
   // hardening item; fixing it needs a schema change (a protected-phase diff).
+  // Modules get their say while the row still exists (core.member-deleted).
+  await notifyMembersDeleting({ id })
   await prisma.member.delete({ where: { id } })
 
   return NextResponse.json({ ok: true })

@@ -8,7 +8,18 @@ type ExportRequest = { id: string; status: 'PENDING' | 'PROCESSING' | 'READY' | 
 // is nothing here to delete - the staff account would only mint another one.
 // Said up front rather than left to the API's 403, which arrives after someone
 // has already worked themselves up to pressing a red button twice.
-export default function DangerZoneSection({ linkedToStaff = false }: { linkedToStaff?: boolean }) {
+//
+// selfDeletionAllowed: the site's allowMemberSelfDeletion setting. Off, there is
+// no button to press - the delete route would refuse it anyway - just a line
+// saying who to ask. Defaults to true so a caller that never heard of the
+// setting draws what it always drew.
+export default function DangerZoneSection({
+  linkedToStaff = false,
+  selfDeletionAllowed = true,
+}: {
+  linkedToStaff?: boolean
+  selfDeletionAllowed?: boolean
+}) {
   const [exportRequest, setExportRequest] = useState<ExportRequest>(null)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
@@ -94,6 +105,10 @@ export default function DangerZoneSection({ linkedToStaff = false }: { linkedToS
       {linkedToStaff ? (
         <p style={{ color: 'var(--color-text-secondary)' }}>
           This account belongs to your admin sign-in, so it cannot be deleted from here. Removing the admin account is what removes it.
+        </p>
+      ) : !selfDeletionAllowed ? (
+        <p style={{ color: 'var(--color-text-secondary)' }}>
+          Accounts on this site are closed by the team that runs it. Get in touch with them and they will sort it out.
         </p>
       ) : scheduledAt ? (
         <div className="alert alert-success">

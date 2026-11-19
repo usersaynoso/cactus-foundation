@@ -33,10 +33,15 @@ const prebuildStarted = Date.now()
 // Prisma's CLI phones home for a version check on every invocation and prints an
 // "update available" box that nobody acts on mid-build. Both cost a network round
 // trip on the deploy critical path.
+//
+// CACTUS_IGNORE_LOCAL_MODULES: a build wires exactly what modules.json pins, so
+// a developer's gitignored modules.local.json (scripts/lib/module-names.mjs)
+// can never make a local build differ from the one an install would run.
 const env = {
   ...process.env,
   CHECKPOINT_DISABLE: '1',
   PRISMA_HIDE_UPDATE_MESSAGE: 'true',
+  CACTUS_IGNORE_LOCAL_MODULES: '1',
 }
 
 // Call the locally installed Prisma CLI directly rather than through npx, which

@@ -75,6 +75,13 @@ export const MembersConfigSchema = z.object({
   usernameRedirectDays: z.number().int().min(0).max(3650).default(30),
   deletionGracePeriodDays: z.number().int().min(0).max(365).default(14),
   adminNotifyOnDeletion: z.boolean().default(false),
+  // Whether a member may close their own account (the "Delete my account"
+  // button and POST /api/members/delete-account). Off, the button goes and the
+  // route refuses, so only an admin can delete a member. The rest of the Danger
+  // zone (downloading their data) is untouched, and a member who had already
+  // asked before it was switched off can still cancel. Default true: every site
+  // already lets members do this, and keeps doing so until somebody says not.
+  allowMemberSelfDeletion: z.boolean().default(true),
   postRegistrationRedirect: z.string().nullable().default(null),
   allowedEmailDomains: z.array(z.string()).default([]),
   blockedEmailDomains: z.array(z.string()).default([]),
@@ -126,6 +133,16 @@ export const MEMBERS_CONFIG_DEFAULTS: MembersConfig = MembersConfigSchema.parse(
 export function isAccountSectionEnabled(config: MembersConfig, key: AccountSectionKey): boolean {
   return config.accountSectionsEnabled[key]
 }
+
+// Whether a member may schedule their own account for deletion. The one place
+// the delete route and the Danger zone's button both ask, so the button never
+// offers what the route would refuse.
+export function isMemberSelfDeletionAllowed(config: MembersConfig): boolean {
+  return config.allowMemberSelfDeletion
+}
+
+export const MEMBER_SELF_DELETION_OFF_MESSAGE =
+  'Accounts on this site are closed by the team that runs it. Get in touch with them and they will sort it out.'
 
 // Rows written before sign-in methods became one three-state control each.
 // The old shape was an allowedAuthMethods array plus a separate passwordsEnabled

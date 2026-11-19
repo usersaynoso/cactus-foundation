@@ -410,6 +410,7 @@ This table lists every environment variable Cactus recognises. Variables marked 
 | `CACTUS_BUILD_WATCHDOG` | No | Set to `0` to switch off the safety net that gives up on a stuck deploy and retries it, or `1` to switch it on when working locally. On by default wherever the site is actually deployed. |
 | `CACTUS_BUILD_SILENT_LIMIT_MINUTES` | No | How many minutes a deploy may go without saying anything before it is treated as stuck rather than slow, and retried. Defaults to `10`. |
 | `CACTUS_BUILD_TOTAL_LIMIT_MINUTES` | No | How many minutes any single deploy attempt gets in total before it is treated as stuck and retried. Defaults to `25`. |
+| `CACTUS_IGNORE_LOCAL_MODULES` | No | Developers only. `1` makes the module generators ignore a local `modules.local.json` and wire exactly what `modules.json` lists. Set for you during every build; nothing to set on a live site. See [Running locally](Running-locally#developing-a-module-that-is-not-in-modulesjson). |
 
 ---
 
@@ -464,6 +465,7 @@ Only shown once you (or someone) holds at least one of the permissions below - s
 |-------|-------------|---------|
 | Account deletion grace period (days) | How long a member has to change their mind after requesting deletion, before it's permanent | `14` |
 | Notify admins on deletion request | Sends an admin notification whenever a member requests account deletion | Off |
+| Let members close their own account | Under Danger zone on **Account sections**. Off removes the member's delete button and makes the site refuse the request (`allowMemberSelfDeletion: false`, `POST /api/members/delete-account` answers 403), so only an admin can delete a member. Data export and cancelling an earlier request are unaffected | On |
 
 ### Roles
 

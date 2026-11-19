@@ -30,9 +30,16 @@ type Props = {
   // The sign-in page wants the form's own "Sign in" heading; a dialog that
   // already carries one does not.
   showHeading?: boolean
+  // Where the emailed sign-in link should land once it has signed the member
+  // in. Separate from redirectTo on purpose: redirectTo always has a value (a
+  // fallback when nobody asked for one), and sending that would move every
+  // email link that used to land on the account. The sign-in page passes this
+  // only when the visitor arrived with a ?redirect= of their own. Left off, the
+  // request carries no redirect and the email is exactly what it always was.
+  magicLinkRedirect?: string
 }
 
-export default function LoginForm({ redirectTo, magicToken, basePath, showHeading = true }: Props) {
+export default function LoginForm({ redirectTo, magicToken, basePath, showHeading = true, magicLinkRedirect }: Props) {
   const [step, setStep] = useState<Step>(magicToken ? 'consuming' : 'email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -189,7 +196,7 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
       await fetch('/api/members/auth/magic-link/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: address }),
+        body: JSON.stringify(magicLinkRedirect ? { email: address, redirectTo: magicLinkRedirect } : { email: address }),
       })
       setStep('magic-sent')
     } catch {

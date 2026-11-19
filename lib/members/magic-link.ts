@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { sendMemberEmail } from '@/lib/email/templates'
+import { sanitizeRedirect } from '@/lib/auth/redirect'
 
 // Magic-link sign-in tokens (MEMBERS_SPEC.md Authentication: 15-minute
 // single-use email link). Hashed like lib/members/tokens.ts's verification
@@ -18,7 +19,24 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
 }
 
-export async function sendMagicLink(memberId: string, email: string, siteName: string): Promise<void> {
+// The emailed sign-in link. `redirect` is where the sign-in page sends the
+// member once the token has signed them in (it already honours ?redirect= for
+// every other method). Sanitised here as well as by the caller and again by the
+// login page: an email is the last place an open redirect should be minted, and
+// a value that is not a same-site path is simply left off, never passed along.
+// No redirect, no parameter - the link is byte-for-byte what it always was.
+export function buildMagicLinkUrl(siteUrl: string, memberAreaPath: string, token: string, redirect?: string | null): string {
+  const base = `${siteUrl.replace(/\/$/, '')}/${memberAreaPath}/login?magic_token=${token}`
+  const safe = sanitizeRedirect(redirect, '')
+  return safe ? `${base}&redirect=${encodeURIComponent(safe)}` : base
+}
+
+export async function sendMagicLink(
+  memberId: string,
+  email: string,
+  siteName: string,
+  options: { redirect?: string | null } = {}
+): Promise<void> {
   const token = generateToken()
   await prisma.memberMagicLink.create({
     data: {
@@ -28,8 +46,7 @@ export async function sendMagicLink(memberId: string, email: string, siteName: s
     },
   })
 
-  const siteUrl = process.env.SITE_URL?.replace(/\/$/, '') ?? ''
-  const magicUrl = `${siteUrl}/${getMemberAreaPath()}/login?magic_token=${token}`
+  const magicUrl = buildMagicLinkUrl(process.env.SITE_URL ?? '', getMemberAreaPath(), token, options.redirect)
   await sendMemberEmail({ email }, 'member.magic-link', { siteName, magicUrl })
 }
 

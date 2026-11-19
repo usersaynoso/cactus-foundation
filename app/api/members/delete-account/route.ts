@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { requestMemberDeletion } from '@/lib/members/deletion'
+import { getMembersConfig, isMemberSelfDeletionAllowed, MEMBER_SELF_DELETION_OFF_MESSAGE } from '@/lib/members/config'
 
 export async function POST() {
   const member = await getMemberFromCookie()
@@ -18,6 +19,12 @@ export async function POST() {
       },
       { status: 403 }
     )
+  }
+
+  // Settings -> Users can leave deletion to admins alone. Hiding the button
+  // would only be a suggestion: this is the answer a crafted request gets too.
+  if (!isMemberSelfDeletionAllowed(await getMembersConfig())) {
+    return NextResponse.json({ error: MEMBER_SELF_DELETION_OFF_MESSAGE }, { status: 403 })
   }
 
   const scheduledAt = await requestMemberDeletion(member.id)

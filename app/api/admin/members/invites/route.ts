@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { randomBytes, createHash } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
-import { getMemberAreaPath } from '@/lib/members/paths'
+import { createMemberInvite, DEFAULT_INVITE_EXPIRY_DAYS, MAX_INVITE_EXPIRY_DAYS } from '@/lib/members/invites'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -23,7 +22,9 @@ export async function GET() {
   return NextResponse.json({ invites })
 }
 
-const Body = z.object({ expiresInDays: z.number().int().min(1).max(365).default(7) })
+const Body = z.object({
+  expiresInDays: z.number().int().min(1).max(MAX_INVITE_EXPIRY_DAYS).default(DEFAULT_INVITE_EXPIRY_DAYS),
+})
 
 export async function POST(request: NextRequest) {
   const user = await getSessionFromCookie()
@@ -35,21 +36,13 @@ export async function POST(request: NextRequest) {
   const parsed = Body.safeParse(await request.json().catch(() => ({})))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
 
-  const token = randomBytes(32).toString('hex')
-  const tokenHash = createHash('sha256').update(token).digest('hex')
-  const expiresAt = new Date(Date.now() + parsed.data.expiresInDays * 24 * 60 * 60 * 1000)
-
-  await prisma.memberInvite.create({
-    data: {
-      tokenHash,
-      createdById: user.id,
-      createdByName: user.displayName || user.username,
-      expiresAt,
-    },
+  // The minting itself is shared with modules (lib/members/invites.ts); the
+  // permission check above is this route's own and stays here.
+  const { inviteUrl, expiresAt } = await createMemberInvite({
+    createdById: user.id,
+    createdByName: user.displayName || user.username,
+    expiresInDays: parsed.data.expiresInDays,
   })
-
-  const siteUrl = process.env.SITE_URL?.replace(/\/$/, '') ?? ''
-  const inviteUrl = `${siteUrl}/${getMemberAreaPath()}/register?invite=${token}`
 
   return NextResponse.json({ inviteUrl, expiresAt })
 }

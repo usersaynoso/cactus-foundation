@@ -14,6 +14,11 @@
  * another's, so the clones are independent and were only ever serialised by the loop.
  * Every module's log lines are buffered and flushed as one block when it finishes, so
  * concurrent git output can't interleave into nonsense.
+ *
+ * modules.local.json (a developer's gitignored extra list, see
+ * scripts/lib/module-names.mjs) is deliberately NOT read here. It names modules
+ * whose code the developer already has on disk; cloning, resetting or deleting
+ * anything on its say-so would throw their work away.
  */
 
 import { readFileSync, mkdirSync, existsSync, rmSync } from 'fs'

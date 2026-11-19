@@ -58,7 +58,9 @@ Once a member has a working password or passkey, the sign-in link is no longer o
 
 An address that isn't registered at all gets the same "check your inbox" message as a real one - the form never lets on whether an account exists. What lands in that inbox differs: a registered address gets its sign-in link, an unregistered one gets a short email saying no account was found there, with a link to register. So a mistyped address doesn't just go quiet - the person who typed it finds out, without the sign-in form itself giving anything away.
 
-Clicking the link out of the inbox signs them in and drops them on their account. If they were part-way through something when they were asked to sign in - checking out, say, or opening a page only members can see - they carry on from there instead.
+Clicking the link out of the inbox signs them in and drops them on their account. If they were sent to the sign-in page part-way through something - opening a page only members can see, say, or a module's own "sign in to carry on" page - the link takes them back there instead, exactly as a passkey or password would have. The link only ever goes back to a page on your own site: anything pointing elsewhere is quietly dropped and they land on their account. The one place this doesn't apply is the sign-in panel that floats over a page (see below): a link asked for from there lands on the account, as it always has, since by the time it is clicked the page they were reading is long gone from the screen anyway.
+
+For developers: the sign-in page passes its sanitised `?redirect=` to the form as `magicLinkRedirect`, the form sends it as `redirectTo` to `POST /api/members/auth/magic-link/request`, the route runs it through `sanitizeRedirect` (`lib/auth/redirect.ts`) and the emailed URL gains `&redirect=<encoded path>` (`buildMagicLinkUrl` in `lib/members/magic-link.ts`). The sign-in page sanitises it again when the link is clicked. No redirect, no parameter: the link is exactly what it was. `sanitizeRedirect` refuses any value containing `://`, so a path carrying an app callback in its query string must percent-encode it (`redirect_uri=myapp%3A%2F%2Fauth`).
 
 If the site can't reach its own settings for a moment - a wobbly connection at their end - the form quietly offers every method you've switched on rather than hiding one, so a passkey holder is never stuck looking at a form that won't take their passkey.
 
@@ -180,7 +182,7 @@ There's no phone number beside any of this, on purpose - a number is how a couri
 - **Account & Security** - their email address, passkeys, password, two-factor authentication, active sessions, and trusted browsers. See [Changing their email address](#changing-their-email-address) just below.
 - **Notifications** - how members want to hear about anything your installed modules notify them about: by email, by text message, or both. The text column only appears where the site can actually send one (the Twilio module, with a text-enabled number added) and where the module in question offers it. Some things can be moved but not switched off - order updates, for one - so a member can choose email or text or both, but not silence. Nothing installed offers any notifications yet? The tab hides itself rather than sending members to a page that only tells them there is nothing to choose. Texts go to the phone number on the order they're about, which is why there's no separate mobile number box on the account.
 - **Activity** - a simple history of their sign-ins and other account activity.
-- **Danger Zone** - requesting a copy of their data, or deleting their account.
+- **Danger Zone** - requesting a copy of their data, or deleting their account. Underneath it sits **Let members close their own account** (on by default). Switch that off and only an admin can delete a member: the delete button is replaced by a line telling the member to get in touch, and the site refuses the request however it arrives. Downloading their data carries on as before, and anybody who had already asked to be deleted can still cancel. Note the two switches do different jobs - **Danger Zone** decides what the member is shown, **Let members close their own account** decides whether the site will actually do it.
 
 Switching any of the other four off takes its tab away, and its card off the overview with it. Profile is the one that goes further and shuts the page itself, because it's the one people most often don't want offered at all.
 
@@ -226,6 +228,10 @@ You can't delete this member account from the member area's Danger Zone, since r
 ### Data export and account deletion
 
 Members can request a copy of all their data at any time - it's bundled up and available to download for 48 hours. If they delete their account, it's not removed immediately: there's a grace period (you choose how long, default 14 days) during which they can change their mind, before it's permanently deleted.
+
+Would rather members didn't delete themselves at all? Untick **Let members close their own account** under **Settings → Users → Account sections** (see [the Danger Zone above](#the-member-account-area)). The setting is `allowMemberSelfDeletion` in the members settings, default on; with it off, `POST /api/members/delete-account` answers 403 and nothing is scheduled. Admins delete as normal from **Users**.
+
+Installed modules are told just before a member is actually deleted - by an admin, by a rejected registration, or when the grace period runs out - so they can tidy up anything of theirs that mentions the member. See `core.member-deleted` in [Authoring a module](Authoring-a-module#module-extension-points).
 
 ---
 

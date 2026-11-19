@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/db/prisma'
 import { getInstalledManifests } from '@/lib/modules/live-status'
 import { getMemberFromCookie } from '@/lib/members/session'
-import { getMembersConfig } from '@/lib/members/config'
+import { getMembersConfig, isMemberSelfDeletionAllowed } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 import { hasVisibleModuleNotificationCategories } from '@/lib/members/notification-categories'
@@ -163,7 +163,9 @@ export default async function AccountIndexPage() {
     security: <SecuritySection />,
     notifications: <NotificationsSection />,
     activity: <ActivitySection />,
-    dangerZone: <DangerZoneSection linkedToStaff={!!member.userId} />,
+    dangerZone: (
+      <DangerZoneSection linkedToStaff={!!member.userId} selfDeletionAllowed={isMemberSelfDeletionAllowed(config)} />
+    ),
   }
   const renderSection = (key: AccountSectionKey) => (
     <AccountSection key={key} anchor={accountSectionAnchor(key)}>

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { logMemberAdminAction } from '@/lib/members/admin-log'
+import { notifyMembersDeleting } from '@/lib/members/member-deleted'
 
 const ACTION_PERMISSIONS = {
   suspend: 'members.suspend',
@@ -49,7 +50,9 @@ export async function POST(request: NextRequest) {
           await prisma.member.update({ where: { id, status: 'PENDING_APPROVAL' }, data: { status: 'ACTIVE' } })
           break
         case 'reject': {
-          const result = await prisma.member.deleteMany({ where: { id, status: 'PENDING_APPROVAL' } })
+          const where = { id, status: 'PENDING_APPROVAL' as const }
+          await notifyMembersDeleting(where)
+          const result = await prisma.member.deleteMany({ where })
           if (result.count === 0) { skipped++; continue }
           break
         }
@@ -60,6 +63,7 @@ export async function POST(request: NextRequest) {
           await prisma.member.update({ where: { id }, data: { trusted: false } })
           break
         case 'delete':
+          await notifyMembersDeleting({ id })
           await prisma.member.delete({ where: { id } })
           break
       }

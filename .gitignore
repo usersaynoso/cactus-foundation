@@ -50,6 +50,9 @@ coverage/
 # Modules — installed locally for development, managed via their own git repos.
 # Never committed to the main Cactus repo; the template ships without modules.
 /modules/
+# A developer's own extra module list for this checkout (scripts/lib/module-names.mjs).
+# Builds ignore it; committing it would hand every install somebody's private list.
+/modules.local.json
 
 # Generated from the installed modules at build/dev time (scripts/generate-all.mjs).
 # Regenerated on every build; committing one would bake one install's module list

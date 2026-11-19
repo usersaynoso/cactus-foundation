@@ -31,6 +31,7 @@ type Config = {
   usernameRedirectDays: number
   deletionGracePeriodDays: number
   adminNotifyOnDeletion: boolean
+  allowMemberSelfDeletion: boolean
   postRegistrationRedirect: string | null
   allowedEmailDomains: string[]
   blockedEmailDomains: string[]
@@ -354,6 +355,27 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
                 {section.label}
               </label>
               <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 1.6rem' }}>{section.hint}</p>
+              {/* Belongs to the Danger zone, so it sits under it. Not greyed out
+                  when the section is off: the switch below is what the delete
+                  request itself obeys, while the section only decides what the
+                  member is shown. */}
+              {section.key === 'dangerZone' && (
+                <div style={{ margin: 'var(--space-2) 0 0 1.6rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={config.allowMemberSelfDeletion}
+                      onChange={(e) => update('allowMemberSelfDeletion', e.target.checked)}
+                    />
+                    Let members close their own account
+                  </label>
+                  <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 1.6rem' }}>
+                    Off, the delete button goes and the site refuses the request however it arrives, so only an
+                    admin can delete a member, from Users. Members can still download their data, and anyone who
+                    had already asked can still change their mind.
+                  </p>
+                </div>
+              )}
             </div>
           ))}
         </div>

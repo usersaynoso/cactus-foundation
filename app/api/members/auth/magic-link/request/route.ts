@@ -14,8 +14,17 @@ import { sendMagicLink, sendNotRegisteredNotice } from '@/lib/members/magic-link
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
 import { memberLoginMethods } from '@/lib/members/login-methods'
+import { sanitizeRedirect } from '@/lib/auth/redirect'
 
-const Body = z.object({ email: z.string().email() })
+// redirectTo: where the sign-in page should go once the emailed link has signed
+// the member in - the ?redirect= they arrived at the sign-in page with. Only a
+// same-site path survives (sanitizeRedirect); anything else is dropped and the
+// link lands on the account as it always has. `.catch` so a malformed value
+// costs the member their detour, never their sign-in link.
+const Body = z.object({
+  email: z.string().email(),
+  redirectTo: z.string().max(2048).optional().catch(undefined),
+})
 
 export async function POST(request: NextRequest) {
   const ip = await getClientIp(request)
@@ -67,7 +76,8 @@ export async function POST(request: NextRequest) {
       }
     )
     if (methods.magicLink) {
-      await sendMagicLink(member.id, member.email, siteName)
+      const redirect = sanitizeRedirect(parsed.data.redirectTo, '')
+      await sendMagicLink(member.id, member.email, siteName, redirect ? { redirect } : {})
     }
   } else {
     await sendNotRegisteredNotice(parsed.data.email, siteName)

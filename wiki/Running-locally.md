@@ -54,6 +54,38 @@ goes straight to the database step, which expects `DATABASE_URL` to already be p
 in `.env.local`. Passkeys work on localhost (the WebAuthn relying party ID is hardcoded
 to `localhost` in development), so you can register one and land in the admin.
 
+## Developing a module that is not in modules.json
+
+The generators that wire modules into the app (`scripts/generate-all.mjs`, run by
+`npm run dev` and `npm run typecheck`) only wire modules listed in the tracked
+`modules.json`. A directory under `modules/` that is not listed is skipped with
+`ignoring N module dir(s) not in modules.json`.
+
+To work on a module that isn't listed - a private one, or one you haven't released
+yet - put its code under `modules/<name>/` and list it in **`modules.local.json`** at
+the repo root, rather than editing `modules.json`:
+
+```json
+{ "modules": [{ "name": "my-module" }] }
+```
+
+- **Gitignored.** It never reaches a commit, a release or an install, so a private
+  module's name cannot leak into core's public registry by accident.
+- **Same shape as `modules.json`**, but only `name` is read. A listed name with no
+  directory on disk is ignored, as it would be in `modules.json`.
+- **Adds, never replaces.** Everything in `modules.json` is still wired. A malformed
+  file is reported (`modules.local.json could not be read ... ignoring it`) and
+  ignored; it can never cost you the real registry.
+- **Development only.** `scripts/checkout-modules.mjs` never reads it, so nothing is
+  cloned, reset or deleted on its say-so. Any build ignores it too:
+  `scripts/prebuild.mjs` sets `CACTUS_IGNORE_LOCAL_MODULES=1`, so `npm run build` wires
+  exactly what `modules.json` pins, as an install would. You can set the same variable
+  yourself to check what the app looks like without your local modules.
+- **No file, no change.** Without it, everything behaves exactly as before.
+
+The module still needs its own `Module` row and migrations in your local database -
+see [Authoring a module](Authoring-a-module#local-development-loop).
+
 ## What is degraded in local mode
 
 Local mode is for development, not production self-hosting. Because there is no Vercel
