@@ -5,6 +5,7 @@ import { getSiteUrlOrNull } from '@/lib/config/env'
 import { listCronJobs, type CronJob } from '@/lib/cron/jobs'
 import { firedBetween } from '@/lib/cron/schedule'
 import { callCronJob } from '@/lib/cron/run'
+import { retryIdempotentWrite } from '@/lib/db/connection-retry'
 
 // The site's only Vercel cron entry. Everything core or a module wants scheduled hangs
 // off this one tick - see lib/cron/jobs.ts for why it has to be one rather than
@@ -74,11 +75,11 @@ export async function GET(request: NextRequest) {
       // the next tick it runs on its own schedule like everything else.
       // upsert, not create: two ticks overlapping (a Vercel retry, a manual poke) would
       // otherwise collide on the unique path and 500 the whole dispatcher.
-      await prisma.cronRun.upsert({
+      await retryIdempotentWrite(() => prisma.cronRun.upsert({
         where: { path: job.path },
         create: { path: job.path, lastRunAt: now, lastStatus: 'seeded' },
         update: {},
-      })
+      }))
       outcomes.push({ path: job.path, module: job.module, status: 'seeded' })
       continue
     }
@@ -104,16 +105,21 @@ export async function GET(request: NextRequest) {
     // Stamped BEFORE the call, not after. A job that hangs or throws has still had its
     // turn; retrying it on every tick for ever would starve everything behind it and
     // hammer whatever it was failing to reach.
-    await prisma.cronRun.update({ where: { path: job.path }, data: { lastRunAt: new Date() } })
+    //
+    // Every CronRun write here sets absolute values (or deletes by path), so it is
+    // replayed on a connection a deploy's idle sweep has just ended. Unreplayed, one
+    // dead pooled connection 500'd the whole tick and none of its jobs ran.
+    const stampedAt = new Date()
+    await retryIdempotentWrite(() => prisma.cronRun.update({ where: { path: job.path }, data: { lastRunAt: stampedAt } }))
 
     const { status, detail } = await callCronJob(job.path, { siteUrl, secret, timeoutMs: remaining })
 
     if (status === 'ran') ran += 1
     else failed += 1
-    await prisma.cronRun.update({
+    await retryIdempotentWrite(() => prisma.cronRun.update({
       where: { path: job.path },
       data: { lastStatus: status, lastError: status === 'failed' ? (detail ?? 'failed') : null },
-    })
+    }))
     outcomes.push({ path: job.path, module: job.module, status, detail })
   }
 
@@ -121,7 +127,7 @@ export async function GET(request: NextRequest) {
   // the table for ever and make the next `findMany` a little wronger every time.
   const orphaned = rows.map((row) => row.path).filter((path) => !known.has(path))
   if (orphaned.length > 0) {
-    await prisma.cronRun.deleteMany({ where: { path: { in: orphaned } } })
+    await retryIdempotentWrite(() => prisma.cronRun.deleteMany({ where: { path: { in: orphaned } } }))
   }
 
   return NextResponse.json({

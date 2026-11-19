@@ -3,7 +3,7 @@
     {
       "name": "shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/shop",
-      "version": "v0.1.540"
+      "version": "v0.1.542"
     },
     {
       "name": "address-lookup-for-shop",
@@ -98,7 +98,7 @@
     {
       "name": "space-planner-for-shop",
       "repoUrl": "https://github.com/cactus-foundation-modules/space-planner-for-shop",
-      "version": "v0.1.44"
+      "version": "v0.1.45"
     },
     {
       "name": "modular-configurator-for-shop",
@@ -178,7 +178,7 @@
     {
       "name": "unified-inbox",
       "repoUrl": "https://github.com/cactus-foundation-modules/unified-inbox",
-      "version": "v0.1.153"
+      "version": "v0.1.155"
     },
     {
       "name": "google-ai-studio",

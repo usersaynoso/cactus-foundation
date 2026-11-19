@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getMemberFromCookie } from '@/lib/members/session'
-import { getModuleNotificationCategories } from '@/lib/modules/member-extensions'
+import { getVisibleModuleNotificationCategories } from '@/lib/members/notification-categories'
 import { DEFAULT_CHANNEL_PREFERENCE } from '@/lib/members/notification-prefs'
 import { isSmsAvailable } from '@/lib/sms/send'
 
@@ -21,7 +21,7 @@ export async function GET() {
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const [categories, prefs, smsAvailable] = await Promise.all([
-    getModuleNotificationCategories(),
+    getVisibleModuleNotificationCategories(),
     prisma.memberNotificationPreference.findMany({ where: { memberId: member.id } }),
     isSmsAvailable(),
   ])
@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest) {
   }
   const { category, channel, enabled, digestMode } = parsed.data
 
-  const categories = await getModuleNotificationCategories()
+  const categories = await getVisibleModuleNotificationCategories()
   const def = categories.find((c) => c.category === category)
   if (!def) return NextResponse.json({ error: 'Unknown notification category' }, { status: 404 })
 

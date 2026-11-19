@@ -5,7 +5,7 @@ import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
-import { hasModuleNotificationCategories } from '@/lib/modules/member-extensions'
+import { hasVisibleModuleNotificationCategories } from '@/lib/members/notification-categories'
 import {
   accountExtrasInsertIndex,
   accountSectionAnchor,
@@ -113,7 +113,7 @@ export default async function AccountIndexPage() {
         select: { id: true, type: true, source: true, createdAt: true },
       }),
       getInstalledManifests(),
-      hasModuleNotificationCategories(),
+      hasVisibleModuleNotificationCategories(),
       // The same tabs the shell puts across the top. Read again here rather than
       // threaded down, because it is this page that has to draw the sections
       // those tabs point at, and in the same order.

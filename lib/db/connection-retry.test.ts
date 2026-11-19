@@ -5,6 +5,7 @@ import {
   isClosedConnectionError,
   isReadOnlySql,
   isReplayableRead,
+  retryIdempotentWrite,
   retryOnClosedConnection,
 } from './connection-retry'
 
@@ -90,6 +91,30 @@ describe('retryOnClosedConnection', () => {
   it('gives up after a bounded number of replays', async () => {
     const run = vi.fn().mockRejectedValue(closed)
     await expect(retryOnClosedConnection('findMany', {}, run)).rejects.toBe(closed)
+    expect(run).toHaveBeenCalledTimes(CLOSED_CONNECTION_REPLAYS + 1)
+  })
+})
+
+describe('retryIdempotentWrite', () => {
+  it('replays a vouched-for write until it lands on a live connection', async () => {
+    const run = vi.fn()
+      .mockRejectedValueOnce(closed)
+      .mockRejectedValueOnce(terminated)
+      .mockResolvedValueOnce('updated')
+    await expect(retryIdempotentWrite(run)).resolves.toBe('updated')
+    expect(run).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not retry an unrelated failure', async () => {
+    const other = new Error('Record to update not found')
+    const run = vi.fn().mockRejectedValue(other)
+    await expect(retryIdempotentWrite(run)).rejects.toBe(other)
+    expect(run).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives up after a bounded number of replays', async () => {
+    const run = vi.fn().mockRejectedValue(closed)
+    await expect(retryIdempotentWrite(run)).rejects.toBe(closed)
     expect(run).toHaveBeenCalledTimes(CLOSED_CONNECTION_REPLAYS + 1)
   })
 })

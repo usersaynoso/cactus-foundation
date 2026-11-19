@@ -2,7 +2,7 @@ import { getMemberFromCookie } from '@/lib/members/session'
 import { getMembersConfig } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { getMemberAccountNavExtras, type MemberAccountNavContext } from '@/lib/members/account-nav'
-import { hasModuleNotificationCategories } from '@/lib/modules/member-extensions'
+import { hasVisibleModuleNotificationCategories } from '@/lib/members/notification-categories'
 import AccountNav from '@/components/members/account/AccountNav'
 import AccountFlash from '@/components/members/account/AccountFlash'
 import DeletionBanner from '@/components/members/account/DeletionBanner'
@@ -52,7 +52,7 @@ export default async function MemberAccountShell({ children, member, notice, max
       email: current.email,
       emailVerified: current.emailVerified,
     }),
-    hasModuleNotificationCategories(),
+    hasVisibleModuleNotificationCategories(),
   ])
 
   return (

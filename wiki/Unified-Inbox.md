@@ -1562,7 +1562,7 @@ the first thing on the list it is ticked for, and tells you what came back. Nobo
 
 ## Other parts of the site hearing about the post
 
-Some of your other modules may want to know when an email arrives - purchasing filing a supplier's proforma on the right purchase order, say. The inbox tells them, and they decide whether it is any of their business. On a site where nothing is listening, none of this happens and nothing extra is done.
+Some of your other modules may want to know when an email arrives - purchasing filing a supplier's proforma on the right purchase order, say, or the shop putting the photographs a customer emails back onto the issue report that asked for them. The inbox tells them, and they decide whether it is any of their business. On a site where nothing is listening, none of this happens and nothing extra is done.
 
 **What they are told about:** post that has arrived from outside, once it and its attachments are safely stored. Never your own replies, never a colleague's note, never an out-of-office, bounce or newsletter, never post from a sender you have blocked, and never a conversation somebody has marked as junk. Nor the history a new mail account is read in with - a proforma from last March is not news.
 

@@ -97,18 +97,35 @@ export function isReplayableRead(operation: string, args: unknown): boolean {
  *  connection with a different error that is not retried. */
 export const CLOSED_CONNECTION_REPLAYS = 5
 
+async function replayWhileClosed<T>(run: () => Promise<T>, mayReplay: () => boolean): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await run()
+    } catch (error) {
+      if (attempt >= CLOSED_CONNECTION_REPLAYS || !isClosedConnectionError(error) || !mayReplay()) {
+        throw error
+      }
+    }
+  }
+}
+
 export async function retryOnClosedConnection<T>(
   operation: string,
   args: unknown,
   run: () => Promise<T>,
 ): Promise<T> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await run()
-    } catch (error) {
-      if (attempt >= CLOSED_CONNECTION_REPLAYS || !isClosedConnectionError(error) || !isReplayableRead(operation, args)) {
-        throw error
-      }
-    }
-  }
+  return replayWhileClosed(run, () => isReplayableRead(operation, args))
+}
+
+/** The same replay, for a write the CALLER can vouch for: one that sets
+ *  absolute values (or deletes by key), so landing twice leaves exactly what
+ *  landing once would. Never for an increment, an insert that mints a new row,
+ *  or anything with a side effect outside the database.
+ *
+ *  Exists for the cron dispatcher's own bookkeeping. A deploy's idle-connection
+ *  sweep left the old slot's pool full of dead connections; its next tick's
+ *  first `CronRun` stamp drew one, threw, and 500'd the whole tick, so none of
+ *  that tick's jobs ran. */
+export async function retryIdempotentWrite<T>(run: () => Promise<T>): Promise<T> {
+  return replayWhileClosed(run, () => true)
 }
