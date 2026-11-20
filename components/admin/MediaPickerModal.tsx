@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { uploadOneFile } from '@/lib/media/upload-client'
 
 // The media picker every admin screen opens: Puck's image and video fields, the SEO
 // tab, and anything else that needs "pick something from storage".
@@ -59,10 +60,9 @@ function LibraryPicker({ onSelect, onClose, kind = 'image' }: {
   const trimmed = query.trim()
   useEffect(() => {
     let cancelled = false
-    // The library has no dedicated "sequence" or "video" server filter (only
-    // all/image/other), so both are fetched as "other" (non-image) and narrowed
-    // client-side by the mime checks below.
-    const params = new URLSearchParams({ perPage: '50', type: kind === 'image' ? 'image' : kind === 'all' ? 'all' : 'other' })
+    // Videos have their own server filter. Asking for "other" here used to hide
+    // every video: "other" is what the image, video and 3D filters leave behind.
+    const params = new URLSearchParams({ perPage: '50', type: kind })
     if (trimmed) {
       params.set('folder', 'all')
       params.set('q', trimmed)
@@ -98,17 +98,13 @@ function LibraryPicker({ onSelect, onClose, kind = 'image' }: {
     if (!file) return
     setUploading(true)
     setUploadError('')
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('altText', '')
-    if (folderId) fd.append('folderId', folderId)
     try {
-      const res = await fetch('/api/admin/media', { method: 'POST', body: fd })
-      const record = await res.json()
-      if (!res.ok) throw new Error(record.error ?? 'Upload failed')
+      // Same path as the media library page: video and 3D files go straight to
+      // storage, because the image-only serverless route refuses them.
+      const record = await uploadOneFile(file, folderId)
       const item: MediaItem = {
         id: record.id, url: record.url, key: record.key,
-        altText: record.altText ?? null, originalName: record.originalName ?? null,
+        altText: record.altText ?? null, originalName: file.name || null,
         mimeType: record.mimeType,
       }
       setItems((prev) => [item, ...prev])
@@ -157,7 +153,7 @@ function LibraryPicker({ onSelect, onClose, kind = 'image' }: {
                 // SVG joins the image list for icon-sized artwork (IconLink); the
                 // server's ACCEPTED_UPLOAD_TYPES has taken it all along — this
                 // attribute was the only thing filtering it out.
-                accept={kind === 'video' ? 'video/mp4,video/webm,video/quicktime' : kind === 'all' ? undefined : 'image/jpeg,image/png,image/webp,image/gif,image/svg+xml'}
+                accept={kind === 'video' ? 'video/mp4,video/webm' : kind === 'all' ? undefined : 'image/jpeg,image/png,image/webp,image/gif,image/svg+xml'}
                 style={{ display: 'none' }}
                 onChange={(e) => handleUpload(e.target.files)}
               />
