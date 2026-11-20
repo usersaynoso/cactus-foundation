@@ -96,6 +96,7 @@ const ROOT_IMAGE_PICKER_FIELDS: Record<string, string> = {
 // media library, not a YouTube or Vimeo link - those stay plain text fields).
 const VIDEO_PICKER_FIELDS: Record<string, Record<string, string>> = {
   FeatureVideo: { videoUrl: 'Video' },
+  VideoEmbed: { videoFile: 'Video file' },
 }
 
 // Swap every known media URL text field in a Puck config for the matching media

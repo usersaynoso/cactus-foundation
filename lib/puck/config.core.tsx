@@ -2296,11 +2296,24 @@ function toEmbedUrl(url: string): string | null {
   } catch { return null }
 }
 
+// Which kind of video a Video block holds. Blocks saved before the choice
+// existed have no `source`, and every one of them was a link - so a missing
+// value with a url is a link, and a brand-new block starts on the library.
+function videoEmbedSource(props: { source?: string; url?: string }): 'library' | 'link' {
+  if (props.source === 'library' || props.source === 'link') return props.source
+  return props.url ? 'link' : 'library'
+}
+
 function VideoEmbed(props: any) {
-  const { id, url, aspectRatio, title, padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
-  if (!url) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>No video URL entered</div>
-  const embedUrl = toEmbedUrl(url)
-  if (!embedUrl) return <div style={{ background: 'var(--color-error-bg)', borderRadius: 6, padding: '1rem', color: 'var(--color-error)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Could not parse video URL</div>
+  const { id, url, videoFile, aspectRatio, title, padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const source = videoEmbedSource(props)
+  const chosen = source === 'library' ? videoFile : url
+  if (!chosen) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>{source === 'library' ? 'No video chosen' : 'No video URL entered'}</div>
+  // A library video plays in the site's own player; only http(s) or a
+  // site-relative path may reach the src, same guard as the link frame.
+  const fileOk = source === 'library' && (isHttpUrl(videoFile) || (typeof videoFile === 'string' && videoFile.startsWith('/') && !videoFile.startsWith('//')))
+  const embedUrl = source === 'link' ? toEmbedUrl(url) : null
+  if (source === 'library' ? !fileOk : !embedUrl) return <div style={{ background: 'var(--color-error-bg)', borderRadius: 6, padding: '1rem', color: 'var(--color-error)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Could not parse video URL</div>
   const paddings: Record<string, string> = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%' }
   // Aspect ratio is per-device (padding-bottom drives the box height): a wide
   // 16:9 embed on desktop can be a square on mobile, say.
@@ -2310,7 +2323,11 @@ function VideoEmbed(props: any) {
     <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem', ...getStickyStyle(sticky, stickyOffset) }}>
       {arCss && <style>{arCss}</style>}
       <div data-video-id={id} style={{ position: 'relative', paddingBottom: paddings[pickResponsive(arRv, 'desktop') ?? '16:9'] ?? '56.25%', height: 0, overflow: 'hidden', borderRadius: 6 }}>
-        <iframe src={embedUrl} title={title || 'Video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
+        {source === 'library' ? (
+          <video src={videoFile} controls playsInline preload="metadata" aria-label={title || 'Video'} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', background: 'var(--color-bg-subtle)' }} />
+        ) : (
+          <iframe src={embedUrl ?? undefined} title={title || 'Video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
+        )}
       </div>
     </div>
   )
@@ -4050,12 +4067,19 @@ export const puckConfig = {
     },
     VideoEmbed: {
       label: 'Video',
-      fields: { url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'custom' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }], render: ResponsiveSelectField }, padding: paddingField, ...STICKY_FIELDS, ...aosFields },
-      defaultProps: { url: '', title: '', aspectRatio: '16:9' as const, padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
-      // Everything else describes a video; without a URL there isn't one.
+      fields: { source: { type: 'radio' as const, label: 'Video', options: [{ label: 'Uploaded video', value: 'library' }, { label: 'YouTube / Vimeo link', value: 'link' }] }, videoFile: { type: 'text' as const, label: 'Video file' }, url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'custom' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }], render: ResponsiveSelectField }, padding: paddingField, ...STICKY_FIELDS, ...aosFields },
+      defaultProps: { source: 'library' as const, videoFile: '', url: '', title: '', aspectRatio: '16:9' as const, padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      // Only the field for the chosen source shows, and everything else
+      // describes a video - without one picked or entered there isn't one.
       resolveFields: (data: any, { fields }: any) => {
-        if (data.props?.url) return fields
-        const { title: _t, aspectRatio: _ar, sticky: _s, stickyOffset: _so, animationType: _at, animationDuration: _ad, animationDelay: _adl, ...rest } = fields
+        const p = data.props ?? {}
+        const source = videoEmbedSource(p)
+        const hidden = source === 'library' ? 'url' : 'videoFile'
+        // Filtered rather than destructured so the kept field stays where it sits
+        // in the list, directly under the source choice.
+        const withSource = Object.fromEntries(Object.entries(fields).filter(([k]) => k !== hidden)) as Record<string, any>
+        if (source === 'library' ? p.videoFile : p.url) return withSource
+        const { title: _t, aspectRatio: _ar, sticky: _s, stickyOffset: _so, animationType: _at, animationDuration: _ad, animationDelay: _adl, ...rest } = withSource
         return rest
       },
       render: VideoEmbed,
