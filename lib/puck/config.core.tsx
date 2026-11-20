@@ -2236,6 +2236,19 @@ function CTABanner(props: any) {
 // Media blocks
 // ---------------------------------------------------------------------------
 
+// A max width caps a media block; auto side-margins anchor the capped block to
+// the chosen alignment (a full-width block has nothing to align). Both are
+// per-device, so the caller puts desktop inline and tablet/mobile in media rules.
+function cappedSidesAt(mwRv: ResponsiveValue<string>, alignRv: ResponsiveValue<string>, fallbackAlign: string, d: Device) {
+  const mw = (pickResponsive(mwRv, d) ?? '').trim()
+  const a = pickResponsive(alignRv, d) ?? fallbackAlign
+  return {
+    mw,
+    ml: mw && (a === 'center' || a === 'right') ? 'auto' : '0',
+    mr: mw && a === 'center' ? 'auto' : '0',
+  }
+}
+
 function ImageBlock(props: any) {
   const { id, mediaUrl, alt, caption, padding, maxWidth = '', align = 'left', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none', puck } = props
   // The caption is protected; `alt` can't be - it's an attribute, and React
@@ -2250,15 +2263,7 @@ function ImageBlock(props: any) {
   // per-device: desktop is the inline base, tablet/mobile ride the media rules.
   const mwRv = normalizeResponsiveValue<string>(maxWidth)
   const alignRv = normalizeResponsiveValue<string>(align)
-  const sideAt = (d: 'desktop' | 'tablet' | 'mobile') => {
-    const mw = (pickResponsive(mwRv, d) ?? '').trim()
-    const a = pickResponsive(alignRv, d) ?? 'left'
-    return {
-      mw,
-      ml: mw && (a === 'center' || a === 'right') ? 'auto' : '0',
-      mr: mw && a === 'center' ? 'auto' : '0',
-    }
-  }
+  const sideAt = (d: 'desktop' | 'tablet' | 'mobile') => cappedSidesAt(mwRv, alignRv, 'left', d)
   const { mw: baseMw, ml: baseMl, mr: baseMr } = sideAt('desktop')
   const sizeCss = responsiveMediaCssFor(`[data-image-id="${id}"]`, (d) => {
     const { mw, ml, mr } = sideAt(d)
@@ -2305,7 +2310,7 @@ function videoEmbedSource(props: { source?: string; url?: string }): 'library' |
 }
 
 function VideoEmbed(props: any) {
-  const { id, url, videoFile, aspectRatio, title, padding, sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
+  const { id, url, videoFile, aspectRatio, title, padding, maxWidth = '', align = 'center', sticky = 'off', stickyOffset = '', animationType = 'none', animationDuration = 'normal', animationDelay = 'none' } = props
   const source = videoEmbedSource(props)
   const chosen = source === 'library' ? videoFile : url
   if (!chosen) return <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 6, padding: '3rem', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>{source === 'library' ? 'No video chosen' : 'No video URL entered'}</div>
@@ -2314,14 +2319,24 @@ function VideoEmbed(props: any) {
   const fileOk = source === 'library' && (isHttpUrl(videoFile) || (typeof videoFile === 'string' && videoFile.startsWith('/') && !videoFile.startsWith('//')))
   const embedUrl = source === 'link' ? toEmbedUrl(url) : null
   if (source === 'library' ? !fileOk : !embedUrl) return <div style={{ background: 'var(--color-error-bg)', borderRadius: 6, padding: '1rem', color: 'var(--color-error)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Could not parse video URL</div>
-  const paddings: Record<string, string> = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%' }
+  const paddings: Record<string, string> = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%', '9:16': '177.78%' }
   // Aspect ratio is per-device (padding-bottom drives the box height): a wide
   // 16:9 embed on desktop can be a square on mobile, say.
   const arRv = normalizeResponsiveValue<string>(aspectRatio)
   const arCss = responsiveMediaCssFor(`[data-video-id="${id}"]`, (d) => `padding-bottom:${paddings[pickResponsive(arRv, d) ?? '16:9'] ?? '56.25%'};`)
+  // Max width and alignment per device, same rules as the Image block - a
+  // portrait (9:16) video at full column width would be taller than the screen.
+  const mwRv = normalizeResponsiveValue<string>(maxWidth)
+  const alignRv = normalizeResponsiveValue<string>(align)
+  const { mw: baseMw, ml: baseMl, mr: baseMr } = cappedSidesAt(mwRv, alignRv, 'center', 'desktop')
+  const sizeCss = responsiveMediaCssFor(`[data-video-wrap-id="${id}"]`, (d) => {
+    const { mw, ml, mr } = cappedSidesAt(mwRv, alignRv, 'center', d)
+    return `max-width:${mw || 'none'};margin-left:${ml};margin-right:${mr};`
+  })
   return (
-    <div className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ marginBottom: '1.5rem', ...getStickyStyle(sticky, stickyOffset) }}>
+    <div data-video-wrap-id={id} className={getPaddingClasses(padding)} {...getAosProps(animationType, animationDuration, animationDelay)} style={{ margin: `0 ${baseMr} 1.5rem ${baseMl}`, maxWidth: baseMw || undefined, ...getStickyStyle(sticky, stickyOffset) }}>
       {arCss && <style>{arCss}</style>}
+      {sizeCss && <style>{sizeCss}</style>}
       <div data-video-id={id} style={{ position: 'relative', paddingBottom: paddings[pickResponsive(arRv, 'desktop') ?? '16:9'] ?? '56.25%', height: 0, overflow: 'hidden', borderRadius: 6 }}>
         {source === 'library' ? (
           <video src={videoFile} controls playsInline preload="metadata" aria-label={title || 'Video'} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', background: 'var(--color-bg-subtle)' }} />
@@ -4067,8 +4082,8 @@ export const puckConfig = {
     },
     VideoEmbed: {
       label: 'Video',
-      fields: { source: { type: 'radio' as const, label: 'Video', options: [{ label: 'Uploaded video', value: 'library' }, { label: 'YouTube / Vimeo link', value: 'link' }] }, videoFile: { type: 'text' as const, label: 'Video file' }, url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'custom' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }], render: ResponsiveSelectField }, padding: paddingField, ...STICKY_FIELDS, ...aosFields },
-      defaultProps: { source: 'library' as const, videoFile: '', url: '', title: '', aspectRatio: '16:9' as const, padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
+      fields: { source: { type: 'radio' as const, label: 'Video', options: [{ label: 'Uploaded video', value: 'library' }, { label: 'YouTube / Vimeo link', value: 'link' }] }, videoFile: { type: 'text' as const, label: 'Video file' }, url: { type: 'text' as const, label: 'Video URL (YouTube / Vimeo)' }, title: { type: 'text' as const, label: 'Title (accessibility)' }, aspectRatio: { type: 'custom' as const, label: 'Aspect ratio', options: [{ value: '16:9', label: '16:9' }, { value: '4:3', label: '4:3' }, { value: '1:1', label: 'Square' }, { value: '9:16', label: '9:16 (portrait)' }], render: ResponsiveSelectField }, maxWidth: { type: 'custom' as const, label: 'Max width', units: ['px', '%', 'rem', 'vw'], render: ResponsiveUnitValueField }, align: { type: 'custom' as const, label: 'Alignment', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }], render: ResponsiveSelectField }, padding: paddingField, ...STICKY_FIELDS, ...aosFields },
+      defaultProps: { source: 'library' as const, videoFile: '', url: '', title: '', aspectRatio: '16:9' as const, maxWidth: '', align: 'center', padding: 'default', ...STICKY_DEFAULTS, ...aosDefaults },
       // Only the field for the chosen source shows, and everything else
       // describes a video - without one picked or entered there isn't one.
       resolveFields: (data: any, { fields }: any) => {
@@ -4078,8 +4093,14 @@ export const puckConfig = {
         // Filtered rather than destructured so the kept field stays where it sits
         // in the list, directly under the source choice.
         const withSource = Object.fromEntries(Object.entries(fields).filter(([k]) => k !== hidden)) as Record<string, any>
-        if (source === 'library' ? p.videoFile : p.url) return withSource
-        const { title: _t, aspectRatio: _ar, sticky: _s, stickyOffset: _so, animationType: _at, animationDuration: _ad, animationDelay: _adl, ...rest } = withSource
+        if (source === 'library' ? p.videoFile : p.url) {
+          // Alignment needs a max width: a full-width video has nothing to align against.
+          const mw = p.maxWidth
+          const hasMw = typeof mw === 'string' ? !!mw.trim() : !!(mw?.desktop || mw?.tablet || mw?.mobile)
+          if (!hasMw) delete withSource.align
+          return withSource
+        }
+        const { title: _t, aspectRatio: _ar, maxWidth: _mw, align: _al, sticky: _s, stickyOffset: _so, animationType: _at, animationDuration: _ad, animationDelay: _adl, ...rest } = withSource
         return rest
       },
       render: VideoEmbed,
