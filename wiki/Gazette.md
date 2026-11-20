@@ -59,7 +59,7 @@ Head to **Gazette → Posts → New Post**. Pick a blank post or start from a sa
 
 The editor fills the whole screen, like the Layouts editor: your blocks on the left, the post in the middle, and on the right a **Page** panel (click empty space on the canvas to bring it back) holding everything about the post that isn't its words - title, slug, short description, publish and schedule buttons, the social media cards from other modules, visibility, author, featured image, series, tags and SEO.
 
-The editor has a small, writing-focused set of blocks - paragraphs and headings, pull quotes, code snippets (with proper syntax colouring), images, and dividers. It's deliberately not the full page-builder palette you get on ordinary pages; Gazette posts are meant to be written, not laid out.
+The editor has a small, writing-focused set of blocks - paragraphs and headings, pull quotes, code snippets (with proper syntax colouring), images, videos, and dividers. The Video block is the same one pages and product descriptions use: pick an uploaded video from the media library, or paste a YouTube or Vimeo link. It's deliberately not the full page-builder palette you get on ordinary pages; Gazette posts are meant to be written, not laid out.
 
 Everything autosaves a second or two after you stop typing, and you can also just press **Ctrl+S** (or **Cmd+S** on a Mac). When you're ready:
 
