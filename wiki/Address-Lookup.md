@@ -2,6 +2,8 @@
 
 **Address Lookup** (module name `address-lookup-for-shop`) helps shoppers through the dullest part of checkout: typing their address. They start typing the first line into the ordinary **Address line 1** field, matching addresses appear underneath as they type, and picking one fills in the whole thing - first line, second line, town, county and postcode - in one go. Anyone who would rather type it all out can simply carry on; the fields behave exactly as they do without the module.
 
+The county comes back the way a person would write it: London addresses get no county at all (nobody writes "Greater London" on an envelope, and Royal Mail does not need one), and neither does an address whose county would just repeat the town. And if the shopper picks a suggestion and then changes the postcode to somewhere else - by hand, or by letting their browser fill the address in over the top - the county the suggestion brought with it is cleared rather than left describing the wrong place. Any county the shopper types themselves is left alone.
+
 The same suggestions appear anywhere else the Shop asks for an address: a signed-in customer adding or editing one on their **Addresses & Phone Numbers** page gets them too, in the same field, on the same terms.
 
 Requires the [Shop](Shop) module (0.1.163 or later).
