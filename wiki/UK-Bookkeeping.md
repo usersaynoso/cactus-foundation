@@ -644,6 +644,30 @@ own.
 Each bill and each credit is recorded once and once only, and anything refused
 here comes back in plain words on the bill itself, with a button to try again.
 
+**Orders paid up front, in the overview's VAT figure.** Paying a supplier's
+proforma makes the day you paid the VAT date, but their invoice - and so the
+entry here - can turn up weeks later, sometimes in the next VAT period. Until
+then the **VAT this period** figure on the overview says you owe more than you
+do. Tick **Settings → Bookkeeping → VAT → Count VAT on supplier orders paid up
+front in the overview's estimate** and that figure includes the VAT on every
+order paid in the current period that is not in the books yet, dated to the
+day it was paid (the date filed beside the proof of payment, else the day it
+was marked paid). A line under the figure says how much it added and across
+how many orders.
+
+- The VAT is the order's own, scaled to the proforma where the supplier asked
+  for a different total, in your currency at the order's rate.
+- Once a bill against the order is in the books, its VAT comes off the order's,
+  so nothing counts twice. Cancelled orders are left out.
+- **It is an estimate only.** The box 4 figure beside it, the VAT return and
+  everything filed stay exactly what the books hold. Approve the invoices before
+  you file, or the return will not have them.
+- Off unless you tick it. Any module can contribute to it through the
+  `uk-bookkeeping.prepaid-vat` extension point (server-only; takes
+  `{ from, to }` as `yyyy-mm-dd`, answers `[{ ref, label, paidOn, vat }]`, VAT
+  as a money string already net of anything handed to the books). A
+  contributor that fails or answers in the wrong shape is logged and left out.
+
 ### Importing a bank statement
 
 First, tell it where your money sits. **Settings → Bookkeeping → Bank accounts**

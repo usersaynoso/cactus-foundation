@@ -146,6 +146,8 @@ What happens then:
 
 **The proof of payment is the thing that actually gets an order released.** "We have paid it" is a sentence; a picture of the payment is evidence, and most accounts departments want the second one. It is filed against the order rather than living in somebody's sent items, so the answer to *what did we send them* is on the order six weeks later. If you file one after you have already marked the proforma paid, the card offers **Email them the proof** on its own - and **Send the proof again** once it has gone, for the supplier who has lost it.
 
+**The books can count it before the invoice arrives.** With UK Bookkeeping installed and its **Count VAT on supplier orders paid up front** setting ticked, the overview's *VAT this period* estimate includes the VAT on orders paid in the period whose invoice is not in the books yet, dated to the day they were paid. See [UK Bookkeeping](UK-Bookkeeping#purchases-from-elsewhere-on-this-site).
+
 **The day it was paid becomes the date on their invoice.** When a supplier is paid before they invoice, the payment is the tax point for VAT, not the date printed on the VAT invoice that turns up later. So when you approve a bill against an order paid up front, its invoice date is changed to the day the order was first paid, and that is the date your books get. The bill tells you it is going to happen before you press **Approve**, and their own date is kept in the bill's history.
 
 **If that email cannot go, the screen says so** - no email address on the supplier, or emails switched off - and the payment still stands. Recording that money has left the building is not something to undo because a mail server was busy; you are simply told to pick the phone up.
