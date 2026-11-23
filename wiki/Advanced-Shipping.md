@@ -151,7 +151,8 @@ more thing to decode. The tighter spots keep the short form on purpose: a switch
 chip and the sticky bar say "by Friday" inside the week, adding the date and then
 the month only as the distance makes it necessary.
 
-Every date counts **working days only** - weekends and bank holidays are skipped.
+Every date counts **working days only** - weekends, bank holidays and any closed
+days you add yourself are skipped.
 
 ## How a date is worked out
 
@@ -344,6 +345,12 @@ and shipping tab you get four more tabs:
   simply the list of places where the fallback is deciding for you.
 - **Holidays** - import the official bank-holiday calendar for your region
   (England & Wales, Scotland, or Northern Ireland). It refreshes itself weekly.
+  Below it, **your own closed days**: add a name and a date, or a first and
+  last day for a run (a Christmas shutdown, a stocktake, a supplier's factory
+  fortnight), and delivery dates skip them exactly as they skip a bank holiday.
+  They apply whichever region you follow, survive every calendar refresh, and
+  can be removed again from the same list. A run is capped at a year, so a
+  slipped digit in the year cannot close the shop until 2062.
 - **Delivery settings** - the shop-wide dispatch timing (cut-off, days to
   dispatch, ship days, with a live "an order placed now would dispatch…"
   preview so you can spot a wrong cut-off before a shopper does), which
