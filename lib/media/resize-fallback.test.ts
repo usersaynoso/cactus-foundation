@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeAll } from 'vitest'
-import { resizeFallbackScript } from './resize-fallback'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
+import { resizeFallbackScript, RESCUE_ATTR, RESCUE_TIMEOUT_MS } from './resize-fallback'
 
 const ORIGINAL = 'https://media.example.com/media/shop/a/itl0820_1.webp'
 const wrapped = (w: number) =>
@@ -79,11 +79,59 @@ describe('resizeFallbackScript', () => {
     document.body.appendChild(img)
     fail(img, wrapped(560))
     let writes = 0
-    new MutationObserver((m) => { writes += m.length }).observe(img, { attributes: true })
+    new MutationObserver((m) => { writes += m.length }).observe(img, { attributes: true, attributeFilter: ['src', 'srcset', 'sizes'] })
     fail(img, ORIGINAL)
     return Promise.resolve().then(() => {
       expect(writes).toBe(0)
       expect(img.getAttribute('src')).toBe(ORIGINAL)
     })
+  })
+
+  it('hides a rescued image until the original has loaded', () => {
+    document.body.innerHTML = ''
+    const img = document.createElement('img')
+    img.setAttribute('src', ORIGINAL)
+    img.setAttribute('srcset', `${wrapped(560)} 560w`)
+    document.body.appendChild(img)
+    fail(img, wrapped(560))
+    expect(img.hasAttribute(RESCUE_ATTR)).toBe(true)
+    img.dispatchEvent(new Event('load'))
+    expect(img.hasAttribute(RESCUE_ATTR)).toBe(false)
+  })
+
+  it('shows the honest broken state when the original fails too', () => {
+    document.body.innerHTML = ''
+    const img = document.createElement('img')
+    img.setAttribute('src', wrapped(48))
+    document.body.appendChild(img)
+    fail(img)
+    expect(img.hasAttribute(RESCUE_ATTR)).toBe(true)
+    fail(img, ORIGINAL)
+    expect(img.hasAttribute(RESCUE_ATTR)).toBe(false)
+  })
+
+  it('never hides an image that was not transformed', () => {
+    document.body.innerHTML = ''
+    const img = document.createElement('img')
+    img.setAttribute('src', ORIGINAL)
+    document.body.appendChild(img)
+    fail(img, ORIGINAL)
+    expect(img.hasAttribute(RESCUE_ATTR)).toBe(false)
+  })
+
+  it('takes the mark off after the timeout even if no load event comes', () => {
+    vi.useFakeTimers()
+    try {
+      document.body.innerHTML = ''
+      const img = document.createElement('img')
+      img.setAttribute('src', wrapped(48))
+      document.body.appendChild(img)
+      fail(img)
+      expect(img.hasAttribute(RESCUE_ATTR)).toBe(true)
+      vi.advanceTimersByTime(RESCUE_TIMEOUT_MS)
+      expect(img.hasAttribute(RESCUE_ATTR)).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

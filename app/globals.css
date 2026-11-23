@@ -4353,3 +4353,10 @@ a[data-eml] {
     font-size: max(16px, 1em) !important;
   }
 }
+
+/* A picture being swapped for its original because Cloudflare refused to resize it
+   (lib/media/resize-fallback.ts). Hidden, not removed, so the box keeps its size:
+   otherwise the browser's broken-picture icon shows until the original arrives. */
+img[data-resize-rescue] {
+  visibility: hidden;
+}
