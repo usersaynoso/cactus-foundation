@@ -44,6 +44,10 @@ Their basket is **replaced**, not added to, and they are told so before they pre
 
 Prices are **today's**, and anything that has moved since they saved is spelled out: "Oak desk 1600mm is now £269.00 each (was £249.00)", "Task chair - out of stock, so it is not in your basket". A quote is a photograph of a moment, not a promise, and finding that out at the till is no way to learn it.
 
+The exception is anything **you** have priced (see [Your own prices](#your-own-prices-custom-variations-and-charges) below). Those go into the basket at your figure, exactly as you quoted them.
+
+**Seeing it again.** Once a basket has come from a quote, the basket page shows a **Quote QUO-1029** panel with **View quote** and **Download as PDF**, so a customer who came back for "my quote" can find it. **Save as a new quote** stays, smaller, underneath. If they change the basket, the panel says it no longer matches the quote and still offers the original.
+
 **Asking for a price.** In quotes-only mode the basket leads to your quote request page, where they check their list, adjust quantities, and send it with their name, email and anything they want to tell you. They get a reference, a code and a link to their own copy.
 
 ---
@@ -66,7 +70,27 @@ Open one and you can:
 - **Set where it got to.** New, Sent, Won, Lost.
 - **Turn it into an order.** Creates a real, unpaid order in **Shop → Trading**, which then behaves like any other order you have ever had - statuses, dispatch emails, refunds, the lot. Everything listed under a line on the quote - the chosen finish, the delivery service - goes across with it, so whoever picks it knows what they are picking.
 
-You can also see whether the customer has actually opened their quote, and when.
+You can also see whether the customer has actually opened their quote, and when. **View quote** shows the document itself and **Download as PDF** saves it, both as last saved. **Open the customer's link** does what the customer's link does, which includes replacing *your own* basket with the quote, so it now says so on the button.
+
+### Your own prices, custom variations and charges
+
+Three kinds of line go into the customer's basket at **your** price rather than the shop's:
+
+- **A held price.** Type a price on any line and **Hold this price in the basket** ticks itself. Untick it if you only meant the figure for the paperwork.
+- **A custom variation.** For quoting something you do not list, such as the sofa in a fabric that is not on the site. Press **Make custom variation** on a line (or **Add a custom variation**), pick the product it is based on (it starts on the one the customer asked for), write the options out in your own words ("Central / No Back / Band 2 TBC"), and optionally add a SKU or supplier reference. Then pick a picture from that product's and its variations' photographs, and choose the delivery service it starts on from every service those variations offer. The customer sees your wording, your picture and your price. They can switch to any of those delivery services in their basket, charged on top as normal. Nothing is added to your catalogue.
+- **A line with no product.** **Add a line** for installation, a delivery charge and so on. It goes into the basket as a fixed line at your price. Tick **Customer can remove** if it is optional.
+
+The rules, which are deliberately firm:
+
+- **Good for one order.** Once an order has been placed from the quote, the link stops honouring your prices. The quote's page says so, links to the order and offers **Renew for another order**.
+- **Good until the "valid until" date.** After that the lines refuse to check out and the customer is told to ask you to renew it. Moving the date on renews it.
+- **No discounts.** Coupons, automatic discounts and supplier order-size deductions leave these lines alone. Your price is already the deal. Anything else in the basket is discounted as normal.
+- **The quantity can go up, never down** below what you quoted. A line with no product cannot change quantity at all.
+- **No stock check** on custom variations and charges. They are made or done to order, and taking stock off the shelf for them would be fiction.
+
+The order carries your wording, your SKU and your picture, so whoever orders it in knows what they are ordering.
+
+> A quote you priced before this existed has no held prices yet. Open it, tick **Hold this price in the basket** on the lines you mean, and save.
 
 > Nothing is saved until you press Save. If you wander off with prices half typed, your browser will ask whether you meant to.
 
@@ -225,6 +249,6 @@ The code **is** the key to that quote. It has to be: somebody who saved a basket
 ## What it never does
 
 - **It never invents a price.** Every figure on a quote comes from your own catalogue and your own settings, through the same code that runs your checkout.
-- **It never quietly honours a stale one.** Retrieving a basket reprices it and tells the shopper what has moved.
+- **It never quietly honours a stale one.** Retrieving a basket reprices it and tells the shopper what has moved. The only prices it keeps are the ones you held on purpose, and only for one order, until the quote's date.
 - **It never promises delivery or tax it cannot know.** Both depend on an address nobody has given, so the document says so in words rather than printing a zero and correcting it later.
 - **It never deletes a quote.** Expiry is a label on your list, not a bin.
