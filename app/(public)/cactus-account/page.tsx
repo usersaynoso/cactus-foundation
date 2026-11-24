@@ -149,7 +149,7 @@ export default async function AccountIndexPage() {
   // field to fill in, is a to-do item they cannot tick off.
   const profileGaps = [
     config.registrationCollectDisplayName && !member.displayName && 'a display name',
-    !record?.bio && 'a short bio',
+    config.profileCollectBio && !record?.bio && 'a short bio',
     record?.avatarChoice === 'GENERATED' && 'a picture',
   ].filter((v): v is string => typeof v === 'string')
 
