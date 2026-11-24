@@ -40,7 +40,7 @@ The preference is saved immediately and the update check refreshes straight away
 | Site name | Shown in the admin sidebar, browser title, and any emails your site sends | `My Cactus Site` |
 | Tagline | A short description, shown on the public homepage | — |
 | Description | A longer description used in page metadata | — |
-| Homepage | The page shown at the root of your site (`/`) | — |
+| Homepage | What the root of your site (`/`) shows: an info page, or content a module offers (for example TG Finance's Money screen), which `/` then redirects to | — |
 | Main menu | The default navigation menu shown in the site header | — |
 | Timezone | The clock the site keeps. Times and dates worked out on the server - notifications, the Inbox, contact-form messages, order dates on a customer's own order page and receipt, and delivery estimates - are all shown in this zone. A live clock beside the dropdown shows the current time there, so you can check it rather than trust it. Screens drawn in your own browser (the media library, order screens in the admin) still follow your computer's clock, which only differs if you are working from another country. | `UTC` |
 | Locale | Sets the language attribute and date formatting. Does not translate the admin interface. | `en-GB` |

@@ -61,6 +61,10 @@ export async function POST() {
       status: 'comingSoon',
       hideFromCrawlers: true,
       homepageId: homePage.id,
+      // The starter home page is the homepage; no module content until an owner picks some.
+      homepageModuleId: null,
+      homepageEntityKind: null,
+      homepageEntityId: null,
       mainMenuId: mainMenu.id,
       designTokens: DEFAULT_DESIGN_TOKENS,
       starterTemplatesVersion: pkg.version,

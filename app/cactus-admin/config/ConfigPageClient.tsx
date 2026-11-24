@@ -28,6 +28,7 @@ import MediaServingModeCard from './MediaServingModeCard'
 import EncryptionKeyCard from './EncryptionKeyCard'
 import { StepUpField } from './StepUpField'
 import AutomaticBackupsCard from './AutomaticBackupsCard'
+import HomepageField, { fetchHomepageOptions, type HomepageOptions } from './HomepageField'
 import { MEDIA_SERVING_MODE_VAR, MEDIA_DIRECT_RESIZE_VAR, canServeDirect, mediaServingMode } from '@/lib/media/serving-mode'
 import { MANUAL_DEPLOY_MESSAGE } from '@/lib/deploy/manual-message'
 import type { EditorNavSection, SidebarPrefs } from '@/lib/nav/admin-menu'
@@ -69,6 +70,7 @@ type SiteConfig = {
   sessionPurgeAfterDays: number; recoveryPurgeAfterDays: number;
   mainMenuId: string | null;
   homepageId: string | null;
+  homepageModuleId: string | null; homepageEntityKind: string | null; homepageEntityId: string | null;
   consentBannerConfig: ConsentBannerConfig | null;
   settingsSidebar: boolean; settingsSidebarHideSubTabs: boolean;
 }
@@ -908,7 +910,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
   const [config, setConfig] = useState<Partial<SiteConfig>>({})
   const [pages, setPages] = useState<InfoPage[]>([])
   const [menus, setMenus] = useState<MenuOption[]>([])
-  // Nothing to wait for when the four config.manage endpoints below are never
+  const [homepageOptions, setHomepageOptions] = useState<HomepageOptions>({ groups: [], current: null })
+  // Nothing to wait for when the five config.manage endpoints below are never
   // called - a role here for a module's settings tab would otherwise sit on
   // "Loading…" for ever.
   const [loading, setLoading] = useState(canManageConfig)
@@ -1224,14 +1227,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
 
   useEffect(() => {
     // Every one of these is a config.manage endpoint. A role that is here for a
-    // module's settings tab would collect four 403s and an error banner.
+    // module's settings tab would collect five 403s and an error banner.
     if (!canManageConfig) return
     Promise.all([
       fetch('/api/admin/config').then((r) => r.json()),
       fetch('/api/admin/pages?perPage=100').then((r) => r.json()),
       fetch('/api/admin/env').then((r) => r.json()),
       fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),
-    ]).then(([cfg, pagesData, envData, menusData]) => {
+      // Module content the Homepage select can offer. Best effort: without it the
+      // select simply lists pages, as it always did.
+      fetchHomepageOptions(),
+    ]).then(([cfg, pagesData, envData, menusData, homepageData]) => {
       // Branding (logo/favicon/app icons + app identity) and its derived preview
       // URLs are edited on the Styles page now. Strip them from this page's config
       // state so its Save never round-trips - and so never clobbers - them.
@@ -1242,6 +1248,7 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
       savedAdminPath.current = cfgRest.adminPath ?? ''
       setPages(pagesData.pages ?? [])
       setMenus((menusData as { menus?: MenuOption[] }).menus ?? [])
+      if (homepageData) setHomepageOptions(homepageData)
       setEnvStatus((envData as { vars?: Record<string, boolean> }).vars ?? {})
       setLocalMode((envData as { localMode?: boolean }).localMode === true)
       // Open on whichever one the site is actually sending through: the saved
@@ -1343,6 +1350,9 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         if (!res.ok) throw new Error(d.error ?? 'Save failed')
         savedFingerprint.current = configFingerprint(config)
         dirtyRef.current = false
+        // The saved homepage may have just changed: re-read whether it resolves, so
+        // a stale "Linked content deleted" warning goes (or a new one appears) now.
+        fetchHomepageOptions().then((o) => { if (o) setHomepageOptions(o) })
         setSidebarPrefs({
           enabled: config.settingsSidebar === true,
           hideSubTabs: config.settingsSidebar === true && config.settingsSidebarHideSubTabs === true,
@@ -2029,19 +2039,17 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
           </div>
           <div className="field"><label>Description</label><textarea value={config.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} /></div>
           <div id="general-homepage" className="settings-fields admin-anchor">
-            <div className="field">
-              <label>Homepage</label>
-              <select
-                value={config.homepageId ?? ''}
-                onChange={(e) => set('homepageId', e.target.value || null)}
-              >
-                <option value="">None</option>
-                {pages.map((p) => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
-                ))}
-              </select>
-              <span className="field-hint">The info page shown at the root URL (/).</span>
-            </div>
+            <HomepageField
+              value={{
+                homepageId: config.homepageId ?? null,
+                homepageModuleId: config.homepageModuleId ?? null,
+                homepageEntityKind: config.homepageEntityKind ?? null,
+                homepageEntityId: config.homepageEntityId ?? null,
+              }}
+              pages={pages}
+              options={homepageOptions}
+              onChange={(next) => setConfig((prev) => ({ ...prev, ...next }))}
+            />
             <div className="field">
               <label>Main menu</label>
               {menus.length === 0 ? (

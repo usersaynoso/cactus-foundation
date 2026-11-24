@@ -28,7 +28,13 @@ async function seedStarterContent() {
 
   await prisma.siteConfig.update({
     where: { id: 'singleton' },
-    data: { homepageId: homePage.id, mainMenuId: mainMenu.id, starterTemplatesVersion: pkg.version },
+    data: {
+      homepageId: homePage.id,
+      // A module homepage would win over the fresh home page; a reset starts clean.
+      homepageModuleId: null, homepageEntityKind: null, homepageEntityId: null,
+      mainMenuId: mainMenu.id,
+      starterTemplatesVersion: pkg.version,
+    },
   })
 }
 
@@ -89,6 +95,9 @@ export async function POST(req: NextRequest) {
     where: { id: 'singleton' },
     data: {
       homepageId: null,
+      homepageModuleId: null,
+      homepageEntityKind: null,
+      homepageEntityId: null,
       mainMenuId: null,
       privacyPolicyPageId: null,
       termsPageId: null,

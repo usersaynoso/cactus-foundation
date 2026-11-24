@@ -331,6 +331,14 @@ model SiteConfig {
   mainMenuId             String?
   // FK to InfoPage.id — nullable; when set, that page is served at /
   homepageId             String?
+  // Or module content as the homepage: the same three-part reference a
+  // MODULE_ENTITY menu item stores, resolved through the
+  // core.menu-entity-provider extension point (lib/homepage/). / answers with a
+  // temporary redirect to the provider's href. At most one of homepageId and
+  // this target is set (lib/homepage/module-target.ts); all three null = none.
+  homepageModuleId       String?
+  homepageEntityKind     String?
+  homepageEntityId       String?
   // Set when a Vercel redeploy is in-flight; cleared when READY or dismissed
   pendingRedeployId      String?
   // When pendingRedeployId was set; drives the server-side time-box that auto-releases

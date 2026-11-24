@@ -17,6 +17,7 @@ import type { ConsentBannerConfig, ConsentCategory } from '@/lib/consent/types'
 import { parseAdminMenuConfig } from '@/lib/nav/admin-menu'
 import { SITE_ICON_COLUMNS } from '@/lib/config/site-icons'
 import { markMediaOptimised } from '@/lib/media/upload'
+import { homepageWriteFromPatch } from '@/lib/homepage/module-target'
 
 export async function GET() {
   const user = await getSessionFromCookie()
@@ -237,6 +238,10 @@ const Patch = z.object({
   recoveryPurgeAfterDays: z.number().int().min(1).max(30).optional(),
   mainMenuId: z.string().optional().nullable(),
   homepageId: z.string().optional().nullable(),
+  // Module content as the homepage - see lib/homepage/module-target.ts.
+  homepageModuleId: z.string().max(200).optional().nullable(),
+  homepageEntityKind: z.string().max(200).optional().nullable(),
+  homepageEntityId: z.string().max(500).optional().nullable(),
   consentBannerConfig: ConsentBannerConfigPatch.optional().nullable(),
   coreUpdateChannel: z.enum(['public', 'beta']).optional(),
   // Written into adminMenuConfig, not columns of their own - see GET above.
@@ -252,7 +257,10 @@ export async function PATCH(request: NextRequest) {
   const parsed = Patch.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
 
-  const { adminPath, status, mainMenuId, homepageId, consentBannerConfig: incomingConsent, settingsSidebar, settingsSidebarHideSubTabs, ...rest } = parsed.data
+  const {
+    adminPath, status, mainMenuId, homepageId, homepageModuleId, homepageEntityKind, homepageEntityId,
+    consentBannerConfig: incomingConsent, settingsSidebar, settingsSidebarHideSubTabs, ...rest
+  } = parsed.data
 
   if (adminPath && isBlocklisted(adminPath)) {
     return errorResponse(`"${adminPath}" is a reserved path`)
@@ -262,7 +270,10 @@ export async function PATCH(request: NextRequest) {
   if (adminPath) data.adminPath = adminPath
   if (status) data.status = status
   if (mainMenuId !== undefined) data.mainMenuId = mainMenuId
-  if (homepageId !== undefined) data.homepageId = homepageId
+  // A page or module content, never both: choosing one clears the other.
+  const homepage = homepageWriteFromPatch({ homepageId, homepageModuleId, homepageEntityKind, homepageEntityId })
+  if (!homepage.ok) return errorResponse(homepage.error)
+  Object.assign(data, homepage.data)
 
   if (settingsSidebar !== undefined || settingsSidebarHideSubTabs !== undefined) {
     const stored = await prisma.siteConfig.findUnique({
@@ -369,7 +380,8 @@ export async function PATCH(request: NextRequest) {
   // stops doing so. Both live in the [slug] route, which is held indefinitely
   // under `revalidate = false`, so without this the old slug would go on
   // redirecting and the new one would go on serving a copy of the homepage.
-  if (homepageId !== undefined) revalidatePath('/', 'layout')
+  // A module homepage moves the root's redirect the same way.
+  if (homepage.touched) revalidatePath('/', 'layout')
 
   // Mirror changes to Edge Config
   const edgeUpdates: { adminPath?: string; siteStatus?: SiteStatus } = {}

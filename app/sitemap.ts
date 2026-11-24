@@ -14,6 +14,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   if (!siteUrl) return []
 
+  // The root stays listed when the homepage is module content too. / then answers
+  // with a temporary (307) redirect, and a temporary redirect leaves the root as
+  // the address search engines keep; the module's own address is listed only if
+  // the module's sitemap entries list it. homepageId is null in that case, so no
+  // page is filtered out below.
   const base: MetadataRoute.Sitemap = [
     { url: siteUrl, lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },
   ]

@@ -232,6 +232,16 @@ To choose which page appears at your site's root address:
 2. Find the **Homepage** field and select the page you want.
 3. Save.
 
+**A module's content can be the homepage too.** When an installed module offers
+content for menus (TG Finance's web app, a blog, a forum), the same select lists it
+under the module's name - **TG Finance · Money screens → Money**, say. Choose one
+and the bare domain sends visitors straight on to it (a temporary redirect, so
+changing your mind later takes effect at once). Choosing a page clears a module
+choice and the other way round. If the module is removed, or the item it pointed at
+is deleted or unpublished, the select shows **Linked content deleted** (or *Not
+published*) and the root falls back to the site's welcome screen until you pick
+something else.
+
 **The homepage only has one address.** A page has its own address built from its
 slug - `/about`, `/contact` - but the moment you assign one as the homepage, that
 address stops being a second way in. Anybody who asks for `/home` (or whatever

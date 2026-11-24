@@ -7,6 +7,8 @@ import { renderInfoPageContent } from '@/lib/puck/renderInfoPage'
 import type { Metadata } from 'next'
 import { canonicalPath, withPublicSeo } from '@/lib/seo/public-metadata'
 import { resolveBranding } from '@/lib/config/branding'
+import { readHomepageModuleTarget } from '@/lib/homepage/module-target'
+import { resolveHomepageModuleTarget } from '@/lib/homepage/module-homepage'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +28,7 @@ const getRootConfig = cache(() =>
     select: {
       setupCompleted: true,
       siteName: true, tagline: true, description: true, homepageId: true,
+      homepageModuleId: true, homepageEntityKind: true, homepageEntityId: true,
     },
   })
 )
@@ -76,6 +79,22 @@ export default async function RootPage() {
 
   if (!config?.setupCompleted) {
     redirect('/setup')
+  }
+
+  // Module content as the homepage (Settings > General > Homepage, offered by a
+  // module's core.menu-entity-provider): a 307 to wherever the provider says it
+  // lives, not a rewrite. Serving the module's screen at / would give one screen
+  // two addresses with the module's own canonical pointing away from this one, and
+  // module screens work out where they are from their own path. Temporary rather
+  // than permanent because it is a setting: an owner who changes it next week
+  // must not find browsers still holding the old answer. When the provider cannot
+  // vouch for the content - module gone, item deleted, not public, a throw - this
+  // falls through to exactly what / did before: the page, if one is assigned,
+  // otherwise the welcome screen. redirect() throws, so it stays outside any try.
+  const moduleTarget = readHomepageModuleTarget(config)
+  if (moduleTarget) {
+    const resolved = await resolveHomepageModuleTarget(moduleTarget)
+    if (resolved.ok) redirect(resolved.href)
   }
 
   if (config.homepageId) {
