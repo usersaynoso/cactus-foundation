@@ -43,6 +43,7 @@ The ElevenLabs API key needs access to Agents (read and write), Voices (read) an
 | Thinking model | Claude Sonnet 5.5 | Haiku 5.5 is quicker and cheaper; Opus 5.5 is the most thorough. |
 | Voice | Alice (British) | The list is your ElevenLabs account's own voices. |
 | Longest call | 15 minutes | The assistant ends a call that runs past this. |
+| Hang up after silence | 30 seconds | If nobody says anything for this long, the assistant says it cannot hear anyone, says goodbye and hangs up. 10 to 300 seconds, or 0 for never. Time only counts while the line is truly quiet: the assistant talking, or looking something up, pauses it, and any word from the caller starts it again. Applies to both engines. |
 
 Audio is set to 8kHz mu-law, which is what a phone line carries, so there is no conversion on either side.
 
@@ -55,7 +56,7 @@ The **Voice engine** setting on the Assistant tab chooses between ElevenLabs (th
 3. In the same OpenAI project, under Settings, Webhooks, add an endpoint at the address the tab shows, ending `/api/m/ai-call-answering/webhooks/openai-live`, for the `live.transport.incoming` event. Paste its signing secret (`whsec_...`) into the tab.
 4. Pick a voice (Marin by default; the list has all 38 built-in voices, British and Irish first, each with a **Play** button that has GPT-Live say a line with your business name, or type a custom voice id) and a thinking model (GPT-6 Luna by default, or GPT-6 Sol for trickier questions), then **Save changes** and switch the assistant on.
 
-There is no "Set up" step at OpenAI: each call is given the current wording, voice and tools as it arrives, so a saved change applies to the next call. Language and longest call apply to both engines. The ElevenLabs keys are kept, so switching back is one setting.
+There is no "Set up" step at OpenAI: each call is given the current wording, voice and tools as it arrives, so a saved change applies to the next call. Language, longest call and hang up after silence apply to both engines. On GPT-Live the silence is measured by this site from the call's live transcript, since OpenAI has no such setting; a call that hit it is noted in the server log. The ElevenLabs keys are kept, so switching back is one setting.
 
 | Setting | Default | Notes |
 | --- | --- | --- |
