@@ -98,8 +98,12 @@ export default function LoginForm({ redirectTo, magicToken, basePath, showHeadin
 
   // Relative when no basePath is given, so the sign-in page keeps resolving it
   // against its own URL exactly as it always has.
+  // The visitor's own ?redirect= rides along (magicLinkRedirect is only set when
+  // they brought one), so the link the verify page resends ends where this
+  // sign-in would have.
   function handleRedirectToVerify(emailForVerify: string) {
-    const query = `verify-email?email=${encodeURIComponent(emailForVerify)}`
+    const carried = magicLinkRedirect ? `&redirect=${encodeURIComponent(magicLinkRedirect)}` : ''
+    const query = `verify-email?email=${encodeURIComponent(emailForVerify)}${carried}`
     window.location.href = basePath ? `${basePath}/${query}` : query
   }
 

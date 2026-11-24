@@ -23,6 +23,8 @@ import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
 import { notifyAdminMemberPendingApproval } from '@/lib/members/admin-notify'
 import { memberLoginMethods } from '@/lib/members/login-methods'
+import { sanitizeRedirect } from '@/lib/auth/redirect'
+import { memberRedirectField } from '@/lib/members/member-redirect'
 
 const Body = z.object({
   email: z.string().email(),
@@ -37,6 +39,11 @@ const Body = z.object({
   turnstileToken: z.string().optional(),
   inviteToken: z.string().optional(),
   agreedToPolicy: z.boolean(),
+  // Where the emailed link should take the member once it has verified and
+  // signed them in: the ?redirect= they arrived at the register page with (a
+  // native app's hand-off page, say). Same-site paths only; anything else is
+  // dropped, and a malformed one never fails the registration.
+  redirectTo: memberRedirectField,
 })
 
 export async function POST(request: NextRequest) {
@@ -63,6 +70,8 @@ export async function POST(request: NextRequest) {
   const passwordPolicy = registrationPasswordPolicy(config)
   const suppliedPassword = passwordPolicy === 'OFF' ? undefined : parsed.data.password
   const inviteToken = parsed.data.inviteToken?.trim()
+  const redirect = sanitizeRedirect(parsed.data.redirectTo, '')
+  const linkOptions = redirect ? { redirect } : {}
 
   if (!agreedToPolicy) {
     return NextResponse.json({ error: 'You must accept the privacy policy to register' }, { status: 400 })
@@ -161,7 +170,7 @@ export async function POST(request: NextRequest) {
         }
       )
       if (existing.status === 'ACTIVE' && existingMethods.magicLink) {
-        emailSent = await sendMagicLink(existing.id, email, siteName).then(
+        emailSent = await sendMagicLink(existing.id, email, siteName, linkOptions).then(
           () => true,
           (err: unknown) => {
             console.error('[members/register] sign-in link failed to send', err)
@@ -169,7 +178,7 @@ export async function POST(request: NextRequest) {
           }
         )
       } else if (existing.status === 'PENDING_VERIFICATION' && (await canResendVerification(existing.id))) {
-        emailSent = await sendVerificationEmail(existing.id, email, siteName).then(
+        emailSent = await sendVerificationEmail(existing.id, email, siteName, linkOptions).then(
           () => true,
           (err: unknown) => {
             console.error('[members/register] verification email failed to send', err)
@@ -245,7 +254,7 @@ export async function POST(request: NextRequest) {
       select: { siteName: true },
     })
     try {
-      await sendVerificationEmail(member.id, email, siteConfig?.siteName ?? 'Cactus')
+      await sendVerificationEmail(member.id, email, siteConfig?.siteName ?? 'Cactus', linkOptions)
     } catch (err) {
       console.error('[members/register] verification email failed to send', err)
       verificationEmailSent = false

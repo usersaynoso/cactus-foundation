@@ -4,10 +4,13 @@
 // browser to another host after sign-in - an absolute "scheme://host" URL, or a
 // protocol-relative "//host" one - is discarded in favour of the fallback.
 // Backslashes are rejected too: some browsers normalise "/\evil.com" into a
-// protocol-relative URL.
+// protocol-relative URL. So are control characters: the URL parser deletes tabs
+// and newlines from anywhere in a URL before reading it, which turns
+// "/<tab>/evil.com" into "//evil.com" after every check above it has passed.
 export function sanitizeRedirect(raw: string | null | undefined, fallback = '/'): string {
   if (!raw) return fallback
   if (!raw.startsWith('/')) return fallback
+  if (/[\u0000-\u001f\u007f]/.test(raw)) return fallback
   if (raw.startsWith('//') || raw.startsWith('/\\')) return fallback
   if (raw.includes('://')) return fallback
   return raw

@@ -35,6 +35,15 @@ type Props = {
   // page itself: an embedded form is on some other URL entirely, and the
   // derivation quietly reloaded that page with an ?email= on it instead.
   verifyEmailUrl?: string
+  // Where the emailed verification link should land the member once it has
+  // signed them in - the register page's own ?redirect=, already resolved.
+  // Posted with the form, and put on the "check your inbox" page so a resent
+  // link carries it too. Undefined leaves the form exactly as it always was.
+  redirect?: string
+  // Offered as a link once an account is made without needing verifying, so a
+  // member who came with a redirect can carry on to it in one tap. The page
+  // only sets it when there is a redirect to carry.
+  signInHref?: string
 }
 
 type RegisterResult = { status: string; verifyEmailRequired: boolean; verificationEmailSent?: boolean }
@@ -49,6 +58,8 @@ export default function RegisterForm({
   showHeading = true,
   verifyEmailUrl,
   passwordPolicy,
+  redirect,
+  signInHref,
 }: Props) {
   const [email, setEmail] = useState(initialEmail ?? '')
   const [username, setUsername] = useState('')
@@ -104,6 +115,7 @@ export default function RegisterForm({
           agreedToPolicy,
           turnstileToken: turnstileToken || undefined,
           inviteToken,
+          redirectTo: redirect,
         }),
       })
       // An error response isn't guaranteed to be JSON - a crashed route hands
@@ -121,8 +133,9 @@ export default function RegisterForm({
       // truth instead.
       if (registerResult.verifyEmailRequired && registerResult.verificationEmailSent !== false) {
         const target = verifyEmailUrl ?? window.location.pathname.replace(/\/register$/, '/verify-email')
+        const carried = redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the member session cookie was just set server-side and the layout must re-resolve with it
-        window.location.href = `${target}?email=${encodeURIComponent(email)}`
+        window.location.href = `${target}?email=${encodeURIComponent(email)}${carried}`
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed')
@@ -146,7 +159,17 @@ export default function RegisterForm({
       <div className="alert alert-success">
         {result.status === 'PENDING_APPROVAL'
           ? "Account created. It's now awaiting admin approval before you can sign in."
-          : 'Account created. You can now sign in.'}
+          : (
+            <>
+              Account created. You can now sign in.
+              {signInHref && (
+                <>
+                  {' '}
+                  <a href={signInHref}>Sign in</a>
+                </>
+              )}
+            </>
+          )}
       </div>
     )
   }

@@ -158,6 +158,25 @@ Sites that hold new accounts for approval are the exception, and deliberately so
 
 A link that has expired, or has already been used, still says so on the verification page itself, with the **Send it again** button underneath - that's a page with something left to do on it.
 
+### Signing up from somewhere that wants them back
+
+The sign-up page takes the same `?redirect=` the sign-in page does. Send someone to `/account/register?redirect=/some/page` and, once they've clicked the link in their verification email, they land on `/some/page` already signed in, rather than on their account. This is how a module's phone app can offer a **Sign up** button: the app opens the sign-up page with a redirect back to the module's own hand-off page, and the member finishes in the app instead of verifying, going back to the app and tapping **Sign in** as well.
+
+The redirect follows them through every turn the sign-up can take:
+
+- The verification email carries it, and so does a link sent again from the "check your inbox" page, and the **sign up again** link on that page.
+- Someone who registers with an address that already has an account gets the email they would have got anyway (a sign-in link, or their verification link again), and that link carries it too. The page still looks exactly like a fresh sign-up, so nobody can use it to find out which addresses are registered.
+- On a site that doesn't ask for verification, the "account created" message gains a **Sign in** link that keeps the redirect.
+- An unverified member who tries to sign in with a redirect is sent to the "check your inbox" page with it still attached.
+
+The redirect only counts once the link has actually signed them in. On a site that holds new accounts for approval nobody is signed in, so they go to their account as before and are told it's awaiting approval. An expired or already-used link goes nowhere at all, redirect or not.
+
+The verification link usually opens in whatever browser the phone uses for email, which may not be the one the sign-up started in (a phone app's sign-in sheet, say). Nothing unsafe follows from that: the member is signed in on that browser and taken to the redirect there. For a phone app's hand-off page that means the module's own code decides what happens next. In TG Finance's case it hands the app a one-time code that only the app instance holding the matching secret can use, so at worst the code expires unused and the member taps **Sign in** in the app.
+
+The rules are the sign-in page's, word for word, because it's the same function: a path on your own site only, never a full address with `://`, `//host`, a backslash or a control character (browsers quietly delete tabs and line breaks from addresses, which used to turn `/<tab>/evil.example` into `//evil.example`), and never one of the signed-out member pages, which would only loop. Anything else is dropped and the member lands on their account. A bad or over-long redirect never stops the account being made or the email being sent. With no redirect, every page, request and email is exactly what it was before.
+
+For developers: `lib/members/member-redirect.ts` holds the shared rule (`resolveMemberRedirect`, `carriedMemberRedirect`, `memberRedirectField` for request bodies, and `verifiedDestination` for the verification page). The register page passes the resolved value to `RegisterForm` as `redirect`, the form posts it as `redirectTo` to `POST /api/members/register` (and puts it on the "check your inbox" URL), and the route runs it through `sanitizeRedirect` before `sendVerificationEmail` or `sendMagicLink` see it. `buildVerificationUrl` (`lib/members/verification-link.ts`) adds `&redirect=<encoded path>` to the link, and `POST /api/members/verify-email/resend` takes `redirectTo` the same way. Nothing is stored with the token: the redirect rides in the link and is checked again by the verification page, as the sign-in link's is. A module's hand-off path carrying an app callback must percent-encode it, as for sign-in.
+
 ---
 
 ## The member account area

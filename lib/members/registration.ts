@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { isUsernameFormatValid, isUsernameAvailable } from '@/lib/members/username'
 import { hashMemberToken, createVerificationToken } from '@/lib/members/tokens'
 import { getMemberAreaPath } from '@/lib/members/paths'
+import { buildVerificationUrl } from '@/lib/members/verification-link'
 import { sendMemberEmail } from '@/lib/email/templates'
 import type { MembersConfig } from '@/lib/members/config'
 import type { MemberStatus } from '@prisma/client'
@@ -91,14 +92,17 @@ export async function consumeInviteToken(inviteId: string, memberId: string): Pr
 
 // Issues a fresh verification token and emails the link. Shared by the
 // register route (first send) and the verify-email resend route.
+// `redirect` is where the link sends the member once it has verified and signed
+// them in - the ?redirect= they registered with. Left off, the link is exactly
+// what it always was. See buildVerificationUrl.
 export async function sendVerificationEmail(
   memberId: string,
   email: string,
-  siteName: string
+  siteName: string,
+  options: { redirect?: string | null } = {}
 ): Promise<void> {
   const token = await createVerificationToken(memberId)
-  const siteUrl = process.env.SITE_URL?.replace(/\/$/, '') ?? ''
-  const verifyUrl = `${siteUrl}/${getMemberAreaPath()}/verify-email?token=${token}`
+  const verifyUrl = buildVerificationUrl(process.env.SITE_URL ?? '', getMemberAreaPath(), token, options.redirect)
   await sendMemberEmail({ email }, 'member.verify-email', { siteName, verifyUrl })
 }
 

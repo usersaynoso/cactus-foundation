@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { setMemberFlash } from '@/lib/members/flash'
+import { verifiedDestination } from '@/lib/members/member-redirect'
 
 type State = 'checking' | 'success' | 'error' | 'pending'
 
@@ -21,17 +22,22 @@ type Props = {
   // there hands on anyone who still hasn't got one (a site that holds new
   // members for approval, say) to the sign-in page.
   accountHref: string
+  // Where the member registered from (a native app's hand-off page, say),
+  // already resolved by the page. Used instead of accountHref once verifying
+  // has signed them in, and handed to the resend endpoint so a fresh link
+  // carries it too. Undefined leaves everything exactly as it always was.
+  redirectHref?: string
 }
 
-export default function VerifyEmailPanel({ registerHref, accountHref }: Props) {
+export default function VerifyEmailPanel({ registerHref, accountHref, redirectHref }: Props) {
   return (
     <Suspense fallback={null}>
-      <VerifyEmailContent registerHref={registerHref} accountHref={accountHref} />
+      <VerifyEmailContent registerHref={registerHref} accountHref={accountHref} redirectHref={redirectHref} />
     </Suspense>
   )
 }
 
-function VerifyEmailContent({ registerHref, accountHref }: Props) {
+function VerifyEmailContent({ registerHref, accountHref, redirectHref }: Props) {
   const searchParams = useSearchParams()
   const token = searchParams.get('token') ?? ''
   const emailParam = searchParams.get('email') ?? ''
@@ -53,6 +59,8 @@ function VerifyEmailContent({ registerHref, accountHref }: Props) {
   // no email" turned out to be. Starting the countdown on arrival means the
   // first click can only land once the server will honour it.
   const [resendCooldown, setResendCooldown] = useState(knownEmail ? 60 : 0)
+  // Where a successful verification is sending them, for the fallback link.
+  const [destination, setDestination] = useState(accountHref)
 
   const target = knownEmail || typedEmail
 
@@ -74,19 +82,26 @@ function VerifyEmailContent({ registerHref, accountHref }: Props) {
       .then(async (res) => {
         const d = await res.json()
         if (!res.ok) throw new Error(d.error ?? 'Verification failed')
+        const next = verifiedDestination({ signedIn: d.signedIn === true, redirectHref, accountHref })
+        setDestination(next.href)
         setState('success')
         // Nothing left to do on this page, so the good news travels with them
         // to the member area as a pill rather than parking them on a screen
         // whose only remaining purpose is to be left. The API signs them in on
         // the way past where it can, so the wording follows what actually
         // happened rather than promising a sign-in screen they won't see.
-        setMemberFlash(
-          d.status === 'PENDING_APPROVAL'
-            ? 'Your email is verified. Your account is now awaiting admin approval.'
-            : d.signedIn
-              ? 'Your email is verified and you are signed in. Welcome.'
-              : 'Your email is verified. You can now sign in.'
-        )
+        // Only when the destination is in the member area, where it is shown:
+        // a redirect elsewhere (an app's hand-off page) would leave it waiting
+        // in the tab to surprise them on some later visit.
+        if (next.flash) {
+          setMemberFlash(
+            d.status === 'PENDING_APPROVAL'
+              ? 'Your email is verified. Your account is now awaiting admin approval.'
+              : d.signedIn
+                ? 'Your email is verified and you are signed in. Welcome.'
+                : 'Your email is verified. You can now sign in.'
+          )
+        }
         // A full document load, not router.replace. Verifying hands out a
         // session cookie, and the member area's chrome (nav tabs, the width it
         // sits in) is decided by the *layout* this page already shares - which
@@ -95,13 +110,13 @@ function VerifyEmailContent({ registerHref, accountHref }: Props) {
         // so the account page arrived wearing the signed-out shell until the
         // visitor happened to refresh. Every other place a member session
         // changes hands (LoginForm, RegisterForm) reloads for the same reason.
-        window.location.replace(accountHref)
+        window.location.replace(next.href)
       })
       .catch((err: unknown) => {
         setState('error')
         setMessage(err instanceof Error ? err.message : 'Verification failed')
       })
-  }, [token, accountHref])
+  }, [token, accountHref, redirectHref])
 
   useEffect(() => {
     if (resendCooldown <= 0) return
@@ -114,7 +129,7 @@ function VerifyEmailContent({ registerHref, accountHref }: Props) {
     await fetch('/api/members/verify-email/resend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: target }),
+      body: JSON.stringify(redirectHref ? { email: target, redirectTo: redirectHref } : { email: target }),
     }).catch(() => {})
     // The endpoint answers {ok:true} to everything on purpose, so the wording
     // here has to promise nothing about whether that address is registered.
@@ -131,7 +146,8 @@ function VerifyEmailContent({ registerHref, accountHref }: Props) {
           a door to go through by hand if it somehow doesn't. */}
       {state === 'success' && (
         <p style={{ color: 'var(--color-text-muted)' }}>
-          Taking you to your account… <a href={accountHref}>Go there now</a> if nothing happens.
+          {destination === accountHref ? 'Taking you to your account…' : 'Taking you back to where you started…'}{' '}
+          <a href={destination}>Go there now</a> if nothing happens.
         </p>
       )}
 

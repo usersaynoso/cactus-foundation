@@ -2,10 +2,12 @@ import { prisma } from '@/lib/db/prisma'
 import { getMembersConfig, registrationPasswordPolicy } from '@/lib/members/config'
 import { validateInviteToken } from '@/lib/members/registration'
 import RegisterForm from '@/components/members/RegisterForm'
+import { getMemberAreaPath } from '@/lib/members/paths'
+import { carriedMemberRedirect } from '@/lib/members/member-redirect'
 
 export const dynamic = 'force-dynamic'
 
-type Props = { searchParams: Promise<{ invite?: string; email?: string }> }
+type Props = { searchParams: Promise<{ invite?: string; email?: string; redirect?: string }> }
 
 export default async function MemberRegisterPage({ searchParams }: Props) {
   const config = await getMembersConfig()
@@ -14,7 +16,13 @@ export default async function MemberRegisterPage({ searchParams }: Props) {
   // under a different address quietly costs them the order they just placed.
   // It is a convenience only: the address is still theirs to change, and
   // whatever is typed still has to survive verification.
-  const { invite: inviteToken, email: prefillEmail } = await searchParams
+  const { invite: inviteToken, email: prefillEmail, redirect } = await searchParams
+  // `redirect` is where the member ends up once their emailed link has verified
+  // and signed them in - a native app's hand-off page, say, so signing up from
+  // the app finishes back in the app. Resolved by exactly the rule the sign-in
+  // page uses (member-redirect.ts); with none, nothing changes.
+  const basePath = `/${getMemberAreaPath()}`
+  const carriedRedirect = carriedMemberRedirect(redirect, basePath)
 
   if (!config.enabled) {
     return (
@@ -60,6 +68,8 @@ export default async function MemberRegisterPage({ searchParams }: Props) {
         collectUsername={config.registrationCollectUsername}
         collectDisplayName={config.registrationCollectDisplayName}
         passwordPolicy={registrationPasswordPolicy(config)}
+        redirect={carriedRedirect}
+        signInHref={carriedRedirect ? `${basePath}/login?redirect=${encodeURIComponent(carriedRedirect)}` : undefined}
       />
     </div>
   )

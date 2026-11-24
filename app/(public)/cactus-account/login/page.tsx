@@ -1,7 +1,7 @@
 import LoginForm from '@/components/members/LoginForm'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { sanitizeRedirect } from '@/lib/auth/redirect'
-import { getMemberAreaPath, isPublicMemberPath } from '@/lib/members/paths'
+import { getMemberAreaPath } from '@/lib/members/paths'
+import { carriedMemberRedirect, resolveMemberRedirect } from '@/lib/members/member-redirect'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
 import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
@@ -28,13 +28,13 @@ export default async function MemberLoginPage({ searchParams }: Props) {
   // The overview is also the fallback when there is no ?redirect= at all: a
   // sign-in link arrives from an email carrying nothing but its token, and
   // somebody who has just signed in wants their account, not the homepage.
-  const target = sanitizeRedirect(redirect, basePath)
-  const safeTarget = isPublicMemberPath(target, basePath) ? basePath : target
+  // The same rule the register and verification pages use (member-redirect.ts).
+  const safeTarget = resolveMemberRedirect(redirect, basePath)
   // The emailed sign-in link carries the same destination, but only when the
   // visitor asked for one: with no ?redirect= the link is left exactly as it
   // was, landing on the account. The link brings it back here as ?redirect=,
   // and the line above sanitises it again on the way in.
-  const emailLinkRedirect = redirect ? safeTarget : undefined
+  const emailLinkRedirect = carriedMemberRedirect(redirect, basePath)
 
   // A signed-in admin who has landed here has either signed out of the member
   // area deliberately or come straight to this URL. Either way the offer beats

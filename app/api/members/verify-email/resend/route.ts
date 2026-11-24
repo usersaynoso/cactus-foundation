@@ -8,8 +8,12 @@ import { canResendVerification } from '@/lib/members/tokens'
 import { sendVerificationEmail } from '@/lib/members/registration'
 import { isEmailConfigured } from '@/lib/config/env'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
+import { sanitizeRedirect } from '@/lib/auth/redirect'
+import { memberRedirectField } from '@/lib/members/member-redirect'
 
-const Body = z.object({ email: z.string().email() })
+// redirectTo: the ?redirect= the member registered with, so the fresh link ends
+// where the first one would have. Same-site paths only, dropped otherwise.
+const Body = z.object({ email: z.string().email(), redirectTo: memberRedirectField })
 
 export async function POST(request: NextRequest) {
   const ip = await getClientIp(request)
@@ -43,7 +47,8 @@ export async function POST(request: NextRequest) {
     // reaches the send at all. The admin gets the reason in the runtime log
     // instead, which is the only place it can go without leaking.
     try {
-      await sendVerificationEmail(member.id, member.email, config?.siteName ?? 'Cactus')
+      const redirect = sanitizeRedirect(parsed.data.redirectTo, '')
+      await sendVerificationEmail(member.id, member.email, config?.siteName ?? 'Cactus', redirect ? { redirect } : {})
     } catch (err) {
       console.error('[members/verify-email/resend] verification email failed to send', err)
     }
