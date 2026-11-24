@@ -1,18 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { member } = vi.hoisted(() => ({
-  member: { findUnique: vi.fn() },
-}))
+// Availability is one raw query (lib/members/username.ts): an array of
+// matching ids, empty when the name is free.
+const { queryRaw } = vi.hoisted(() => ({ queryRaw: vi.fn() }))
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: { member } }))
+vi.mock('@/lib/db/prisma', () => ({ prisma: { $queryRaw: queryRaw } }))
 
 import { generateUsernameFromEmail, isUsernameFormatValid, loginRejectionForStatus } from './registration'
 
 // Nobody is taken unless a test says so.
 function taken(...usernames: string[]) {
   const set = new Set(usernames)
-  member.findUnique.mockImplementation(async ({ where }: { where: { username: string } }) =>
-    set.has(where.username) ? { id: 'existing' } : null
+  // Template values are [exceptMemberId, username, username].
+  queryRaw.mockImplementation(async (_strings: TemplateStringsArray, ...values: unknown[]) =>
+    set.has(String(values[1]).toLowerCase()) ? [{ id: 'existing' }] : []
   )
 }
 
@@ -57,7 +58,7 @@ describe('generateUsernameFromEmail', () => {
 
   it('never returns a username that is already taken', async () => {
     let call = 0
-    member.findUnique.mockImplementation(async () => (++call === 1 ? { id: 'existing' } : null))
+    queryRaw.mockImplementation(async () => (++call === 1 ? [{ id: 'existing' }] : []))
     const username = await generateUsernameFromEmail('chris@example.com')
     expect(username).toMatch(/^chris\d{4}$/)
     expect(call).toBe(2)
@@ -73,12 +74,12 @@ describe('generateUsernameFromEmail', () => {
 
   it('widens the suffix once a base has collided repeatedly', async () => {
     let call = 0
-    member.findUnique.mockImplementation(async () => (++call <= 15 ? { id: 'existing' } : null))
+    queryRaw.mockImplementation(async () => (++call <= 15 ? [{ id: 'existing' }] : []))
     expect(await generateUsernameFromEmail('chris@example.com')).toMatch(/^chris\d{8}$/)
   })
 
   it('gives up rather than looping forever', async () => {
-    member.findUnique.mockResolvedValue({ id: 'existing' })
+    queryRaw.mockResolvedValue([{ id: 'existing' }])
     await expect(generateUsernameFromEmail('chris@example.com')).rejects.toThrow(/available username/)
   })
 })

@@ -20,6 +20,14 @@ export const AUTH_METHOD_LABELS: Record<AuthMethod, string> = {
   PASSWORD: 'Password',
 }
 
+// A whole number of days, with one message naming the setting for every way it
+// can be wrong. Zod's own wording ("Number must be greater than or equal to 1")
+// reached the settings screen as-is and never said which box it meant.
+function dayCount(label: string, min: number, max: number) {
+  const message = `${label} must be a whole number of days from ${min} to ${max}`
+  return z.number({ invalid_type_error: message }).int(message).min(min, message).max(max, message)
+}
+
 export const MembersConfigSchema = z.object({
   enabled: z.boolean().default(false),
   registrationMode: z.enum(['OPEN', 'INVITE_ONLY', 'APPROVAL_REQUIRED']).default('OPEN'),
@@ -69,18 +77,27 @@ export const MembersConfigSchema = z.object({
   // admin area. Off by default, so every existing site behaves exactly as it
   // did until its owner chooses otherwise.
   adminPasskeySignInForMembers: z.boolean().default(false),
-  trustedBrowserDays: z.number().int().min(1).max(365).default(30),
-  // Member session duration in days (sliding expiry)
-  sessionDays: z.number().int().min(1).max(365).default(30),
+  // How long ticking "trust this browser" at a password sign-in skips the code
+  // on that browser. Counted from the day it was ticked, never extended by use:
+  // a trust that renews itself every visit never runs out on a browser that is
+  // used daily, which is not what a number of days on a settings screen says.
+  trustedBrowserDays: dayCount('Trusted browser duration', 1, 365).default(30),
+  // How long a member stays signed in without visiting. Sliding: every visit
+  // restarts the count (lib/members/session-core.ts).
+  sessionDays: dayCount('Session duration', 1, 365).default(30),
   avatarUploadsEnabled: z.boolean().default(true),
   gravatarEnabled: z.boolean().default(true),
   siteWideMembersOnly: z.boolean().default(false),
   siteWideMembersOnlyExceptions: z.array(z.string()).default([]),
   guestPreviewEnabled: z.boolean().default(false),
   usernameChangesEnabled: z.boolean().default(false),
-  usernameChangeCooldownDays: z.number().int().min(0).max(3650).default(90),
-  usernameRedirectDays: z.number().int().min(0).max(3650).default(30),
-  deletionGracePeriodDays: z.number().int().min(0).max(365).default(14),
+  // 0 = no cooldown. A change of capitals alone (chris to Chris) never counts
+  // and is never refused by it - see app/api/members/username/route.ts.
+  usernameChangeCooldownDays: dayCount('Change cooldown', 0, 3650).default(90),
+  // How long an old username keeps forwarding to the new one and stays reserved
+  // for its previous owner. 0 = no forwarding and nothing reserved.
+  usernameRedirectDays: dayCount('Old-username redirect window', 0, 3650).default(30),
+  deletionGracePeriodDays: dayCount('Deletion grace period', 0, 365).default(14),
   adminNotifyOnDeletion: z.boolean().default(false),
   // Whether a member may close their own account (the "Delete my account"
   // button and POST /api/members/delete-account). Off, the button goes and the
@@ -94,6 +111,13 @@ export const MembersConfigSchema = z.object({
   blockedEmailDomains: z.array(z.string()).default([]),
   notifyAdminOnPendingApproval: z.boolean().default(true),
   profileVisibility: z.enum(['PUBLIC', 'MEMBERS_ONLY', 'HIDDEN']).default('PUBLIC'),
+  // Whether members get a bio and a website box on their profile. Off, the box
+  // goes from the profile page, its "show on my public profile" switch goes with
+  // it, the public profile stops showing it and the profile route drops it on
+  // save. Anything already saved is kept, and comes back if this goes back on.
+  // Default true: both have always been there.
+  profileCollectBio: z.boolean().default(true),
+  profileCollectWebsite: z.boolean().default(true),
   // Draw the whole account on the overview page, one section under the next,
   // with the tabs scrolling to them instead of loading a page each. Off by
   // default: the tabbed shape is what every existing site already has, and a

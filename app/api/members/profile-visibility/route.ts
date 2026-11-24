@@ -33,15 +33,29 @@ export async function PATCH(request: NextRequest) {
   const config = await getMembersConfig()
   if (!isAccountSectionEnabled(config, 'profile')) return profileSectionOffResponse()
 
-  const parsed = Body.safeParse(await request.json())
+  // With public profiles switched off there is nothing for these to govern,
+  // and the page no longer shows them.
+  if (config.profileVisibility === 'HIDDEN') {
+    return NextResponse.json({ error: 'Public profiles are switched off on this site' }, { status: 403 })
+  }
+
+  const parsed = Body.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+  }
+  // A switch for a field the site does not ask for is not on the page; dropped
+  // rather than saved, so it is still what the member left it as if the field
+  // comes back.
+  const data = {
+    ...(parsed.data.showJoinDate !== undefined ? { showJoinDate: parsed.data.showJoinDate } : {}),
+    ...(config.profileCollectBio && parsed.data.showBio !== undefined ? { showBio: parsed.data.showBio } : {}),
+    ...(config.profileCollectWebsite && parsed.data.showWebsite !== undefined ? { showWebsite: parsed.data.showWebsite } : {}),
   }
 
   const visibility = await prisma.memberProfileVisibility.upsert({
     where: { memberId: member.id },
-    create: { memberId: member.id, ...parsed.data },
-    update: parsed.data,
+    create: { memberId: member.id, ...data },
+    update: data,
   })
 
   return NextResponse.json({

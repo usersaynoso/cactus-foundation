@@ -7,6 +7,7 @@ import { modulePublicExtensionPointComponents as moduleExtensionPointComponents 
 import MemberAvatar from '@/components/members/MemberAvatar'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
 import { isHttpUrl } from '@/lib/utils'
+import { findMemberIdByPreviousUsername, findMemberIdByUsername } from '@/lib/members/username'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,23 +27,36 @@ export default async function MemberProfilePage({ params }: Props) {
     if (!viewer) notFound()
   }
 
-  const member = await prisma.member.findUnique({
-    where: { username },
-    include: { profileVisibility: true },
-  })
+  // Next hands the segment over still percent-encoded only for characters a
+  // username cannot contain, so a decode failure is simply a name nobody has.
+  let requested: string
+  try {
+    requested = decodeURIComponent(username)
+  } catch {
+    notFound()
+  }
+
+  // Whatever the capitals: /members/christg finds ChrisTG.
+  const memberId = await findMemberIdByUsername(requested)
+  const member = memberId
+    ? await prisma.member.findUnique({ where: { id: memberId }, include: { profileVisibility: true } })
+    : null
 
   if (!member) {
     // Old-username redirect, only within the configured window.
-    const byOldUsername = await prisma.member.findFirst({
-      where: { previousUsername: username, previousUsernameExpiresAt: { gt: new Date() } },
-      select: { username: true },
-    })
-    if (byOldUsername) redirect(`/members/${byOldUsername.username}`)
+    const oldOwnerId = await findMemberIdByPreviousUsername(requested)
+    const oldOwner = oldOwnerId
+      ? await prisma.member.findUnique({ where: { id: oldOwnerId }, select: { username: true } })
+      : null
+    if (oldOwner) redirect(`/members/${encodeURIComponent(oldOwner.username)}`)
     notFound()
   }
 
   // Non-ACTIVE members (pending/suspended/deleted) have no visitable profile.
   if (member.status !== 'ACTIVE') notFound()
+
+  // One address per profile: any other capitals forward to the member's own.
+  if (member.username !== requested) redirect(`/members/${encodeURIComponent(member.username)}`)
 
   // Honours avatarUploadsEnabled/gravatarEnabled toggles immediately, even
   // for a member whose stored avatarChoice predates the toggle change.
@@ -54,6 +68,11 @@ export default async function MemberProfilePage({ params }: Props) {
   }
 
   const visibility = member.profileVisibility ?? { showBio: true, showJoinDate: true, showWebsite: true }
+  // A site that never asked for a handle made one up from the email address
+  // (chris4821). It still has to be in the address, but it is not a name to
+  // put in the heading or under it - the member never chose it.
+  const handleShown = config.registrationCollectUsername
+  const heading = (config.registrationCollectDisplayName && member.displayName) || (handleShown ? member.username : 'Member')
 
   // members.profile-section extension point - content-injection, no permission
   // gate since members have no permission keys.
@@ -81,16 +100,16 @@ export default async function MemberProfilePage({ params }: Props) {
         />
         <div>
           <h1 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text)' }}>
-            {member.displayName || member.username}
+            {heading}
           </h1>
-          <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>@{member.username}</p>
+          {handleShown && <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>@{member.username}</p>}
         </div>
       </div>
 
-      {visibility.showBio && member.bio && (
+      {config.profileCollectBio && visibility.showBio && member.bio && (
         <p style={{ color: 'var(--color-text-secondary)', margin: '0 0 var(--space-3)' }}>{member.bio}</p>
       )}
-      {visibility.showWebsite && member.websiteUrl && isHttpUrl(member.websiteUrl) && (
+      {config.profileCollectWebsite && visibility.showWebsite && member.websiteUrl && isHttpUrl(member.websiteUrl) && (
         <p style={{ margin: '0 0 var(--space-3)' }}>
           <a href={member.websiteUrl} rel="noopener noreferrer nofollow">{member.websiteUrl}</a>
         </p>

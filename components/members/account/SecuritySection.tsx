@@ -12,6 +12,8 @@ type EmailInfo = {
 }
 type Passkey = { id: string; deviceName: string | null; createdAt: string; lastUsedAt: string | null }
 type Session = { id: string; ipAddress: string | null; userAgent: string | null; lastActiveAt: string; isCurrent: boolean }
+type AdminPasskey = { id: string; label: string | null; createdAt: string }
+type AdminPasskeyInfo = { linked: boolean; passkeys: AdminPasskey[] }
 type TrustedBrowser = { id: string; deviceInfo: string | null; expiresAt: string; isCurrent: boolean }
 
 // Cards sit in a grid, so the class's own bottom margin would double the gap,
@@ -36,6 +38,8 @@ function ListRow({ children, action }: { children: React.ReactNode; action?: Rea
 export default function SecuritySection() {
   const [emailInfo, setEmailInfo] = useState<EmailInfo | null>(null)
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null)
+  const [adminPasskeys, setAdminPasskeys] = useState<AdminPasskeyInfo>({ linked: false, passkeys: [] })
+  const [passkeyNotice, setPasskeyNotice] = useState('')
   const [sessions, setSessions] = useState<Session[] | null>(null)
   const [trustedBrowsers, setTrustedBrowsers] = useState<TrustedBrowser[] | null>(null)
   const [passwordStatus, setPasswordStatus] = useState<{ hasPassword: boolean; hasTwoFactor: boolean; passwordsEnabled: boolean; passwordRequired: boolean } | null>(null)
@@ -67,6 +71,10 @@ export default function SecuritySection() {
       setEmailPendingFor((current) => current || d.pendingEmail || '')
     })
     fetch('/api/members/passkeys').then((r) => r.json()).then((d) => setPasskeys(d.passkeys))
+    fetch('/api/members/admin-passkeys')
+      .then((r) => (r.ok ? r.json() : { linked: false, passkeys: [] }))
+      .then((d: AdminPasskeyInfo) => setAdminPasskeys({ linked: d.linked === true, passkeys: d.passkeys ?? [] }))
+      .catch(() => setAdminPasskeys({ linked: false, passkeys: [] }))
     fetch('/api/members/sessions').then((r) => r.json()).then((d) => setSessions(d.sessions))
     fetch('/api/members/trusted-browsers').then((r) => r.json()).then((d) => setTrustedBrowsers(d.trustedBrowsers))
     fetch('/api/members/password').then((r) => r.json()).then(setPasswordStatus)
@@ -123,10 +131,34 @@ export default function SecuritySection() {
     }
   }
 
+  // An admin passkey prompt before any change to admin passkeys from here. A
+  // member session alone is not enough to touch a staff credential - see
+  // lib/members/admin-passkey-manage.ts. Throws with a readable message.
+  async function confirmWithAdminPasskey() {
+    const { startAuthentication } = await import('@simplewebauthn/browser')
+    const optRes = await fetch('/api/members/admin-passkeys/step-up/options', { method: 'POST' })
+    const opts = await optRes.json()
+    if (!optRes.ok) throw new Error(opts.error ?? 'Could not start the admin passkey check')
+    const assertion = await startAuthentication({ optionsJSON: opts })
+    const res = await fetch('/api/members/admin-passkeys/step-up/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(assertion),
+    })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.error ?? 'That admin passkey could not be confirmed')
+  }
+
   async function addPasskey() {
     setBusy(true)
     setError('')
+    setPasskeyNotice('')
     try {
+      // The admin behind this account confirms with an admin passkey first, so
+      // the new one can go on their admin account too. With no admin passkey
+      // to confirm with, it is added as a member passkey only.
+      const alsoAdmin = adminPasskeys.linked && adminPasskeys.passkeys.length > 0
+      if (alsoAdmin) await confirmWithAdminPasskey()
       const { startRegistration } = await import('@simplewebauthn/browser')
       const optRes = await fetch('/api/members/auth/passkey/register-options', { method: 'POST' })
       const opts = await optRes.json()
@@ -139,6 +171,7 @@ export default function SecuritySection() {
       })
       const d = await verifyRes.json()
       if (!verifyRes.ok) throw new Error(d.error ?? 'Failed to add passkey')
+      if (d.addedToAdmin) setPasskeyNotice('Passkey added, and saved as an admin passkey too.')
       refreshAll()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to add passkey')
@@ -153,6 +186,24 @@ export default function SecuritySection() {
     const d = await res.json()
     if (!res.ok) setError(d.error ?? 'Failed to remove passkey')
     else refreshAll()
+  }
+
+  async function removeAdminPasskey(id: string) {
+    setBusy(true)
+    setError('')
+    setPasskeyNotice('')
+    try {
+      await confirmWithAdminPasskey()
+      const res = await fetch(`/api/members/admin-passkeys/${id}`, { method: 'DELETE' })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error ?? 'Failed to remove the admin passkey')
+      setPasskeyNotice('Admin passkey removed.')
+      refreshAll()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to remove the admin passkey')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function revokeSession(id: string) {
@@ -348,6 +399,28 @@ export default function SecuritySection() {
               {pk.deviceName ?? 'Passkey'} - added {new Date(pk.createdAt).toLocaleDateString()}
             </ListRow>
           ))}
+          {/* Admin passkeys, for the admin behind this member account. They
+              already sign this account in; listing them here means the admin
+              can see and tidy them without a trip to the admin area. */}
+          {adminPasskeys.linked && (
+            <div style={{ marginTop: 'var(--space-4)' }}>
+              <p style={{ fontWeight: 600, margin: '0 0 var(--space-1)' }}>Admin passkeys</p>
+              <p className="field-hint" style={{ margin: '0 0 var(--space-2)' }}>
+                These sign you in to the admin area and to this account. Removing one, or adding a passkey above,
+                asks you to confirm with an admin passkey first. A passkey added here goes on your admin account too.
+              </p>
+              {adminPasskeys.passkeys.length === 0 && <p className="field-hint">No admin passkeys yet.</p>}
+              {adminPasskeys.passkeys.map((pk) => (
+                <ListRow
+                  key={pk.id}
+                  action={<button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => removeAdminPasskey(pk.id)}>Remove</button>}
+                >
+                  {pk.label ?? 'Admin passkey'} - added {new Date(pk.createdAt).toLocaleDateString('en-GB')}
+                </ListRow>
+              ))}
+            </div>
+          )}
+          {passkeyNotice && <div className="alert alert-success" style={{ marginTop: 'var(--space-3)' }}>{passkeyNotice}</div>}
           <button className="btn btn-secondary" style={{ marginTop: 'var(--space-3)' }} disabled={busy} onClick={addPasskey}>
             🔑 Add a passkey
           </button>
@@ -386,11 +459,22 @@ export default function SecuritySection() {
           )}
         </div>
 
+        {/* Codes are only ever asked for at password sign-in - passkeys and
+            sign-in links never use them. With password sign-in off there is
+            nothing to protect, so the card only stays for a member who set one
+            up earlier and may want it gone. */}
+        {(passwordStatus?.passwordsEnabled || twoFactorStatus?.enabled) && (
         <div className="card" style={cardStyle}>
           <h3 className="card-title">Two-factor authentication</h3>
           {twoFactorStatus?.enabled ? (
             <div>
               <p style={{ marginTop: 0 }}>Enabled via {twoFactorStatus.method === 'EMAIL' ? 'email code' : 'authenticator app'}.</p>
+              {!passwordStatus?.passwordsEnabled && (
+                <p className="field-hint" style={{ marginTop: 0 }}>
+                  Password sign-in is switched off on this site, so these codes are not used at the moment. You can
+                  remove them if you like.
+                </p>
+              )}
               <button className="btn btn-secondary btn-sm" onClick={removeTwoFactor}>Remove</button>
               <div style={{ marginTop: 'var(--space-3)' }}>
                 <span className="field-hint">{recoveryRemaining ?? 0} recovery codes remaining. </span>
@@ -412,6 +496,7 @@ export default function SecuritySection() {
             <button className="btn btn-secondary" onClick={startTotpSetup}>Set up authenticator app</button>
           )}
         </div>
+        )}
 
         <div className="card" style={cardStyle}>
           <h3 className="card-title">Active sessions</h3>
@@ -432,6 +517,9 @@ export default function SecuritySection() {
           )}
         </div>
 
+        {/* Trusting a browser only ever skips the code at password sign-in, so
+            the card follows the same rule as two-factor above. */}
+        {(passwordStatus?.passwordsEnabled || (trustedBrowsers?.length ?? 0) > 0) && (
         <div className="card" style={cardStyle}>
           <h3 className="card-title">Trusted browsers</h3>
           {(trustedBrowsers?.length ?? 0) === 0 && <p className="field-hint">No trusted browsers.</p>}
@@ -451,6 +539,7 @@ export default function SecuritySection() {
             </button>
           )}
         </div>
+        )}
       </div>
     </div>
   )

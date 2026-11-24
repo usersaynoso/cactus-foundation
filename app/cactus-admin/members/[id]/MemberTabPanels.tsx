@@ -37,7 +37,8 @@ export function ProfileCard({
     setSaving(true)
     const ok = await onSave({
       ...(fields.displayName ? { displayName: values.displayName } : {}),
-      ...(fields.bioAndWebsite ? { bio: values.bio, websiteUrl: values.websiteUrl } : {}),
+      ...(fields.bio ? { bio: values.bio } : {}),
+      ...(fields.website ? { websiteUrl: values.websiteUrl } : {}),
     })
     setSaving(false)
     if (ok) setEditing(false)
@@ -68,10 +69,14 @@ export function ProfileCard({
               <dd style={{ textAlign: 'left' }}>{member.displayName || <Muted>Not set</Muted>}</dd>
             </>
           )}
-          {fields.bioAndWebsite && (
+          {fields.bio && (
             <>
               <dt>Bio</dt>
               <dd style={{ textAlign: 'left', whiteSpace: 'pre-wrap' }}>{member.bio || <Muted>Not set</Muted>}</dd>
+            </>
+          )}
+          {fields.website && (
+            <>
               <dt>Website</dt>
               <dd style={{ textAlign: 'left' }}>
                 {member.websiteUrl
@@ -89,12 +94,14 @@ export function ProfileCard({
               <input id="mbr-display-name" type="text" maxLength={80} value={values.displayName} onChange={(e) => setValues((v) => ({ ...v, displayName: e.target.value }))} />
             </div>
           )}
-          {fields.bioAndWebsite && (
+          {fields.bio && (
+            <div className="field">
+              <label htmlFor="mbr-bio">Bio</label>
+              <textarea id="mbr-bio" maxLength={500} rows={4} value={values.bio} onChange={(e) => setValues((v) => ({ ...v, bio: e.target.value }))} />
+            </div>
+          )}
+          {fields.website && (
             <>
-              <div className="field">
-                <label htmlFor="mbr-bio">Bio</label>
-                <textarea id="mbr-bio" maxLength={500} rows={4} value={values.bio} onChange={(e) => setValues((v) => ({ ...v, bio: e.target.value }))} />
-              </div>
               <div className="field">
                 <label htmlFor="mbr-website">Website</label>
                 <input id="mbr-website" type="url" inputMode="url" placeholder="https://" maxLength={300} value={values.websiteUrl} onChange={(e) => setValues((v) => ({ ...v, websiteUrl: e.target.value }))} />

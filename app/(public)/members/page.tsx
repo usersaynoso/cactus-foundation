@@ -54,7 +54,7 @@ export default async function MembersDirectoryPage({ searchParams }: Props) {
         {members.map((m) => (
           <Link
             key={m.id}
-            href={`/members/${m.username}`}
+            href={`/members/${encodeURIComponent(m.username)}`}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', color: 'var(--color-text)' }}
           >
             <MemberAvatar
@@ -65,7 +65,7 @@ export default async function MembersDirectoryPage({ searchParams }: Props) {
               uploadedUrl={m.avatarMediaId ? mediaById.get(m.avatarMediaId) ?? null : null}
               size={64}
             />
-            <span style={{ fontSize: 'var(--text-sm)', textAlign: 'center' }}>{m.displayName || m.username}</span>
+            <span style={{ fontSize: 'var(--text-sm)', textAlign: 'center' }}>{directoryName(m, config)}</span>
           </Link>
         ))}
       </div>
@@ -79,4 +79,13 @@ export default async function MembersDirectoryPage({ searchParams }: Props) {
       )}
     </div>
   )
+}
+
+// Same naming as the profile page: a handle the site made up from an email
+// address (because it never asked for one) is not a name to list people by.
+function directoryName(
+  m: { username: string; displayName: string | null },
+  config: { registrationCollectUsername: boolean; registrationCollectDisplayName: boolean }
+): string {
+  return (config.registrationCollectDisplayName && m.displayName) || (config.registrationCollectUsername ? m.username : 'Member')
 }

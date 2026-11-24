@@ -6,6 +6,9 @@ import { getMembersConfig, isAccountSectionEnabled } from '@/lib/members/config'
 import { profileSectionOffResponse } from '@/lib/members/account-sections'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
 import { isHttpUrl } from '@/lib/utils'
+import { usernameCooldownEndsAt } from '@/lib/members/username'
+import { getSiteTimezone } from '@/lib/config/timezone.server'
+import { formatLongDate } from '@/lib/config/timezone'
 
 export async function GET() {
   const member = await getMemberFromCookie()
@@ -18,6 +21,7 @@ export async function GET() {
   // actually being shown. The member's stored choice + uploaded file are
   // untouched, so re-enabling the toggle restores it with no action needed.
   const avatarChoice = resolveEffectiveAvatarChoice(member.avatarChoice, config)
+  const cooldownEndsAt = config.usernameChangesEnabled ? usernameCooldownEndsAt(member.usernameChangedAt, config) : null
 
   // Sent whenever there is a file, not only while it is the active choice, so
   // switching the picker back to the upload shows it straight away instead of
@@ -54,6 +58,19 @@ export async function GET() {
     // when this is off - and it is off by default - so the button was a control
     // that could only ever fail.
     usernameChangesEnabled: config.usernameChangesEnabled,
+    // When the cooldown lets them pick a different name, already written the
+    // way the site writes dates, so the page can say so instead of offering a
+    // change the route would refuse. Null = no cooldown running. Re-casing the
+    // current name is allowed regardless, which is why the form stays.
+    usernameNextChangeOn: cooldownEndsAt ? formatLongDate(cooldownEndsAt, await getSiteTimezone()) : null,
+    // Whether a change leaves the old address forwarding, so the hint under
+    // the form only promises what will happen.
+    usernameRedirects: config.usernameRedirectDays > 0,
+    bioEnabled: config.profileCollectBio,
+    websiteEnabled: config.profileCollectWebsite,
+    // Whether members have a public profile to make choices about. HIDDEN
+    // takes the profiles offline, so the page drops its visibility switches.
+    publicProfile: config.profileVisibility,
     createdAt: member.createdAt,
   })
 }
@@ -79,7 +96,10 @@ export async function PATCH(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
-  const { bio, websiteUrl } = parsed.data
+  // Same for the bio and website boxes: switched off, a value arriving is not
+  // from the form, and whatever the member saved before stays as it was.
+  const bio = config.profileCollectBio ? parsed.data.bio : undefined
+  const websiteUrl = config.profileCollectWebsite ? parsed.data.websiteUrl : undefined
 
   // Dropped rather than rejected, exactly as the registration route does with
   // the same switch off: the field isn't on the form, so a value arriving here

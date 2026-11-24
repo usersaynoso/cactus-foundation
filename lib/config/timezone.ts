@@ -95,3 +95,31 @@ export function wallClockDaysAhead(from: Date, days: number, hhmm: string, timez
   const shifted = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, (d ?? 1) + days))
   return instantAtWallClock(new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(shifted), hhmm, timezone)
 }
+
+function ordinalSuffix(day: number): string {
+  const lastTwo = day % 100
+  if (lastTwo >= 11 && lastTwo <= 13) return 'th'
+  switch (day % 10) {
+    case 1: return 'st'
+    case 2: return 'nd'
+    case 3: return 'rd'
+    default: return 'th'
+  }
+}
+
+// A date the way the site writes them in prose: "the 4th of January 2027".
+// Read in the site's own zone, so a moment late on the 3rd in London is not
+// announced as the 4th because the server keeps UTC. Empty for an invalid date.
+export function formatLongDate(date: Date | string | number, timezone: string): string {
+  const value = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(value.getTime())) return ''
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: normaliseTimezone(timezone),
+  }).formatToParts(value)
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
+  const day = Number(get('day'))
+  return `the ${day}${ordinalSuffix(day)} of ${get('month')} ${get('year')}`
+}

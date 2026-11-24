@@ -1,26 +1,16 @@
 import { randomInt } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
-import { isBlocklisted } from '@/lib/config/site'
+import { isUsernameFormatValid, isUsernameAvailable } from '@/lib/members/username'
 import { hashMemberToken, createVerificationToken } from '@/lib/members/tokens'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { sendMemberEmail } from '@/lib/email/templates'
 import type { MembersConfig } from '@/lib/members/config'
 import type { MemberStatus } from '@prisma/client'
 
-const USERNAME_RE = /^[a-z0-9_-]{2,32}$/
-
-export function isUsernameFormatValid(username: string): boolean {
-  return USERNAME_RE.test(username)
-}
-
-export async function isUsernameAvailable(username: string): Promise<boolean> {
-  if (isBlocklisted(username)) return false
-  const existing = await prisma.member.findUnique({
-    where: { username },
-    select: { id: true },
-  })
-  return !existing
-}
+// Username rules live in lib/members/username.ts; re-exported here because the
+// registration, admin-link and username routes have always imported them from
+// this file.
+export { isUsernameFormatValid, isUsernameAvailable, USERNAME_FORMAT_MESSAGE } from '@/lib/members/username'
 
 function randomDigits(count: number): string {
   let out = ''

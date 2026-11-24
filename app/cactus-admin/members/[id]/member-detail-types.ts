@@ -34,7 +34,8 @@ export type MemberDetail = {
 /** Which profile fields this site asks members for (lib/members/config.ts). */
 export type MemberProfileFields = {
   displayName: boolean
-  bioAndWebsite: boolean
+  bio: boolean
+  website: boolean
   organisation: boolean
 }
 

@@ -979,6 +979,11 @@ CREATE UNIQUE INDEX "Member_username_key" ON "Member"("username");
 CREATE UNIQUE INDEX "Member_userId_key" ON "Member"("userId");
 CREATE INDEX "Member_status_idx" ON "Member"("status");
 CREATE INDEX "Member_previousUsername_idx" ON "Member"("previousUsername");
+-- Usernames keep their capitals but are unique whatever the capitals: "Chris"
+-- and "chris" are one name. Not expressible in schema.prisma, hence raw here and
+-- in prisma/core-reconcile/050. lib/members/username.ts reads through both.
+CREATE UNIQUE INDEX "Member_username_lower_key" ON "Member"(lower("username"));
+CREATE INDEX "Member_previousUsername_lower_idx" ON "Member"(lower("previousUsername"));
 CREATE INDEX "Member_deletionScheduledAt_idx" ON "Member"("deletionScheduledAt");
 CREATE INDEX "Member_createdAt_idx" ON "Member"("createdAt");
 

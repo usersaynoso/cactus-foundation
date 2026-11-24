@@ -38,6 +38,8 @@ type Config = {
   blockedEmailDomains: string[]
   notifyAdminOnPendingApproval: boolean
   profileVisibility: 'PUBLIC' | 'MEMBERS_ONLY' | 'HIDDEN'
+  profileCollectBio: boolean
+  profileCollectWebsite: boolean
   accountSinglePage: boolean
   accountCollectOrganisation: boolean
   accountRequireOrganisation: boolean
@@ -110,6 +112,43 @@ const ACCOUNT_SECTION_FIELDS = [
     hint: 'Downloading their data and closing their account.',
   },
 ] as const
+
+// A days box that says what it is for. The min and max match the settings
+// schema, so the browser flags a number the save would refuse before it is sent.
+// A cleared box is held as typed rather than turned into 0 straight away, so a
+// member of staff retyping a number does not watch it snap to a zero mid-edit;
+// leaving the box empty puts the last good number back.
+function DaysField({ label, hint, min, max, value, onChange }: {
+  label: string
+  hint: string
+  min: number
+  max: number
+  value: number
+  onChange: (value: number) => void
+}) {
+  // What is being typed, while it is being typed; null shows the saved number.
+  const [draft, setDraft] = useState<string | null>(null)
+  const text = draft ?? String(value)
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        step={1}
+        value={text}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          if (e.target.value !== '') onChange(Number(e.target.value))
+        }}
+        onBlur={() => setDraft(null)}
+      />
+      <span className="field-hint">{hint}</span>
+    </div>
+  )
+}
 
 function listToText(list: string[]): string {
   return list.join('\n')
@@ -265,14 +304,22 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
             <input type="checkbox" checked={config.usernameChangesEnabled} onChange={(e) => update('usernameChangesEnabled', e.target.checked)} />
             Allow members to change their username
           </label>
-          <div className="field">
-            <label>Change cooldown (days)</label>
-            <input type="number" min={0} value={config.usernameChangeCooldownDays} onChange={(e) => update('usernameChangeCooldownDays', Number(e.target.value))} />
-          </div>
-          <div className="field">
-            <label>Old-username redirect window (days)</label>
-            <input type="number" min={0} value={config.usernameRedirectDays} onChange={(e) => update('usernameRedirectDays', Number(e.target.value))} />
-          </div>
+          <DaysField
+            label="Change cooldown (days)"
+            min={0}
+            max={3650}
+            value={config.usernameChangeCooldownDays}
+            onChange={(v) => update('usernameChangeCooldownDays', v)}
+            hint="How long a member waits between username changes. 0 = no cooldown: they can change it as often as they like. Changing only the capitals (chris to Chris) never counts, so that is allowed at any time."
+          />
+          <DaysField
+            label="Old-username redirect window (days)"
+            min={0}
+            max={3650}
+            value={config.usernameRedirectDays}
+            onChange={(v) => update('usernameRedirectDays', v)}
+            hint="How long a member's old profile address keeps forwarding to the new one. The old name is held for them for the same time, so nobody else can grab it in the meantime. 0 = no forwarding, and the old name is free for anyone straight away."
+          />
         </div>
       )}
 
@@ -285,6 +332,25 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
               <option value="MEMBERS_ONLY">Members only</option>
               <option value="HIDDEN">Hidden</option>
             </select>
+            <span className="field-hint">
+              Hidden takes public profiles offline altogether, and members stop being offered choices about what
+              theirs shows.
+            </span>
+          </div>
+          <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-1)' }}>Profile fields</p>
+          <div style={{ marginBottom: 'var(--space-4)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={config.profileCollectBio} onChange={(e) => update('profileCollectBio', e.target.checked)} />
+              Ask members for a bio
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-2)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={config.profileCollectWebsite} onChange={(e) => update('profileCollectWebsite', e.target.checked)} />
+              Ask members for a website
+            </label>
+            <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 1.6rem' }}>
+              Off, the box goes from their profile page and their public profile stops showing it. Anything already
+              saved is kept, and comes back if you switch it on again.
+            </p>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', cursor: 'pointer' }}>
             <input type="checkbox" checked={config.directoryEnabled} onChange={(e) => update('directoryEnabled', e.target.checked)} />
@@ -321,24 +387,27 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
               A box beside their name on the account page, for the company, school or practice they buy on behalf of.
               Off, the box goes and nothing new is saved into it - anything already there is left alone.
             </p>
-            <label style={{
-              display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-              marginTop: 'var(--space-2)', marginLeft: '1.6rem',
-              cursor: config.accountCollectOrganisation ? 'pointer' : 'not-allowed',
-              opacity: config.accountCollectOrganisation ? 1 : 0.55,
-            }}>
-              <input
-                type="checkbox"
-                disabled={!config.accountCollectOrganisation}
-                checked={config.accountRequireOrganisation}
-                onChange={(e) => update('accountRequireOrganisation', e.target.checked)}
-              />
-              Make it required
-            </label>
-            <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 3.2rem' }}>
-              Members cannot save their details without one, and the box stops calling itself optional. Nobody
-              already signed up is chased for it - they are asked the next time they open the page.
-            </p>
+            {/* Only offered while the box itself is. The saved choice is kept
+                when it goes, and is only ever read with the box switched on. */}
+            {config.accountCollectOrganisation && (
+              <>
+                <label style={{
+                  display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                  marginTop: 'var(--space-2)', marginLeft: '1.6rem', cursor: 'pointer',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={config.accountRequireOrganisation}
+                    onChange={(e) => update('accountRequireOrganisation', e.target.checked)}
+                  />
+                  Make it required
+                </label>
+                <p className="field-hint" style={{ margin: 'var(--space-1) 0 0 3.2rem' }}>
+                  Members cannot save their details without one, and the box stops calling itself optional. Nobody
+                  already signed up is chased for it - they are asked the next time they open the page.
+                </p>
+              </>
+            )}
           </div>
           <p style={{ fontWeight: 600, margin: 'var(--space-4) 0 var(--space-1)' }}>Account area sections</p>
           <p className="field-hint" style={{ margin: '0 0 var(--space-3)' }}>
@@ -460,18 +529,30 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
               but are prompted to add one until they do.
             </span>
           </div>}
-          <div className="field">
-            <label>Session duration (days)</label>
-            <input type="number" min={1} value={config.sessionDays} onChange={(e) => update('sessionDays', Number(e.target.value))} />
-          </div>
-          <div className="field">
-            <label>Trusted browser duration (days)</label>
-            <input type="number" min={1} value={config.trustedBrowserDays} onChange={(e) => update('trustedBrowserDays', Number(e.target.value))} />
-          </div>
-          <div className="field">
-            <label>Deletion grace period (days)</label>
-            <input type="number" min={0} value={config.deletionGracePeriodDays} onChange={(e) => update('deletionGracePeriodDays', Number(e.target.value))} />
-          </div>
+          <DaysField
+            label="Session duration (days)"
+            min={1}
+            max={365}
+            value={config.sessionDays}
+            onChange={(v) => update('sessionDays', v)}
+            hint="How long a member stays signed in without visiting. Every visit starts the count again, so someone who pops back weekly never has to sign in twice. A change applies to everyone already signed in, from their next visit."
+          />
+          <DaysField
+            label="Trusted browser duration (days)"
+            min={1}
+            max={365}
+            value={config.trustedBrowserDays}
+            onChange={(v) => update('trustedBrowserDays', v)}
+            hint={"After a password sign-in, a member can tick \u201ctrust this browser\u201d to skip the code on it. This is how long that lasts, counted from the day they ticked it - visiting does not extend it. A change applies to browsers already trusted, too."}
+          />
+          <DaysField
+            label="Deletion grace period (days)"
+            min={0}
+            max={365}
+            value={config.deletionGracePeriodDays}
+            onChange={(v) => update('deletionGracePeriodDays', v)}
+            hint="How long a member has to change their mind after asking to close their account. 0 = it goes at the next scheduled clear-out, with no time to think better of it."
+          />
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', cursor: 'pointer' }}>
             <input type="checkbox" checked={config.adminNotifyOnDeletion} onChange={(e) => update('adminNotifyOnDeletion', e.target.checked)} />
             Notify admins when a member requests deletion

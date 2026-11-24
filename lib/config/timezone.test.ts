@@ -6,6 +6,7 @@ import {
   calendarDateIn,
   instantAtWallClock,
   wallClockDaysAhead,
+  formatLongDate,
 } from './timezone'
 
 describe('normaliseTimezone', () => {
@@ -92,5 +93,29 @@ describe('wallClockDaysAhead', () => {
 
   it('crosses a month end', () => {
     expect(wallClockDaysAhead(new Date('2026-07-31T10:00:00Z'), 1, '09:00', 'Europe/London').toISOString()).toBe('2026-08-01T08:00:00.000Z')
+  })
+})
+
+describe('formatLongDate', () => {
+  it('writes dates the way the site does in prose', () => {
+    expect(formatLongDate(new Date('2027-01-04T12:00:00Z'), 'Europe/London')).toBe('the 4th of January 2027')
+    expect(formatLongDate(new Date('2026-12-01T12:00:00Z'), 'Europe/London')).toBe('the 1st of December 2026')
+    expect(formatLongDate(new Date('2026-12-22T12:00:00Z'), 'Europe/London')).toBe('the 22nd of December 2026')
+    expect(formatLongDate(new Date('2026-12-23T12:00:00Z'), 'Europe/London')).toBe('the 23rd of December 2026')
+  })
+
+  it('uses th for the teens', () => {
+    for (const day of [11, 12, 13]) {
+      expect(formatLongDate(new Date(`2026-12-${day}T12:00:00Z`), 'UTC')).toBe(`the ${day}th of December 2026`)
+    }
+  })
+
+  it('reads the date in the site zone, not the server one', () => {
+    // 23:30 UTC on the 3rd of July is already the 4th in London (BST).
+    expect(formatLongDate(new Date('2026-07-03T23:30:00Z'), 'Europe/London')).toBe('the 4th of July 2026')
+  })
+
+  it('is empty for nonsense', () => {
+    expect(formatLongDate('not a date', 'UTC')).toBe('')
   })
 })

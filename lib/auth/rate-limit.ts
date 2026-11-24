@@ -27,6 +27,7 @@ type RateLimitAction =
   | 'member_verify'
   | 'member_username'
   | 'member_auth_methods'
+  | 'member_admin_stepup'
 
 type RateLimitConfig = {
   windowMs: number
@@ -65,6 +66,10 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   // address doesn't trip it in normal use, and tripping it costs nothing but
   // the passkey/password shortcuts - the sign-in link is still offered.
   member_auth_methods: { windowMs: 15 * 60 * 1000, maxAttempts: 30 },
+  // Confirming with an admin passkey before changing admin passkeys from the
+  // member security page. Same shape as the admin step-up: tight, because the
+  // person is already signed in.
+  member_admin_stepup: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
 }
 
 // The client IP a rate limit can actually be keyed on.

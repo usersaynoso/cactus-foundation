@@ -240,7 +240,7 @@ export default function MemberDetailClient({
           {activeTab === 'overview' && (
             <div className="mbr-stack">
               {hasModuleSections && children}
-              {(fields.displayName || fields.bioAndWebsite) && (
+              {(fields.displayName || fields.bio || fields.website) && (
                 <ProfileCard key={`${member.displayName}|${member.bio}|${member.websiteUrl}`} member={member} fields={fields} canEdit={permissions.canEdit} onSave={saveProfile} />
               )}
             </div>

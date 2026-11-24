@@ -162,7 +162,9 @@ export default async function MemberDetailPage({ params }: Props) {
         // in. Organisation follows the account page's own switch, and is shown
         // anyway where one was given (an order can carry it in).
         displayName: config.registrationCollectDisplayName,
-        bioAndWebsite: isAccountSectionEnabled(config, 'profile'),
+        // Bio and website also follow their own "Ask members for..." switches.
+        bio: isAccountSectionEnabled(config, 'profile') && config.profileCollectBio,
+        website: isAccountSectionEnabled(config, 'profile') && config.profileCollectWebsite,
         organisation: config.accountCollectOrganisation,
       }}
       permissions={{

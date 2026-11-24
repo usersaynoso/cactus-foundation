@@ -1107,7 +1107,11 @@ enum DataExportStatus {
 model Member {
   id                        String       @id @default(cuid())
   email                     String       @unique
-  // Stored lowercase; validated against the shared path/username blocklist
+  // Stored as its owner typed it, capitals and all; validated against the shared
+  // path/username blocklist. Unique regardless of capitals through the raw
+  // index "Member_username_lower_key" on lower("username") in the init
+  // migration (Prisma cannot declare an expression index) - look members up by
+  // name through lib/members/username.ts, never `where: { username }`.
   username                  String       @unique
   displayName               String?
   // The member's real-world name, kept apart from displayName/username: those

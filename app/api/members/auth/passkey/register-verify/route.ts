@@ -4,6 +4,8 @@ import { verifyMemberRegistration, saveMemberPasskey } from '@/lib/members/passk
 import { getMemberFromCookie, isCurrentMemberSessionFresh } from '@/lib/members/session'
 import { labelFromUserAgent } from '@/lib/auth/passkey'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
+import { getMembersConfig } from '@/lib/members/config'
+import { consumeAdminStepUpGrant, findLinkedAdminForMember, saveAdminCopyOfPasskey } from '@/lib/members/admin-passkey-manage'
 
 export async function POST(request: NextRequest) {
   const member = await getMemberFromCookie()
@@ -42,15 +44,28 @@ export async function POST(request: NextRequest) {
     }
 
     const label = labelFromUserAgent(request.headers.get('user-agent') ?? '')
-    await saveMemberPasskey(
-      member.id,
-      verification.registrationInfo,
-      ((attestation as { response?: { transports?: string[] } })?.response?.transports ?? []) as AuthenticatorTransportFuture[],
-      label
-    )
-    await notifyMemberSecurityAlert(member, 'A new passkey was added to your account.')
+    const transports = ((attestation as { response?: { transports?: string[] } })?.response?.transports ?? []) as AuthenticatorTransportFuture[]
+    await saveMemberPasskey(member.id, verification.registrationInfo, transports, label)
 
-    return NextResponse.json({ verified: true })
+    // The admin behind this member account, having just confirmed with one of
+    // their admin passkeys (lib/members/admin-passkey-manage.ts), gets the new
+    // passkey on their admin account too. Without that confirmation it stays a
+    // member passkey, as it always has.
+    let addedToAdmin = false
+    const admin = await findLinkedAdminForMember(member, await getMembersConfig())
+    if (admin && (await consumeAdminStepUpGrant(member.id, admin.id))) {
+      await saveAdminCopyOfPasskey(admin.id, verification.registrationInfo, transports, label)
+      addedToAdmin = true
+    }
+
+    await notifyMemberSecurityAlert(
+      member,
+      addedToAdmin
+        ? 'A new passkey was added to your account and to your admin account.'
+        : 'A new passkey was added to your account.'
+    )
+
+    return NextResponse.json({ verified: true, addedToAdmin })
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Verification failed' }, { status: 400 })
   }

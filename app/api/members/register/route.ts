@@ -13,6 +13,7 @@ import {
   consumeInviteToken,
   sendVerificationEmail,
   generateUsernameFromEmail,
+  USERNAME_FORMAT_MESSAGE,
 } from '@/lib/members/registration'
 import { canResendVerification } from '@/lib/members/tokens'
 import { sendMagicLink } from '@/lib/members/magic-link'
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
   // stops handles being chosen instead of merely hiding the box.
   const displayName = config.registrationCollectDisplayName ? parsed.data.displayName : undefined
   const suppliedUsername = config.registrationCollectUsername
-    ? parsed.data.username?.toLowerCase()
+    ? parsed.data.username?.trim()
     : undefined
   // The registration form's policy, not the site's: with the password box
   // switched off, a password sent anyway is dropped like any other hidden
@@ -99,10 +100,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Choose a username' }, { status: 400 })
     }
     if (!isUsernameFormatValid(suppliedUsername)) {
-      return NextResponse.json(
-        { error: 'Usernames must be 2-32 characters: lowercase letters, numbers, hyphens and underscores only' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: USERNAME_FORMAT_MESSAGE }, { status: 400 })
     }
     if (!(await isUsernameAvailable(suppliedUsername))) {
       return NextResponse.json({ error: `Username "${suppliedUsername}" is not available` }, { status: 409 })

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/db/prisma'
 import { getInstalledManifests } from '@/lib/modules/live-status'
 import { getMemberFromCookie } from '@/lib/members/session'
-import { getMembersConfig, isMemberSelfDeletionAllowed } from '@/lib/members/config'
+import { getMembersConfig, isAuthMethodEnabled, isMemberSelfDeletionAllowed } from '@/lib/members/config'
 import { getMemberAreaPath } from '@/lib/members/paths'
 import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 import { hasVisibleModuleNotificationCategories } from '@/lib/members/notification-categories'
@@ -255,8 +255,15 @@ export default async function AccountIndexPage() {
         {sections.security && (
           <SummaryCard title="Account & Security" href={sectionHref('security', '/security')} linkLabel="Manage account">
             <span>{passkeyCount === 0 ? 'No passkeys yet' : `${passkeyCount} passkey${passkeyCount === 1 ? '' : 's'}`}</span>
-            <span>{record?.password ? 'Password set' : 'No password set'}</span>
-            <span>{twoFactorCount > 0 ? 'Two-factor on' : 'Two-factor off'}</span>
+            {/* Passwords and their second step only mean anything while
+                password sign-in is on; "No password set" on a site that never
+                offers one reads like something the member forgot to do. */}
+            {isAuthMethodEnabled(config, 'PASSWORD') && (
+              <>
+                <span>{record?.password ? 'Password set' : 'No password set'}</span>
+                <span>{twoFactorCount > 0 ? 'Two-factor on' : 'Two-factor off'}</span>
+              </>
+            )}
             <span>{sessionCount} active {sessionCount === 1 ? 'session' : 'sessions'}</span>
           </SummaryCard>
         )}

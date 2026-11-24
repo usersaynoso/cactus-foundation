@@ -6,6 +6,7 @@ import { generateTotpSecret, buildOtpauthUri, generateQrDataUrl } from '@/lib/au
 import { encryptSecret } from '@/lib/crypto/secrets'
 import { createMemberEmailChallenge } from '@/lib/members/email-challenge'
 import { isEmailConfigured } from '@/lib/config/env'
+import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
 
 const Body = z.object({ method: z.enum(['EMAIL', 'AUTHENTICATOR_APP']) })
 
@@ -19,6 +20,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: 'For your security, please sign in again before setting up two-factor authentication.', reauthRequired: true },
       { status: 403 }
+    )
+  }
+
+  // Codes are only ever asked for at password sign-in (passkeys and sign-in
+  // links never use them), so with password sign-in off there is nothing for a
+  // second step to protect. The security page stops offering it; this stops a
+  // stray request setting one up anyway.
+  if (!isAuthMethodEnabled(await getMembersConfig(), 'PASSWORD')) {
+    return NextResponse.json(
+      { error: 'Two-factor codes are only used with password sign-in, which is switched off on this site.' },
+      { status: 400 }
     )
   }
 

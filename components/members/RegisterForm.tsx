@@ -172,16 +172,16 @@ export default function RegisterForm({
           <input
             type="text"
             value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase())}
+            onChange={(e) => setUsername(e.target.value)}
             required
             // The hyphen is escaped because browsers compile `pattern` with the
             // regex `v` flag, where a bare trailing `-` in a character class is
             // a syntax error. An uncompilable pattern is skipped rather than
             // enforced, so the unescaped version quietly validated nothing.
-            pattern="[a-z0-9_\-]{2,32}"
+            pattern="[A-Za-z0-9_\-]{2,32}"
             autoComplete="username"
           />
-          <span className="field-hint">Lowercase letters, numbers, hyphens and underscores only.</span>
+          <span className="field-hint">Letters, numbers, hyphens and underscores. Capitals are fine, but nobody else can take the same name in different capitals.</span>
         </div>
       )}
 
