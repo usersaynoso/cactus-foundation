@@ -50,6 +50,7 @@ import { moduleCspOrigins, type ModuleCspDirective } from '@/lib/modules/csp-ori
 import { originMismatch } from '@/lib/security/origin-check'
 import { publicOrigin, publicUrl } from '@/lib/security/public-origin'
 import { directBucketCspSources } from '@/lib/media/bucket-origins'
+import { resolveHsts } from '@/lib/security/hsts'
 
 // The media Worker's hostname for the img-src allowlist. Prefer an explicit
 // CLOUDFLARE_WORKER_HOSTNAME, but fall back to the hostname of
@@ -221,8 +222,17 @@ const SECURITY_HEADERS: [string, string][] = [
   ['X-Content-Type-Options', 'nosniff'],
   ['Referrer-Policy', 'strict-origin-when-cross-origin'],
   ['Permissions-Policy', 'camera=(), microphone=(), geolocation=(), publickey-credentials-create=(self), publickey-credentials-get=(self)'],
-  ['Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload'],
+  // CACTUS_HSTS overrides the value per site; unset keeps the long-standing
+  // default byte for byte, `off` drops the header. See lib/security/hsts.ts.
+  ...hstsHeader(),
 ]
+
+// Read as a literal `process.env.CACTUS_HSTS`, not by computed name, like every
+// other variable here: an edge bundle may carry over only literal references.
+function hstsHeader(): [string, string][] {
+  const value = resolveHsts(process.env.CACTUS_HSTS, (message) => console.warn(message))
+  return value === null ? [] : [['Strict-Transport-Security', value]]
+}
 
 // Adds a shared-cache Cache-Control to a public page response when the site
 // owner has turned the page cache on (Settings > General > Speed) and this
