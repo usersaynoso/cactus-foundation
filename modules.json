@@ -153,7 +153,7 @@
     {
       "name": "chat",
       "repoUrl": "https://github.com/cactus-foundation-modules/live-chat",
-      "version": "v0.1.27"
+      "version": "v0.1.28"
     },
     {
       "name": "uk-bookkeeping",
@@ -198,12 +198,17 @@
     {
       "name": "ai-call-answering",
       "repoUrl": "https://github.com/cactus-foundation-modules/AI-Call-Answering",
-      "version": "v0.1.28"
+      "version": "v0.1.30"
     },
     {
       "name": "analytics",
       "repoUrl": "https://github.com/cactus-foundation-modules/Analytics",
       "version": "v0.1.2"
+    },
+    {
+      "name": "ai-agent-for-live-chat",
+      "repoUrl": "https://github.com/cactus-foundation-modules/AI-Agent-for-Live-Chat",
+      "version": "v0.1.0"
     }
   ]
 }

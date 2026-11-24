@@ -304,7 +304,15 @@ async function applyModuleSchemas(db: ExtendedPrismaClient): Promise<string[]> {
           async (tx) => {
             for (const statement of statements) await tx.$executeRawUnsafe(statement)
           },
-          { maxWait: 15_000, timeout: 55_000 },
+          // Generous on purpose. Every statement is a round trip through the
+          // SSH tunnel to the test server, so a long migration file (the inbox,
+          // purchase orders) can pass a minute on a slow link. Past the limit
+          // Prisma closes the transaction under the loop ("Transaction not
+          // found"), its engine drops the connection, and every module after
+          // fails with "Engine is not yet connected" until beforeAll times out
+          // ten minutes later - a different module each run, which looked like
+          // a flaky gate rather than a timeout.
+          { maxWait: 30_000, timeout: 240_000 },
         )
       }
       applied.push(mod.name)
@@ -500,7 +508,9 @@ describe.skipIf(!shouldRun)('backup round-trip against a real database', () => {
     await srcDb.$disconnect()
     dstDatabase = await createTestDatabase(vps, `cactus_rt_dst_${stamp}`, role, srcDatabase.name)
     dstDb = await connect(dstDatabase.connectionUri)
-  }, 600_000)
+    // Twenty minutes: the per-file allowance above, across forty-odd modules on
+    // a slow tunnel, can pass ten. A healthy run still takes about a minute.
+  }, 1_200_000)
 
   // Cleanup runs whatever happened above: a half-provisioned run must still leave
   // the server as it found it. Each step is independently guarded so one failure
