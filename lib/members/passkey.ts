@@ -12,6 +12,7 @@ import type {
 } from '@simplewebauthn/server'
 import { prisma } from '@/lib/db/prisma'
 import { getWebAuthnRpId, getWebAuthnOrigin } from '@/lib/config/env'
+import { verifyLinkedAdminPasskey } from '@/lib/members/admin-passkey-link'
 
 // Mirrors lib/auth/passkey.ts against Member/MemberPasskey instead of
 // User/Passkey, reusing the same WebAuthnChallenge table with memberId set
@@ -155,9 +156,17 @@ export async function createMemberAuthenticationChallenge(memberId?: string) {
   return opts
 }
 
+export type MemberAuthenticationOptions = {
+  // Asked only once no member passkey matched, so the ordinary member path
+  // costs nothing extra. True when the site has "Admins can use their admin
+  // passkey to sign in to their member account" switched on.
+  allowLinkedAdminPasskey?: () => Promise<boolean>
+}
+
 export async function verifyMemberAuthentication(
   challenge: string,
-  response: Parameters<typeof verifyAuthenticationResponse>[0]['response']
+  response: Parameters<typeof verifyAuthenticationResponse>[0]['response'],
+  options: MemberAuthenticationOptions = {}
 ) {
   const stored = await prisma.webAuthnChallenge.findUnique({ where: { challenge } })
   if (!stored || stored.purpose !== 'member_authentication' || stored.expiresAt < new Date()) {
@@ -172,6 +181,14 @@ export async function verifyMemberAuthentication(
   })
   if (!passkey) {
     await prisma.webAuthnChallenge.delete({ where: { challenge } })
+    // The linked admin passkey leg. Every way it can fail ends in the same
+    // error as an unknown credential, so nothing here enumerates accounts.
+    if (options.allowLinkedAdminPasskey && (await options.allowLinkedAdminPasskey())) {
+      const linked = await verifyLinkedAdminPasskey(challenge, response, stored.memberId)
+      if (linked) {
+        return { verification: linked.verification, member: linked.member, viaLinkedAdminPasskey: true }
+      }
+    }
     throw new Error('Passkey not found')
   }
 
@@ -203,5 +220,5 @@ export async function verifyMemberAuthentication(
     },
   })
 
-  return { verification, member: passkey.member }
+  return { verification, member: passkey.member, viaLinkedAdminPasskey: false }
 }

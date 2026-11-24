@@ -62,6 +62,13 @@ export const MembersConfigSchema = z.object({
   // without one it behaves as OPTIONAL (nothing to enrol against). Applies to
   // password sign-in only - passkey and magic-link flows never use codes.
   smsTwoFactorPolicy: z.enum(['OPTIONAL', 'REQUIRED']).default('OPTIONAL'),
+  // "Admins can use their admin passkey to sign in to their member account".
+  // On, the member passkey sign-in also accepts a staff passkey and opens the
+  // member account with the same verified address (lib/members/admin-passkey-
+  // link.ts for the rules). One way only: a member passkey never opens the
+  // admin area. Off by default, so every existing site behaves exactly as it
+  // did until its owner chooses otherwise.
+  adminPasskeySignInForMembers: z.boolean().default(false),
   trustedBrowserDays: z.number().int().min(1).max(365).default(30),
   // Member session duration in days (sliding expiry)
   sessionDays: z.number().int().min(1).max(365).default(30),

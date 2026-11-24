@@ -225,6 +225,30 @@ Two things worth knowing:
 
 You can't delete this member account from the member area's Danger Zone, since removing your admin account is what actually removes it.
 
+### Using your admin passkey as a member
+
+Out of the box your admin passkey and your member account have nothing to do with each other, so signing in to the member area from a device where you're not already signed in to the admin (or from one of a site's apps, which sign in through the member sign-in) wants a passkey of its own. Most people would rather not keep two passkeys for the same website on the same phone.
+
+Tick **Admins can use their admin passkey to sign in to their member account** under **Settings → Users → Access control** and they needn't. With it on, the member sign-in also accepts an admin passkey and signs that person in to the member account with the same email address. It's off on every site until somebody turns it on, and nothing changes for anybody until then.
+
+It only lets someone in when all of these hold, and otherwise behaves exactly as if the passkey were one it had never seen (so it never gives away who has an account):
+
+- the admin account's email address is verified and the admin isn't suspended;
+- there is exactly one member account with that address (capitals and stray spaces ignored), its address is verified too, and it isn't suspended or deleted;
+- that member account doesn't already belong to a different admin.
+
+A few more things worth knowing:
+
+- **It only works one way.** An admin passkey can open the member account. A member passkey never opens the admin area, setting or no setting, and the admin sign-in itself is untouched.
+- **The passkey has to do everything a member passkey would.** Face, fingerprint or PIN is still required, the usual checks on the website address apply, and the passkey's use counter moves on just as it does for an admin sign-in.
+- **The sign-in form offers the passkey button** for such an account, the same as it would for a member who had added their own. An address with no member account behind it gets the ordinary answer, whether or not an admin uses it.
+- **It shows in the member's activity** as "Signed in with your admin passkey", so it can be told apart from a passkey of the account's own.
+- An account awaiting approval gets the same "awaiting approval" message a member passkey would get.
+- Member passkeys set to **Off** switches this off too.
+- It doesn't count as the member having a passkey of their own. If you've set member passkeys to **Required**, a member with only the admin one is still asked to add one.
+
+For developers: the setting is `adminPasskeySignInForMembers` in `membersConfig` (default false). `POST /api/members/auth/passkey/authenticate-verify` looks the credential up in `MemberPasskey` first, exactly as before; only when that misses, and `isLinkedAdminPasskeyEnabled` says members, member passkeys and the setting are all on, does `verifyLinkedAdminPasskey` (`lib/members/admin-passkey-link.ts`) look in the admin `Passkey` table, verify the assertion against that public key with the same options (challenge, origin, RP ID, `requireUserVerification`), and only then apply `decideLinkedMember`. Every refusal throws the same "Passkey not found" as an unknown credential. The activity row is `login` with `metadata: { method: 'PASSKEY', linkedAdminPasskey: true }`. `POST /api/members/auth/methods` reports `passkey: true` for a member who has none of their own only when `memberHasLinkedAdminPasskey` passes the same rule; the passkey challenge itself stays the one unscoped, discoverable-credential challenge for everybody, so no credential ids are ever handed out. Rate limits are the existing `passkey_authenticate` and `member_auth_methods` ones.
+
 ### Data export and account deletion
 
 Members can request a copy of all their data at any time - it's bundled up and available to download for 48 hours. If they delete their account, it's not removed immediately: there's a grace period (you choose how long, default 14 days) during which they can change their mind, before it's permanently deleted.

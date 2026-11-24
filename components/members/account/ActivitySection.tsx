@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from 'react'
 
-type ActivityEvent = { id: string; type: string; source: string | null; createdAt: string }
+type ActivityEvent = {
+  id: string
+  type: string
+  source: string | null
+  metadata?: { linkedAdminPasskey?: boolean } | null
+  createdAt: string
+}
 
 const CORE_LABELS: Record<string, string> = {
   login: 'Signed in',
@@ -10,6 +16,12 @@ const CORE_LABELS: Record<string, string> = {
 }
 
 function labelFor(event: ActivityEvent): string {
+  // A sign-in made with the admin passkey under "Admins can use their admin
+  // passkey to sign in to their member account" says so, so the member can
+  // tell it apart from one made with a passkey of the account's own.
+  if (!event.source && event.type === 'login' && event.metadata?.linkedAdminPasskey === true) {
+    return 'Signed in with your admin passkey'
+  }
   if (!event.source) return CORE_LABELS[event.type] ?? event.type
   return `${event.source}: ${event.type}`
 }

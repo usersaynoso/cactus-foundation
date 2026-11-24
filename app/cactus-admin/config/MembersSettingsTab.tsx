@@ -19,6 +19,7 @@ type Config = {
     PASSWORD: MethodPolicy
   }
   smsTwoFactorPolicy: 'OPTIONAL' | 'REQUIRED'
+  adminPasskeySignInForMembers: boolean
   trustedBrowserDays: number
   sessionDays: number
   avatarUploadsEnabled: boolean
@@ -427,6 +428,24 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
               both set up from inside an account they can&apos;t reach yet. Existing members are unaffected.
             </div>
           )}
+          <div className="field">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={config.adminPasskeySignInForMembers}
+                onChange={(e) => update('adminPasskeySignInForMembers', e.target.checked)}
+              />
+              Admins can use their admin passkey to sign in to their member account
+            </label>
+            <span className="field-hint">
+              For a member account with the same verified email address as an admin account, the admin&apos;s
+              existing passkey also signs them in as that member, so nobody needs a second passkey for the
+              same site. It only works that way round: a member passkey never opens the admin area.
+              {config.authMethodPolicies.PASSKEY === 'OFF' && (
+                <> Has no effect while member passkeys are off.</>
+              )}
+            </span>
+          </div>
           {/* Hidden without a text-message module: there is nothing to send the
               codes with, and the saved choice waits untouched for one to arrive. */}
           {smsProviderInstalled && <div className="field">

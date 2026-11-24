@@ -21,6 +21,7 @@ import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { isEmailConfigured } from '@/lib/config/env'
 import { memberLoginMethods } from '@/lib/members/login-methods'
+import { isLinkedAdminPasskeyEnabled, memberHasLinkedAdminPasskey } from '@/lib/members/admin-passkey-link'
 
 const Body = z.object({ email: z.string().email() })
 
@@ -59,6 +60,11 @@ export async function POST(request: NextRequest) {
   const member = await prisma.member.findUnique({
     where: { email: parsed.data.email },
     select: {
+      id: true,
+      email: true,
+      emailVerified: true,
+      status: true,
+      userId: true,
       password: { select: { id: true } },
       passkeys: { select: { id: true }, take: 1 },
     },
@@ -67,9 +73,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(linkOnly)
   }
 
+  // With "Admins can use their admin passkey to sign in to their member
+  // account" on, an admin passkey behind this member's address counts as one
+  // of theirs, so the form offers the passkey button. Only ever asked about a
+  // member that exists, so an address with no member still gets linkOnly and
+  // says nothing about whether an admin holds it.
+  const hasPasskey =
+    member.passkeys.length > 0 ||
+    (isLinkedAdminPasskeyEnabled(config) && (await memberHasLinkedAdminPasskey(member)))
+
   return NextResponse.json(
     memberLoginMethods(siteAllows, {
-      hasPasskey: member.passkeys.length > 0,
+      hasPasskey,
       hasPassword: member.password !== null,
     })
   )

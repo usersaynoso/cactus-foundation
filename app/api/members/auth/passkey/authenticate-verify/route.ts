@@ -4,6 +4,8 @@ import { createMemberSession, setMemberSessionCookie } from '@/lib/members/sessi
 import { loginRejectionForStatus } from '@/lib/members/registration'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { recordMemberActivity } from '@/lib/members/activity'
+import { getMembersConfig } from '@/lib/members/config'
+import { isLinkedAdminPasskeyEnabled } from '@/lib/members/admin-passkey-link'
 
 export async function POST(request: NextRequest) {
   const ip = await getClientIp(request)
@@ -23,7 +25,11 @@ export async function POST(request: NextRequest) {
     ) as { challenge?: string }
     const challenge = clientData.challenge ?? ''
 
-    const { member } = await verifyMemberAuthentication(challenge, body)
+    // The site setting is read only when the credential is not a member
+    // passkey, so ordinary member sign-in is exactly as it was.
+    const { member, viaLinkedAdminPasskey } = await verifyMemberAuthentication(challenge, body, {
+      allowLinkedAdminPasskey: async () => isLinkedAdminPasskeyEnabled(await getMembersConfig()),
+    })
 
     const rejection = loginRejectionForStatus(member.status)
     if (rejection) {
@@ -38,7 +44,11 @@ export async function POST(request: NextRequest) {
       userAgent: request.headers.get('user-agent') ?? undefined,
     })
     await setMemberSessionCookie(token)
-    await recordMemberActivity(member.id, 'login', { metadata: { method: 'PASSKEY' } })
+    await recordMemberActivity(member.id, 'login', {
+      metadata: viaLinkedAdminPasskey
+        ? { method: 'PASSKEY', linkedAdminPasskey: true }
+        : { method: 'PASSKEY' },
+    })
 
     return NextResponse.json({ verified: true, memberId: member.id })
   } catch (err: unknown) {

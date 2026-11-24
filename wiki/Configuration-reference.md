@@ -48,6 +48,7 @@ The preference is saved immediately and the update check refreshes straight away
 | Time format | How times are displayed (e.g. `HH:mm`) | `HH:mm` |
 | Dialling code | Which country a phone number typed without one belongs to. Somewhere in the site, somebody types 020 8138 0512 and means a whole number; this is the part a phone company needs and nobody says out loud. Anything typed in full, with its own + and country code, ignores this entirely. | `+44` |
 | Admin path | The secret URL prefix for the admin area. Changing it takes effect automatically. | Set during setup |
+| Admins can use their admin passkey to sign in to their member account | Lets an admin's existing passkey sign them in to the member account with the same verified email address, so they need no second passkey (`adminPasskeySignInForMembers`). One way only: a member passkey never opens the admin area. Has no effect while member passkeys are Off. See [Members](Members#using-your-admin-passkey-as-a-member) | Off |
 | Trust this browser (days) | How long a "trust this browser" cookie lasts before asking for a one-time sign-in code again | `28` |
 
 **Site URL** is shown read-only. It comes from your hosting environment and cannot be changed here. Changing it requires updating your hosting settings and redeploying - and re-registering all passkeys, since they're tied to your domain.
