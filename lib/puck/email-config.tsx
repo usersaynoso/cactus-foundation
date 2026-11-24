@@ -11,6 +11,9 @@ import {
   type EmailRootProps,
 } from '@/lib/email/blocks'
 import { EMAIL_SIGNATURE_ROOT_DEFAULTS } from '@/lib/email/signature'
+import { emailLinkStyle, styleEmailLinks } from '@/lib/email/links'
+import { SiteColourField } from '@/lib/puck/fields/registry'
+import { useSiteColours } from '@/lib/puck/useSiteColours'
 
 // Puck config for the `emailWrapper` layout type.
 //
@@ -68,7 +71,10 @@ function blockRender(name: EmailBlockName) {
   return function EmailBlockPreview(props: EmailBlockProps & { puck?: unknown }) {
     const { puck: _puck, ...rest } = props
     const root = React.useContext(EmailRootContext)
-    const html = EMAIL_BLOCK_HTML[name](rest, editorContext(root))
+    const ctx = editorContext(root)
+    // Same link pass the sent email gets (lib/email/wrapper.ts), so the canvas
+    // shows the wrapper's link colour. Identity when it is unset.
+    const html = styleEmailLinks(EMAIL_BLOCK_HTML[name](rest, ctx), emailLinkStyle(root, ctx.colours))
     if (!html) {
       return (
         <div style={{ padding: '12px 24px', color: 'var(--color-text-muted)', fontSize: '0.8125rem', fontStyle: 'italic' }}>
@@ -94,12 +100,30 @@ const alignField = {
   ],
 }
 
-// A plain text field rather than the site colour picker: the value that leaves
-// here has to be something an email client can read, so it holds either a design
-// token id (resolved to that token's light value at send time) or a literal hex.
-const colourField = (label: string) => ({
-  type: 'text' as const,
+// The site colour picker, same as every other Puck block: the site's colours
+// from Appearance > Styles as swatches, a custom swatch for any hex, and a text
+// box for anything typed by hand. A picked swatch is stored the way the picker
+// always stores one (`var(--color-N)`); no inbox can read a CSS variable, so the
+// email renderer looks the slot up in the palette and sends its light hex
+// instead (resolveColour in lib/email/blocks.ts). Older values - a literal hex,
+// or a token id such as 'primary' typed when this was a plain text box - still
+// resolve exactly as before, and a token id shows as its swatch here.
+//
+// Light only: the picker's dark-mode arm would be a promise email cannot keep.
+function EmailColourInput({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+  const colours = useSiteColours()
+  const raw = typeof value === 'string' ? value : ''
+  const slot = colours.findIndex((c) => c.id === raw.trim())
+  const shown = slot >= 0 ? `var(--color-${slot + 1})` : raw
+  return <SiteColourField value={shown} onChange={onChange} label={label} allowManual lightOnly />
+}
+
+export const colourField = (label: string) => ({
+  type: 'custom' as const,
   label,
+  render: ({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { label?: string } }) => (
+    <EmailColourInput value={value} onChange={onChange} label={field.label} />
+  ),
 })
 
 const paddingFields = {
@@ -117,7 +141,7 @@ const components = {
   EmailBodySlot: {
     label: 'Message',
     fields: {
-      textColour: colourField('Text colour (token id or hex)'),
+      textColour: colourField('Text colour'),
       fontSize: { type: 'number' as const, label: 'Text size (px)', min: 10, max: 24 },
       ...paddingFields,
     },
@@ -132,7 +156,7 @@ const components = {
       alt: { type: 'text' as const, label: 'Alt text' },
       width: { type: 'number' as const, label: 'Width (px)', min: 40, max: 600 },
       align: alignField,
-      textColour: colourField('Fallback text colour (token id or hex)'),
+      textColour: colourField('Fallback text colour'),
       ...paddingFields,
     },
     defaultProps: { src: '', href: '{{siteUrl}}', alt: '', width: 160, align: 'center', textColour: '', paddingY: 24, paddingX: 24 },
@@ -152,7 +176,7 @@ const components = {
         ],
       },
       fontSize: { type: 'number' as const, label: 'Text size (px)', min: 12, max: 48 },
-      textColour: colourField('Text colour (token id or hex)'),
+      textColour: colourField('Text colour'),
       align: alignField,
       ...paddingFields,
     },
@@ -164,7 +188,7 @@ const components = {
     fields: {
       html: { type: 'textarea' as const, label: 'Text (HTML allowed)' },
       fontSize: { type: 'number' as const, label: 'Text size (px)', min: 10, max: 24 },
-      textColour: colourField('Text colour (token id or hex)'),
+      textColour: colourField('Text colour'),
       align: alignField,
       ...paddingFields,
     },
@@ -176,8 +200,8 @@ const components = {
     fields: {
       label: { type: 'text' as const, label: 'Button text' },
       href: { type: 'text' as const, label: 'Links to' },
-      background: colourField('Background (token id or hex)'),
-      textColour: colourField('Text colour (token id or hex)'),
+      background: colourField('Background'),
+      textColour: colourField('Text colour'),
       radius: { type: 'number' as const, label: 'Corner rounding (px)', min: 0, max: 40 },
       fontSize: { type: 'number' as const, label: 'Text size (px)', min: 10, max: 24 },
       align: alignField,
@@ -203,7 +227,7 @@ const components = {
   EmailDivider: {
     label: 'Divider',
     fields: {
-      colour: colourField('Line colour (token id or hex)'),
+      colour: colourField('Line colour'),
       thickness: { type: 'number' as const, label: 'Thickness (px)', min: 1, max: 8 },
       ...paddingFields,
     },
@@ -225,7 +249,7 @@ const components = {
       rightHtml: { type: 'textarea' as const, label: 'Right column (HTML allowed)' },
       gap: { type: 'number' as const, label: 'Gap between columns (px)', min: 0, max: 64 },
       fontSize: { type: 'number' as const, label: 'Text size (px)', min: 10, max: 24 },
-      textColour: colourField('Text colour (token id or hex)'),
+      textColour: colourField('Text colour'),
       ...paddingFields,
     },
     defaultProps: { leftHtml: '', rightHtml: '', gap: 16, fontSize: 15, textColour: '', ...paddingDefaults },
@@ -244,7 +268,7 @@ const components = {
         getItemSummary: (item: { label?: string }) => item?.label || 'Link',
       },
       fontSize: { type: 'number' as const, label: 'Text size (px)', min: 10, max: 20 },
-      textColour: colourField('Text colour (token id or hex)'),
+      textColour: colourField('Text colour'),
       align: alignField,
       ...paddingFields,
     },
@@ -256,7 +280,7 @@ const components = {
     fields: {
       html: { type: 'textarea' as const, label: 'Text (HTML allowed)' },
       fontSize: { type: 'number' as const, label: 'Text size (px)', min: 8, max: 18 },
-      textColour: colourField('Text colour (token id or hex)'),
+      textColour: colourField('Text colour'),
       align: alignField,
       ...paddingFields,
     },
@@ -334,7 +358,7 @@ export const emailPuckConfig = {
   root: {
     fields: {
       preheader: { type: 'text' as const, label: 'Preview line (shown next to the subject in the inbox)' },
-      pageBackground: colourField('Page background (token id or hex)'),
+      pageBackground: colourField('Page background'),
       // Swapped for the media library picker by withImagePickerFields, same as
       // the site's blocks. The URL an email carries has to be absolute, which is
       // exactly what the picker stores, and a hand-typed relative path is
@@ -343,8 +367,21 @@ export const emailPuckConfig = {
       patternImageDark: { type: 'text' as const, label: 'Background pattern in dark mode (Apple Mail and Outlook for Mac only)' },
       patternSize: { type: 'number' as const, label: 'Pattern size (px, blank for the image\u2019s own size)', min: 0, max: 2000 },
       patternSizeDark: { type: 'number' as const, label: 'Pattern size in dark mode (px, blank = same as light)', min: 0, max: 2000 },
-      cardBackground: colourField('Card background (token id or hex)'),
-      cardBorderColour: colourField('Card border (token id or hex, blank for none)'),
+      cardBackground: colourField('Card background'),
+      cardBorderColour: colourField('Card border (blank for none)'),
+      // For a dark card: message links otherwise arrive in the mail client's
+      // own blue. Applied inline to every link that has not set its own colour,
+      // so buttons keep theirs. See lib/email/links.ts.
+      linkColour: colourField('Link colour (blank to leave links alone)'),
+      linkUnderline: {
+        type: 'select' as const,
+        label: 'Link underline',
+        options: [
+          { value: '', label: 'Leave as each message has it' },
+          { value: 'underline', label: 'Underlined' },
+          { value: 'none', label: 'Not underlined' },
+        ],
+      },
       contentWidth: { type: 'number' as const, label: 'Card width (px)', min: 320, max: 800 },
       cardRadius: { type: 'number' as const, label: 'Card corner rounding (px)', min: 0, max: 40 },
       outerPadding: { type: 'number' as const, label: 'Space around the card (px)', min: 0, max: 80 },
@@ -397,7 +434,7 @@ export const emailSignaturePuckConfig = {
   },
   root: {
     fields: {
-      background: colourField('Background (token id or hex, blank for none)'),
+      background: colourField('Background (blank for none)'),
       contentWidth: { type: 'number' as const, label: 'Width (px)', min: 240, max: 800 },
       fontFamily: { type: 'text' as const, label: 'Font (token id, or a full font stack)' },
     },

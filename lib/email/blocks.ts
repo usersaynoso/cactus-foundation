@@ -18,6 +18,8 @@
 // is byte-for-byte what gets posted.
 
 import { patternUrl } from '@/lib/puck/patternBackground'
+import { EMAIL_LINKS_CLASS, emailLinkStyle, hasEmailLinkStyle } from '@/lib/email/links'
+import { splitLightDark } from '@/lib/puck/lightDark'
 
 export type EmailRenderContext = {
   /** The message itself, already interpolated. Dropped in by EmailBodySlot. */
@@ -76,9 +78,21 @@ function num(props: EmailBlockProps, key: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
-/** '' -> fallback, '#rrggbb'/'rgb(…)' -> itself, anything else -> token lookup. */
+/** '' -> fallback, '#rrggbb'/'rgb(…)' -> itself, anything else -> token lookup.
+ *
+ * The lookup covers the three shapes a colour field can hold: a token id typed
+ * by hand ('primary'), a site colour picked from the swatches
+ * ('var(--color-3)', resolved through the palette), and either of those wrapped
+ * in the picker's `light-dark(light, dark)` - an email has no reliable dark
+ * mode, so the light arm is the one sent. A value carrying a quote, angle
+ * bracket, semicolon, brace or backslash is never a colour and could close the
+ * style attribute it lands in, so it falls back instead. */
 export function resolveColour(value: string | undefined, ctx: EmailRenderContext, fallback: string): string {
-  const raw = (value ?? '').trim()
+  // A trailing semicolon is a habit from writing CSS, not an attack: tolerated.
+  let raw = (value ?? '').trim().replace(/;+$/, '').trim()
+  if (!raw) return fallback
+  if (/["'<>;{}\\]/.test(raw)) return fallback
+  if (raw.startsWith('light-dark(')) raw = splitLightDark(raw).light
   if (!raw) return fallback
   if (raw.startsWith('#') || raw.startsWith('rgb') || raw.startsWith('hsl')) return raw
   return ctx.colours[raw] ?? fallback
@@ -299,8 +313,11 @@ export function emailShell(root: EmailRootProps, ctx: EmailRenderContext, inner:
   // through Word, which ignores background-image on a table but does tile the
   // old HTML attribute. Both are emitted so the pattern shows in either engine.
   const patternAttr = pattern ? ` background="${escapeHtml(pattern)}"` : ''
+  // Scope for the link-colour backup rule in the document head (lib/email/links.ts).
+  // Absent unless a link style is set, so an unset wrapper is unchanged.
+  const linksClass = hasEmailLinkStyle(emailLinkStyle(root, ctx.colours)) ? ` class="${EMAIL_LINKS_CLASS}"` : ''
 
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"${patternAttr}${pattern ? ` class="${EMAIL_PATTERN_CLASS}"` : ''} style="border-collapse:collapse;width:100%;background-color:${pageBg};${emailPatternStyle(root)}margin:0;padding:0;"><tr><td align="center" style="padding:${outerPad}px 12px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="${width}" style="border-collapse:collapse;width:100%;max-width:${width}px;background-color:${cardBg};${radius ? `border-radius:${radius}px;` : ''}${borderStyle}overflow:hidden;"><tr><td style="padding:0;">${inner}</td></tr></table></td></tr></table>`
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"${patternAttr}${pattern ? ` class="${EMAIL_PATTERN_CLASS}"` : ''} style="border-collapse:collapse;width:100%;background-color:${pageBg};${emailPatternStyle(root)}margin:0;padding:0;"><tr><td align="center" style="padding:${outerPad}px 12px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="${width}"${linksClass} style="border-collapse:collapse;width:100%;max-width:${width}px;background-color:${cardBg};${radius ? `border-radius:${radius}px;` : ''}${borderStyle}overflow:hidden;"><tr><td style="padding:0;">${inner}</td></tr></table></td></tr></table>`
 }
 
 // ---------------------------------------------------------------------------
@@ -362,6 +379,9 @@ export const EMAIL_ROOT_DEFAULTS: EmailRootProps = {
   cardRadius: 8,
   outerPadding: 24,
   fontFamily: '',
+  // Optional, both off by default: see lib/email/links.ts.
+  linkColour: '',
+  linkUnderline: '',
 }
 
 /** The font stack for an email. A token id resolves through the site fonts; a

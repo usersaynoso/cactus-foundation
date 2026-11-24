@@ -12,9 +12,12 @@ type Props = {
   // colour, an old hex). The rainbow swatch already covers picking a hex, but a
   // field that used to be a plain text input keeps its full manual override.
   allowManual?: boolean
+  // Hides the dark-mode arm. For the email blocks: an inbox has no dependable
+  // dark mode, so a second colour there would be a setting that does nothing.
+  lightOnly?: boolean
 }
 
-export function SiteColourField({ value, onChange, label, allowManual }: Props) {
+export function SiteColourField({ value, onChange, label, allowManual, lightOnly }: Props) {
   const colours = useSiteColours()
 
   // The stored value carries an optional dark-mode arm as `light-dark(l, d)`.
@@ -71,7 +74,7 @@ export function SiteColourField({ value, onChange, label, allowManual }: Props) 
       )}
       {/* Dark-mode override only makes sense once a light colour is set - an
           empty light arm means "no colour", which needs no dark counterpart. */}
-      {light && (
+      {light && !lightOnly && (
         <div style={{ marginTop: '0.5rem' }}>
           <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-muted)', marginBottom: '0.125rem' }}>Dark mode colour</label>
           {swatchRow(

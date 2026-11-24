@@ -13,9 +13,15 @@ export function paletteFromTokens(raw: unknown): EmailPalette {
   const tokens = (raw ?? DEFAULT_DESIGN_TOKENS) as DesignTokens
   const ds = tokens?.designSystem ?? DEFAULT_DESIGN_TOKENS.designSystem
   const colours: Record<string, string> = {}
-  for (const c of ds?.colours ?? []) {
-    if (c?.id && typeof c.light === 'string') colours[c.id] = c.light
-  }
+  ;(ds?.colours ?? []).forEach((c, i) => {
+    if (typeof c?.light !== 'string') return
+    if (c.id) colours[c.id] = c.light
+    // The site colour picker (lib/puck/SiteColourField.tsx) stores a swatch as
+    // `var(--color-N)`, N being the colour's 1-based slot - the same numbering
+    // buildTokenStyles gives the CSS variables. No inbox can resolve a variable,
+    // so the email side looks the slot up here and sends its light hex instead.
+    colours[`var(--color-${i + 1})`] = c.light
+  })
   const fonts: Record<string, string> = {}
   for (const f of ds?.fonts ?? []) {
     if (f?.id && typeof f.family === 'string') fonts[f.id] = f.family

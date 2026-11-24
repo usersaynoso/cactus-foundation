@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { paletteFromTokens, type EmailPalette } from '@/lib/email/palette'
+import { emailLinkHeadCss, emailLinkStyle, styleEmailLinks } from '@/lib/email/links'
 import {
   EMAIL_BLOCK_HTML,
   EMAIL_ROOT_DEFAULTS,
@@ -10,6 +11,7 @@ import {
   escapeHtml,
   EMAIL_PATTERN_CLASS,
   interpolate,
+  resolveColour,
   resolveEmailFont,
   type EmailBlockName,
   type EmailBlockProps,
@@ -146,21 +148,22 @@ function documentShell(inner: string, ctx: EmailRenderContext, root: EmailRootPr
     : ''
   const darkHead = patternDarkHead(root)
   const schemes = darkHead ? 'light dark' : 'light'
+  const linkHead = emailLinkHeadCss(emailLinkStyle(root, ctx.colours))
   // The pattern rides the <body> too, not only the outer table: the table is as
   // tall as its content, and on a short email in a tall window the client paints
   // the body behind the rest. Same class, so the dark rule reaches both.
   const patternStyle = emailPatternStyle(root)
   const bodyClass = patternStyle ? ` class="${EMAIL_PATTERN_CLASS}"` : ''
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><meta name="color-scheme" content="${schemes}" /><meta name="supported-color-schemes" content="${schemes}" /><title>${escapeHtml(title)}</title>${darkHead}</head>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><meta name="color-scheme" content="${schemes}" /><meta name="supported-color-schemes" content="${schemes}" /><title>${escapeHtml(title)}</title>${darkHead}${linkHead}</head>
 <body${bodyClass} style="margin:0;padding:0;background-color:${resolvePageBackground(root, ctx)};${patternStyle}-webkit-font-smoothing:antialiased;">${preheaderHtml}${inner}</body></html>`
 }
 
+// Same resolution as the card's own page background in emailShell, so a picked
+// site colour (`var(--color-N)`, maybe inside light-dark()) lands as its hex on
+// the <body> too.
 function resolvePageBackground(root: EmailRootProps, ctx: EmailRenderContext): string {
-  const raw = typeof root.pageBackground === 'string' ? root.pageBackground.trim() : ''
-  if (!raw) return '#f4f4f5'
-  if (raw.startsWith('#') || raw.startsWith('rgb') || raw.startsWith('hsl')) return raw
-  return ctx.colours[raw] ?? '#f4f4f5'
+  return resolveColour(typeof root.pageBackground === 'string' ? root.pageBackground : '', ctx, '#f4f4f5')
 }
 
 export type WrapEmailArgs = {
@@ -183,6 +186,9 @@ export function wrapEmailHtml({ bodyHtml, subject, vars, palette, layout }: Wrap
     colours: palette.colours,
     fontFamily: resolveEmailFont(root, palette.fonts),
   }
-  const inner = data ? renderWrapperInner(data, ctx) : EMAIL_BLOCK_HTML.EmailBodySlot({}, ctx)
+  const rendered = data ? renderWrapperInner(data, ctx) : EMAIL_BLOCK_HTML.EmailBodySlot({}, ctx)
+  // Every link on the card - the message's and the wrapper's own - takes the
+  // wrapper's link colour unless it sets one itself. Identity when unset.
+  const inner = styleEmailLinks(rendered, emailLinkStyle(root, ctx.colours))
   return documentShell(emailShell(root, ctx, inner), ctx, root, subject)
 }
