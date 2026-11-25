@@ -36,7 +36,7 @@ It does not fetch a colleague because a visitor is cross about an answer it gave
 
 ## Time-wasters
 
-The same message three or more times, keyboard-mashing, a pile of links, messages faster than anybody could type, abuse, or attempts to talk it out of its instructions: the assistant says it is passing the chat to a colleague and asks for a name and email, up to three times. Then it goes quiet and the chat is flagged for you, details or not. The wording is fixed, so this costs nothing.
+Plain abuse, keyboard-mashing, a pile of links, the same message three times in a row within a minute, messages faster than anybody could type, or attempts to talk it out of its instructions: the first time, the assistant says it is here to help with the shop's products, orders and deliveries and carries on, so somebody who was only letting off steam still gets helped. A second time in the same chat, it says it will leave it there and goes quiet. It never saves a callback or fetches a colleague for this, and swearing, banter or a visitor saying they are testing it is not enough to count.
 
 ## What it can do
 
@@ -49,6 +49,7 @@ The same message three or more times, keyboard-mashing, a pile of links, message
 - **Paying and paperwork**, read live from the shop's Payments and Invoices tabs, your bank transfer wording included.
 - **Emails, when asked** - the order's link (only ever to the address on the order) or a note of the chat, from the address you choose on the Assistant tab. Editable under **Settings > Emails > Chat assistant**. A quote too, where the Quotes module is installed. The note always lists the products talked about, with pictures and links, even if the assistant forgets to name them, and greets the visitor by their name with a capital letter however they typed it. A note of the chat lists the products the visitor was shown and chose, each opening with the options they picked, and leaves out ones they turned down.
 - **Texts, when asked** - the order's link or a note of the chat with links, where the site has text messages set up (the Twilio module). Only to a UK mobile the visitor typed in the chat or gave in the chat's contact box, or the one on an order they proved (an order link only ever to that order's own mobile). It never writes the number back, needs their yes, and sends at most three a chat. Each link goes with the product's name above it, and the text signs off with your web address ("Deskwell.co.uk").
+- **Reviews of the shop as a whole** - "do you have good reviews?" is answered from your Google rating (the Google Reviews module) and your product reviews taken together (the Reviews module), where those are installed.
 - **Pages, articles and reviews**, and "can you get it to me by Friday?" from the checkout's own delivery zones.
 - **Earlier contact** - once a visitor has proved an order or is signed in, it can see their earlier chats, calls and emails.
 - **Callbacks** are listed on the Callbacks tab, with a notification each time. **Questions it could not answer** are listed on the Unanswered tab, with a notification each Monday.
@@ -60,7 +61,7 @@ The same message three or more times, keyboard-mashing, a pile of links, message
 ## Setting it up
 
 1. Install the module.
-2. **Assistant** tab: paste an OpenAI key (or set `OPENAI_API_KEY` on the site's hosting), choose the name, business name, language and any extra instructions. The box warns about instructions that clash with the built-in rules. A site with the AI Call Answering module can press **Copy from phone assistant** to bring its business name, instructions, key and sending address across once; after that the two are independent.
+2. **Assistant** tab: paste an OpenAI key (or set `OPENAI_API_KEY` on the site's hosting), choose the name, business name, language, any extra instructions and the **email signature** that ends every note of a chat it emails (plain text or pasted HTML; it starts with the phone assistant's where that has one). The box warns about instructions that clash with the built-in rules. A site with the AI Call Answering module can press **Copy from phone assistant** to bring its business name, instructions, key and sending address across once; after that the two are independent.
 3. Choose who its emails come from.
 4. Set the mode to **Staff only**, try it, then **On**.
 
