@@ -56,8 +56,22 @@ So this module separates the two:
     lead-time filter means "can arrive *within* this many working days": ticking
     "6 working days" keeps the desk that can come in three.
 
-  Delivery filters are listing-wide, like price bands: a listing offers a service if
-  any of its variations does, and its lead time is the quickest any of them manages.
+    On the storefront a lead-time filter shows as a **date** rather than a count:
+    "Within 6 working days" reads "By Tuesday the 1st of December". The date is
+    counted the way the delivery estimate counts it - an order before the cut-off on
+    a working day clears that day, otherwise the next one - skipping weekends (or
+    whatever days the shop does not ship), bank holidays and the shop's own closures
+    from the Holidays tab. It is worked out in the shopper's browser off a calendar
+    the page carries, so a page served from a cache still shows today's date, and an
+    open page moves on by itself once the cut-off passes. The admin keeps the
+    "Within N working days" name, and the storefront falls back to it wherever no
+    calendar is available.
+
+  Delivery filters are checked per variation, like colour and fabric. On its own a
+  delivery tick asks whether any variation of the listing can do it; beside another
+  tick it has to be the SAME variation - pick Yellow and the lead-time counts only
+  count the yellow chairs, so a chair that comes in three days in black but sixteen
+  in yellow no longer turns up under "Yellow" and "Within 3 working days".
   The answers are read for the whole catalogue at once and held for ten minutes, so a
   change to the delivery settings takes up to ten minutes to reach the filters.
 - The panel also offers a **Category** section automatically, and it leads the panel.
