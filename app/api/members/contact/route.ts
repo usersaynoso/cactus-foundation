@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromRequest } from '@/lib/members/api-auth'
 import { getMembersConfig } from '@/lib/members/config'
 
 // The member's real-world name and the organisation they buy on behalf of: who
@@ -14,8 +14,8 @@ import { getMembersConfig } from '@/lib/members/config'
 // No phone number here: a number belongs to the address a parcel is going to,
 // not to the account, so the shop keeps one per saved address.
 
-export async function GET() {
-  const member = await getMemberFromCookie()
+export async function GET(request: NextRequest) {
+  const member = await getMemberFromRequest(request)
   // Nothing to say, said quietly. Every shopper's checkout asks this on the way
   // in - that is how the contact block finds out whether it has a name to fill
   // itself in with - so a guest is the ordinary answer and not a failure. As a
@@ -44,7 +44,7 @@ const Body = z.object({
 })
 
 export async function PATCH(request: NextRequest) {
-  const member = await getMemberFromCookie()
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const parsed = Body.safeParse(await request.json())

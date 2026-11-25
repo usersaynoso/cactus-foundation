@@ -1,12 +1,19 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberAuthFromRequest } from '@/lib/members/api-auth'
+import { requireStepUpGrant, spendStepUpGrant } from '@/lib/members/api-step-up'
 import { getMembersConfig, isAuthMethodEnabled, isAuthMethodRequired } from '@/lib/members/config'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const member = await getMemberFromCookie()
-  if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+// From an app (a module token) removing a passkey needs a step-up grant
+// (lib/members/api-step-up.ts): it takes a way into the account away.
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await getMemberAuthFromRequest(request)
+  if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const { member } = auth
+
+  const needsStepUp = await requireStepUpGrant(auth, request)
+  if (needsStepUp) return needsStepUp
 
   const { id } = await params
   const passkey = await prisma.memberPasskey.findUnique({ where: { id } })
@@ -43,6 +50,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       }
     }
   }
+
+  const spent = await spendStepUpGrant(auth, request)
+  if (spent) return spent
 
   await prisma.memberPasskey.delete({ where: { id } })
   await notifyMemberSecurityAlert(member, 'A passkey was removed from your account.')

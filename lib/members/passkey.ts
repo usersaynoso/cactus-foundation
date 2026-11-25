@@ -13,6 +13,7 @@ import type {
 import { prisma } from '@/lib/db/prisma'
 import { getWebAuthnRpId, getWebAuthnOrigin } from '@/lib/config/env'
 import { verifyLinkedAdminPasskey } from '@/lib/members/admin-passkey-link'
+import { androidWebCredentialOrigins } from '@/lib/auth/android-webcredentials'
 
 // Mirrors lib/auth/passkey.ts against Member/MemberPasskey instead of
 // User/Passkey, reusing the same WebAuthnChallenge table with memberId set
@@ -72,6 +73,17 @@ export async function createMemberRegistrationChallenge(
   return opts
 }
 
+// The site itself, plus any Android app named in ANDROID_WEBCREDENTIAL_APPS: a
+// passkey made in one of those through Credential Manager reports its origin as
+// the app's signing-key hash, not the site's address (see
+// lib/auth/android-webcredentials.ts). An iOS app needs nothing here - Apple
+// reports the site's own https origin once the app is in the site's
+// apple-app-site-association file (IOS_WEBCREDENTIAL_APP_IDS). The RP ID is
+// unchanged either way, so only apps the site has vouched for can use it.
+export function memberRegistrationOrigins(): string[] {
+  return [getWebAuthnOrigin(), ...androidWebCredentialOrigins()]
+}
+
 export async function verifyMemberRegistration(
   challenge: string,
   response: Parameters<typeof verifyRegistrationResponse>[0]['response']
@@ -87,7 +99,7 @@ export async function verifyMemberRegistration(
   const verification = await verifyRegistrationResponse({
     response,
     expectedChallenge: challenge,
-    expectedOrigin: getWebAuthnOrigin(),
+    expectedOrigin: memberRegistrationOrigins(),
     expectedRPID: getWebAuthnRpId(),
     requireUserVerification: true,
   } satisfies VerifyRegistrationResponseOpts)

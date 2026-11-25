@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromRequest } from '@/lib/members/api-auth'
 import { verifyTotpCode } from '@/lib/auth/totp'
 import { decryptSecret } from '@/lib/crypto/secrets'
 import { verifyMemberEmailChallenge } from '@/lib/members/email-challenge'
@@ -15,7 +15,7 @@ const Body = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const member = await getMemberFromCookie()
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const parsed = Body.safeParse(await request.json())

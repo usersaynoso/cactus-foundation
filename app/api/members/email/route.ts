@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberAuthFromRequest, getMemberFromRequest } from '@/lib/members/api-auth'
+import { requireStepUpGrant, spendStepUpGrant } from '@/lib/members/api-step-up'
 import { verifyPassword } from '@/lib/auth/password'
 import {
   createMemberEmailChallenge,
@@ -61,8 +62,8 @@ async function emailTakenByAnother(email: string, memberId: string): Promise<boo
   return !!clash
 }
 
-export async function GET() {
-  const member = await getMemberFromCookie()
+export async function GET(request: NextRequest) {
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const config = await getMembersConfig()
@@ -91,9 +92,12 @@ export async function GET() {
   })
 }
 
+// From an app (a module token) starting a change also needs a step-up grant
+// (lib/members/api-step-up.ts), checked before the password is even looked at.
 export async function POST(request: NextRequest) {
-  const member = await getMemberFromCookie()
-  if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const auth = await getMemberAuthFromRequest(request)
+  if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const { member } = auth
 
   const config = await getMembersConfig()
   if (!isAccountSectionEnabled(config, 'security')) {
@@ -108,6 +112,9 @@ export async function POST(request: NextRequest) {
       { status: 503 }
     )
   }
+
+  const needsStepUp = await requireStepUpGrant(auth, request)
+  if (needsStepUp) return needsStepUp
 
   const parsed = RequestBody.safeParse(await request.json())
   if (!parsed.success) return NextResponse.json({ error: 'Enter a valid email address' }, { status: 400 })
@@ -142,6 +149,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'That email address is already in use' }, { status: 409 })
   }
 
+  const spent = await spendStepUpGrant(auth, request)
+  if (spent) return spent
+
   const name = await siteName()
   const code = await createMemberEmailChallenge(member.id, 'email_change', newEmail)
 
@@ -163,7 +173,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const member = await getMemberFromCookie()
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const config = await getMembersConfig()

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromRequest } from '@/lib/members/api-auth'
 import { getMembersConfig, isAccountSectionEnabled } from '@/lib/members/config'
 import { profileSectionOffResponse } from '@/lib/members/account-sections'
 
-export async function GET() {
-  const member = await getMemberFromCookie()
+export async function GET(request: NextRequest) {
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const visibility = await prisma.memberProfileVisibility.findUnique({ where: { memberId: member.id } })
@@ -24,7 +24,7 @@ const Body = z.object({
 })
 
 export async function PATCH(request: NextRequest) {
-  const member = await getMemberFromCookie()
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   // These switches only exist on the profile page, so switching that off takes

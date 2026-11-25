@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromRequest } from '@/lib/members/api-auth'
 
-export async function GET() {
-  const member = await getMemberFromCookie()
+export async function GET(request: NextRequest) {
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const passkeys = await prisma.memberPasskey.findMany({

@@ -6,13 +6,14 @@ import { safeCompare } from '@/lib/auth/session'
 // EmailChallenge. Purposes: 'login_2fa' (password login's mandatory second
 // factor) | 'setup_2fa' (Phase 3 account Security page, enabling email 2FA) |
 // 'email_change' (moving the account to a new address, gated on a code sent to
-// that address).
+// that address) | 'step_up' (an app confirming it is still the member before a
+// sensitive change, lib/members/api-step-up.ts).
 
 const CODE_LENGTH = 6
 const CODE_TTL_MS = 10 * 60 * 1000 // 10 minutes
 const MAX_ATTEMPTS = 5
 
-export type MemberChallengePurpose = 'login_2fa' | 'setup_2fa' | 'email_change'
+export type MemberChallengePurpose = 'login_2fa' | 'setup_2fa' | 'email_change' | 'step_up'
 
 function generateCode(): string {
   return String(randomInt(0, 10 ** CODE_LENGTH)).padStart(CODE_LENGTH, '0')

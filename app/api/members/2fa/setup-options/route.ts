@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie, isCurrentMemberSessionFresh } from '@/lib/members/session'
+import { isCurrentMemberSessionFresh } from '@/lib/members/session'
+import { getMemberAuthFromRequest } from '@/lib/members/api-auth'
+import { requireStepUpGrant, spendStepUpGrant } from '@/lib/members/api-step-up'
 import { generateTotpSecret, buildOtpauthUri, generateQrDataUrl } from '@/lib/auth/totp'
 import { encryptSecret } from '@/lib/crypto/secrets'
 import { createMemberEmailChallenge } from '@/lib/members/email-challenge'
@@ -11,16 +13,23 @@ import { getMembersConfig, isAuthMethodEnabled } from '@/lib/members/config'
 const Body = z.object({ method: z.enum(['EMAIL', 'AUTHENTICATOR_APP']) })
 
 export async function POST(request: NextRequest) {
-  const member = await getMemberFromCookie()
-  if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const auth = await getMemberAuthFromRequest(request)
+  if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const { member } = auth
 
   // Step-up: enrolling a second factor is durable persistence and must not ride
-  // a stale session. Require a recent authentication.
-  if (!(await isCurrentMemberSessionFresh())) {
-    return NextResponse.json(
-      { error: 'For your security, please sign in again before setting up two-factor authentication.', reauthRequired: true },
-      { status: 403 }
-    )
+  // a stale session. Require a recent authentication - or, from an app (a
+  // module token, which has no sign-in moment), a step-up grant.
+  if (auth.via === 'cookie') {
+    if (!(await isCurrentMemberSessionFresh())) {
+      return NextResponse.json(
+        { error: 'For your security, please sign in again before setting up two-factor authentication.', reauthRequired: true },
+        { status: 403 }
+      )
+    }
+  } else {
+    const needsStepUp = await requireStepUpGrant(auth, request)
+    if (needsStepUp) return needsStepUp
   }
 
   // Codes are only ever asked for at password sign-in (passkeys and sign-in
@@ -38,6 +47,12 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
   }
+
+  // The app's grant is spent here, on the step that plants something. The
+  // verify step that follows is bound to what this one minted (a code to the
+  // member's address, or an unverified secret), so it needs no second grant.
+  const spent = await spendStepUpGrant(auth, request)
+  if (spent) return spent
 
   if (parsed.data.method === 'EMAIL') {
     if (!isEmailConfigured()) {

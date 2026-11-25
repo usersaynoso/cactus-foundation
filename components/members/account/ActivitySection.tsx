@@ -13,6 +13,9 @@ type ActivityEvent = {
 const CORE_LABELS: Record<string, string> = {
   login: 'Signed in',
   email_changed: 'Email address changed',
+  // An app confirming it was the member before a sensitive change
+  // (app/api/members/step-up/route.ts).
+  step_up_confirmed: 'Confirmed it was you in an app',
 }
 
 function labelFor(event: ActivityEvent): string {

@@ -28,6 +28,10 @@ type RateLimitAction =
   | 'member_username'
   | 'member_auth_methods'
   | 'member_admin_stepup'
+  // Member account routes called with a module's Bearer token (lib/members/api-auth.ts)
+  | 'member_api_token'
+  | 'member_api_step_up'
+  | 'member_api_step_up_send'
 
 type RateLimitConfig = {
   windowMs: number
@@ -70,6 +74,17 @@ const LIMITS: Record<RateLimitAction, RateLimitConfig> = {
   // member security page. Same shape as the admin step-up: tight, because the
   // person is already signed in.
   member_admin_stepup: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
+  // Bearer tokens no module recognised, per address. Only failures are counted
+  // (recordAttempt after the resolvers say no), so an app making honest calls
+  // never gets near it; a real token is far too long to guess, so this is about
+  // not letting one address make every resolver look up thousands of misses.
+  member_api_token: { windowMs: 15 * 60 * 1000, maxAttempts: 30 },
+  // An app confirming it is still the member before a sensitive change
+  // (lib/members/api-step-up.ts): password and emailed-code attempts share it.
+  // Same shape as the admin step-up: the caller already holds a credential.
+  member_api_step_up: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
+  // Asking for a step-up code sends an email, so it is tight on its own.
+  member_api_step_up_send: { windowMs: 15 * 60 * 1000, maxAttempts: 3 },
 }
 
 // The client IP a rate limit can actually be keyed on.

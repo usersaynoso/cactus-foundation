@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromRequest } from '@/lib/members/api-auth'
 import { getVisibleModuleNotificationCategories } from '@/lib/members/notification-categories'
 import { DEFAULT_CHANNEL_PREFERENCE } from '@/lib/members/notification-prefs'
 import { isSmsAvailable } from '@/lib/sms/send'
@@ -16,8 +16,8 @@ import { isSmsAvailable } from '@/lib/sms/send'
 // category the module marked `required` may have its delivery changed but not
 // switched off: at least one channel stays on.
 
-export async function GET() {
-  const member = await getMemberFromCookie()
+export async function GET(request: NextRequest) {
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const [categories, prefs, smsAvailable] = await Promise.all([
@@ -60,7 +60,7 @@ const Body = z.object({
 })
 
 export async function PATCH(request: NextRequest) {
-  const member = await getMemberFromCookie()
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const parsed = Body.safeParse(await request.json())

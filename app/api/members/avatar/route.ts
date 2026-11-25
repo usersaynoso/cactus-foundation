@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromRequest } from '@/lib/members/api-auth'
 import { getMembersConfig, isAccountSectionEnabled } from '@/lib/members/config'
 import { profileSectionOffResponse } from '@/lib/members/account-sections'
 import { validateUpload, uploadMedia, deleteMedia, saveMediaRecord } from '@/lib/media/upload'
 import { getActiveMediaProvider, isMediaProviderConfigured } from '@/lib/config/env'
 
 export async function POST(request: NextRequest) {
-  const member = await getMemberFromCookie()
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const config = await getMembersConfig()
@@ -71,7 +71,7 @@ const ChoiceBody = z.object({ avatarChoice: z.enum(['UPLOAD', 'GRAVATAR', 'GENER
 // and is handled by POST above; this is the only way to reach GRAVATAR, which
 // otherwise no member could ever be on however keen the site is on it.
 export async function PATCH(request: NextRequest) {
-  const member = await getMemberFromCookie()
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const config = await getMembersConfig()
@@ -95,8 +95,8 @@ export async function PATCH(request: NextRequest) {
   return NextResponse.json({ avatarChoice })
 }
 
-export async function DELETE() {
-  const member = await getMemberFromCookie()
+export async function DELETE(request: NextRequest) {
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   // Read before anything is destroyed: refusing after the file has already gone

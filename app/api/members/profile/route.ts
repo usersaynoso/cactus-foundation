@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromRequest } from '@/lib/members/api-auth'
 import { getMembersConfig, isAccountSectionEnabled } from '@/lib/members/config'
 import { profileSectionOffResponse } from '@/lib/members/account-sections'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
@@ -10,8 +10,8 @@ import { usernameCooldownEndsAt } from '@/lib/members/username'
 import { getSiteTimezone } from '@/lib/config/timezone.server'
 import { formatLongDate } from '@/lib/config/timezone'
 
-export async function GET() {
-  const member = await getMemberFromCookie()
+export async function GET(request: NextRequest) {
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const config = await getMembersConfig()
@@ -84,7 +84,7 @@ const Body = z.object({
 })
 
 export async function PATCH(request: NextRequest) {
-  const member = await getMemberFromCookie()
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   // Rejected rather than dropped, unlike the per-field switches below: with the

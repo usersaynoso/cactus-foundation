@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
-import { getMemberFromCookie } from '@/lib/members/session'
+import { getMemberFromRequest } from '@/lib/members/api-auth'
 import { getMembersConfig, isAccountSectionEnabled } from '@/lib/members/config'
 import { profileSectionOffResponse } from '@/lib/members/account-sections'
 import {
@@ -21,7 +21,7 @@ const Body = z.object({ username: z.string().max(64) })
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export async function POST(request: NextRequest) {
-  const member = await getMemberFromCookie()
+  const member = await getMemberFromRequest(request)
   if (!member) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const ip = await getClientIp(request)
