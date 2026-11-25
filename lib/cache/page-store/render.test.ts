@@ -3,7 +3,8 @@ import type { AddressInfo } from 'node:net'
 import { gunzipSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { noteDbError, dbInfraErrorCount, isDbInfraError } from '@/lib/db/infra-errors'
-import { renderPage, whyUnstorable } from './render'
+import { NextURL } from 'next/dist/server/web/next-url'
+import { absoluteLocation, renderPage, whyUnstorable } from './render'
 
 const html = (extra = '') => Buffer.from(`<!doctype html><html><body>${'x'.repeat(2000)}${extra}</body></html>`)
 const headers = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=0, s-maxage=60' }
@@ -75,6 +76,13 @@ describe('the render request itself', () => {
     server = http.createServer((req, res) => {
       seen.push({ url: req.url, headers: req.headers })
       if (req.url?.startsWith('/cookie')) res.setHeader('set-cookie', 'a=1')
+      if (req.url?.startsWith('/old-slug')) {
+        // What Next sends for permanentRedirect(): a 308 with a relative Location.
+        res.statusCode = 308
+        res.setHeader('location', '/new-slug?width=1')
+        res.end('/new-slug?width=1')
+        return
+      }
       res.setHeader('content-type', 'text/html')
       res.setHeader('cache-control', 'public, max-age=0, s-maxage=60')
       res.setHeader('content-security-policy', "default-src 'self'")
@@ -118,5 +126,28 @@ describe('the render request itself', () => {
     expect(page.setsCookie).toBe(true)
     expect(page.unstorable).toMatch(/cookie/)
     expect(page.headers.map(([name]) => name)).not.toContain('set-cookie')
+  })
+
+  it('keeps a redirect with an absolute Location, which the proxy can hand back without a 500', async () => {
+    const page = await renderPage({ port, secret: 's', host: 'shop.example.com', path: '/old-slug', query: '' })
+    expect(page.status).toBe(308)
+    expect(page.unstorable).toBeNull()
+    const location = page.headers.find(([name]) => name === 'location')?.[1]
+    expect(location).toBe('https://shop.example.com/new-slug?width=1')
+    // Next's middleware adapter parses a proxy response's Location exactly like this.
+    // The relative form Next rendered is what threw "Invalid URL" on the live site.
+    expect(() => new NextURL('/new-slug?width=1', { forceLocale: false })).toThrow()
+    expect(new NextURL(location!, { forceLocale: false }).pathname).toBe('/new-slug')
+  })
+})
+
+describe('redirect addresses', () => {
+  const target = { host: 'shop.example.com', path: '/old', query: '?a=1' }
+  it('resolves relative and path-relative addresses against the rendered one', () => {
+    expect(absoluteLocation('/new', target)).toBe('https://shop.example.com/new')
+    expect(absoluteLocation('new', target)).toBe('https://shop.example.com/new')
+  })
+  it('leaves an address on another host alone', () => {
+    expect(absoluteLocation('https://elsewhere.example/x', target)).toBe('https://elsewhere.example/x')
   })
 })

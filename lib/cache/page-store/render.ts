@@ -114,13 +114,31 @@ function fetchRaw(target: RenderTarget): Promise<{ status: number; headers: http
   })
 }
 
-function keptHeaders(headers: http.IncomingHttpHeaders): Array<[string, string]> {
+// A redirect's Location, made absolute against the address that was rendered.
+//
+// Next writes a page's redirect() as a relative Location ("/new-slug"). That is fine
+// straight to a browser, but the stored answer is handed back from the proxy, and
+// Next's middleware adapter parses a proxy response's Location with `new URL()` and
+// no base: a relative one throws "Invalid URL" and the visitor gets a bare 500. Every
+// redirect the store answered did this - a renamed product's old slug, the homepage's
+// own slug - so the address is resolved here, once, before it is kept. The adapter
+// makes a same-host address relative again on the way out.
+export function absoluteLocation(location: string, target: Pick<RenderTarget, 'host' | 'path' | 'query'>): string {
+  try {
+    return new URL(location, `https://${target.host}${target.path}${target.query}`).toString()
+  } catch {
+    return location
+  }
+}
+
+function keptHeaders(headers: http.IncomingHttpHeaders, target: RenderTarget): Array<[string, string]> {
   const kept: Array<[string, string]> = []
   for (const [rawName, value] of Object.entries(headers)) {
     const name = rawName.toLowerCase()
     if (value === undefined) continue
     if (DROPPED_HEADERS.has(name) || name.startsWith('x-middleware-') || name.startsWith('x-nextjs-') || name.startsWith('x-cactus-')) continue
-    kept.push([name, Array.isArray(value) ? value.join(', ') : value])
+    const joined = Array.isArray(value) ? value.join(', ') : value
+    kept.push([name, name === 'location' ? absoluteLocation(joined, target) : joined])
   }
   return kept
 }
@@ -169,7 +187,7 @@ export async function renderPage(target: RenderTarget): Promise<RenderedPage> {
   const body = compressed ? await gzipAsync(raw.body) : raw.body
   return {
     status: raw.status,
-    headers: keptHeaders(raw.headers),
+    headers: keptHeaders(raw.headers, target),
     body,
     gzipped: compressed,
     unstorable: unstorable ?? (body.length > MAX_STORED_BYTES ? 'too large to hold' : null),
