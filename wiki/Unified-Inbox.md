@@ -863,6 +863,38 @@ A few things worth knowing before you press it:
 
 Merging *conversations* and merging *people* are two different jobs. If the same human has turned up twice in the address book, that is a merge on their card - see [People, and how conversations collapse](#people-and-how-conversations-collapse).
 
+If the same kind of pair keeps turning up - a supplier who answers every purchase order with a brand-new email - you do not have to merge them by hand each time. A rule can do it as the mail arrives: see [Rules](#rules-sorting-mail-as-it-arrives).
+
+### Rules: sorting mail as it arrives
+
+**Settings > Unified Inbox > Rules.** A rule says "when mail like this arrives, do that to it", and the inbox does it to every message it collects from then on, before anybody has had to look. It is there for anybody who can manage inboxes.
+
+The case it was built for: you send a purchase order from purchasing@, and the supplier's system answers with a fresh email to somebody's own address, subject *Sales Order 0000980102 - PO-00091*. No reply headers, a different subject, a different mailbox - so the inbox, quite reasonably, starts a second conversation. The only thing the two have in common is the PO number. A rule that says *a new conversation whose subject has a reference like PO-##### joins the earlier conversation with the same one* puts them together every time.
+
+**Writing one.** Press **New rule** and either start from a template or from a blank rule. A rule reads as a sentence, and the editor shows it back to you as one in plain English as you build it:
+
+- **When** - a message that *starts a new conversation*, or *any message*, replies included.
+- **If** - conditions, all of which must hold or any one of them. Look at the sender's address, domain or name, any recipient, the subject, the message text, which mailbox it arrived in, the channel (email, chat, text and so on) or whether it has attachments. Text can *contain*, *be*, *start with*, *end with* - or *have a reference like* a pattern. No conditions at all means every message the When lets through.
+- **Then** - one or more steps: **merge with the earlier conversation**, **assign to** a colleague, **move to** a mailbox, **mark as read**, **mark as done**, or **snooze** for a number of days.
+- **Stop here** - once this rule has done something to a message, the rules below it leave that message alone.
+
+**Patterns, not puzzles.** A reference is written the way it looks: `#` is any digit, `@` any letter, `*` any run of letters or digits, and everything else is itself, in either case. `PO-#####` finds PO-00091 but not PO-000912, which is a different order. Type a real reference such as PO-00091 and the editor offers to turn it into `PO-#####` for you.
+
+**Merging by reference** looks for the reference on the new message (in the subject, or the subject and the message text), then for the *oldest* conversation that started earlier, was active within the number of days you choose, and has the same reference in its subject. The new conversation folds into that one, exactly as a merge by hand does - so everything under [Merging conversations into one](#merging-conversations-into-one) applies, including who can read it afterwards. Two safety catches are on by default:
+
+- **Same company only.** The earlier conversation has to have somebody from the sender's domain on it - mail from faye@supplier.co.uk joins a conversation you had with sales@supplier.co.uk, never one with a different supplier who happens to number orders the same way. For a gmail-style address it has to be the same person.
+- **Email only, new conversations only.** A chat or a text is filed by the channel that owns it, and merging one away would leave the channel writing to a conversation no list shows. Replies already on a conversation are never merged anywhere.
+
+**See it before you save it.** Under the editor, *What it would have done* runs the rule as it stands - saved or not - over the last 7, 14, 30 or 90 days of post and lists what matches and what it would do: *merge into "Purchase order PO-00091 ..."*, or *nothing earlier to merge with*. It updates as you type and changes nothing.
+
+**Tidying up what is already here.** A rule only acts on mail that arrives after it is saved. To run it over what has already come in, press **Run on recent mail** on the rule and pick how far back. It works oldest first, so a reply finds its partner already in place, and it skips anything the rule has already dealt with - pressing it twice is harmless.
+
+**What it has done.** Each rule shows how many times it has acted and when it last did. **Activity** lists the latest twenty things it did, each with a link to the conversation and, for a merge, **Undo merge**. The conversation's own timeline says so too - *The rule "Replies join the order they mention" merged it with another* - rather than *Somebody*. A merge you put back stays put back: a rule gets one go at each message.
+
+**The list.** Rules run top to bottom; the arrows move one up or down. The switch turns a rule off without losing it, **Duplicate** copies one as a starting point (switched off until you say otherwise), and **Delete** stops it at once - anything it already did stays done.
+
+A few limits: up to 100 rules, 12 conditions and one of each step per rule. A rule never sees post the site has refused (junk, blocked senders), bounces, the site's own login codes, or the months of history collected when a mail account is first connected - only new arrivals.
+
 ### Moving one message out, and deleting one
 
 Merging puts two conversations together. These two do the opposite, one message at a time, and they are the answer to the same problem: working out which conversation an email belongs to is guesswork, and now and then the guess is wrong. Two customers both write "Re: Quote", a mail program forgets what it was replying to, and a stray message ends up glued onto somebody else's thread.
@@ -1666,7 +1698,6 @@ Said out loud rather than left to be discovered:
 
 - **Two people replying at the same time** is not handled. Nothing warns you that a colleague is typing an answer to the same conversation.
 - **Labels** of your own. Status, assignee and the inbox itself are what there is.
-- **Rules for filing by sender or subject.** Filing is by the address post was delivered to, plus the whole-folder option and a catch-all.
 - **Live incoming text messages.** Texts appear on the hourly check.
 - **Suggested replies.** Nothing here writes anything for you.
 
