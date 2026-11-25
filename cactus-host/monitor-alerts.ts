@@ -4,7 +4,8 @@
 // A metric rule fires once its series has been past the threshold for the rule's
 // `forSeconds`, and resolves on the first sample back inside it. An event rule
 // fires once per matching event and stays until somebody acknowledges it (or six
-// hours pass).
+// hours pass), unless the context can tell it has come right: a failed scheduled job
+// that has since run cleanly resolves its alert by itself.
 //
 // Sending is not done here. Each notification goes into an outbox table, and the
 // Oasis site collects it once a minute and emails it through its own mailer -
@@ -73,6 +74,10 @@ export type AlertContext = {
   siteName: (id: string) => string
   /** What a metric alert is about in plain words (which port, which service), when the rule's value alone does not say. */
   describe?: (metric: string, label: string | null) => string | null
+  /** True when whatever raised an open event alert has since come right (a failed
+   *  scheduled job that has run cleanly again). Kinds with no way to tell answer false,
+   *  and their alerts keep waiting for an acknowledgement or the age-out. */
+  recovered?: (kinds: string[], site: string | null, startedAt: number) => boolean
 }
 
 const OPS = { '>': 'above', '<': 'below' } as const
@@ -162,11 +167,16 @@ export class AlertEngine {
     }
     // Rules switched off or deleted take their alerts with them; event alerts age out.
     const open = this.db.prepare("SELECT * FROM alerts WHERE state <> 'resolved'").all() as AlertRow[]
-    const eventRules = new Set(ctx.settings.rules.filter((r) => r.enabled && r.type === 'event').map((r) => r.id))
+    const eventRules = new Map<string, string[]>()
+    for (const r of ctx.settings.rules) if (r.enabled && r.type === 'event') eventRules.set(r.id, r.kinds)
     for (const row of open) {
-      if (eventRules.has(row.rule_id)) {
+      const kinds = eventRules.get(row.rule_id)
+      if (kinds) {
         if (ctx.now - row.started_at > EVENT_ALERT_HOURS * 3_600_000) {
           this.db.prepare("UPDATE alerts SET state = 'resolved', resolved_at = ? WHERE id = ?").run(ctx.now, row.id)
+        } else if (ctx.recovered?.(kinds, row.site, row.started_at)) {
+          // Back to working: say so once, rather than "still happening" for six hours.
+          this.resolve(row, ctx)
         }
       } else if (!activeRuleIds.has(row.rule_id) && row.rule_id !== 'test') {
         this.resolve(row, ctx)

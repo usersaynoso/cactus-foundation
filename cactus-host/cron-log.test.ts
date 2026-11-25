@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { appendCronTick, lastCronTick, readCronLog, tickFailed, tickFromResponse } from './cron-log.ts'
+import { appendCronTick, cronRecoveredSince, lastCronTick, readCronLog, tickFailed, tickFromResponse } from './cron-log.ts'
 import { hostWithSite } from './testing.ts'
 
 const REPORT = JSON.stringify({
@@ -55,5 +55,26 @@ describe('the cron log', () => {
     const path = ctx.host.store.paths('shop').cronLog
     writeFileSync(path, readFileSync(path, 'utf8') + '{"at":20')
     expect(readCronLog(ctx.config, { sites: ['shop'], limit: 10 })).toHaveLength(1)
+  })
+  it('calls a site recovered only once what failed has gone through cleanly since', () => {
+    const ctx = hostWithSite()
+    const MIN = 60_000
+    const report = (outcomes: Array<{ path: string; status: string }>) => JSON.stringify({ outcomes: outcomes.map((o) => ({ ...o, module: null })) })
+    // Nothing failed: nothing to recover from.
+    appendCronTick(ctx.config, tickFromResponse('shop', 100 * MIN, 200, report([{ path: '/a', status: 'ran' }])))
+    expect(cronRecoveredSince(ctx.config, 'shop', 100 * MIN)).toBe(false)
+    // A whole tick 500s mid-deploy, then the next one answers: recovered.
+    appendCronTick(ctx.config, tickFromResponse('shop', 101 * MIN, 500, ''))
+    expect(cronRecoveredSince(ctx.config, 'shop', 102 * MIN)).toBe(false)
+    appendCronTick(ctx.config, tickFromResponse('shop', 102 * MIN, 200, report([])))
+    expect(cronRecoveredSince(ctx.config, 'shop', 102 * MIN)).toBe(true)
+    // A job fails; ticks where it was not due do not clear it, its own clean run does.
+    appendCronTick(ctx.config, tickFromResponse('shop', 103 * MIN, 200, report([{ path: '/hourly', status: 'failed' }])))
+    appendCronTick(ctx.config, tickFromResponse('shop', 104 * MIN, 200, report([{ path: '/a', status: 'ran' }])))
+    expect(cronRecoveredSince(ctx.config, 'shop', 104 * MIN)).toBe(false)
+    appendCronTick(ctx.config, tickFromResponse('shop', 105 * MIN, 200, report([{ path: '/hourly', status: 'ran' }])))
+    expect(cronRecoveredSince(ctx.config, 'shop', 104 * MIN)).toBe(true)
+    // Failures long before the alert are out of its reach.
+    expect(cronRecoveredSince(ctx.config, 'shop', 200 * MIN)).toBe(false)
   })
 })

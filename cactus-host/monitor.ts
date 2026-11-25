@@ -20,6 +20,7 @@ import { cpus, hostname, release } from 'node:os'
 import { join } from 'node:path'
 import type { Host } from './host.ts'
 import { AlertEngine, counts as alertCounts, type AlertContext } from './monitor-alerts.ts'
+import { cronRecoveredSince } from './cron-log.ts'
 import { classifyJournal, hostHistoryEvents, insertEvent, JournalFollower, type NewEvent } from './monitor-events.ts'
 import { NetAccounting } from './monitor-netacct.ts'
 import { PostgresCollector } from './monitor-postgres.ts'
@@ -210,7 +211,15 @@ export class Monitor {
       const latest = this.host.store.listBuilds(site.id)[0]
       if (latest && (latest.state === 'queued' || latest.state === 'building')) deploying.add(site.id)
     }
-    return { now, settings, deploying, siteName: (id) => names.get(id) ?? id, describe: (metric, label) => this.describeMetric(metric, label) }
+    return {
+      now, settings, deploying,
+      siteName: (id) => names.get(id) ?? id,
+      describe: (metric, label) => this.describeMetric(metric, label),
+      // Only the cron log can say a failure has come right, so only a rule made purely of
+      // cron failures resolves itself; any other kind in the rule keeps it waiting.
+      recovered: (kinds, site, startedAt) => site !== null && kinds.length > 0 && kinds.every((k) => k === 'cron.failed')
+        && names.has(site) && cronRecoveredSince(this.host.config, site, startedAt),
+    }
   }
 
   /** Which port, which service: the part of a metric alert that its number cannot say. */

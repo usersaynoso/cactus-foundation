@@ -116,6 +116,43 @@ export function readCronLog(config: HostConfig, query: CronLogQuery): CronTickEn
   return all.sort((a, b) => b.at - a.at).slice(0, query.limit)
 }
 
+/** How far before an alert was raised its first failing tick can sit: the tick is
+ *  logged at the moment it started, it can take up to the scheduler's 15 minutes to
+ *  answer, and the monitor reads the log once a minute. */
+const RECOVERY_LOOKBACK_MS = 20 * 60_000
+
+/**
+ * True once everything that failed in a site's ticks since `since` (less the lookback)
+ * has gone through cleanly since: a tick that failed as a whole is cleared by a later
+ * tick that answered, and a job that failed is cleared only by a later run of that same
+ * job, so an hourly job that keeps failing is not cleared by the minutely ticks around
+ * it. False when nothing failed in that stretch, so a log with no failure in it (one
+ * trimmed, say) never resolves an alert it cannot account for.
+ */
+export function cronRecoveredSince(config: HostConfig, site: string, since: number): boolean {
+  const from = since - RECOVERY_LOOKBACK_MS
+  const outstanding = new Set<string>()
+  let sawFailure = false
+  for (const entry of readSiteLog(config, site)) {
+    if (entry.at < from) continue
+    if (entry.error !== null) {
+      outstanding.add('')
+      sawFailure = true
+      continue
+    }
+    outstanding.delete('')
+    for (const o of entry.outcomes) {
+      if (o.status === 'failed') {
+        outstanding.add(o.path)
+        sawFailure = true
+      } else if (o.status === 'ran') {
+        outstanding.delete(o.path)
+      }
+    }
+  }
+  return sawFailure && outstanding.size === 0
+}
+
 /** The newest tick of one site, or null before its first. */
 export function lastCronTick(config: HostConfig, site: string): CronTickEntry | null {
   const entries = readSiteLog(config, site)

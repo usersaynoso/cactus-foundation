@@ -258,6 +258,23 @@ describe('alerts', () => {
     expect(open[0]?.value).toBe(2)
     expect(outbox(db, 6).filter((n) => n.kind === 'firing')).toHaveLength(1)
   })
+
+  it('resolves an event alert once the context says it has come right, and only then', () => {
+    const db = new MetricsStore(tempDb()).db
+    const engine = new AlertEngine(db)
+    let fixed = false
+    const asked: Array<[string[], string | null]> = []
+    const withRecovery = (now: number) => ({ ...ctx(now), recovered: (kinds: string[], site: string | null) => { asked.push([kinds, site]); return fixed } })
+    engine.onEvent({ at: 5, kind: 'cron.failed', severity: 'warning', site: 'shop', title: 'shop: scheduled task failed to run', detail: 'The dispatcher answered 500' }, withRecovery(5))
+    markSent(db, outbox(db, 5).map((n) => n.id), 5)
+    engine.evaluate(new Map(), withRecovery(60_000))
+    expect(listAlerts(db, { state: 'open' })).toHaveLength(1)
+    expect(asked[0]).toEqual([['cron.failed'], 'shop'])
+    fixed = true
+    engine.evaluate(new Map(), withRecovery(120_000))
+    expect(listAlerts(db, { state: 'open' })).toHaveLength(0)
+    expect(outbox(db, 0).map((n) => n.kind)).toEqual(['resolved'])
+  })
 })
 
 describe('settings', () => {
