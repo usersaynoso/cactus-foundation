@@ -89,13 +89,40 @@ export function isReplayableRead(operation: string, args: unknown): boolean {
   return false
 }
 
-/** Replays allowed on top of the first attempt. The pool can hold several
- *  connections that were all ended together, and each failed draw throws one of
- *  them away, so a single replay can simply land on the next dead one. A failure
- *  on a dead connection is immediate (nothing goes over the network), so the
- *  extra attempts cost nothing, and a database that is really down fails a fresh
- *  connection with a different error that is not retried. */
-export const CLOSED_CONNECTION_REPLAYS = 5
+/** The smallest replay budget, enough for any pool Prisma sizes by itself on a
+ *  machine with up to 15 physical cores (its default is cores x 2 + 1). */
+const MIN_CLOSED_CONNECTION_REPLAYS = 32
+
+/** The pool size the operator chose on the URL, when they chose one. */
+function configuredPoolSize(url: string | undefined): number | null {
+  if (!url) return null
+  try {
+    const limit = Number(new URL(url).searchParams.get('connection_limit'))
+    return Number.isInteger(limit) && limit > 0 ? limit : null
+  } catch {
+    return null
+  }
+}
+
+/** Replays allowed on top of the first attempt: enough to walk past every
+ *  connection in the pool, since the sweep can end all of them at once.
+ *
+ *  It was 5, which looked like plenty and was not. Deskwell's server has six
+ *  physical cores, so Prisma keeps up to 13 connections; a deploy's sweep ended
+ *  them all (45 terminations in one build on 2026-11-25), and an admin page
+ *  whose `siteConfig.findUnique` drew six dead ones in a row gave up and showed
+ *  "That didn't load" (P1017, reference 2862880414) while the new release was
+ *  still building. A reload drew a live connection and worked, which is why it
+ *  looked like a passing hiccup.
+ *
+ *  Each failed draw throws its dead connection away, and fails at once (nothing
+ *  goes over the network), so a large budget costs nothing when it is used. A
+ *  database that is really down fails a fresh connection with a different error
+ *  that is not retried, so the budget never turns an outage into a spin. */
+export const CLOSED_CONNECTION_REPLAYS = Math.max(
+  MIN_CLOSED_CONNECTION_REPLAYS,
+  (configuredPoolSize(process.env.DATABASE_URL) ?? 0) + 1,
+)
 
 async function replayWhileClosed<T>(run: () => Promise<T>, mayReplay: () => boolean): Promise<T> {
   for (let attempt = 0; ; attempt++) {

@@ -118,3 +118,27 @@ describe('retryIdempotentWrite', () => {
     expect(run).toHaveBeenCalledTimes(CLOSED_CONNECTION_REPLAYS + 1)
   })
 })
+
+describe('CLOSED_CONNECTION_REPLAYS', () => {
+  // A deploy's sweep can end every connection in the pool at once. The budget has
+  // to walk past all of them, or a read that draws enough dead ones in a row fails
+  // a page the next connection would have served (Deskwell, 2026-11-25: 13-slot
+  // pool, budget of 5).
+  it('covers a default pool on a large machine', () => {
+    expect(CLOSED_CONNECTION_REPLAYS).toBeGreaterThanOrEqual(32)
+  })
+
+  it('grows to cover a larger pool set on the database address', async () => {
+    const before = process.env.DATABASE_URL
+    process.env.DATABASE_URL = 'postgresql://u:p@localhost:5432/db?connection_limit=80'
+    vi.resetModules()
+    try {
+      const fresh = await import('./connection-retry')
+      expect(fresh.CLOSED_CONNECTION_REPLAYS).toBe(81)
+    } finally {
+      if (before === undefined) delete process.env.DATABASE_URL
+      else process.env.DATABASE_URL = before
+      vi.resetModules()
+    }
+  })
+})
