@@ -38,6 +38,7 @@ The same message three or more times, keyboard-mashing, a pile of links, message
 
 - **Products** - sizes, options, price, stock, specifications, delivery dates option by option, accessories and your FAQs. Products it recommends appear as cards with **Add to basket**, **Add all** and **Choose options**. Nothing goes in the basket without the visitor's click.
 - **Orders** - a signed-in customer can ask about the orders on their own account with nothing more to prove. Anybody else gives the delivery postcode plus the order number, the email on the order or the company name. Three wrong tries in a chat (or six an hour from one visitor) and it stops. It only talks about the order asked about, and never shows an email address, phone number or street address.
+- **Delivery choices travel with the product** - when a visitor picks a delivery service (pre-assembled, installed, express), the product's card in the chat shows it with the shop's price, Add to basket adds it with that service chosen, and an emailed note, a text or a saved quote carries it too. Only services the shop offers for that product are accepted.
 - **Cancellations, returns and damage reports** on a checked order, through the shop's own rules, once it has written back what it will raise and the visitor has said yes. Photos sent in the chat go straight into a damage report.
 - **Pictures and PDFs** the visitor sends are read: a photo of the damage, a screenshot, a floor plan.
 - **Paying and paperwork**, read live from the shop's Payments and Invoices tabs, your bank transfer wording included.
