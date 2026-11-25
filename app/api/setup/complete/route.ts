@@ -13,6 +13,7 @@ import { isLocalMode } from '@/lib/config/env'
 import { DEFAULT_DESIGN_TOKENS } from '@/lib/design/tokens'
 import pkg from '@/package.json'
 import { rawCurrentEnvKey } from '@/lib/crypto/keyring'
+import { clearBootstrapCookie, readBootstrapUserId } from '@/lib/setup/bootstrap-cookie'
 
 export async function POST() {
   const cfg = await prisma.siteConfig.findUnique({
@@ -30,6 +31,11 @@ export async function POST() {
   if (!cfg?.adminPath) {
     return NextResponse.json({ error: 'Admin path not set' }, { status: 400 })
   }
+
+  // Read the setup-bootstrap cookie now and clear it: it has done its job once setup
+  // completes, and it is what proves this browser is the one that created the admin.
+  const bootstrapUserId = await readBootstrapUserId()
+  await clearBootstrapCookie()
 
   // Seed a default Home page and Main Menu
   const homePage = await prisma.infoPage.upsert({
@@ -123,7 +129,10 @@ export async function POST() {
 
   // Auto-login the admin so the post-setup redirect lands them authenticated
   const admin = await prisma.user.findFirst({ where: { role: { isProtected: true } } })
-  if (admin) {
+  // Only for the browser that created that admin: this route is unauthenticated, so
+  // without the check anyone could finish setup on an existing-data install and be
+  // handed the admin's session.
+  if (admin && bootstrapUserId === admin.id) {
     const token = await createSession(admin.id)
     await setSessionCookie(token)
   }

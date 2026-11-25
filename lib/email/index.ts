@@ -413,16 +413,24 @@ async function sendViaSmtp(payload: EmailPayload, overrides?: SmtpOverrides): Pr
   const { createTransport } = await import('nodemailer')
   const sender = await resolveSender(payload)
   const replyTo = replyToWorthSending(payload, sender.fromAddress)
+  const port = parseInt(overrides?.port ?? process.env.SMTP_PORT ?? '587', 10)
   const transporter = createTransport({
     host: overrides?.host ?? process.env.SMTP_HOST,
-    port: parseInt(overrides?.port ?? process.env.SMTP_PORT ?? '587', 10),
+    port,
+    // Port 465 speaks TLS from the first byte (implicit TLS). Left unset,
+    // nodemailer opens in plain text and waits for a STARTTLS offer that never
+    // comes, so every send on a 465 account hung and then failed.
+    secure: port === 465,
     auth: {
       user: overrides?.user ?? process.env.SMTP_USER,
       pass: overrides?.pass ?? process.env.SMTP_PASS,
     },
   })
   const info = await transporter.sendMail({
-    from: `"${sender.fromName}" <${sender.fromAddress}>`,
+    // Handed over as parts so nodemailer quotes and encodes the name itself. A
+    // name built into a string by hand broke on the first double quote in it
+    // ('The "Comfy" Chair Co') and the From line came out mangled.
+    from: { name: sender.fromName, address: sender.fromAddress },
     to: payload.to,
     ...(payload.cc?.length ? { cc: payload.cc.join(', ') } : {}),
     ...(payload.bcc?.length ? { bcc: payload.bcc.join(', ') } : {}),

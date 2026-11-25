@@ -3,7 +3,8 @@ import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { getSessionFromCookie, deleteAllUserSessions, revokeAllTrustedDevices } from '@/lib/auth/session'
+import { getSessionFromCookie, deleteAllUserSessions, revokeAllTrustedDevices, isCurrentSessionFresh } from '@/lib/auth/session'
+import { checkAndRecord } from '@/lib/auth/rate-limit'
 import {
   hashPassword,
   verifyPassword,
@@ -56,10 +57,25 @@ export async function POST(request: NextRequest) {
   })
   if (!dbUser) return errorResponse('Not authenticated', 401)
 
+  // Adding a FIRST password plants a durable sign-in method with nothing to
+  // prove who is asking, so it needs a recent sign-in, exactly like adding a
+  // passkey. Same response shape as the passkey routes so the page can react.
+  if (!dbUser.passwordHash && !(await isCurrentSessionFresh())) {
+    return NextResponse.json(
+      { error: 'For your security, please sign in again before adding a password.', reauthRequired: true },
+      { status: 403 }
+    )
+  }
+
   // Changing an existing password requires the current one.
   if (dbUser.passwordHash) {
     if (!currentPassword) {
       return errorResponse('Current password is required', 400)
+    }
+    // Guesses at the current password are counted, like any other step-up.
+    const limit = await checkAndRecord('step_up', ['account:' + user.id])
+    if (!limit.allowed) {
+      return errorResponse('Too many attempts. Please wait a few minutes and try again.', 429)
     }
     const valid = await verifyPassword(currentPassword, dbUser.passwordHash)
     if (!valid) {

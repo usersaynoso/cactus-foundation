@@ -42,10 +42,27 @@ export default function DisplayConditionsPanel({ layoutType, existing, onSave, s
 
   useEffect(() => {
     if (!needsPagePicker) return
-    fetch('/api/admin/pages?limit=200')
-      .then(r => r.json())
-      .then(d => setPages(d.pages ?? []))
-      .catch(() => {})
+    // The pages API pages with perPage (at most 100), not `limit` - asking for
+    // limit=200 got the default 25 most recently edited, so an older page could
+    // not be picked, and a rule already pointing at one showed no page at all.
+    let cancelled = false
+    void (async () => {
+      const collected: PageOption[] = []
+      try {
+        for (let pageNo = 1; pageNo <= 50; pageNo++) {
+          const r = await fetch(`/api/admin/pages?perPage=100&page=${pageNo}`)
+          if (!r.ok) break
+          const d = (await r.json()) as { pages?: PageOption[]; total?: number }
+          const batch = d.pages ?? []
+          collected.push(...batch)
+          if (batch.length < 100 || collected.length >= (d.total ?? 0)) break
+        }
+      } catch {
+        // keep whatever arrived
+      }
+      if (!cancelled) setPages(collected)
+    })()
+    return () => { cancelled = true }
   }, [needsPagePicker])
 
   function addRule(side: 'include' | 'exclude') {

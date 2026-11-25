@@ -62,9 +62,15 @@ export default function LayoutEditorPage() {
 
   useEffect(() => {
     fetch(`/api/admin/layouts/${id}`)
-      .then((r) => r.json())
+      // A refusal or a missing layout answers { error } - without the ok check that
+      // object became `layout` and the builder opened blank on a layout of no type.
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'Failed to load layout')
+        return d as Layout
+      })
       .then((d) => { setLayout(d); setLoading(false) })
-      .catch(() => { setError('Failed to load layout'); setLoading(false) })
+      .catch((err: unknown) => { setError(err instanceof Error ? err.message : 'Failed to load layout'); setLoading(false) })
   }, [id])
 
   const loadHistory = useCallback(async () => {

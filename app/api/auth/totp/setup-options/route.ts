@@ -5,6 +5,7 @@ import { getSessionFromCookie, isCurrentSessionFresh } from '@/lib/auth/session'
 import { generateTotpSecret, buildOtpauthUri, generateQrDataUrl } from '@/lib/auth/totp'
 import { encryptSecret } from '@/lib/crypto/secrets'
 import { errorResponse, successResponse } from '@/lib/utils'
+import { mayActOnSetupUser, SETUP_LOCKED_OUT_MESSAGE } from '@/lib/setup/bootstrap-cookie'
 
 const Body = z.object({
   userId: z.string().optional(),
@@ -26,6 +27,11 @@ export async function POST(request: NextRequest) {
     ])
     if (cfg?.setupCompleted && existingUserCount > 0) {
       return errorResponse('Setup is already complete', 403)
+    }
+    // Knowing the admin's id is not enough: this browser must hold the setup-bootstrap
+    // cookie for it (or be signed in as them).
+    if (!(await mayActOnSetupUser(userId))) {
+      return errorResponse(SETUP_LOCKED_OUT_MESSAGE, 403)
     }
   } else {
     const sessionUser = await getSessionFromCookie()

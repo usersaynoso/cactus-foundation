@@ -604,11 +604,22 @@ export async function deleteMedia(provider: MediaProviderType, key: string): Pro
     return
   }
 
+  // Deleting something already gone is a success, as it is on S3. Vercel Blob and
+  // ImageKit both throw a not-found instead, which made an item whose file had
+  // vanished from storage impossible to delete from the library (the bytes delete
+  // ran first and failed every time), and left the superseded-blob sweep retrying
+  // a delete with nothing to do until it gave up.
   if (provider === 'VERCEL_BLOB') {
-    const { del, head } = await import('@vercel/blob')
+    const { del, head, BlobNotFoundError } = await import('@vercel/blob')
     // del() takes the blob url, not the pathname; resolve it via head first.
-    const meta = await head(key, { token: process.env.BLOB_READ_WRITE_TOKEN })
-    await del(meta.url, { token: process.env.BLOB_READ_WRITE_TOKEN })
+    let blobUrl: string
+    try {
+      blobUrl = (await head(key, { token: process.env.BLOB_READ_WRITE_TOKEN })).url
+    } catch (err) {
+      if (err instanceof BlobNotFoundError) return
+      throw err
+    }
+    await del(blobUrl, { token: process.env.BLOB_READ_WRITE_TOKEN })
     return
   }
 
@@ -639,9 +650,14 @@ export async function deleteMedia(provider: MediaProviderType, key: string): Pro
   }
 
   if (provider === 'IMAGEKIT') {
-    const { default: ImageKit } = await import('@imagekit/nodejs')
+    const { default: ImageKit, NotFoundError } = await import('@imagekit/nodejs')
     const ik = new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY ?? '' })
-    await ik.files.delete(key)
+    try {
+      await ik.files.delete(key)
+    } catch (err) {
+      if (err instanceof NotFoundError) return
+      throw err
+    }
     return
   }
 
@@ -1317,9 +1333,11 @@ export async function optimiseMediaInPlace(mediaId: string, userId?: string): Pr
   // smaller than an already-compressed JPEG source. Dimensions are preserved
   // (no downscale): library images are used at many sizes across the site,
   // unlike a logo. Animated sources keep their frames.
-  const encoded = await sharp(original, { animated: true })
-    .webp({ quality: 82, effort: 6 })
-    .toBuffer()
+  // Upright first: sharp drops the EXIF orientation tag on output, so a phone
+  // photograph stored sideways with "rotate 90" beside it came back as a WebP
+  // lying on its side. See uprightIfTagged.
+  const encoded = await uprightIfTagged(sharp(original, { animated: true }), original)
+    .then((s) => s.webp({ quality: 82, effort: 6 }).toBuffer())
 
   const before = original.length
   const after = encoded.length
@@ -1455,6 +1473,24 @@ function encodeToMime(s: Sharp, mimeType: string): Promise<Buffer> {
     default:
       return s.webp({ quality: 90 }).toBuffer()
   }
+}
+
+// EXIF orientations 2-8 mean the stored pixel rows are not the way up the picture
+// is drawn. sharp writes no metadata unless told to, so any pipeline that does not
+// apply the orientation itself loses the tag and leaves the pixels as stored: a
+// portrait phone photograph comes out of an optimise or a resize lying on its
+// side. Rotating only when a tag says to, rather than always, because an animated
+// GIF or WebP never carries one and a multi-frame rotate is not worth the risk.
+async function uprightIfTagged(pipeline: Sharp, bytes: Buffer): Promise<Sharp> {
+  const { orientation } = await sharp(bytes, { failOn: 'none' }).metadata()
+  return typeof orientation === 'number' && orientation > 1 ? pipeline.rotate() : pipeline
+}
+
+// The size a picture is drawn at, which is the stored size turned on its side
+// for orientations 5-8 (the same rule dimensionsFromBuffer applies).
+function orientedSize(meta: { width?: number; height?: number; orientation?: number }): { width: number; height: number } {
+  const sideways = (meta.orientation ?? 1) >= 5
+  return { width: (sideways ? meta.height : meta.width) ?? 0, height: (sideways ? meta.width : meta.height) ?? 0 }
 }
 
 // Ensure a user-typed filename carries the extension its bytes actually need, so
@@ -1927,8 +1963,9 @@ export async function changeMediaAspectRatio(
 
   const original = await downloadMedia(media.provider, media.key, media.url)
   const meta = await sharp(original).metadata()
-  const srcW = meta.width ?? 0
-  const srcH = meta.height ?? 0
+  // Planned against the picture as it is drawn, not as its pixel rows are stored:
+  // a portrait phone photograph is a landscape grid with "rotate 90" beside it.
+  const { width: srcW, height: srcH } = orientedSize(meta)
   if (!srcW || !srcH) throw new Error('Could not read image dimensions')
 
   const plan = planAspectChange(srcW, srcH, opts.ratioW, opts.ratioH)
@@ -1937,9 +1974,17 @@ export async function changeMediaAspectRatio(
   // Resize first when the plan capped the canvas. fit 'inside' keeps the source
   // ratio itself, so the actual output can land a pixel under the planned box —
   // the offsets are therefore measured from the real bytes, not the plan.
+  //
+  // Turned upright on the way, because nothing downstream would: sharp writes no
+  // orientation tag, so the padded result came out on its side. Without a resize
+  // the upright copy is held losslessly, so it costs no extra generation.
   let drawn = original
-  if (plan.imageWidth !== srcW || plan.imageHeight !== srcH) {
-    drawn = await sharp(original).resize(plan.imageWidth, plan.imageHeight, { fit: 'inside' }).toBuffer()
+  const resizing = plan.imageWidth !== srcW || plan.imageHeight !== srcH
+  if (resizing || (meta.orientation ?? 1) > 1) {
+    const upright = sharp(original).rotate()
+    drawn = resizing
+      ? await upright.resize(plan.imageWidth, plan.imageHeight, { fit: 'inside' }).toBuffer()
+      : await upright.png().toBuffer()
   }
   const drawnMeta = await sharp(drawn).metadata()
   const dw = drawnMeta.width ?? plan.imageWidth
@@ -1999,8 +2044,8 @@ export async function resizeMediaImage(
 
   const original = await downloadMedia(media.provider, media.key, media.url)
   const meta = await sharp(original).metadata()
-  const srcW = meta.width ?? 0
-  const srcH = meta.height ?? 0
+  // The box applies to the picture as it is drawn (see orientedSize).
+  const { width: srcW, height: srcH } = orientedSize(meta)
   if (!srcW || !srcH) throw new Error('Could not read image dimensions')
 
   const plan = planResize(srcW, srcH, opts.box)
@@ -2008,7 +2053,9 @@ export async function resizeMediaImage(
 
   // withoutEnlargement belts-and-braces the plan's own never-upscale rule: if the
   // two ever disagreed, sharp would decline to invent pixels rather than obey.
-  const pipeline = sharp(original).resize(plan.width, plan.height, { fit: 'inside', withoutEnlargement: true })
+  // rotate() first: the output carries no orientation tag, so an EXIF-orientated
+  // photograph has to be turned upright here or it comes out on its side.
+  const pipeline = sharp(original).rotate().resize(plan.width, plan.height, { fit: 'inside', withoutEnlargement: true })
   const encoded = await encodeToMime(pipeline, media.mimeType)
 
   // fit 'inside' keeps the source's own ratio, so the real output can land a

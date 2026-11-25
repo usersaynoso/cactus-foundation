@@ -12,10 +12,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   }
 
   const { id } = await params
+  // Only a suspended member can be unsuspended. Without the status filter this
+  // flipped ANY member to ACTIVE - a registration still awaiting approval or
+  // email verification walked straight past both, and one already deleted came
+  // back to life.
   const member = await prisma.member.update({
-    where: { id },
+    where: { id, status: 'SUSPENDED' },
     data: { status: 'ACTIVE', suspensionReason: null, suspendedUntil: null, suspensionNotified: false },
-  })
+  }).catch(() => null)
+  if (!member) return NextResponse.json({ error: 'Member is not suspended' }, { status: 400 })
 
   await logMemberAdminAction(user, id, 'unsuspend')
 

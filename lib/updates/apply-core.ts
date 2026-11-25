@@ -108,6 +108,9 @@ export async function applyCoreUpdate({ updateModules, routeStartedAt }: { updat
   // Module updates found but held back as incompatible, reported so the admin
   // knows why they are still sitting on the Modules page afterwards.
   let skippedModules: string[] = []
+  // Set once the commit is on main. From then on the build is coming whatever happens
+  // here, so a later failure must not roll the queued modules back to their old version.
+  let pushed = false
 
   try {
     // Queue any modules with an available update into the SAME build the core sync is
@@ -181,6 +184,7 @@ export async function applyCoreUpdate({ updateModules, routeStartedAt }: { updat
       : undefined
 
     await syncCoreFromUpstream(currentVersion, latestVersion, modulesJson, { deadlineAt })
+    pushed = true
     await prisma.deployLock.deleteMany({ where: { id: 'singleton' } })
 
     // Bust the update cache so the panel reflects the running version after redeploy.
@@ -219,6 +223,19 @@ export async function applyCoreUpdate({ updateModules, routeStartedAt }: { updat
       return NextResponse.json({ ok: true, moduleUpdatesQueued: queuedModules.length, moduleUpdatesSkipped: skippedModules })
     }
   } catch (err: unknown) {
+    if (pushed) {
+      // The commit is already on main, carrying the queued modules' new pins, so the
+      // build that lands will run their new code. Rolling the rows back here used to
+      // record them as still on the old version with an update waiting - for code that
+      // was about to go live - and tell the owner the whole update had failed. Leave
+      // them 'deploying' for the usual reconcile to settle, and say what really happened.
+      await prisma.deployLock.deleteMany({ where: { id: 'singleton' } }).catch(() => {})
+      const base = err instanceof Error ? err.message : 'Unknown error'
+      return errorResponse(
+        `Cactus v${latestVersion} was saved to your site's repository and should go live with the next build, but the site could not start keeping track of that build (${base}). Give it a few minutes, then reload this page.`,
+        500
+      )
+    }
     // Nothing was pushed (or the push itself failed), so roll any queued module rows
     // back to where they were - otherwise they'd be stranded in 'deploying' with no
     // deploy coming to reconcile them.

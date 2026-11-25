@@ -48,6 +48,11 @@ describe('normaliseSmsNumber', () => {
     expect(normaliseSmsNumber('+353 86 1234567')).toBe('+353861234567')
   })
 
+  it('drops a bracketed trunk zero after the country code', () => {
+    expect(normaliseSmsNumber('+44 (0)7700 900123')).toBe('+447700900123')
+    expect(normaliseSmsNumber('0044 (0) 7700 900123')).toBe('+447700900123')
+  })
+
   it('reads 00 as the other way of writing +', () => {
     expect(normaliseSmsNumber('00447700900123')).toBe('+447700900123')
   })

@@ -13,7 +13,7 @@ export async function POST() {
       }),
       prisma.user.findFirst({
         where: { role: { isProtected: true } },
-        select: { username: true, email: true },
+        select: { id: true },
       }),
       prisma.user.count(),
     ])
@@ -27,7 +27,9 @@ export async function POST() {
       adminPath: config?.adminPath ?? null,
       siteName: config?.siteName ?? null,
       timezone: config?.timezone ?? null,
-      admin: adminUser ? { username: adminUser.username, email: adminUser.email } : null,
+      // Only whether an admin exists: the wizard needs nothing more, and an
+      // unauthenticated caller must not learn the admin's username or email.
+      adminExists: !!adminUser,
     })
   } catch {
     return NextResponse.json({
@@ -35,7 +37,7 @@ export async function POST() {
       adminPath: null,
       siteName: null,
       timezone: null,
-      admin: null,
+      adminExists: false,
     })
   }
 }

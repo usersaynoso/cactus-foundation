@@ -88,7 +88,12 @@ export async function POST(request: NextRequest) {
     hash = await hashPassword(newPassword)
   }
 
-  await consumeRecoveryToken(token)
+  // The spend is the authority, not the validation above: two requests carrying
+  // the same token both pass that, and only one of them may go on to set a
+  // password and be handed a session.
+  if (!(await consumeRecoveryToken(token))) {
+    return NextResponse.json({ error: 'Recovery link is invalid or expired' }, { status: 400 })
+  }
 
   if (hash) {
     await prisma.user.update({ where: { id: userId }, data: { passwordHash: hash } })

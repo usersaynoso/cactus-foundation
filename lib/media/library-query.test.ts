@@ -153,6 +153,20 @@ describe('parseLibraryQuery', () => {
   })
 })
 
+describe('search', () => {
+  // Postgres `contains` is case-sensitive unless told otherwise, and keys are
+  // always lower case, so a search typed with a capital letter found nothing.
+  it('matches name, key and alt text whatever the case', () => {
+    const where = buildWhere(parseLibraryQuery(new URLSearchParams({ q: 'Chair' }), 25, 1)) as { AND: Array<{ OR?: unknown[] }> }
+    const search = where.AND.find((c) => Array.isArray(c.OR))
+    expect(search?.OR).toEqual([
+      { key: { contains: 'Chair', mode: 'insensitive' } },
+      { originalName: { contains: 'Chair', mode: 'insensitive' } },
+      { altText: { contains: 'Chair', mode: 'insensitive' } },
+    ])
+  })
+})
+
 describe('folder exclusions', () => {
   const parse = (params: Record<string, string>) =>
     parseLibraryQuery(new URLSearchParams(params), 25, 1)

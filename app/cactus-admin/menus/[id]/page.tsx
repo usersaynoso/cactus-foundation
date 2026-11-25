@@ -269,29 +269,45 @@ export default function MenuDetailPage() {
       .catch(() => setModuleGroups([]))
   }, [modalStep])
 
-  // Page search for the page picker
+  // Page search for the page picker. The search filters here, not on the server,
+  // so it has to see every page: reading only the 30 most recently edited left any
+  // older page impossible to find, and so impossible to add. Read once per opening
+  // of the picker (the API serves at most 100 a request) and filtered per keystroke.
+  const allPagesRef = useRef<PageResult[] | null>(null)
   useEffect(() => {
-    if (modalStep !== 'page') return
+    if (modalStep !== 'page') { allPagesRef.current = null; return }
+    let cancelled = false
     setPageSearchLoading(true)
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/admin/pages?perPage=30`)
-        const d = await res.json()
-        const allPages: PageResult[] = d.pages ?? []
+        if (!allPagesRef.current) {
+          const collected: PageResult[] = []
+          for (let pageNo = 1; pageNo <= 50; pageNo++) {
+            const res = await fetch(`/api/admin/pages?perPage=100&page=${pageNo}`)
+            if (!res.ok) break
+            const d = (await res.json()) as { pages?: PageResult[]; total?: number }
+            const batch = d.pages ?? []
+            collected.push(...batch)
+            if (batch.length < 100 || collected.length >= (d.total ?? 0)) break
+          }
+          allPagesRef.current = collected
+        }
+        // A slower, earlier keystroke must not land its results over a newer one.
+        if (cancelled) return
         const inMenu = new Set(menu?.items.filter((i) => i.type === 'PAGE').map((i) => i.pageId) ?? [])
-        const filtered = allPages.filter(
+        const filtered = allPagesRef.current.filter(
           (p) =>
             !inMenu.has(p.id) &&
             (!pageSearch || p.title.toLowerCase().includes(pageSearch.toLowerCase()) || p.slug.toLowerCase().includes(pageSearch.toLowerCase()))
         )
         setPageResults(filtered)
       } catch {
-        setPageResults([])
+        if (!cancelled) setPageResults([])
       } finally {
-        setPageSearchLoading(false)
+        if (!cancelled) setPageSearchLoading(false)
       }
     }, 200)
-    return () => clearTimeout(timeout)
+    return () => { cancelled = true; clearTimeout(timeout) }
   }, [pageSearch, modalStep, menu])
 
   async function addPageItem(page: PageResult) {
@@ -421,7 +437,10 @@ export default function MenuDetailPage() {
 
   async function deleteItem(itemId: string) {
     try {
-      await fetch(`/api/admin/menus/${menuId}/items/${itemId}`, { method: 'DELETE' })
+      // fetch only rejects on a dropped connection - a refusal has to be read off
+      // the status, or the dialog closed as if the item had gone.
+      const res = await fetch(`/api/admin/menus/${menuId}/items/${itemId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
       setDeleteId(null)
       await load()
     } catch {
@@ -439,11 +458,13 @@ export default function MenuDetailPage() {
         parentId: i.id === itemId ? parentId : i.parentId,
         order: i.order,
       }))
-      await fetch(`/api/admin/menus/${menuId}/items/reorder`, {
+      const res = await fetch(`/api/admin/menus/${menuId}/items/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items }),
       })
+      // A refused reorder still resolves - read the status so it is reported.
+      if (!res.ok) throw new Error()
       await load()
     } catch {
       setError('Failed to update nesting')
@@ -473,7 +494,7 @@ export default function MenuDetailPage() {
 
     setSaving(true)
     try {
-      await fetch(`/api/admin/menus/${menuId}/items/reorder`, {
+      const res = await fetch(`/api/admin/menus/${menuId}/items/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -483,6 +504,7 @@ export default function MenuDetailPage() {
           ],
         }),
       })
+      if (!res.ok) throw new Error()
       await load()
     } catch {
       setError('Failed to reorder items')
@@ -519,11 +541,13 @@ export default function MenuDetailPage() {
     dragId.current = null
 
     try {
-      await fetch(`/api/admin/menus/${menuId}/items/reorder`, {
+      const res = await fetch(`/api/admin/menus/${menuId}/items/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: reordered }),
       })
+      // A refused reorder still resolves - read the status so it is reported.
+      if (!res.ok) throw new Error()
       await load()
     } catch {
       setError('Failed to reorder items')

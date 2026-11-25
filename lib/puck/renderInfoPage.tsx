@@ -3,6 +3,7 @@ import { puckRscConfig } from '@/lib/puck/config.rsc'
 import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
 import { withMediaDimensions } from '@/lib/puck/mediaDimensions'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
+import { templateDataResolver } from '@/lib/puck/pageTemplateData'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { markdownToHtml } from '@/lib/sanitize'
 import { obfuscateEmailsInHtml } from '@/lib/email-obfuscate'
@@ -57,7 +58,21 @@ async function resolveConsentPanel(pageId: string): Promise<React.ReactNode> {
 export async function renderInfoPageContent(page: PageShape, options: RenderOptions = {}) {
   const { draftBanner = null, isHomepage = false } = options
   const consentPanel = await resolveConsentPanel(page.id)
-  const layout = await resolveThemeLayout('infoPage', { pageId: page.id, slug: page.slug, isHomepage })
+  // The address the page is served at goes in too: page layouts offer a "URL path
+  // prefix" rule, and without a pathname it could never match anything.
+  const layout = await resolveThemeLayout('infoPage', {
+    pageId: page.id,
+    slug: page.slug,
+    isHomepage,
+    pathname: isHomepage ? '/' : `/${page.slug}`,
+  })
+  // The Site blocks (Menu, Site Logo and friends) in the page and its layout get
+  // their menu, logo and site name here - see lib/puck/pageTemplateData.ts.
+  const withTemplateData = templateDataResolver()
+  const [pageData, layoutData] = await Promise.all([
+    withTemplateData(page.bodyFormat === 'builder' ? (resolveContentData(page) as Data | null) : null),
+    withTemplateData((layout?.builderData ?? null) as Data | null),
+  ])
   // Site-wide render settings (currently the lazy-load switch) reach blocks only
   // through Puck's metadata - config.tsx can't read them itself. Resolved once
   // here and handed to every Render this page makes; getSiteConfig is cache()d,
@@ -67,8 +82,7 @@ export async function renderInfoPageContent(page: PageShape, options: RenderOpti
   // layout draws, so those images hold their height before they load. Looked up
   // alongside the settings rather than after them, and skipped entirely when the
   // page has no image blocks.
-  const pageData = page.bodyFormat === 'builder' ? (resolveContentData(page) as Data | null) : null
-  const metadata = await withMediaDimensions(getPuckRenderMetadata(), [pageData, layout?.builderData])
+  const metadata = await withMediaDimensions(getPuckRenderMetadata(), [pageData, layoutData])
 
   if (page.bodyFormat === 'builder') {
     if (!pageData) {
@@ -81,7 +95,7 @@ export async function renderInfoPageContent(page: PageShape, options: RenderOpti
       )
     }
 
-    if (layout?.builderData) {
+    if (layoutData) {
       // Inside the layout's content slot, not above it - otherwise the panel would
       // land above the site header.
       const pageContent = (
@@ -93,7 +107,7 @@ export async function renderInfoPageContent(page: PageShape, options: RenderOpti
       return (
         <>
           {draftBanner}
-          {renderLayoutWithContent(layout.builderData as Data, pageContent, metadata)}
+          {renderLayoutWithContent(layoutData, pageContent, metadata)}
         </>
       )
     }
@@ -123,11 +137,11 @@ export async function renderInfoPageContent(page: PageShape, options: RenderOpti
     </div>
   )
 
-  if (layout?.builderData) {
+  if (layoutData) {
     return (
       <>
         {draftBanner}
-        {renderLayoutWithContent(layout.builderData as Data, markdownContent, metadata)}
+        {renderLayoutWithContent(layoutData, markdownContent, metadata)}
       </>
     )
   }

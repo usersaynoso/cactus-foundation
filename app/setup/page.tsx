@@ -42,7 +42,7 @@ type ExistingDbState = {
   adminPath: string | null
   siteName: string | null
   timezone: string | null
-  admin: { username: string; email: string } | null
+  adminExists: boolean
 }
 
 type HostDomain = { name: string; verified: boolean }
@@ -826,9 +826,9 @@ export default function SetupPage() {
       if (data.adminPath) setAdminPath(data.adminPath)
       if (data.siteName) setSiteName(data.siteName)
       if (data.timezone) setTimezone(data.timezone)
-      if (data.admin) setAdminAlreadyExists(true)
+      if (data.adminExists) setAdminAlreadyExists(true)
 
-      if (!data.admin) {
+      if (!data.adminExists) {
         setStep('configure')
       } else if (!data.adminPath || !data.siteName) {
         setStep('configure')
@@ -1264,6 +1264,7 @@ npm run dev`}
               onUseExistingWithData={(id) => handleUseExistingNeon(id, true)}
               onSaveManualUrl={handleManualDbSave}
               neonApiKey={setupNeonKey}
+              setNeonApiKey={setSetupNeonKey}
             />
           )}
 
@@ -2204,6 +2205,7 @@ function DbChoicePanel({
   onUseExistingWithData,
   onSaveManualUrl,
   neonApiKey,
+  setNeonApiKey,
 }: {
   neonRegion: string
   setNeonRegion: (r: string) => void
@@ -2213,6 +2215,7 @@ function DbChoicePanel({
   onUseExistingWithData: (projectId: string) => void
   onSaveManualUrl: (url: string) => void
   neonApiKey: string
+  setNeonApiKey: (key: string) => void
 }) {
   const hostCopy = useContext(HostCopyContext)
   const [selectedOption, setSelectedOption] = useState<null | 'create' | 'existing' | 'manual'>(null)
@@ -2224,13 +2227,20 @@ function DbChoicePanel({
   const [checkingExistingData, setCheckingExistingData] = useState(false)
   const [existingDataWarning, setExistingDataWarning] = useState(false)
   const [pendingProjectId, setPendingProjectId] = useState('')
+  const [projectsLoaded, setProjectsLoaded] = useState(false)
 
-  async function handleSelectExisting() {
+  // Existing projects are only listed with a key pasted into this panel: the server
+  // never uses its own Neon key for this, so a stranger cannot browse the owner's account.
+  function handleSelectExisting() {
     if (selectedOption === 'existing') {
       setSelectedOption(null)
       return
     }
     setSelectedOption('existing')
+    if (neonApiKey) void loadNeonProjects()
+  }
+
+  async function loadNeonProjects() {
     setLoadingProjects(true)
     setProjectsError('')
     setNeonProjects([])
@@ -2249,6 +2259,7 @@ function DbChoicePanel({
         return
       }
       setNeonProjects(data.projects ?? [])
+      setProjectsLoaded(true)
     } catch (err: unknown) {
       setProjectsError(err instanceof Error ? err.message : 'Network error')
     } finally {
@@ -2334,6 +2345,37 @@ function DbChoicePanel({
         </button>
         {selectedOption === 'existing' && (
           <div style={{ padding: '1rem', borderTop: '1px solid var(--color-info-border)', background: 'var(--color-info-subtle)' }}>
+            <div className="field" style={{ marginBottom: '1rem' }}>
+              <label htmlFor="existingNeonKey" style={{ fontSize: '0.875rem' }}>Neon API key</label>
+              <input
+                id="existingNeonKey"
+                type="text"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={neonApiKey}
+                onChange={(e) => setNeonApiKey(e.target.value.trim())}
+                placeholder="napi_…"
+                disabled={loadingProjects}
+                style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+              />
+              <span className="field-hint">
+                Paste your key to list your projects. For safety it is never read from the server here.{' '}
+                <a href="https://console.neon.tech/app/settings/api-keys" target="_blank" rel="noreferrer" style={{ color: 'var(--color-primary)' }}>
+                  Neon Console → Account → API Keys
+                </a>
+              </span>
+              <button
+                className="btn"
+                type="button"
+                style={{ marginTop: '0.5rem' }}
+                disabled={!neonApiKey || loadingProjects}
+                onClick={() => void loadNeonProjects()}
+              >
+                {projectsLoaded ? 'Reload projects' : 'Show my projects'}
+              </button>
+            </div>
             {loadingProjects && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: 'var(--color-muted)', marginBottom: '1rem' }}>
                 <span className="setup-spinner" />
@@ -2343,7 +2385,7 @@ function DbChoicePanel({
             {projectsError && (
               <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{projectsError}</div>
             )}
-            {!loadingProjects && !projectsError && neonProjects.length === 0 && (
+            {!loadingProjects && !projectsError && projectsLoaded && neonProjects.length === 0 && (
               <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>No Neon projects found in your account.</div>
             )}
             {neonProjects.length === 1 && (

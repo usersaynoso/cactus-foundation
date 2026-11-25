@@ -22,6 +22,7 @@ import SignInModalFormSlot from '@/components/members/SignInModalFormSlot'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
 import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
+import { templateDataResolver } from '@/lib/puck/pageTemplateData'
 import type { Data } from '@puckeditor/core'
 
 const LINK_STYLE: React.CSSProperties = { padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid var(--color-border)', textDecoration: 'none', color: 'var(--color-text-secondary, var(--color-fg-secondary))', fontSize: '0.875rem', fontWeight: 500 }
@@ -181,7 +182,8 @@ export async function MembersSignInRsc(props: Partial<SignInWidgetOptions>) {
     const layout = await resolveThemeLayout('memberLoginModal', {}).catch(() => null)
     if (layout?.builderData) {
       modalLayout = renderLayoutWithContent(
-        layout.builderData as Data,
+        // Site blocks in the panel design (the logo, say) need their data filled in.
+        await templateDataResolver()(layout.builderData as Data),
         <SignInModalFormSlot redirectTo={redirectTo} basePath={base} />,
         await getPuckRenderMetadata(),
       )

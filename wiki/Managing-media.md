@@ -151,7 +151,7 @@ All of these tiles are counted from Cactus's own records. If you want to know wh
 
 Below that is a row of controls to help you find things in a hurry:
 
-- A **search box** that looks inside the folder you're standing in, filtering as you type so you don't have to press Enter and wait. Next to it a small **In [folder name] / Everywhere** switch appears: leave it be to search where you are, or flip it to sweep the whole library. Searching a folder means that folder itself - files tucked away in folders inside it aren't counted, which is the same set you'd see by browsing it. If a search inside a folder comes up empty, the message offers a one-click **Search all folders**, and the little tag under the controls always says which of the two you're looking at.
+- A **search box** that looks inside the folder you're standing in, filtering as you type so you don't have to press Enter and wait. Capitals don't matter: "Chair" finds `chair-black.jpg`, and the search looks at alt text too. Next to it a small **In [folder name] / Everywhere** switch appears: leave it be to search where you are, or flip it to sweep the whole library. Searching a folder means that folder itself - files tucked away in folders inside it aren't counted, which is the same set you'd see by browsing it. If a search inside a folder comes up empty, the message offers a one-click **Search all folders**, and the little tag under the controls always says which of the two you're looking at.
 - **Sort** - newest or oldest first, by name A-Z or Z-A, by **file size** (largest or smallest file first), or by **picture size** (biggest or smallest picture first). The last two are a different question from the first two: a scan of a postage stamp and a wall-sized photograph can weigh exactly the same on disc and be nothing alike on a page, so "biggest picture" sorts by how many pixels across and down a photo actually is.
 - **File type** - show everything, just images, just videos, just 3D files, or the odds and ends that are none of those (PDFs, zips and so on).
 - **Picture shape** - show everything, only square pictures, or only ones that aren't. Useful when you want the square ones for an icon or an avatar and would rather not eye up a whole folder to find them. Both narrowings show only pictures Cactus has measured: videos, 3D files and vectors have no shape to judge, and a picture whose proportions nobody has recorded yet is left out rather than guessed at - so if a folder looks emptier than you expected, measure the unmeasured ones and they'll join in.
@@ -383,7 +383,7 @@ When you switch:
 - **New uploads** go to the new provider immediately.
 - **Existing images** stay where they are and continue to display correctly.
 
-To move existing images to the new provider, click **Migrate now** on the Media settings page. Cactus moves everything across in batches while you wait. You can see a breakdown of how many images are on each provider before you decide.
+To move existing images to the new provider, click **Migrate now** on the Media settings page. Cactus moves everything across in batches while you wait. You can see a breakdown of how many images are on each provider before you decide. Every page, layout and shop listing that uses a moved image is pointed at its new home as part of the move, and the original copy is kept for the usual short grace period before it is tidied away, so nothing on the site breaks halfway through.
 
 ---
 

@@ -80,5 +80,17 @@ export async function sendMemberEmail(
 
   const rendered = await renderEmailTemplate(key, vars)
   if (!rendered) return
-  await sendEmail({ to: member.email, subject: rendered.subject, html: rendered.html, text: rendered.text })
+  // The template key travels with the message, as it does from
+  // sendTemplateEmail. Without it the email log cannot say which email this
+  // was, and the tracking rules cannot recognise a sign-in link or an
+  // address-change code as account-security mail - so on an SMTP site those
+  // links were rewritten through the click counter and written to the database.
+  await sendEmail({
+    to: member.email,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+    templateKey: key,
+    headers: { 'X-Cactus-Template': key },
+  })
 }

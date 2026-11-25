@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie, type SessionUser } from '@/lib/auth/session'
-import { hasPermissions, isAdmin } from '@/lib/permissions/check'
+import { hasPermissions, isAdmin, unassignableRoleIds } from '@/lib/permissions/check'
 import { MEMBERS_ROLE_NAME } from '@/lib/members/default-role'
 import { getMembersConfig } from '@/lib/members/config'
 import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
@@ -124,9 +124,12 @@ async function UsersTab({ currentUser, canViewMembers, initialFilters }: { curre
     getMembersConfig(),
   ])
 
+  const blocked = await unassignableRoleIds(currentUser, roles)
+  const assignableRoles = roles.map((r) => ({ ...r, assignable: !blocked.has(r.id) }))
+
   return (
     <PeopleListClient
-      roles={roles}
+      roles={assignableRoles}
       currentUserId={currentUser.id}
       currentUserIsAdmin={isAdmin(currentUser)}
       canViewMembers={canViewMembers}

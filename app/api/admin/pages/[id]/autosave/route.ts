@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
+import { getInstalledPublicBasePaths } from '@/lib/modules/public'
 
 const Body = z.object({
   data: z.object({
@@ -61,6 +62,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (slug !== page.slug) {
       const exists = await prisma.infoPage.findFirst({ where: { slug, NOT: { id } } })
       if (exists) return errorResponse(`Slug "${slug}" is already in use`, 409)
+      // Same guard as the create and PATCH routes: a slug a module serves its
+      // public pages under would leave this page or the module unreachable.
+      const reservedBy = (await getInstalledPublicBasePaths()).get(slug)
+      if (reservedBy) return errorResponse(`Slug "${slug}" is reserved by the ${reservedBy} module`, 409)
     }
 
     const builderData = {

@@ -15,8 +15,14 @@ export default async function PagesPage({ searchParams }: Props) {
   const headersList = await headers()
   const adminPath = headersList.get('x-cactus-admin-path') ?? ''
   const user = await getSessionFromCookie()
-  // Both permissions in one query rather than a round-trip each.
-  const granted = user ? await hasPermissions(user, ['pages.write', 'pages.delete']) : {}
+  // Every permission in one query rather than a round-trip each.
+  const granted = user ? await hasPermissions(user, ['pages.read', 'pages.write', 'pages.delete']) : {}
+  // The list includes drafts, which pages.read exists to guard - the API behind
+  // this screen already refuses without it, but this first paint read the table
+  // straight from the database for any signed-in staff account.
+  if (granted['pages.read'] !== true) {
+    return <div className="alert alert-danger">You do not have permission to view pages.</div>
+  }
   const canWrite = granted['pages.write'] === true
   const canDelete = granted['pages.delete'] === true
 

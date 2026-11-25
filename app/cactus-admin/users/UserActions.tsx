@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminConfirm } from '@/components/admin/useAdminConfirm'
 
-type Role = { id: string; name: string; isProtected: boolean }
+type Role = { id: string; name: string; isProtected: boolean; assignable?: boolean }
 type TargetUser = { id: string; username: string; roleId: string; suspendedAt: string | null; role: Role }
 
 type Props = {
@@ -27,6 +27,12 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles, onC
     return null
   }
 
+  // Someone whose role holds permissions the viewer lacks cannot be managed by
+  // them (the server refuses too); show nothing rather than buttons that 403.
+  if (!currentUserIsAdmin && roles.find((r) => r.id === targetUser.roleId)?.assignable === false) {
+    return null
+  }
+
   async function patch(body: Record<string, unknown>) {
     setLoading(true)
     setError('')
@@ -42,6 +48,9 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles, onC
       onChanged?.()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Action failed')
+      // A refused role change left the select showing the role it asked for, as
+      // though it had been given. Put it back to the one the user really holds.
+      if ('roleId' in body) setSelectedRoleId(targetUser.roleId)
     } finally {
       setLoading(false)
     }
@@ -68,7 +77,7 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles, onC
       {confirmNode}
       {error && <span style={{ color: 'var(--color-destructive)', fontSize: 'var(--text-sm)' }}>{error}</span>}
 
-      {currentUserIsAdmin && (
+      {(currentUserIsAdmin || roles.some((r) => r.assignable)) && (
         <select
           value={selectedRoleId}
           onChange={(e) => setSelectedRoleId(e.target.value)}
@@ -81,7 +90,15 @@ export default function UserActions({ targetUser, currentUserIsAdmin, roles, onC
           disabled={loading}
         >
           {roles.map((r) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
+            <option
+              key={r.id}
+              value={r.id}
+              // The current role stays selectable so the select can show it.
+              disabled={!currentUserIsAdmin && r.assignable === false && r.id !== targetUser.roleId}
+              title={!currentUserIsAdmin && r.assignable === false ? 'Includes permissions you do not hold yourself' : undefined}
+            >
+              {r.name}
+            </option>
           ))}
         </select>
       )}

@@ -164,7 +164,13 @@ export async function enqueueVideoJob(
         signal: AbortSignal.timeout(20_000),
       })
     } catch (err) {
-      lastError = err instanceof Error ? err : new VideoWorkerError('The video service could not be reached.')
+      // Wrapped, not passed through: a refused connection or a timeout arrives as
+      // a plain TypeError / TimeoutError, and the route answers only a
+      // VideoWorkerError in words - anything else escaped as a bare 500 with no
+      // message, on exactly the failure (the worker being down) worth naming.
+      lastError = err instanceof VideoWorkerError
+        ? err
+        : new VideoWorkerError(`The video service could not be reached${err instanceof Error && err.message ? ` (${err.message})` : ''}.`)
       continue
     }
     if (res.status === 502 || res.status === 503) {
@@ -204,10 +210,18 @@ export type VideoJobStatus = {
 }
 
 export async function getVideoJob(jobId: string, machineId?: string | null): Promise<VideoJobStatus> {
-  const res = await fetch(`${workerBase()}/jobs/${encodeURIComponent(jobId)}`, {
-    headers: { authorization: workerAuth(), ...instanceHeaders(machineId) },
-    signal: AbortSignal.timeout(15_000),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${workerBase()}/jobs/${encodeURIComponent(jobId)}`, {
+      headers: { authorization: workerAuth(), ...instanceHeaders(machineId) },
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch (err) {
+    // Same reason as enqueueVideoJob: the route answers a VideoWorkerError in
+    // words, and an unreachable worker otherwise escaped as a bare 500.
+    if (err instanceof VideoWorkerError) throw err
+    throw new VideoWorkerError(`The video service could not be reached${err instanceof Error && err.message ? ` (${err.message})` : ''}.`)
+  }
   if (!res.ok) throw new VideoWorkerError(`The video service status check failed (HTTP ${res.status}).`, res.status)
   return (await res.json()) as VideoJobStatus
 }

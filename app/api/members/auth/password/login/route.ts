@@ -98,6 +98,14 @@ export async function POST(request: NextRequest) {
   let method = twoFactor.method
   let destination: string | undefined
 
+  // No code is sent for an authenticator app, but the second step still needs
+  // proof that this one - the password - was passed. A challenge row is that
+  // proof for every method (2fa/verify and recovery-code/consume both require
+  // one); this one is simply never emailed.
+  if (method === 'AUTHENTICATOR_APP') {
+    await createMemberEmailChallenge(member.id, 'login_2fa')
+  }
+
   if (method === 'SMS') {
     let sent = false
     const provider = await getActiveSmsProvider()

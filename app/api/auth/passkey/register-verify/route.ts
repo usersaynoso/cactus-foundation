@@ -4,6 +4,7 @@ import type { AuthenticatorTransportFuture } from '@simplewebauthn/server'
 import { verifyRegistration, savePasskey, labelFromUserAgent } from '@/lib/auth/passkey'
 import { getSessionFromCookie, isCurrentSessionFresh } from '@/lib/auth/session'
 import { isSetupBootstrapOpen } from '@/lib/auth/setup-window'
+import { mayActOnSetupUser, SETUP_LOCKED_OUT_MESSAGE } from '@/lib/setup/bootstrap-cookie'
 
 const Body = z.object({
   // Only honoured during the first-run setup wizard (see lib/auth/setup-window.ts).
@@ -64,6 +65,11 @@ export async function POST(request: NextRequest) {
     const targetUserId = challengeUserId ?? (bootstrapOpen ? parsed.data.userId ?? null : sessionUser?.id ?? null)
     if (!targetUserId) {
       throw new Error('Could not determine user for passkey registration')
+    }
+    // Inside the setup window the target must be the account this browser created
+    // (bootstrap cookie) or is signed in as; the challenge alone is not proof.
+    if (bootstrapOpen && !(await mayActOnSetupUser(targetUserId))) {
+      return NextResponse.json({ error: SETUP_LOCKED_OUT_MESSAGE }, { status: 403 })
     }
     if (!bootstrapOpen && targetUserId !== sessionUser?.id) {
       return NextResponse.json({ error: 'Challenge does not belong to the signed-in account' }, { status: 403 })

@@ -5,6 +5,7 @@ import { carriedMemberRedirect, resolveMemberRedirect } from '@/lib/members/memb
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { renderLayoutWithContent } from '@/lib/puck/renderLayoutWithContent'
 import { getPuckRenderMetadata } from '@/lib/puck/renderMetadata'
+import { templateDataResolver } from '@/lib/puck/pageTemplateData'
 import type { Data } from '@puckeditor/core'
 
 export const dynamic = 'force-dynamic'
@@ -93,7 +94,9 @@ export default async function MemberLoginPage({ searchParams }: Props) {
   )
 
   if (layout?.builderData) {
-    return renderLayoutWithContent(layout.builderData as Data, body, await getPuckRenderMetadata())
+    // Site blocks in the design (a menu, the logo) need their data filled in.
+    const data = await templateDataResolver()(layout.builderData as Data)
+    return renderLayoutWithContent(data, body, await getPuckRenderMetadata())
   }
 
   return <div style={{ margin: '4rem auto', padding: '0 1.5rem' }}>{body}</div>

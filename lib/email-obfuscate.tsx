@@ -30,11 +30,23 @@ import React from 'react'
 // Conservative email matcher. Case-insensitive, global (callers reset lastIndex).
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g
 
-// Encode an address for the data attribute: reverse then base64. Emails are
-// ASCII, so btoa (a global in both the browser and the Node/RSC runtime) is
-// safe. The client mirror is atob(enc).split('').reverse().join('').
+// Encode an address for the data attribute: reverse then base64. The client
+// mirror is atob(enc).split('').reverse().join('').
+//
+// The address itself is ASCII, but what rides here is everything after
+// "mailto:", and an owner's ?subject= is free text. btoa throws on any
+// character above U+00FF, so "?subject=Quote – chairs" (an en dash) took the
+// whole page down with it. Those characters are percent-encoded first, which a
+// mailto: URL decodes back to the same text, so the link opens exactly as typed.
 export function encodeEmail(addr: string): string {
-  return btoa(addr.split('').reverse().join(''))
+  const latin1 = addr.replace(/[^\u0000-ÿ]/gu, (ch) => {
+    try {
+      return encodeURIComponent(ch)
+    } catch {
+      return '' // a lone surrogate: not a character anyone meant to send
+    }
+  })
+  return btoa(latin1.split('').reverse().join(''))
 }
 
 // Every character as a decimal HTML entity - keeps the literal address (and its

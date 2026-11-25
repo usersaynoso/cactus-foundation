@@ -191,8 +191,10 @@ export const EMAIL_BLOCK_HTML: Record<EmailBlockName, BlockRenderer> = {
 
   EmailText: (props, ctx) => {
     // Authored by an admin in the wrapper editor, so HTML is allowed here for
-    // the same reason it is allowed in the message body itself.
-    const html = interpolate(str(props, 'html'), ctx.vars, false)
+    // the same reason it is allowed in the message body itself. The merge
+    // VALUES are escaped, exactly as they are in the body: a wrapper is filled
+    // with every template's values, and some of those are text a customer typed.
+    const html = interpolate(str(props, 'html'), ctx.vars, true)
     if (!html.trim()) return ''
     const size = num(props, 'fontSize', 16)
     const colour = resolveColour(str(props, 'textColour'), ctx, '#333333')
@@ -247,8 +249,9 @@ export const EMAIL_BLOCK_HTML: Record<EmailBlockName, BlockRenderer> = {
   // walker stays flat, which is one fewer way for the editor and the inbox to
   // disagree.
   EmailTwoColumn: (props, ctx) => {
-    const left = interpolate(str(props, 'leftHtml'), ctx.vars, false)
-    const right = interpolate(str(props, 'rightHtml'), ctx.vars, false)
+    // Markup is the admin's; merge values are escaped (see EmailText).
+    const left = interpolate(str(props, 'leftHtml'), ctx.vars, true)
+    const right = interpolate(str(props, 'rightHtml'), ctx.vars, true)
     if (!left.trim() && !right.trim()) return ''
     const size = num(props, 'fontSize', 15)
     const colour = resolveColour(str(props, 'textColour'), ctx, '#333333')
@@ -279,7 +282,8 @@ export const EMAIL_BLOCK_HTML: Record<EmailBlockName, BlockRenderer> = {
   },
 
   EmailFooterText: (props, ctx) => {
-    const html = interpolate(str(props, 'html'), ctx.vars, false)
+    // Markup is the admin's; merge values are escaped (see EmailText).
+    const html = interpolate(str(props, 'html'), ctx.vars, true)
     if (!html.trim()) return ''
     const colour = resolveColour(str(props, 'textColour'), ctx, '#888888')
     const size = num(props, 'fontSize', 12)

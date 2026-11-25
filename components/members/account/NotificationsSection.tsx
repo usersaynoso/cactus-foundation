@@ -21,7 +21,9 @@ export default function NotificationsSection() {
 
   useEffect(() => {
     fetch('/api/members/notifications')
-      .then((r) => r.json())
+      // A refusal (signed out, a server fault) is not "nothing on offer", which
+      // is what an empty list would have told the member.
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => setCategories(d.categories ?? []))
       .catch(() => setError('Could not load your notification settings.'))
   }, [])
@@ -36,11 +38,20 @@ export default function NotificationsSection() {
       : patch.sms !== undefined ? { category, channel: 'SMS', enabled: patch.sms }
       : { category, channel: 'EMAIL', digestMode: patch.digestMode }
 
-    const res = await fetch('/api/members/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    let res: Response
+    try {
+      res = await fetch('/api/members/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    } catch {
+      // Never reached the site. The tick goes back, or it would claim a choice
+      // that was never saved.
+      setError('Could not reach the site to save that.')
+      setCategories(before ?? null)
+      return
+    }
     if (!res.ok) {
       // The server is the one that knows whether this would have left the member
       // with no way of hearing about something, so its refusal is what puts the

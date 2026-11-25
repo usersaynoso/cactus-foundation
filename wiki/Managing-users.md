@@ -30,6 +30,10 @@ Click any role in the list to edit its name or permissions. Click **Delete** to 
 
 Deleting a role does not delete users who had that role - those users simply end up with no role assigned.
 
+### Who can change whose role
+
+Anyone with **Manage users** can change other people's roles, but nobody except an Admin can hand out more power than they have themselves. In the role menu, any role that includes a permission you don't hold is greyed out, with a note saying why. Likewise, you can't change the role of someone whose role includes permissions you lack, or suspend or delete them; their row shows no buttons for you. Admins are not limited in any of this, and only an Admin can manage another Admin.
+
 ### What a role can reach
 
 The tick boxes are the whole story: a role that has not been given a screen's permission cannot open that screen, whether it finds it in the menu, in a bookmark, or by typing the address. Pages, Media, Menus, Layouts, Modules and Appearance each answer "you do not have permission to view this" to anybody without the matching tick.

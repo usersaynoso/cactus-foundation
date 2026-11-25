@@ -16,18 +16,21 @@ The whole thing waits on your cookie banner. No agreement, nothing recorded.
 
 ### The list
 
-**Trading › Abandoned baskets**, alongside Orders and (if you have it) Quotes. One row per shopper, newest activity first.
+**Trading › Abandoned baskets**, alongside Orders and (if you have it) Quotes. One card per shopper, newest activity first, 25 to a page unless you pick 50, 100 or 200.
 
-| Column | What it tells you |
-| --- | --- |
-| Shopper | Their name, their email and their phone number, or "Nothing typed yet" |
-| Stage | Basket only, Checkout started, Abandoned, or Came back (with a link to the order) - plus **Saved their basket** and its quote number, if they saved it |
-| Items | How many things were in it |
-| Worth | Roughly what it would have been, at today's prices |
-| Reminder | Whether one has been sent, when, and if not, why not |
-| Last seen | How long ago they touched it, and when that was |
+Each card reads top to bottom in the order you would ask:
 
-Open a row and it unfolds into four columns: what they typed, what was in the basket, what happened to it, and every reminder ever tried on it.
+- **Who** - their name, email and phone, or "Nothing typed yet".
+- **What it was worth and when** - roughly what the basket comes to at today's prices, how many items, and how long ago they last touched it.
+- **How far they got** - "May still be shopping" until your abandon-after time has passed, then **Left in basket** or **Left at checkout**; **Came back and ordered** with a link to the order; and badges for a refused payment, a saved basket (with its quote number) and any discount code.
+- **What was in it** - the first three items, each linked to the exact variation on your shop (the right size, colour and finish picked, opening in a new tab), with "and N more" for the rest.
+- **Whether you may email them** - **Happy to be emailed**, or why not (they ticked the box, unsubscribed, or never gave an address). This is the shopper's answer only.
+- **The reminder** - sent, due, not sent and why, with the time.
+- **Send reminder**, **Email**, **Details** and **Delete**.
+
+**Details** opens the card into four panels: the basket line by line (each item linked to its variation, with SKU, price each and line total), contact and delivery details, **What the shopper chose**, and a single timeline of everything that happened - first seen, checkout, saved, payment, every reminder, the order, and the next reminder if one is coming.
+
+**What the shopper chose** lists each question they answered, with a tick, a cross or a dash for one they never reached: marketing cookies, the "don't email me" box in the checkout, and whether they have unsubscribed. Your own reminder setting sits underneath in a separate box labelled **Your settings, not theirs**, so "automatic reminders are off" can never be mistaken for something the customer chose.
 
 ### The figures across the top
 
@@ -53,21 +56,26 @@ Search covers name, email, phone, postcode, company, discount code and order num
 - **How the payment ended** - sent off to pay and never came back, or refused.
 - **What it was worth**, from a figure you type.
 
-Sort by newest, oldest, worth or number of items, either from the menu or by clicking the column heading. Every combination of all of that is in the address bar, so a filtered list is a link you can send somebody, and the back button behaves.
+Sort by newest, oldest, worth or number of items from the menu above the list. Every combination of all of that is in the address bar, so a filtered list is a link you can send somebody, and the back button behaves.
 
 **Export CSV** hands you exactly what the screen is showing, filters and all, up to 5,000 baskets - and if there were more than that, the file says so on the last line rather than pretending. It carries a **may_we_email** column spelling out, in words, whether each person on it can be written to. That column is the point of the file: the most likely thing anybody does with a spreadsheet of email addresses is paste them into something that sends emails.
 
 ### Doing something about one
 
-- **Remind** sends that shopper their reminder now, rather than in four hours. It is for the basket worth chasing today. It refuses exactly what the automatic run refuses - an unsubscribe, a ticked permission box, no address, an empty basket, or a shopper who has already ordered - and it tells you which. It will go past your "reminders per basket" setting if you insist, because that cap is there to stop a machine pestering somebody unattended, but it stops dead at five.
-- **Write to them yourself** opens your own mail program with their address in it, for when a reminder is not the right letter.
+- **Send reminder** sends that shopper their reminder now, rather than in four hours. It is for the basket worth chasing today. It refuses exactly what the automatic run refuses - an unsubscribe, a ticked permission box, no address, an empty basket, or a shopper who has already ordered - and it tells you which. It will go past your "reminders per basket" setting if you insist, because that cap is there to stop a machine pestering somebody unattended, but it stops dead at five.
+- **Email** opens your own mail program with their address in it, for when a reminder is not the right letter.
 - **Delete** removes the basket and everything the shopper typed, along with the record of anything sent about it. Tick several and delete the lot in one go.
 
 There is deliberately no "remind all of these". Emailing forty strangers at once from a button nobody had to think about is how a shop ends up on a blocklist.
 
 ### Who has asked you to stop
 
-The **Unsubscribes** button at the top lists every address that has used the link at the bottom of a reminder, and when. Nothing goes to any of them again, whatever baskets they leave in future.
+The **Do not email** button at the top counts and lists everybody who has said no, in two groups, and nobody is counted twice:
+
+- **Unsubscribed** - used the link at the bottom of a reminder. Nothing goes to them again, whatever baskets they leave in future.
+- **Ticked "don't email me"** - answered the box in your checkout. No reminder goes about the baskets they ticked it on. **Show their baskets** filters the list to that address. Anybody who has also unsubscribed appears only under Unsubscribed.
+
+This button used to count only the first group, so a shop that had sent few reminders saw "0" while a dozen shoppers had ticked the box.
 
 You can put an address back on the list, for the shopper who writes in asking or the test address you unsubscribed while setting the thing up. It does not undo a "don't email me" ticked in the checkout - that was the shopper's own answer to a question you asked them, and it is not yours to reverse.
 

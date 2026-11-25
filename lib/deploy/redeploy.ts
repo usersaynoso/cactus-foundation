@@ -71,8 +71,8 @@ export async function startDeferredRedeploy(
 //
 // Shipping those was a real hole: modules.json drives both the module checkout and
 // the build-time generators, so a failed or disabled module still got cloned and
-// wired into the router, while scripts/run-module-migrations.mjs only migrates
-// status IN ('active','deploying','update_available'). The result is live routes
+// wired into the router, while scripts/run-module-migrations.mjs migrates every
+// status except those two. The result is live routes
 // sitting on tables that were never created - a 500 on a page the owner believes is
 // switched off, or one whose install they watched fail.
 //

@@ -136,7 +136,7 @@ export async function isTrustedDevice(userId: string): Promise<boolean> {
   if (!device) return false
   if (device.userId !== userId) return false
   if (device.expiresAt < new Date()) {
-    await prisma.trustedDevice.delete({ where: { id: device.id } })
+    await prisma.trustedDevice.deleteMany({ where: { id: device.id } })
     return false
   }
 

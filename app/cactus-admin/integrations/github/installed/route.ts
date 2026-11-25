@@ -1,6 +1,7 @@
 import { publicUrl } from '@/lib/security/public-origin'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
+import { hasPermission } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { decryptSecret } from '@/lib/crypto/secrets'
 import { getAppOctokit } from '@/lib/github/client'
@@ -16,6 +17,16 @@ export async function GET(request: NextRequest) {
   if (!user) {
     return NextResponse.redirect(
       publicUrl(request, `/${adminPath}/login?next=/${adminPath}/config?tab=integrations`)
+    )
+  }
+  // Same gate as start/install/disconnect. Without it any signed-in staff member,
+  // whatever their role, could open this address with an installation_id of their
+  // choosing (state is optional below, since GitHub omits it when the App is
+  // installed from github.com) and overwrite the stored installation - which the
+  // core updater then uses to talk to GitHub.
+  if (!await hasPermission(user, 'config.manage')) {
+    return NextResponse.redirect(
+      publicUrl(request, `/${adminPath}/config?tab=integrations&github=error&reason=forbidden`)
     )
   }
 

@@ -112,10 +112,13 @@ export async function validateMemberSessionDetailed(
   if (now.getTime() - session.lastActiveAt.getTime() < MEMBER_SESSION_TOUCH_INTERVAL_MS) {
     return { member: session.member, touched: false }
   }
-  await prisma.memberSession.update({
+  // updateMany, not update: a sign-out landing between the read above and this
+  // write leaves no row to move, and update would throw that out as a 500.
+  const { count } = await prisma.memberSession.updateMany({
     where: { id: session.id },
     data: { expiresAt: new Date(now.getTime() + config.sessionDays * DAY_MS), lastActiveAt: now },
   })
+  if (count === 0) return null
   return { member: session.member, touched: true }
 }
 

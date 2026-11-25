@@ -140,3 +140,66 @@ export async function assertProtectedUserWouldRemain(
     )
   }
 }
+
+// Role assignment ceiling. Handing someone a role is handing them every
+// permission it holds, so a non-admin may only assign a role whose permissions
+// are a subset of their own - the same "only what you hold" ceiling the roles
+// routes apply to granting a single permission. Admins (protected role) are
+// unaffected. A role that is itself protected is never assignable by a
+// non-admin (it would hold everything).
+//
+// Takes a list of roles and returns the ids the actor may NOT assign, with one
+// query for the actor's permissions and one for the roles' permissions.
+export async function unassignableRoleIds(
+  actor: SessionUser,
+  roles: { id: string; isProtected: boolean }[]
+): Promise<Set<string>> {
+  if (isAdmin(actor) || roles.length === 0) return new Set()
+
+  const [mine, theirs] = await Promise.all([
+    prisma.rolePermission.findMany({
+      where: { roleId: actor.roleId },
+      select: { permissionKey: true },
+    }),
+    prisma.rolePermission.findMany({
+      where: { roleId: { in: roles.map((r) => r.id) } },
+      select: { roleId: true, permissionKey: true },
+    }),
+  ])
+  const held = new Set(mine.map((p) => p.permissionKey))
+  const blocked = new Set<string>()
+  for (const r of roles) {
+    if (r.isProtected) blocked.add(r.id)
+  }
+  for (const p of theirs) {
+    if (!held.has(p.permissionKey)) blocked.add(p.roleId)
+  }
+  return blocked
+}
+
+// Plain-English refusal when the actor may not assign the role, else null.
+export async function roleAssignmentRefusal(
+  actor: SessionUser,
+  role: { id: string; isProtected: boolean }
+): Promise<string | null> {
+  if (isAdmin(actor)) return null
+  if (role.isProtected) return 'Only Admin users can grant the Admin role'
+  const blocked = await unassignableRoleIds(actor, [role])
+  return blocked.has(role.id)
+    ? 'You cannot give someone a role that includes permissions you do not hold yourself'
+    : null
+}
+
+// Mirror of the assignment ceiling for acting ON someone: a non-admin may not
+// demote, suspend or delete a colleague whose current role holds permissions
+// they lack, or users.manage would let them knock out their betters.
+export async function manageTargetRefusal(
+  actor: SessionUser,
+  targetRole: { id: string; isProtected: boolean }
+): Promise<string | null> {
+  if (isAdmin(actor)) return null
+  const blocked = await unassignableRoleIds(actor, [targetRole])
+  return blocked.has(targetRole.id)
+    ? 'You cannot manage someone whose role includes permissions you do not hold yourself'
+    : null
+}

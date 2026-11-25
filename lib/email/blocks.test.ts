@@ -53,6 +53,17 @@ describe('email block HTML', () => {
     expect(html).not.toContain('<img')
   })
 
+  it('escapes merge values in the HTML blocks but keeps the admin\'s own markup', () => {
+    const typed = { ...ctx, vars: { ...ctx.vars, name: '<img src=x onerror=alert(1)>' } }
+    const text = EMAIL_BLOCK_HTML.EmailText({ html: '<b>Hi {{name}}</b>' }, typed)
+    expect(text).toContain('<b>Hi &lt;img src=x onerror=alert(1)&gt;</b>')
+    const footer = EMAIL_BLOCK_HTML.EmailFooterText({ html: '<i>{{name}}</i>' }, typed)
+    expect(footer).not.toContain('<img')
+    const columns = EMAIL_BLOCK_HTML.EmailTwoColumn({ leftHtml: '{{name}}', rightHtml: '<p>ok</p>' }, typed)
+    expect(columns).not.toContain('<img')
+    expect(columns).toContain('<p>ok</p>')
+  })
+
   it('renders nothing for a block with nothing in it', () => {
     expect(EMAIL_BLOCK_HTML.EmailHeading({ text: '' }, ctx)).toBe('')
     expect(EMAIL_BLOCK_HTML.EmailText({ html: '   ' }, ctx)).toBe('')

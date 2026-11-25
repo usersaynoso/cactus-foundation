@@ -23,6 +23,11 @@ type Props = { params: Promise<{ id: string }> }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   try {
+    // Same gate as the page body: metadata renders even when the body refuses, so
+    // without this a role lacking members.view still read the member's name off
+    // the browser tab.
+    const user = await getSessionFromCookie()
+    if (!user || !(await hasPermission(user, 'members.view'))) return { title: 'Members — Admin' }
     const member = await prisma.member.findUnique({
       where: { id },
       select: { displayName: true, fullName: true, username: true },

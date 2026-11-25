@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
+import { setupClosedResponse } from '@/lib/setup/setup-gate'
 import { isLocalMode } from '@/lib/config/env'
 import { NEON_REGIONS, type NeonRegionId } from '@/lib/config/neon-regions'
 import { triggerRedeploy, ensureRedeploy, getHostSiteName, type RedeployResult } from '@/lib/hosting/deploy'
@@ -218,23 +218,9 @@ async function checkDatabaseHasExistingData(connectionUri: string): Promise<bool
   }
 }
 
-async function isSetupComplete(): Promise<boolean> {
-  try {
-    if (!process.env.DATABASE_URL) return false
-    const config = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { setupCompleted: true },
-    })
-    return config?.setupCompleted ?? false
-  } catch {
-    return false
-  }
-}
-
 export async function POST(req: NextRequest) {
-  if (await isSetupComplete()) {
-    return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
-  }
+  const closed = await setupClosedResponse()
+  if (closed) return closed
 
   // Database provisioning writes DATABASE_URL to the host and triggers a redeploy -
   // neither exists in local-development mode. Set DATABASE_URL in .env.local instead.
@@ -272,7 +258,15 @@ export async function POST(req: NextRequest) {
 
   // Resolve credentials: body params override env vars to support the single-redeploy
   // setup flow where bootstrap vars haven't been picked up by a redeploy yet.
-  const neonApiKey = body.neonApiKey?.trim() || process.env.NEON_API_KEY
+  //
+  // The Neon key from the environment is only ever used by `create`, which makes a
+  // fresh project. Listing the account's projects, probing one for data and pointing
+  // the site at one (optionally wiping it) act on projects that already exist, and
+  // this route is unauthenticated: during setup nobody can prove they are the owner,
+  // so those actions only run on a key the person at the wizard pasted into the
+  // request body. Otherwise a stranger could list and wipe the owner's Neon account.
+  const bodyNeonKey = body.neonApiKey?.trim() || undefined
+  const neonApiKey = bodyNeonKey || process.env.NEON_API_KEY
   const legacyVercel = !body.hostProvider && (body.vercelToken || body.vercelProjectId)
   const host = resolveHostingCredentials({
     provider: legacyVercel ? 'vercel' : body.hostProvider,
@@ -282,9 +276,10 @@ export async function POST(req: NextRequest) {
 
   // ── Action: list ──────────────────────────────────────────────────────────
   if (action === 'list') {
-    if (!neonApiKey) {
-      return NextResponse.json({ error: 'NEON_API_KEY is not configured' }, { status: 400 })
+    if (!bodyNeonKey) {
+      return NextResponse.json({ error: 'Paste your Neon API key to see or use your existing projects. It is never read from the server for this.' }, { status: 400 })
     }
+    const neonApiKey = bodyNeonKey
     try {
       // New Neon accounts use org-scoped projects — fetch orgs first.
       const orgsRes = await fetch(`${NEON_API}/users/me/organizations`, {
@@ -334,9 +329,10 @@ export async function POST(req: NextRequest) {
   // Must be handled before any DATABASE_URL or hosting credential guards, since
   // it only needs the Neon API key and must not short-circuit on already_set.
   if (action === 'check-existing') {
-    if (!neonApiKey) {
-      return NextResponse.json({ error: 'NEON_API_KEY is not configured' }, { status: 400 })
+    if (!bodyNeonKey) {
+      return NextResponse.json({ error: 'Paste your Neon API key to see or use your existing projects. It is never read from the server for this.' }, { status: 400 })
     }
+    const neonApiKey = bodyNeonKey
     const existingProjectId = body.projectId
     if (!existingProjectId) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
@@ -410,6 +406,10 @@ export async function POST(req: NextRequest) {
 
   // ── Action: use-existing ──────────────────────────────────────────────────
   if (action === 'use-existing') {
+    if (!bodyNeonKey) {
+      return NextResponse.json({ error: 'Paste your Neon API key to see or use your existing projects. It is never read from the server for this.' }, { status: 400 })
+    }
+    const neonApiKey = bodyNeonKey
     const existingProjectId = body.projectId
     if (!existingProjectId) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 })

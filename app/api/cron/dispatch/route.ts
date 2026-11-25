@@ -38,7 +38,7 @@ const MIN_PER_JOB_MS = 5_000
 type JobOutcome = {
   path: string
   module: string | null
-  status: 'ran' | 'failed' | 'seeded' | 'deferred'
+  status: 'ran' | 'failed' | 'seeded' | 'deferred' | 'skipped'
   detail?: string
 }
 
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
   let ran = 0
   let failed = 0
-  for (const { job } of due) {
+  for (const { job, lastRunAt } of due) {
     const remaining = deadlineAt - Date.now()
     if (remaining < MIN_PER_JOB_MS) {
       // Out of budget. Left untouched on purpose: lastRunAt is unchanged, so it is still
@@ -109,8 +109,21 @@ export async function GET(request: NextRequest) {
     // Every CronRun write here sets absolute values (or deletes by path), so it is
     // replayed on a connection a deploy's idle sweep has just ended. Unreplayed, one
     // dead pooled connection 500'd the whole tick and none of its jobs ran.
+    //
+    // The stamp is also the CLAIM. It only lands if lastRunAt is still the value this
+    // tick read at the start, so when two ticks overlap (a minute tick behind a long job,
+    // a retry, Run now on Settings > Schedules) only one of them calls the job. A plain
+    // update let both through: the second tick stamped and ran a job the first had
+    // queued, then the first reached it and stamped and ran it again.
     const stampedAt = new Date()
-    await retryIdempotentWrite(() => prisma.cronRun.update({ where: { path: job.path }, data: { lastRunAt: stampedAt } }))
+    const claim = await retryIdempotentWrite(() => prisma.cronRun.updateMany({
+      where: { path: job.path, lastRunAt },
+      data: { lastRunAt: stampedAt },
+    }))
+    if (claim.count === 0) {
+      outcomes.push({ path: job.path, module: job.module, status: 'skipped', detail: 'already started elsewhere' })
+      continue
+    }
 
     const { status, detail } = await callCronJob(job.path, { siteUrl, secret, timeoutMs: remaining })
 
@@ -138,6 +151,7 @@ export async function GET(request: NextRequest) {
     failed,
     deferred: outcomes.filter((o) => o.status === 'deferred').length,
     seeded: outcomes.filter((o) => o.status === 'seeded').length,
+    skipped: outcomes.filter((o) => o.status === 'skipped').length,
     pruned: orphaned.length,
     elapsedMs: Date.now() - startedAt,
     outcomes,

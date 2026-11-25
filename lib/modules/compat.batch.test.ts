@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveUpdateBatch, type UpdateCandidate, type ModuleRequirements } from './compat'
+import { requirementsFromRawManifest, resolveUpdateBatch, type UpdateCandidate, type ModuleRequirements } from './compat'
 import type { InstalledModuleVersion } from './dependencies'
 
 const CORE = '0.5.1310'
@@ -125,5 +125,29 @@ describe('resolveUpdateBatch', () => {
       accepted: [],
       blocked: [],
     })
+  })
+})
+
+describe('requirementsFromRawManifest', () => {
+  // A version built against a newer core may carry a manifest field this core's
+  // schema rejects. That parse failure used to read as "no opinion", which let
+  // "Update all" pin a version whose requiresCoreVersion this core does not meet.
+  it('keeps the core requirement from a manifest this core cannot parse', () => {
+    const raw = { name: 'shop', requiresCoreVersion: '9.9.9', someFieldFromTheFuture: 1, tablePrefix: 'NOT VALID' }
+    const requirements = requirementsFromRawManifest(raw)
+    expect(requirements).toEqual({ requiresCoreVersion: '9.9.9', requiresModules: [] })
+
+    const { accepted, blocked } = resolveUpdateBatch({
+      candidates: [candidate('shop', 'v0.2.0', requirements)],
+      coreVersion: CORE,
+      installed: [active('shop', 'v0.1.0')],
+    })
+    expect(accepted).toEqual([])
+    expect(blocked[0]?.reason).toMatch(/needs Cactus v9\.9\.9/)
+  })
+
+  it('is still no opinion for an unparseable manifest that names no core version', () => {
+    expect(requirementsFromRawManifest({ tablePrefix: 'NOT VALID' })).toBeNull()
+    expect(requirementsFromRawManifest(null)).toBeNull()
   })
 })

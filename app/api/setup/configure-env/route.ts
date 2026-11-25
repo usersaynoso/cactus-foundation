@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
+import { setupClosedResponse } from '@/lib/setup/setup-gate'
 import { isLocalMode } from '@/lib/config/env'
 import { upsertHostEnvVars } from '@/lib/hosting/env'
 import { getHostingCredentials, missingCredentialsMessage } from '@/lib/hosting/provider'
@@ -25,23 +25,9 @@ const ALLOWED_KEYS = new Set([
   'SENTRY_DSN',
 ])
 
-async function isSetupComplete(): Promise<boolean> {
-  try {
-    if (!process.env.DATABASE_URL) return false
-    const config = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { setupCompleted: true },
-    })
-    return config?.setupCompleted ?? false
-  } catch {
-    return false
-  }
-}
-
 export async function POST(req: NextRequest) {
-  if (await isSetupComplete()) {
-    return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
-  }
+  const closed = await setupClosedResponse()
+  if (closed) return closed
 
   // This route writes env vars to the hosting project. In local-development mode
   // there is no project: configuration lives in .env.local and is edited there.

@@ -122,33 +122,40 @@ export default function RolesClient({ roles: initialRoles, permissions, activeMo
     if (keys.length === 0) return
     setLoading(true)
     setError('')
-    try {
-      await Promise.all(
-        keys.map((key) =>
-          fetch(`/api/admin/roles/${selectedRole.id}/permissions`, {
-            method: grant ? 'POST' : 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ permissionKey: key }),
-          }).then(async (res) => {
-            if (!res.ok) {
-              const d = await res.json()
-              throw new Error(d.error ?? 'Failed')
-            }
-          })
-        )
+    // Settled one by one, not Promise.all: one refusal used to throw away the
+    // record of every change that DID land, leaving the ticks showing none of them
+    // while the role on the server held some.
+    const results = await Promise.allSettled(
+      keys.map((key) =>
+        fetch(`/api/admin/roles/${selectedRole.id}/permissions`, {
+          method: grant ? 'POST' : 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ permissionKey: key }),
+        }).then(async (res) => {
+          if (!res.ok) {
+            const d = (await res.json().catch(() => ({}))) as { error?: string }
+            throw new Error(d.error ?? 'Failed')
+          }
+          return key
+        })
       )
+    )
+    const landed = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
+    const failure = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+    if (landed.length > 0) {
       setRoles((prev) => prev.map((r) => {
         if (r.id !== selectedRole.id) return r
         const permissionKeys = grant
-          ? Array.from(new Set([...r.permissionKeys, ...keys]))
-          : r.permissionKeys.filter((k) => !keys.includes(k))
+          ? Array.from(new Set([...r.permissionKeys, ...landed]))
+          : r.permissionKeys.filter((k) => !landed.includes(k))
         return { ...r, permissionKeys }
       }))
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong saving those changes')
-    } finally {
-      setLoading(false)
     }
+    if (failure) {
+      const reason: unknown = failure.reason
+      setError(reason instanceof Error ? reason.message : 'Something went wrong saving those changes')
+    }
+    setLoading(false)
   }
 
   async function createRole() {

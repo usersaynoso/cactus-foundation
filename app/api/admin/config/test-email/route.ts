@@ -34,6 +34,21 @@ export async function POST(request: NextRequest) {
   const to = parsed.data.to || user.email
   if (!to) return errorResponse('No recipient email address available')
 
+  // Blank fields fall back to the stored values, which is right for the server
+  // they belong to and wrong for any other: a new host with the password left
+  // blank would sign in to that host with the site's saved SMTP login, handing
+  // it to whoever runs it. Stored credentials are superadmin-only (the env
+  // route); this route is config.manage. So a different host brings its own.
+  const creds = parsed.data.credentials
+  if (
+    creds?.provider === 'smtp' &&
+    creds.smtpHost?.trim() &&
+    creds.smtpHost.trim() !== (process.env.SMTP_HOST ?? '').trim() &&
+    (!creds.smtpUser || !creds.smtpPass)
+  ) {
+    return errorResponse('Enter the username and password for that SMTP server as well - the saved ones only go to the saved server.')
+  }
+
   const config = await prisma.siteConfig.findUnique({
     where: { id: 'singleton' },
     select: { siteName: true },

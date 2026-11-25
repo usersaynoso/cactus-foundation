@@ -24,9 +24,10 @@ export default function InvitesClient() {
   const [expiresInDays, setExpiresInDays] = useState(7)
   const [newInviteUrl, setNewInviteUrl] = useState('')
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState('')
 
   function load() {
-    fetch('/api/admin/members/invites').then((r) => r.json()).then((d) => setInvites(d.invites ?? []))
+    fetch('/api/admin/members/invites').then((r) => r.json()).then((d) => setInvites(d.invites ?? [])).catch(() => setError('Could not load the invites.'))
   }
 
   useEffect(load, [])
@@ -34,24 +35,36 @@ export default function InvitesClient() {
   async function createInvite() {
     setCreating(true)
     setNewInviteUrl('')
+    setError('')
     try {
       const res = await fetch('/api/admin/members/invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expiresInDays }),
       })
-      const d = await res.json()
-      if (res.ok) {
-        setNewInviteUrl(d.inviteUrl)
-        load()
-      }
+      const d = (await res.json().catch(() => ({}))) as { inviteUrl?: string; error?: string }
+      // A refusal used to do nothing at all - no link, no word why.
+      if (!res.ok || !d.inviteUrl) throw new Error(d.error ?? 'Could not create the invite.')
+      setNewInviteUrl(d.inviteUrl)
+      load()
+    } catch (err: unknown) {
+      setError(err instanceof Error && err.message ? err.message : 'Could not create the invite.')
     } finally {
       setCreating(false)
     }
   }
 
   async function revoke(id: string) {
-    await fetch(`/api/admin/members/invites/${id}`, { method: 'DELETE' })
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/members/invites/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string }
+        setError(d.error ?? 'Could not revoke that invite - it still works.')
+      }
+    } catch {
+      setError('Could not revoke that invite - it still works.')
+    }
     load()
   }
 
@@ -66,6 +79,7 @@ export default function InvitesClient() {
         <button className="btn btn-primary btn-sm" disabled={creating} onClick={createInvite}>
           {creating ? 'Creating…' : 'Create invite link'}
         </button>
+        {error && <div className="alert alert-danger" style={{ marginTop: 'var(--space-3)' }}>{error}</div>}
         {newInviteUrl && (
           <div className="alert alert-success" style={{ marginTop: 'var(--space-3)', wordBreak: 'break-all' }}>
             {newInviteUrl}

@@ -964,6 +964,12 @@ The other end of `shop.order-paid`. Told once when an order is marked **Complete
 
 An observer is `(event: { orderId, orderNumber }) => Promise<void> | void`: plain strings, no shop types, for the same reason as order-paid. Every observer is try/caught and the gather is caught too. An order that goes Completed, back to Shipped and Completed again is announced twice, so an observer must be safe to run twice, and (as with order-paid) a hook is not a guarantee: pair it with a sweep. `purchase-orders`' `purchaseOrdersOrderCompletedObserver` is the worked example; it reads a cached off-by-default flag first and returns, and its nightly sweep catches the supplier bill that arrives after the order completed.
 
+### Being told the delivery details changed: `shop.order-delivery-changed`
+
+For a module that keeps its own copy of where an order is going - a drop-ship purchase order is the first. Told when staff save a changed delivery address (the phone number lives on it) or changed delivery instructions on an order: `modules/shop/lib/order-delivery-hooks.ts`, fired from the admin order PATCH route only where something actually differed.
+
+An observer is `(event: { orderId, orderNumber, addressChanged, instructionsChanged }) => Promise<void> | void`: plain strings and flags, no shop types. Every observer is try/caught and the gather is caught too, so nothing an observer does can undo the save. Register it `serverOnly`. An observer must be safe to run twice, and a hook is not a guarantee. `purchase-orders`' `purchaseOrdersOrderDeliveryChangedObserver` is the worked example: it rewrites the ship-to on unsent customer-delivery purchase orders, replacing only what changed.
+
 ### Keeping your own rows in step with a product: `shop.product-saved`
 
 A module that mirrors part of a product into rows of its own has a standing problem: it hears about the copy it makes, and never about the original changing afterwards. `shop.product-saved` (`modules/shop/lib/product-saved.ts`) is the seam for that. A hook is `(productId: string, changed: readonly string[]) => Promise<void> | void`, where `changed` names only the fields that write actually carried - so the usual answer is to look at the array and return.

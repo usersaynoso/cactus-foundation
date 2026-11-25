@@ -246,16 +246,26 @@ export default function AccountPageClient({
     setMessage('')
     try {
       const hadPassword = passwordInfo?.hasPassword ?? false
-      const res = await fetch('/api/account/password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...(hadPassword ? { currentPassword } : {}),
-          newPassword,
-          signOutOtherSessions,
-        }),
-      })
-      const d = await res.json().catch(() => ({}))
+      const send = () =>
+        fetch('/api/account/password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...(hadPassword ? { currentPassword } : {}),
+            newPassword,
+            signOutOtherSessions,
+          }),
+        })
+      let res = await send()
+      let d = await res.json().catch(() => ({}))
+      // Adding a first password needs a sign-in from the last ten minutes. With
+      // a passkey on the account, confirm with it here and carry on, as adding
+      // a passkey does.
+      if (res.status === 403 && (d as { reauthRequired?: boolean }).reauthRequired && passkeys.length > 0) {
+        await reconfirmWithPasskey()
+        res = await send()
+        d = await res.json().catch(() => ({}))
+      }
       if (!res.ok) throw new Error((d as { error?: string }).error ?? 'Failed to save password')
       setMessage(hadPassword ? 'Password updated.' : 'Password added.')
       setCurrentPassword('')
@@ -281,21 +291,41 @@ export default function AccountPageClient({
     }
   }
 
+  // Signing a device out is a security step: a refusal that said nothing left the
+  // owner believing a lost laptop had been cut off when it had not.
   async function handleRevokeSession(id: string) {
-    const res = await fetch(`/api/account/sessions/${id}`, { method: 'DELETE' })
-    if (res.ok) setSessions((s) => s.filter((x) => x.id !== id))
+    setError('')
+    try {
+      const res = await fetch(`/api/account/sessions/${id}`, { method: 'DELETE' })
+      if (res.ok) setSessions((s) => s.filter((x) => x.id !== id))
+      else setError('Could not sign that device out - it is still signed in.')
+    } catch {
+      setError('Could not sign that device out - it is still signed in.')
+    }
   }
 
   async function handleRevokeAll() {
-    const res = await fetch('/api/account/sessions', { method: 'DELETE' })
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- every session was just revoked, so a client-side nav would carry a dead one
-    if (res.ok) window.location.href = '/'
+    setError('')
+    try {
+      const res = await fetch('/api/account/sessions', { method: 'DELETE' })
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- every session was just revoked, so a client-side nav would carry a dead one
+      if (res.ok) window.location.href = '/'
+      else setError('Could not sign out everywhere - your other devices are still signed in.')
+    } catch {
+      setError('Could not sign out everywhere - your other devices are still signed in.')
+    }
   }
 
   async function handleExport() {
     setExportLoading(true)
     try {
       const res = await fetch('/api/account/export')
+      // Without this a refusal was saved as my-data.json - the error message, filed
+      // under the name of the thing asked for, looking every bit like a download.
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(d.error ?? 'Export failed')
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -303,8 +333,8 @@ export default function AccountPageClient({
       a.download = 'my-data.json'
       a.click()
       URL.revokeObjectURL(url)
-    } catch {
-      setError('Export failed')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Export failed')
     } finally {
       setExportLoading(false)
     }
@@ -315,13 +345,15 @@ export default function AccountPageClient({
     setDeleteError('')
     try {
       const res = await fetch('/api/account', { method: 'DELETE' })
-      const d = await res.json()
+      const d = (await res.json().catch(() => ({}))) as { error?: string }
       if (!res.ok) {
         setDeleteError(d.error ?? 'Deletion failed')
       } else {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the account is gone - nothing cached on the client belongs to anybody now
         window.location.href = '/'
       }
+    } catch {
+      setDeleteError('Could not reach the site - your account has not been deleted.')
     } finally {
       setDeleteLoading(false)
     }

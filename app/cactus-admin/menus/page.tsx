@@ -32,8 +32,11 @@ export default function MenusPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/menus')
-      const d = await res.json()
-      setMenus(d.menus ?? [])
+      const d = await res.json().catch(() => ({}))
+      // A refusal or a failed read answers { error } - shown as a list, that read
+      // as "no menus yet" and invited the owner to start building them again.
+      if (!res.ok) { setError((d as { error?: string }).error ?? 'Failed to load menus'); return }
+      setMenus((d as { menus?: Menu[] }).menus ?? [])
     } catch {
       setError('Failed to load menus')
     } finally {

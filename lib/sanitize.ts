@@ -52,10 +52,13 @@ export function markdownToHtml(markdown: string, opts?: { breaks?: boolean }): s
   return clean
 }
 
-// For use in <head> tags — strips all HTML, returns plain text
+// Plain text from markdown - the text alternative of an email, chiefly. Goes
+// through the same flattening as emailHtmlToPlainText: stripping the tags alone
+// left every "&" in the message reading "&amp;" (and "<" as "&lt;"), and ran a
+// line broken with a single return straight into the next one, since <br> was
+// simply deleted.
 export function markdownToPlainText(markdown: string, opts?: { breaks?: boolean }): string {
-  const html = markdownToHtml(markdown, opts)
-  return html.replace(/<[^>]+>/g, '').trim()
+  return flattenHtmlToText(markdownToHtml(markdown, opts))
 }
 
 // Cleans the HTML a RichText block renders on a published page.
@@ -95,16 +98,25 @@ export function sanitizeEmailHtml(html: string): string {
  * Block-level tags become line breaks first, or a table-based signature reads as
  * one long run-on line in a text-only client. */
 export function emailHtmlToPlainText(html: string): string {
-  return sanitizeEmailHtml(html)
+  return flattenHtmlToText(sanitizeEmailHtml(html))
+}
+
+// Already-sanitised HTML to readable text. &amp; is decoded last: decoding it
+// first turned a literal "&lt;" someone typed (serialised as "&amp;lt;") into
+// "<" on the way through.
+function flattenHtmlToText(html: string): string {
+  return html
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|tr|h[1-6]|li|table)>/gi, '\n')
+    // One line break per closing block, whether or not the markup already had
+    // a newline after it (marked's does, a contentEditable box's does not).
+    .replace(/<\/(p|div|tr|h[1-6]|li|table)>\n?/gi, '\n')
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()

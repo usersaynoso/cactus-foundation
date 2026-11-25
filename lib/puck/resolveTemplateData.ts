@@ -3,7 +3,7 @@ import { resolveMenu, resolveMainMenu, type MenuViewer } from '@/lib/menu/resolv
 import { getMemberAreaPath } from '@/lib/members/paths'
 import type { MobileBarMenuItem } from '@/lib/puck/mobileBar'
 
-type Context = {
+export type TemplateContext = {
   siteName: string
   logoUrl: string | null
   logoDarkUrl: string | null
@@ -14,7 +14,7 @@ type Context = {
   viewer?: MenuViewer
 }
 
-async function resolveBlock(block: any, ctx: Context): Promise<void> {
+async function resolveBlock(block: any, ctx: TemplateContext): Promise<void> {
   if (!block?.type || !block?.props) return
 
   if (block.type === 'MenuBlock') {
@@ -75,6 +75,32 @@ async function resolveBlock(block: any, ctx: Context): Promise<void> {
   }
 }
 
+// The block types resolveBlock fills in. Anything else passes through untouched.
+const TEMPLATE_BLOCK_TYPES: ReadonlySet<string> = new Set(['MenuBlock', 'MobileBar', 'SiteLogo', 'Copyright', 'LoginButton', 'SiteHeader'])
+
+/**
+ * Whether a Puck data tree holds any block resolveTemplateData has something to
+ * fill in. Lets a render path whose data usually holds none (a page's own
+ * content, a page layout) skip the deep copy and the context lookups entirely.
+ * Walks every nested value rather than only content, zones and slot arrays, so
+ * it can only err towards resolving.
+ */
+export function needsTemplateData(tree: unknown): boolean {
+  const stack: unknown[] = [tree]
+  while (stack.length > 0) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object') continue
+    if (Array.isArray(node)) {
+      for (const v of node) stack.push(v)
+      continue
+    }
+    const record = node as Record<string, unknown>
+    if (typeof record.type === 'string' && TEMPLATE_BLOCK_TYPES.has(record.type)) return true
+    for (const v of Object.values(record)) stack.push(v)
+  }
+  return false
+}
+
 function collectBlocks(blocks: any[]): any[] {
   return blocks.flatMap(block => {
     if (!block?.props) return [block]
@@ -85,7 +111,7 @@ function collectBlocks(blocks: any[]): any[] {
   })
 }
 
-export async function resolveTemplateData(rawData: unknown, ctx: Context): Promise<Data> {
+export async function resolveTemplateData(rawData: unknown, ctx: TemplateContext): Promise<Data> {
   const data = JSON.parse(JSON.stringify(rawData)) as Data
   const content = Array.isArray(data.content) ? data.content : []
   const zones = data.zones ?? {}

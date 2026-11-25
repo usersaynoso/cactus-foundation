@@ -13,7 +13,7 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     session: {
       findUnique: async () => ROW,
-      delete: async () => ({}),
+      deleteMany: async () => ({ count: 1 }),
       updateMany: (...args: unknown[]) => updateMany(...(args as [])),
     },
   },

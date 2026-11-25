@@ -11,24 +11,35 @@ export default function PendingApprovalClient({ members }: { members: PendingMem
   const adminPath = useAdminPath()
   const router = useRouter()
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [error, setError] = useState('')
 
-  async function approve(id: string) {
+  // A refusal (or a dropped connection, which used to leave the row's buttons
+  // disabled for good) is reported rather than passing for a done deal.
+  async function act(id: string, action: 'approve' | 'reject') {
     setBusyId(id)
-    await fetch(`/api/admin/members/${id}/approve`, { method: 'POST' })
-    setBusyId(null)
-    router.refresh()
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/members/${id}/${action}`, { method: 'POST' })
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string }
+        setError(d.error ?? (action === 'approve' ? 'Could not approve that member.' : 'Could not reject that member.'))
+      }
+    } catch {
+      setError('Could not reach the site - check your connection and try again.')
+    } finally {
+      setBusyId(null)
+      router.refresh()
+    }
   }
 
-  async function reject(id: string) {
-    setBusyId(id)
-    await fetch(`/api/admin/members/${id}/reject`, { method: 'POST' })
-    setBusyId(null)
-    router.refresh()
-  }
+  const approve = (id: string) => act(id, 'approve')
+  const reject = (id: string) => act(id, 'reject')
 
   if (members.length === 0) return null
 
   return (
+    <>
+    {error && <div className="alert alert-danger">{error}</div>}
     <div className="table-wrapper">
       <table>
         <thead>
@@ -54,5 +65,6 @@ export default function PendingApprovalClient({ members }: { members: PendingMem
         </tbody>
       </table>
     </div>
+    </>
   )
 }

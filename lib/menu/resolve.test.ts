@@ -10,8 +10,9 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }))
 
+const site = vi.hoisted(() => ({ homepageId: null as string | null }))
 vi.mock('@/lib/config/site', () => ({
-  getSiteConfig: vi.fn(async () => ({ mainMenuId: 'menu-1' })),
+  getSiteConfig: vi.fn(async () => ({ mainMenuId: 'menu-1', homepageId: site.homepageId })),
 }))
 
 const providers: Record<string, MenuEntityProvider> = {}
@@ -43,6 +44,7 @@ function fakeProvider(over: Partial<MenuEntityProvider> = {}): MenuEntityProvide
 beforeEach(() => {
   for (const key of Object.keys(providers)) delete providers[key]
   ITEMS = []
+  site.homepageId = null
 })
 
 describe('resolveMenu: module-entity batching', () => {
@@ -191,5 +193,29 @@ describe('resolveMenu: module-entity batching', () => {
     const tree = await resolveMenu('menu-1', { isAuthenticated: false, isAdmin: false })
     expect(resolveEntities).not.toHaveBeenCalled()
     expect(tree.map((n) => n.href)).toEqual(['/about', '/terms'])
+  })
+})
+
+describe('resolveMenu: the homepage page', () => {
+  const pageItem = (over: Record<string, unknown>) => item({
+    type: 'PAGE', label: null, moduleId: null, entityKind: null, entityId: null, ...over,
+  })
+
+  it('links the page assigned as the homepage to /, where it is served, not its redirecting slug', async () => {
+    site.homepageId = 'home-page'
+    ITEMS = [
+      pageItem({ id: 'a', order: 0, pageId: 'home-page', page: { slug: 'home', status: 'published', title: 'Home' } }),
+      pageItem({ id: 'b', order: 1, pageId: 'terms-page', page: { slug: 'terms', status: 'published', title: 'Terms' } }),
+    ]
+
+    const tree = await resolveMenu('menu-1', { isAuthenticated: false, isAdmin: false })
+    expect(tree.map((n) => n.href)).toEqual(['/', '/terms'])
+  })
+
+  it('keeps every page on its own slug when no homepage page is assigned', async () => {
+    ITEMS = [pageItem({ id: 'a', order: 0, pageId: 'home-page', page: { slug: 'home', status: 'published', title: 'Home' } })]
+
+    const tree = await resolveMenu('menu-1', { isAuthenticated: false, isAdmin: false })
+    expect(tree.map((n) => n.href)).toEqual(['/home'])
   })
 })

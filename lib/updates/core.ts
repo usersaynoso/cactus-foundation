@@ -290,15 +290,25 @@ async function readPinnedModules(
   repo: string,
   ref: string,
 ): Promise<RegistryPin[]> {
+  let data: Awaited<ReturnType<typeof octokit.rest.repos.getContent>>['data']
   try {
-    const { data } = await octokit.rest.repos.getContent({ owner, repo, path: 'modules.json', ref })
-    if (!('content' in data)) return []
-    const parsed = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8')) as { modules?: RegistryPin[] }
-    return Array.isArray(parsed.modules) ? parsed.modules : []
-  } catch (err) {
-    console.warn('[core-update] could not read current module pins - no pin floor applied:', err)
-    return []
+    ;({ data } = await octokit.rest.repos.getContent({ owner, repo, path: 'modules.json', ref }))
+  } catch (err: unknown) {
+    // Only a 404 means "no modules.json, so nothing to hold". A rate limit, a GitHub
+    // 5xx or a dropped connection used to read as "no pins" too, and the commit then
+    // went ahead with the pin floor blind - free to move a module BACK to whatever
+    // older version the database row still names. Same rule as readModulesJson in
+    // lib/modules/github.ts. Throwing here is before the push, so the update aborts
+    // cleanly and the owner can retry.
+    if ((err as { status?: number }).status === 404) return []
+    throw err
   }
+  if (!('content' in data)) return []
+  const parsed = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8')) as { modules?: RegistryPin[] } | null
+  if (!parsed || !Array.isArray(parsed.modules)) {
+    throw new Error('modules.json in the repository is not a valid module registry')
+  }
+  return parsed.modules
 }
 
 // Reconciles the admin's core files toward the upstream release (not a replayed diff).

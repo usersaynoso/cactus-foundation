@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
@@ -31,7 +32,9 @@ import { getActiveDeployLock, acquireDeployLock, lockBusyMessage, LOCK_RACE_MESS
 import { getDeployInFlight, deployInFlightMessage, deploymentStatusForReconcile } from '@/lib/deploy/in-flight'
 import { markModulesDeploySucceeded, markModulesDeployFailed } from '@/lib/deploy/reconcile'
 import { fetchManifestFromRepo, parseModuleManifest, readDeclaredCoreVersion, formatModuleDisplayName, type ModuleManifest } from '@/lib/modules/manifest'
-import { findUnmetModuleDependencies } from '@/lib/modules/dependencies'
+import { findUnmetModuleDependencies, isInstalledForDependencies } from '@/lib/modules/dependencies'
+import { invalidateInstalledManifests } from '@/lib/modules/live-status'
+import { invalidatePageStore } from '@/lib/cache/page-store/signal'
 import { pruneUninstalledModuleLayouts } from '@/lib/setup/starterLayouts'
 import pkg from '@/package.json'
 
@@ -48,6 +51,26 @@ const Patch = z.object({
 })
 
 type Params = { params: Promise<{ id: string }> }
+
+// Names of the other modules that declare `name` in requiresModules and will be
+// pinned into the next build. Same rule the registry sync and the dependency
+// check use (isInstalledForDependencies): anything but 'failed' or 'inactive'
+// ships. Filtering on a literal 'active' missed a dependent that merely had an
+// update waiting ('update_available') or was mid-deploy, so its dependency
+// could be removed out from under it and the next build broke on the import.
+async function findInstalledDependents(name: string): Promise<string[]> {
+  const others = await prisma.module.findMany({
+    where: { name: { not: name } },
+    select: { name: true, status: true, manifest: true },
+  })
+  return others
+    .filter((other) => isInstalledForDependencies(other.status))
+    .filter((other) => {
+      const otherManifest = other.manifest as { requiresModules?: { name: string }[] } | null
+      return otherManifest?.requiresModules?.some((dep) => dep.name === name)
+    })
+    .map((other) => other.name)
+}
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   // The 60s ceiling starts here, not where the deadline is computed below: by that
@@ -75,12 +98,58 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   if (action === 'disable') {
+    // Only a running module can be switched off. A row mid-install or mid-update
+    // that drops to 'inactive' falls out of the deploy reconcile (which looks for
+    // 'deploying') and keeps a stale pendingVersion for ever.
+    if (mod.status !== 'active' && mod.status !== 'update_available') {
+      return errorResponse(`"${mod.name}" can only be turned off while it is running. Wait for its current deployment to finish, then try again.`, 409)
+    }
+    // A disabled module drops out of modules.json on the next deploy, so a module
+    // that still depends on it would break that build on a missing import - the
+    // same reason uninstall refuses.
+    const dependents = await findInstalledDependents(mod.name)
+    if (dependents.length > 0) {
+      return errorResponse(
+        `Cannot turn off "${mod.name}" - it is required by: ${dependents.join(', ')}. Turn those off first.`,
+        409
+      )
+    }
     await prisma.module.update({ where: { id }, data: { status: 'inactive' } })
+    invalidateInstalledManifests()
+    // The page store ignores writes to Module (it is busy with deploy
+    // bookkeeping), so tell it directly: stored pages may carry what this module
+    // contributes.
+    invalidatePageStore('Module')
     return NextResponse.json({ ok: true })
   }
 
   if (action === 'enable') {
+    // Only a switched-off module can be switched back on. Marking a failed or
+    // half-installed row 'active' would ship it in the next deploy as if its
+    // install had worked.
+    if (mod.status !== 'inactive') {
+      return errorResponse(`"${mod.name}" is not turned off.`, 409)
+    }
+    // An enabled module rejoins modules.json on the next deploy, so its own
+    // dependencies have to be there too, or that build breaks on a missing import.
+    const requiresModules = (mod.manifest as { requiresModules?: { name: string; minVersion: string }[] } | null)?.requiresModules ?? []
+    if (requiresModules.length > 0) {
+      const installed = await prisma.module.findMany({
+        select: { name: true, version: true, status: true, pendingVersion: true },
+      })
+      const [unmet] = findUnmetModuleDependencies(requiresModules, installed)
+      if (unmet) {
+        return errorResponse(
+          unmet.reason === 'missing'
+            ? `"${mod.name}" requires the "${unmet.name}" module (v${unmet.minVersion}+) to be installed and turned on first.`
+            : `"${mod.name}" requires "${unmet.name}" v${unmet.minVersion}+, but v${unmet.installedVersion.replace(/^v/i, '')} is installed. Update it first.`,
+          409
+        )
+      }
+    }
     await prisma.module.update({ where: { id }, data: { status: 'active' } })
+    invalidateInstalledManifests()
+    invalidatePageStore('Module')
     return NextResponse.json({ ok: true })
   }
 
@@ -196,6 +265,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
     if (!release) return errorResponse('No tagged releases found', 404)
+    // Nothing newer on this module's channel - typically a flag raised on the beta
+    // channel before switching back to finished releases. Going ahead would spend
+    // a deployment re-pinning the version already running, or try to pin an older
+    // one, which the pin floor then refuses and leaves the database behind git.
+    if (compareVersions(release.tag, mod.version) <= 0) {
+      if (mod.status === 'update_available') {
+        await prisma.module.update({
+          where: { id },
+          data: { status: 'active', updateAvailable: null, updateNotes: null },
+        })
+      }
+      return errorResponse(`"${formatModuleDisplayName(mod.repoUrl)}" is already on the newest release for its update channel.`, 409)
+    }
 
     // A newer module version may need a newer core (requiresCoreVersion) or a
     // newer sibling module (requiresModules) - updating anyway would break the
@@ -426,18 +508,11 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const mod = await prisma.module.findUnique({ where: { id } })
   if (!mod) return errorResponse('Module not found', 404)
 
-  // Block uninstalling a module that another active module still depends on.
-  const others = await prisma.module.findMany({
-    where: { name: { not: mod.name }, status: 'active' },
-    select: { name: true, manifest: true },
-  })
-  const dependents = others.filter((other) => {
-    const otherManifest = other.manifest as { requiresModules?: { name: string }[] } | null
-    return otherManifest?.requiresModules?.some((dep) => dep.name === mod.name)
-  })
+  // Block uninstalling a module that another installed module still depends on.
+  const dependents = await findInstalledDependents(mod.name)
   if (dependents.length > 0) {
     return errorResponse(
-      `Cannot remove "${mod.name}" - it is required by: ${dependents.map((d) => d.name).join(', ')}. Remove those first.`
+      `Cannot remove "${mod.name}" - it is required by: ${dependents.join(', ')}. Remove those first.`
     )
   }
 
@@ -474,6 +549,20 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     if (!teardown || teardown.length === 0) {
       return errorResponse(
         'This module has not declared teardown tables. Use code_only mode instead.',
+        400
+      )
+    }
+    // The list comes from the module's own manifest, which the manifest schema
+    // only checks is an array of strings, and each name is spliced into a
+    // DROP TABLE ... CASCADE below. A plain identifier only (no quotes to break
+    // out of), and never one of core's own tables: a slip of "User" or
+    // "InfoPage" in somebody's manifest would otherwise take the site's
+    // accounts or pages with it, and everything that hangs off them.
+    const coreTables = new Set<string>(Object.values(Prisma.ModelName))
+    const refused = teardown.filter((t) => typeof t !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(t) || coreTables.has(t))
+    if (refused.length > 0) {
+      return errorResponse(
+        `This module's teardown list names tables it cannot own (${refused.map(String).join(', ')}). Use code_only mode instead, and report it to the module's author.`,
         400
       )
     }
@@ -610,6 +699,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
         ? [prisma.moduleMigration.deleteMany({ where: { moduleName: mod.name } })]
         : []),
     ])
+    invalidateInstalledManifests()
 
     // Queue the accepted sibling updates into the SAME build this uninstall triggers.
     // Reconciled to 'active' by the redeploying-screen poll / webhook once the deploy
@@ -767,11 +857,26 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ updateAvailable: null, note: 'GitHub not configured' })
   }
 
+  // Only a running module can be flagged. The Modules page asks about every
+  // installed row except 'deploying', and writing 'update_available' over an
+  // 'inactive' or 'failed' one quietly switched it back on: that status ships in
+  // modules.json and counts as installed everywhere, so a module the owner had
+  // turned off came back on the next deploy just for opening the page. Same
+  // status set as findModuleUpdates (lib/modules/updates.ts).
+  if (mod.status !== 'active' && mod.status !== 'update_available') {
+    return NextResponse.json({ updateAvailable: null })
+  }
+
   const release = await getLatestRelease(mod.repoUrl, mod.updateChannel as 'public' | 'beta')
   if (!release || compareVersions(release.tag, mod.version) <= 0) {
     await prisma.module.update({
       where: { id },
-      data: { lastCheckedAt: new Date() },
+      // A flag raised on another channel (or for a release since withdrawn) no
+      // longer applies: clear it, or the card goes on offering an "update" that
+      // would only re-pin the version already running.
+      data: mod.status === 'update_available'
+        ? { lastCheckedAt: new Date(), status: 'active', updateAvailable: null, updateNotes: null }
+        : { lastCheckedAt: new Date() },
     })
     // No update: clear any lingering "update available" reminder for this module.
     try {

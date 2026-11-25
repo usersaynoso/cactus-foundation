@@ -1,6 +1,7 @@
-import { createHash, randomInt } from 'crypto'
+import { createHmac, randomInt } from 'crypto'
 import { prisma } from '@/lib/db/prisma'
 import { safeCompare } from '@/lib/auth/session'
+import { getSessionSecret } from '@/lib/config/env'
 
 // Mirrors lib/auth/email-challenge.ts against MemberEmailChallenge instead of
 // EmailChallenge. Purposes: 'login_2fa' (password login's mandatory second
@@ -19,8 +20,11 @@ function generateCode(): string {
   return String(randomInt(0, 10 ** CODE_LENGTH)).padStart(CODE_LENGTH, '0')
 }
 
-function hashCode(code: string): string {
-  return createHash('sha256').update(code).digest('hex')
+// Keyed with SESSION_SECRET, like the admin side: a 6-digit code has only a
+// million values, so a plain hash would be reversed in a second by anyone who
+// could read the table. The one place codes are hashed, for write and verify.
+export function hashCode(code: string): string {
+  return createHmac('sha256', getSessionSecret()).update(code).digest('hex')
 }
 
 // `pendingEmail` is only meaningful for the 'email_change' purpose: it parks the
@@ -54,6 +58,24 @@ export async function pendingMemberEmailChange(memberId: string): Promise<string
     select: { pendingEmail: true },
   })
   return challenge?.pendingEmail ?? null
+}
+
+// Whether an unspent, unexpired challenge is waiting for this member. Used as
+// the proof that the password step of sign-in has just been passed: password
+// login mints a login_2fa challenge for every second-factor method, including
+// the authenticator app and a recovery code, neither of which is checked
+// against the challenge's own code. Without it, a member id plus an
+// authenticator code (or a recovery code) was a session with no password.
+export async function hasLiveMemberChallenge(memberId: string, purpose: MemberChallengePurpose): Promise<boolean> {
+  const live = await prisma.memberEmailChallenge.count({
+    where: { memberId, purpose, expiresAt: { gt: new Date() }, attempts: { lt: MAX_ATTEMPTS } },
+  })
+  return live > 0
+}
+
+/** Drops every challenge for this member and purpose - the step it stood for is done. */
+export async function clearMemberChallenges(memberId: string, purpose: MemberChallengePurpose): Promise<void> {
+  await prisma.memberEmailChallenge.deleteMany({ where: { memberId, purpose } })
 }
 
 export type MemberChallengeVerifyResult =

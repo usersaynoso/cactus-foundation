@@ -5,7 +5,10 @@
 
 import type { MediaProviderType, MediaMigrationJob } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
-import { downloadMedia, uploadMedia, deleteMedia } from '@/lib/media/upload'
+import { downloadMedia, uploadMedia, rewriteMediaReferencesInContent } from '@/lib/media/upload'
+import { recordFormerMediaAddress } from '@/lib/media/former-addresses'
+import { retireMediaBlob } from '@/lib/media/retired-blobs'
+import { resolveFolderPath } from '@/lib/media/organise'
 
 export const ACTIVE_STATUSES = ['pending', 'running']
 export const BATCH_SIZE = 15
@@ -73,8 +76,9 @@ export type BatchResult = {
 
 // Process one batch of the active job. Per item: download original bytes from the
 // current provider, upload to the destination, then (only after a confirmed upload)
-// update the row's provider/key/url in a single write, then best-effort delete the
-// original. A failed item is recorded and the run continues.
+// update the row's provider/key/url in a single write, move every reference to the
+// old address on to the new one, and queue the original for deletion. A failed item
+// is recorded and the run continues.
 export async function processBatch(): Promise<BatchResult> {
   const job = await getActiveJob()
   if (!job) {
@@ -127,21 +131,29 @@ export async function processBatch(): Promise<BatchResult> {
   for (const item of batch) {
     try {
       const bytes = await downloadMedia(item.provider, item.key, item.url)
-      const result = await uploadMedia(bytes, item.mimeType, toProvider)
+      // Filed under the same folder and name on the destination, so the key still
+      // says where the item lives in the library (a bare id at the root left every
+      // migrated file looking out of place to the folder tools).
+      const folderPath = await resolveFolderPath(item.folderId)
+      const result = await uploadMedia(bytes, item.mimeType, toProvider, item.originalName ?? undefined, folderPath || undefined)
       // Confirmed upload: update the row in a single write.
       await prisma.media.update({
         where: { id: item.id },
         data: { provider: toProvider, key: result.key, url: result.url },
       })
-      migrated += 1
       cursor = item.id
-      // Best-effort delete of the original; an orphan costs storage, doing this
-      // before the row update would risk real data loss.
-      try {
-        await deleteMedia(item.provider, item.key)
-      } catch (delErr) {
-        console.error(`[media-migration] failed to delete original ${item.id}:`, delErr)
-      }
+      // A move like any other, so it is finished like any other (see
+      // repointMediaToBlob in lib/media/upload.ts). Pages, layouts and module
+      // tables hold the old url and key as plain strings; the row moving tells
+      // them nothing, and deleting the original straight away - which this used
+      // to do - left every one of them naming a file that no longer existed. The
+      // old address is recorded first so the item is still known to answer to it
+      // if a rewriter throws part way, then the references move, and the original
+      // is queued rather than deleted so a page a CDN saved before now still draws.
+      await recordFormerMediaAddress(item.id, item.url, item.key, 'move')
+      await rewriteMediaReferencesInContent(item.url, result.url, item.key, result.key)
+      await retireMediaBlob(item.provider, item.key, 'move')
+      migrated += 1
     } catch (err) {
       failed.push({ id: item.id, error: err instanceof Error ? err.message : 'Unknown error' })
       // Advance the cursor past this item too so the next batch moves on; the item

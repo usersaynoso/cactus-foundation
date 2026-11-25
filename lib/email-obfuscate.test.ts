@@ -37,6 +37,13 @@ describe('encodeEmail', () => {
     expect(enc).not.toContain('@')
     expect(enc).not.toContain(ADDR)
   })
+
+  it('survives a subject line btoa cannot take, and the link still reads as typed', () => {
+    const tail = `${ADDR}?subject=Quote – chairs 🪑`
+    const decoded = decode(encodeEmail(tail))
+    expect(decodeURIComponent(decoded)).toBe(tail)
+    expect(decoded).toBe(`${ADDR}?subject=Quote %E2%80%93 chairs %F0%9F%AA%91`)
+  })
 })
 
 describe('emailSafeHref', () => {

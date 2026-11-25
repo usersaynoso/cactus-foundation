@@ -490,7 +490,11 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
         body: JSON.stringify({ read: true }),
       }).catch(() => {})
       setCount(prev => Math.max(0, prev - 1))
+      setNotifications(prev => prev?.map(x => x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x) ?? null)
     }
+    // The bell lives in the persistent admin layout, so a busy flag left set here
+    // kept this entry's buttons disabled every time the dropdown was reopened.
+    setActionLoading(null)
     setOpen(false)
     router.push(href)
   }
@@ -596,14 +600,15 @@ export default function NotificationBell({ adminPath, unreadCount = 0, collapsed
       const res = await fetch(`/api/admin/notifications/${id}`, { method: 'DELETE' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Delete failed')
-      setNotifications(prev => {
-        const deleted = prev?.find(n => n.id === id)
-        if (deleted && !deleted.readAt) setCount(c => Math.max(0, c - 1))
-        return prev?.filter(n => n.id !== id) ?? null
-      })
+      // Counted from the list as it stands rather than inside the list's own
+      // updater, which React may run twice and so take two off the badge.
+      const deleted = notifications?.find(n => n.id === id)
+      if (deleted && !deleted.readAt) setCount(c => Math.max(0, c - 1))
+      setNotifications(prev => prev?.filter(n => n.id !== id) ?? null)
       router.refresh()
     } catch (err: unknown) {
       setErr(id, err instanceof Error ? err.message : 'Delete failed')
+    } finally {
       setActionLoading(null)
     }
   }

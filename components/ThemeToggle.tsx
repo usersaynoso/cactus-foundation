@@ -97,11 +97,25 @@ const MODES: Mode[] = ['light', 'auto', 'dark']
 // Cycle order when collapsed: light → auto (system) → dark → light
 const NEXT_MODE: Record<Mode, Mode> = { light: 'auto', auto: 'dark', dark: 'light' }
 
+const THEME_KEY = 'cactus-theme'
+
+/** The saved mode, or 'auto'. Storage can refuse outright (site data blocked
+ *  throws on access) or hold something that is not a mode at all, and either
+ *  used to reach the render: the first threw and took the page's header down
+ *  with it, the second looked up an icon and a label that do not exist. */
+function storedMode(): Mode {
+  if (typeof window === 'undefined') return 'auto'
+  try {
+    const saved = window.localStorage.getItem(THEME_KEY)
+    return saved === 'light' || saved === 'dark' || saved === 'auto' ? saved : 'auto'
+  } catch {
+    return 'auto'
+  }
+}
+
 /** Shared theme state: reads persisted mode, applies it, keeps system changes live. */
 function useThemeMode(): [Mode, (m: Mode) => void] {
-  const [mode, setMode] = useState<Mode>(() =>
-    typeof window !== 'undefined' ? (localStorage.getItem('cactus-theme') as Mode) ?? 'auto' : 'auto'
-  )
+  const [mode, setMode] = useState<Mode>(storedMode)
 
   useEffect(() => {
     applyTheme(mode)
@@ -120,7 +134,11 @@ function useThemeMode(): [Mode, (m: Mode) => void] {
 
   const apply = useCallback((m: Mode) => {
     setMode(m)
-    localStorage.setItem('cactus-theme', m)
+    try {
+      window.localStorage.setItem(THEME_KEY, m)
+    } catch {
+      // Storage refused: the choice holds for this page and is not remembered.
+    }
     applyTheme(m)
   }, [])
 

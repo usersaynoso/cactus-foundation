@@ -188,12 +188,15 @@ export function buildWhere(q: LibraryQuery): Prisma.MediaWhereInput {
 
   if (q.folder !== 'all') and.push({ folderId: q.folder })
 
+  // Case-insensitive: Postgres `contains` is a case-sensitive LIKE, so typing
+  // "Chair" found nothing filed as "chair-black.jpg" (keys are always lower
+  // case) and "office" missed alt text reading "Office chair".
   if (q.search) {
     and.push({
       OR: [
-        { key: { contains: q.search } },
-        { originalName: { contains: q.search } },
-        { altText: { contains: q.search } },
+        { key: { contains: q.search, mode: 'insensitive' } },
+        { originalName: { contains: q.search, mode: 'insensitive' } },
+        { altText: { contains: q.search, mode: 'insensitive' } },
       ],
     })
   }

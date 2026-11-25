@@ -54,17 +54,26 @@ export async function POST(_request: NextRequest, { params }: Params) {
 
   const now = new Date()
 
-  // Mark notification as actioned and flip pending_deploy modules to deploying
-  await prisma.$transaction([
-    prisma.notification.update({
-      where: { id },
+  // Mark notification as actioned and flip pending_deploy modules to deploying.
+  // The claim is conditional on deployInitiatedAt still being empty: the check
+  // further up is a read, so a double-click (or two admins at once) both passed
+  // it and both went on to push and redeploy. Only the request that actually
+  // flips the column goes ahead.
+  const claimed = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.notification.updateMany({
+      where: { id, deployInitiatedAt: null },
       data: { readAt: now, deployInitiatedAt: now },
-    }),
-    prisma.module.updateMany({
+    })
+    if (count === 0) return false
+    await tx.module.updateMany({
       where: { status: 'pending_deploy' },
       data: { status: 'deploying', deployId: 'pending' },
-    }),
-  ])
+    })
+    return true
+  })
+  if (!claimed) {
+    return errorResponse('Deployment already initiated for this notification', 409)
+  }
   invalidateSiteConfigCache()
 
   // Opens the redeploy gate and ships the registry (commit modules.json + capture

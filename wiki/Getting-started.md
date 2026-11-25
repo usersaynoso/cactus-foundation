@@ -179,7 +179,7 @@ If `DATABASE_URL` is **absent** and `NEON_API_KEY` is present, the wizard offers
 
 #### Option B - Use an existing Neon project
 
-1. The wizard lists all Neon projects in your account. Select the one you want to connect.
+1. Paste your Neon API key into the box and click **Show my projects** - the wizard lists all Neon projects in your account. Select the one you want to connect. Listing and connecting an existing project (which can wipe it) only ever use the key you type here, never `NEON_API_KEY` from the environment, so nobody else who reaches an unfinished setup page can list or wipe your Neon projects. Creating a fresh database (Option A) still uses `NEON_API_KEY`.
 2. Before connecting, Cactus checks whether the selected project already has database tables. If it does, you'll see a warning with two choices:
    - **Use existing data** - Cactus connects the project as-is. Any existing admin settings (site name, admin path, timezone) are pre-filled in the setup wizard. Prisma applies only pending migrations, leaving existing rows intact.
    - **Destroy all existing data** - Cactus drops and recreates the `public` schema before connecting. This gives Prisma a clean slate and is the right choice if you want a fresh Cactus install in a project that previously held other data.

@@ -315,6 +315,9 @@ export default function ModulesPage() {
         fetch(`/api/admin/modules/directory${refresh ? '?refresh=true' : ''}`),
         fetch('/api/admin/github-app'),
       ])
+      // A refused or failed read answers { error }; taken as a directory, that
+      // emptied the page - every installed module gone from view, no word why.
+      if (!dirRes.ok) throw new Error('directory')
       const d = await dirRes.json()
       const modules: DirectoryEntry[] = d.modules ?? []
       setEntries(modules)

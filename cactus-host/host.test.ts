@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseEnv } from './env-file.ts'
@@ -479,6 +479,49 @@ describe('restart recovery', () => {
     })
     ctx.host.recoverInterruptedBuilds()
     expect(ctx.host.store.getBuild('shop', 'x')?.state).toBe('error')
+  })
+
+  it('keeps a release that traffic had already switched to before the restart', async () => {
+    const ctx = hostWithSite()
+    const first = await build(ctx)
+    // The state a restart mid switch-over leaves: slot b points at the new release
+    // and the site record says b is live, but the build record never caught up.
+    const releaseDir = ctx.paths.release('y')
+    mkdirSync(releaseDir, { recursive: true })
+    mkdirSync(ctx.paths.slots, { recursive: true })
+    symlinkSync(releaseDir, ctx.paths.slot('b'))
+    ctx.host.store.saveSite({ ...ctx.host.site('shop'), liveSlot: 'b' })
+    ctx.host.store.saveBuild('shop', {
+      id: 'y', sha: FAKE_SHA, ref: 'main', state: 'building', createdAt: 2, finishedAt: null, error: null,
+      live: false, trigger: 'api', releaseDir, slot: null,
+    })
+    ctx.host.recoverInterruptedBuilds()
+    expect(existsSync(releaseDir)).toBe(true)
+    expect(ctx.host.store.getBuild('shop', 'y')).toMatchObject({ state: 'ready', live: true, slot: 'b', releaseDir })
+    expect(ctx.host.store.getBuild('shop', first.id)?.live).toBe(false)
+  })
+})
+
+describe('after traffic has switched', () => {
+  it('keeps the new release live when enabling it at boot fails', async () => {
+    const ctx = hostWithSite()
+    const run = ctx.system.run.bind(ctx.system)
+    ctx.system.run = async (cmd, args, opts) => (cmd === 'systemctl' && args[0] === 'enable' ? { code: 1, output: 'nope' } : run(cmd, args, opts))
+    const b = await build(ctx)
+    expect(b.state).toBe('ready')
+    expect(b.live).toBe(true)
+    expect(existsSync(b.releaseDir!)).toBe(true)
+    expect(readFileSync(ctx.paths.log(b.id), 'utf8')).toMatch(/could not enable/)
+  })
+
+  it('keeps the build live when tidying old releases fails', async () => {
+    const ctx = hostWithSite()
+    ctx.host.prune = () => { throw new Error('disk said no') }
+    const b = await build(ctx)
+    expect(b.state).toBe('ready')
+    expect(b.live).toBe(true)
+    expect(b.releaseDir).not.toBeNull()
+    expect(existsSync(b.releaseDir!)).toBe(true)
   })
 })
 

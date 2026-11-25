@@ -15,15 +15,24 @@ export default function MembersGdprClient() {
   const [exportRequests, setExportRequests] = useState<ExportRequest[]>([])
   const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([])
   const [processingLog, setProcessingLog] = useState<LogEntry[]>([])
+  const [loadError, setLoadError] = useState('')
 
+  // A failed read used to leave every card saying "None." - on a GDPR screen, a
+  // failure that reads as "nobody has asked to be deleted" is the worst kind.
   useEffect(() => {
-    fetch('/api/admin/members/gdpr').then((r) => r.json()).then((d) => {
-      setConsentRecords(d.consentRecords ?? [])
-      setExportRequests(d.exportRequests ?? [])
-      setDeletionRequests(d.deletionRequests ?? [])
-      setProcessingLog(d.processingLog ?? [])
-    })
+    fetch('/api/admin/members/gdpr')
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'Could not load the GDPR records.')
+        setConsentRecords(d.consentRecords ?? [])
+        setExportRequests(d.exportRequests ?? [])
+        setDeletionRequests(d.deletionRequests ?? [])
+        setProcessingLog(d.processingLog ?? [])
+      })
+      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : 'Could not load the GDPR records.'))
   }, [])
+
+  if (loadError) return <div className="alert alert-danger">{loadError}</div>
 
   return (
     <div className="settings-cols">

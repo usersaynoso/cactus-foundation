@@ -40,6 +40,13 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   for (const item of items) {
     if (!validIds.has(item.id)) return errorResponse(`Item ${item.id} not in this menu`, 400)
+    // The parent has to be another item of this same menu. One pointing at an
+    // item in a different menu, or at itself, is never reached by the tree walk
+    // (lib/menu/resolve.ts starts from the root), so the item and everything
+    // under it silently vanished from the menu.
+    if (item.parentId !== null && (item.parentId === item.id || !validIds.has(item.parentId))) {
+      return errorResponse(`Item ${item.id} has an invalid parent`, 400)
+    }
   }
 
   await prisma.$transaction(

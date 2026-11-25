@@ -157,11 +157,18 @@ async function run() {
   await client.connect()
 
   try {
-    // Find all installed modules (active or deploying — deploying means this
-    // build IS the deployment that should apply the new migrations).
+    // Every module whose code this build ships - the same set lib/deploy/redeploy.ts
+    // writes into modules.json, i.e. everything but 'failed' and 'inactive'.
+    // 'deploying' means this build IS the deployment that should apply the new
+    // migrations. 'pending_deploy' (and the brief 'pending_install') must be here
+    // too: a module updated or installed on a site with no deploy credentials sits in
+    // 'pending_deploy' with its new pin already committed, so the next build of any
+    // kind (a git push, a deploy from the host's own dashboard) clones and wires its
+    // new code. Leaving it out skipped its migrations while its routes went live on
+    // tables and columns that did not exist yet.
     const { rows: modules } = await client.query(
       `SELECT id, name, "tablePrefix" FROM "Module"
-       WHERE status IN ('active', 'deploying', 'update_available')
+       WHERE status IN ('active', 'deploying', 'update_available', 'pending_deploy', 'pending_install')
        ORDER BY "installedAt" ASC`
     )
 

@@ -19,13 +19,15 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     memberVerificationToken: {
       findUnique: vi.fn(async ({ where }: { where: { tokenHash: string } }) => state.tokens.find((t) => t.tokenHash === where.tokenHash) ?? null),
-      update: vi.fn(async ({ where, data }: { where: { id: string }; data: { usedAt: Date } }) => {
-        const t = state.tokens.find((x) => x.id === where.id)!
+      updateMany: vi.fn(async ({ where, data }: { where: { id: string; usedAt: null }; data: { usedAt: Date } }) => {
+        const t = state.tokens.find((x) => x.id === where.id && x.usedAt === null)
+        if (!t) return { count: 0 }
         t.usedAt = data.usedAt
-        return t
+        return { count: 1 }
       }),
     },
     member: {
+      findUnique: vi.fn(async () => ({ status: state.member.status })),
       update: vi.fn(async ({ data }: { data: { status: string } }) => {
         state.member.status = data.status
         return { status: state.member.status, username: state.member.username }
@@ -122,6 +124,21 @@ describe('spending the verification token', () => {
     expect((await verify('once')).status).toBe(200)
     expect((await verify('once')).status).toBe(400)
     expect(state.sessions).toBe(1)
+  })
+
+  it('a spare link never undoes a suspension, and signs nobody in', async () => {
+    state.member.status = 'SUSPENDED'
+    state.tokens.push({ id: 'v2', memberId: 'm1', tokenHash: hashMemberToken('spare'), usedAt: null, expiresAt: new Date(Date.now() + 60_000) })
+    expect(await (await verify('spare')).json()).toEqual({ status: 'SUSPENDED', signedIn: false })
+    expect(state.member.status).toBe('SUSPENDED')
+    expect(state.sessions).toBe(0)
+  })
+
+  it('a spare link for an already verified member signs nobody in', async () => {
+    state.member.status = 'ACTIVE'
+    state.tokens.push({ id: 'v2', memberId: 'm1', tokenHash: hashMemberToken('spare'), usedAt: null, expiresAt: new Date(Date.now() + 60_000) })
+    expect(await (await verify('spare')).json()).toEqual({ status: 'ACTIVE', signedIn: false })
+    expect(state.sessions).toBe(0)
   })
 
   it('reports no sign-in when the site holds new members for approval', async () => {

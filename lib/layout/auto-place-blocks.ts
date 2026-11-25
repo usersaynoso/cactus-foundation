@@ -43,9 +43,25 @@ type PuckData = { content?: PuckItem[]; root?: unknown; zones?: Record<string, P
 export function containsBlock(data: unknown, blockType: string): boolean {
   if (!data || typeof data !== 'object') return false
   const doc = data as PuckData
-  if ((doc.content ?? []).some((item) => item?.type === blockType)) return true
+  if (listContains(doc.content, blockType)) return true
   for (const items of Object.values(doc.zones ?? {})) {
-    if ((items ?? []).some((item) => item?.type === blockType)) return true
+    if (listContains(items, blockType)) return true
+  }
+  return false
+}
+
+// A block list, and every slot nested inside it. Grid columns, Groups and Sections
+// keep their children in slot props (arrays of blocks on the parent's props), not
+// in zones, so a block the owner dragged into a header column was invisible to the
+// zone check and would have been placed a second time.
+function listContains(items: unknown, blockType: string): boolean {
+  if (!Array.isArray(items)) return false
+  for (const item of items as PuckItem[]) {
+    if (!item || typeof item !== 'object') continue
+    if (item.type === blockType) return true
+    for (const value of Object.values(item.props ?? {})) {
+      if (listContains(value, blockType)) return true
+    }
   }
   return false
 }

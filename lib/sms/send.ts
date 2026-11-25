@@ -32,7 +32,12 @@ export function normaliseSmsNumber(raw: string | null | undefined, defaultCallin
 
   // 00 is the other way of writing +, and plenty of people do.
   const withPlus = trimmed.startsWith('00') ? `+${trimmed.slice(2)}` : trimmed
-  const digits = withPlus.replace(/[^\d+]/g, '')
+  // "+44 (0)7700 900123" is how half of Britain writes an international number:
+  // the bracketed trunk zero is NOT dialled after the country code. Kept, it
+  // made +4407700900123 - still the right length to pass for E.164, and not a
+  // number anybody answers.
+  const withoutTrunk = withPlus.startsWith('+') ? withPlus.replace(/\(\s*0\s*\)/g, '') : withPlus
+  const digits = withoutTrunk.replace(/[^\d+]/g, '')
 
   if (digits.startsWith('+')) return E164.test(digits) ? digits : null
 

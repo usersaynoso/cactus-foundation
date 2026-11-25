@@ -1,7 +1,7 @@
 // Public member registration. See MEMBERS_SPEC.md "Registration".
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db/prisma'
+import { prisma, type PrismaTransactionClient } from '@/lib/db/prisma'
 import { getMembersConfig, isAuthMethodEnabled, registrationPasswordPolicy } from '@/lib/members/config'
 import { hashPassword, validateNewPassword } from '@/lib/auth/password'
 import {
@@ -45,6 +45,8 @@ const Body = z.object({
   // dropped, and a malformed one never fails the registration.
   redirectTo: memberRedirectField,
 })
+
+class InviteAlreadySpentError extends Error {}
 
 export async function POST(request: NextRequest) {
   const config = await getMembersConfig()
@@ -209,7 +211,7 @@ export async function POST(request: NextRequest) {
   // returns above without ever burning a candidate handle.
   const username = suppliedUsername ?? (await generateUsernameFromEmail(email))
 
-  const member = await prisma.member.create({
+  const createMember = (db: PrismaTransactionClient) => db.member.create({
     data: {
       email,
       username,
@@ -227,8 +229,27 @@ export async function POST(request: NextRequest) {
     },
   })
 
+  // An invite is spent in the same transaction the account is made in. Two
+  // sign-ups racing with one invite both got past validateInviteToken above;
+  // the one whose claim finds it already used is rolled back, account and all,
+  // rather than both walking in on a single-use link.
+  let member: Awaited<ReturnType<typeof createMember>>
   if (invite) {
-    await consumeInviteToken(invite.id, member.id)
+    const inviteId = invite.id
+    try {
+      member = await prisma.$transaction(async (tx) => {
+        const created = await createMember(tx)
+        if (!(await consumeInviteToken(inviteId, created.id, tx))) throw new InviteAlreadySpentError()
+        return created
+      })
+    } catch (err) {
+      if (err instanceof InviteAlreadySpentError) {
+        return NextResponse.json({ error: 'This invite link is invalid or has expired' }, { status: 400 })
+      }
+      throw err
+    }
+  } else {
+    member = await createMember(prisma)
   }
 
   const userAgent = request.headers.get('user-agent')

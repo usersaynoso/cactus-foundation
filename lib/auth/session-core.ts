@@ -49,7 +49,10 @@ export async function validateSessionWithMeta(token: string): Promise<SessionWit
 
   if (!session) return null
   if (session.expiresAt < new Date()) {
-    await prisma.session.delete({ where: { id: session.id } })
+    // deleteMany, not delete: an open tab fires several requests at once, and
+    // every one of them finds the same expired row. delete throws for all but
+    // the first, which turned "signed out" into a 500.
+    await prisma.session.deleteMany({ where: { id: session.id } })
     return null
   }
   if (session.user.suspendedAt) return null

@@ -255,6 +255,46 @@ async function serverlessUpload(file: File, folderId: string | null, onProgress?
   }
 }
 
+// Uploads whose names would tidy into the same storage key, one at a time.
+//
+// The server picks a free key ("photo.jpg", else "photo-2.jpg") by asking which
+// keys already have a library entry - but an entry is only written once the bytes
+// have landed. Two files that tidy to the same name, sent side by side by the
+// pool ("Photo 1.JPG" and "photo-1.jpg", "shed.jpg" and "shed.jpeg", or the same
+// name picked twice from two folders), were both handed the same key, both written
+// to it, and the second overwrote the first's picture: the first entry then showed
+// the second file, and the second failed with a "got there first" message. Queued
+// behind each other, the second is signed after the first is recorded and is
+// given the next free name instead.
+//
+// The tidying mirrors exactBaseName in lib/media/keys.ts (which is server-only)
+// closely enough to never miss a clash; one it over-matches only costs two files
+// going up in turn rather than together.
+const uploadsInFlightByName = new Map<string, Promise<void>>()
+
+function nameLane(file: File, folderId: string | null): string | null {
+  const base = file.name
+    .replace(/\.[^./\\]+$/, '')
+    .replace(/[^a-z0-9._-]/gi, '-')
+    .replace(/-+/g, '-')
+    .toLowerCase()
+  // No usable name means the opaque nanoid form, which cannot clash.
+  return base ? `${folderId ?? ''}/${base}` : null
+}
+
+async function oneAtATimePerName<T>(lane: string | null, run: () => Promise<T>): Promise<T> {
+  if (!lane) return run()
+  const ahead = uploadsInFlightByName.get(lane) ?? Promise.resolve()
+  const mine = ahead.then(run)
+  const settled = mine.then(() => undefined, () => undefined)
+  uploadsInFlightByName.set(lane, settled)
+  try {
+    return await mine
+  } finally {
+    if (uploadsInFlightByName.get(lane) === settled) uploadsInFlightByName.delete(lane)
+  }
+}
+
 // Upload a single file and return the Media row it created. Throws with a
 // user-ready message on failure. onProgress reports a 0..1 transfer fraction so
 // callers can render a live progress bar.
@@ -264,6 +304,10 @@ export async function uploadOneFile(file: File, folderId: string | null, onProgr
   // file dies on either as a status-0 "bad URL" - retried three times, then
   // blamed on the network. Catching it here names the real cause once.
   if (!(await isFileReadable(file))) throw new Error(`${file.name}: ${UNREADABLE_FILE_MESSAGE}`)
+  return oneAtATimePerName(nameLane(file, folderId), () => uploadReadableFile(file, folderId, onProgress))
+}
+
+async function uploadReadableFile(file: File, folderId: string | null, onProgress?: ProgressFn): Promise<UploadedMedia> {
   const contentType = uploadTypeForFile(file)
   // Why the direct path stood down, when it did - woven into the error if the
   // fallback then fails as well.

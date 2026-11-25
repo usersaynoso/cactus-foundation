@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { getSessionFromCookie } from '@/lib/auth/session'
-import { hasPermission, isAdmin, canActOnUser, assertProtectedUserWouldRemain } from '@/lib/permissions/check'
+import { hasPermission, isAdmin, canActOnUser, assertProtectedUserWouldRemain, roleAssignmentRefusal, manageTargetRefusal } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 
 const Patch = z.object({
@@ -27,6 +27,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (target.role.isProtected && !isAdmin(actor)) {
     return errorResponse('Only Admin users can manage other Admin accounts', 403)
   }
+  const targetRefusal = await manageTargetRefusal(actor, target.role)
+  if (targetRefusal) return errorResponse(targetRefusal, 403)
 
   const parsed = Patch.safeParse(await request.json())
   if (!parsed.success) return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input')
@@ -42,12 +44,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (roleId && roleId !== target.roleId) {
     const destRole = await prisma.role.findUnique({
       where: { id: roleId },
-      select: { isProtected: true },
+      select: { id: true, isProtected: true },
     })
     if (!destRole) return errorResponse('Role not found', 404)
     if (!canActOnUser(actor, destRole)) {
       return errorResponse('Only Admin users can grant the Admin role', 403)
     }
+    // Permission ceiling: a non-admin may only assign a role whose permissions
+    // they hold themselves, or users.manage becomes a route to config.manage etc.
+    const refusal = await roleAssignmentRefusal(actor, destRole)
+    if (refusal) return errorResponse(refusal, 403)
   }
 
   // If changing role away from admin, ensure at least one admin remains
@@ -87,6 +93,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (target.role.isProtected && !isAdmin(actor)) {
     return errorResponse('Only Admin users can delete other Admin accounts', 403)
   }
+  const targetRefusal = await manageTargetRefusal(actor, target.role)
+  if (targetRefusal) return errorResponse(targetRefusal, 403)
 
   try {
     await prisma.$transaction(async (tx) => {

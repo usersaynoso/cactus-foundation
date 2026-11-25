@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { publicUrl } from '@/lib/security/public-origin'
 import { NextResponse } from 'next/server'
 import sharp from 'sharp'
@@ -12,12 +13,19 @@ import { EMAIL_SAFE_IMAGE_TYPES } from '@/lib/email/logo'
 // lib/email/logo.ts sends anything that is not already PNG, JPEG or GIF here,
 // and here it gets printed once and cached hard.
 //
-// The `v` parameter is the logo's media id. It carries no meaning to this route
-// beyond cache-busting - the answer is always the CURRENT logo - but it does two
-// useful things: a new logo is a new address, so nothing that cached the old
-// picture keeps serving it, and a request naming anything else is bounced to the
-// canonical address rather than being rendered, so a bored visitor cannot mint
-// endless cache keys by inventing query strings.
+// The `v` parameter is the logo's version: its media id, plus a fingerprint of
+// the file behind it. It carries no meaning to this route beyond cache-busting -
+// the answer is always the CURRENT logo - but it does two useful things: a new
+// logo is a new address, so nothing that cached the old picture keeps serving
+// it, and a request naming anything else is bounced to the canonical address
+// rather than being rendered, so a bored visitor cannot mint endless cache keys
+// by inventing query strings.
+//
+// The id alone is not enough. "Replace file" in the media library keeps the item
+// (and its id) and swaps the bytes, so an id-only address went on serving the old
+// logo - a year, immutable, in every inbox and at the edge. Emails carry the bare
+// id (lib/email/logo.ts) and are redirected here to the full version, so a mail
+// sent before a replacement shows the new logo too.
 //
 // /api/branding/ bypasses every gate in proxy.ts, which is deliberate: mail goes
 // out from sites that are in maintenance or not yet open, and the logo in it has
@@ -32,7 +40,14 @@ const MAX_WIDTH = 640
 // A warm serverless instance answering a second miss should not fetch and render
 // the same picture twice. Cleared by nothing, because a changed logo arrives on a
 // different media id and simply misses.
-let rendered: { mediaId: string; png: Buffer } | null = null
+let rendered: { version: string; png: Buffer } | null = null
+
+// The media id, plus a fingerprint of what currently answers to it: a replaced
+// file changes its size (and, unless it kept its exact name and type, its url).
+function logoVersion(logo: { id: string; url: string; sizeBytes: number; mimeType: string }): string {
+  const print = createHash('sha1').update(`${logo.url}|${logo.sizeBytes}|${logo.mimeType}`).digest('hex').slice(0, 12)
+  return `${logo.id}.${print}`
+}
 
 async function renderPng(source: Buffer): Promise<Buffer> {
   // An SVG is rasterised at 72dpi unless told otherwise, so a small drawing
@@ -58,7 +73,7 @@ export async function GET(request: Request) {
     ? await prisma.media
         .findUnique({
           where: { id: config.logoMediaId },
-          select: { id: true, key: true, url: true, provider: true, mimeType: true },
+          select: { id: true, key: true, url: true, provider: true, mimeType: true, sizeBytes: true },
         })
         .catch(() => null)
     : null
@@ -67,11 +82,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'No site logo is set.' }, { status: 404 })
   }
 
+  const version = logoVersion(logo)
   const url = publicUrl(request)
-  if (url.searchParams.get('v') !== logo.id) {
+  if (url.searchParams.get('v') !== version) {
     // Including the no-parameter case, so a hand-typed address still ends up on
-    // the cacheable one.
-    url.searchParams.set('v', logo.id)
+    // the cacheable one - and the bare id an email carries.
+    url.searchParams.set('v', version)
     const res = NextResponse.redirect(url, 307)
     res.headers.set('Cache-Control', 'public, max-age=300')
     return res
@@ -86,15 +102,15 @@ export async function GET(request: Request) {
   }
 
   try {
-    const png = rendered?.mediaId === logo.id
+    const png = rendered?.version === version
       ? rendered.png
       : await downloadMedia(logo.provider, logo.key, logo.url).then(renderPng)
-    rendered = { mediaId: logo.id, png }
+    rendered = { version, png }
     return new NextResponse(new Uint8Array(png), {
       headers: {
         'Content-Type': 'image/png',
-        // The address carries the media id, so these bytes can never go stale:
-        // a different logo is a different URL.
+        // The address carries the logo's version, so these bytes can never go
+        // stale: a different logo, or a replaced file, is a different URL.
         'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
       },
     })

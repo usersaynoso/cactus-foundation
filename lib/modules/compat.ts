@@ -1,5 +1,5 @@
 import { compareVersions } from '@/lib/updates/core'
-import { fetchManifestFromRepo, parseModuleManifest } from './manifest'
+import { fetchManifestFromRepo, parseModuleManifest, readDeclaredCoreVersion } from './manifest'
 import {
   findUnmetModuleDependencies,
   type InstalledModuleVersion,
@@ -25,16 +25,32 @@ export async function fetchModuleRequirements(
   repoUrl: string,
   ref?: string
 ): Promise<ModuleRequirements | null> {
+  let raw: unknown
   try {
-    const manifest = parseModuleManifest(
-      await fetchManifestFromRepo(repoUrl, 'cactus.module.json', ref)
-    )
+    raw = await fetchManifestFromRepo(repoUrl, 'cactus.module.json', ref)
+  } catch {
+    return null
+  }
+  return requirementsFromRawManifest(raw)
+}
+
+// The requirements out of a fetched manifest. The core version is read off the
+// RAW JSON before anything is validated, for the reason the single-module update
+// route gives: a version built against a newer core may use a manifest field
+// this core's schema has never heard of - which is what requiresCoreVersion is
+// for - and answering "no opinion" on that parse failure skipped the core gate
+// entirely, so "Update all" (and the bundled updates on install, uninstall and
+// core update) pinned a version this core cannot build.
+export function requirementsFromRawManifest(raw: unknown): ModuleRequirements | null {
+  try {
+    const manifest = parseModuleManifest(raw)
     return {
       requiresCoreVersion: manifest.requiresCoreVersion,
       requiresModules: manifest.requiresModules,
     }
   } catch {
-    return null
+    const requiresCoreVersion = readDeclaredCoreVersion(raw)
+    return requiresCoreVersion ? { requiresCoreVersion, requiresModules: [] } : null
   }
 }
 

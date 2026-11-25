@@ -43,6 +43,10 @@ export type IconMedia = {
   mimeType: string
   key: string
   provider: MediaProviderType
+  // Part of the version below: "Replace file" keeps the id and, for a same-type
+  // file, the url too, so without the size a replaced icon kept its old version
+  // and the favicon route went on serving the old bytes as immutable.
+  sizeBytes: number
 }
 
 export type ResolvedBranding = {
@@ -169,7 +173,7 @@ export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
     try {
       const rows = await prisma.media.findMany({
         where: { id: { in: ids } },
-        select: { id: true, url: true, mimeType: true, key: true, provider: true },
+        select: { id: true, url: true, mimeType: true, key: true, provider: true, sizeBytes: true },
       })
       for (const r of rows) byId.set(r.id, r)
     } catch {
@@ -186,7 +190,7 @@ export const resolveBranding = cache(async (): Promise<ResolvedBranding> => {
   const present = (Object.keys(icons) as IconSlot[]).filter((slot) => icons[slot])
   const iconVersion = present.length
     ? createHash('sha1')
-        .update(present.map((slot) => `${slot}:${icons[slot]!.id}:${icons[slot]!.url}`).join('|'))
+        .update(present.map((slot) => `${slot}:${icons[slot]!.id}:${icons[slot]!.url}:${icons[slot]!.sizeBytes}`).join('|'))
         .update(`|bg:${config.backgroundColor ?? ''}`)
         .digest('hex')
         .slice(0, 10)

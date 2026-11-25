@@ -166,11 +166,17 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/admin/members/settings').then((r) => r.json()).then((d) => {
-      setConfig(d.config)
-      setMemberAreaPath(d.memberAreaPath)
-      setSmsProviderInstalled(d.smsProviderInstalled === true)
-    })
+    // A failed read used to leave the tab on "Loading…" for good, with nothing to
+    // say the settings had not arrived.
+    fetch('/api/admin/members/settings')
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok || !d.config) throw new Error((d as { error?: string }).error ?? 'Could not load the members settings.')
+        setConfig(d.config)
+        setMemberAreaPath(d.memberAreaPath)
+        setSmsProviderInstalled(d.smsProviderInstalled === true)
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load the members settings.'))
   }, [])
 
   function update<K extends keyof Config>(key: K, value: Config[K]) {
@@ -199,7 +205,9 @@ export default function MembersSettingsTab({ tab }: { tab: Tab }) {
     }
   }
 
-  if (!config) return <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
+  if (!config) return error
+    ? <div className="alert alert-danger">{error}</div>
+    : <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
 
   const noMethodsEnabled = AUTH_METHOD_FIELDS.every((m) => config.authMethodPolicies[m.key] === 'OFF')
 

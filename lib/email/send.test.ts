@@ -99,7 +99,34 @@ describe('the sender', () => {
 
     await sendEmail({ ...BASE, from: { name: 'Marcus', address: 'marcus@deskwell.co.uk' } })
 
-    expect(sendMail.mock.calls[0]![0].from).toBe('"Marcus" <marcus@deskwell.co.uk>')
+    expect(sendMail.mock.calls[0]![0].from).toEqual({ name: 'Marcus', address: 'marcus@deskwell.co.uk' })
+  })
+
+  it('survives a double quote in the display name over SMTP', async () => {
+    vi.stubEnv('BREVO_API_KEY', '')
+    vi.stubEnv('SMTP_HOST', 'smtp.example.com')
+
+    await sendEmail({ ...BASE, from: { name: 'The "Comfy" Chair Co', address: 'hi@deskwell.co.uk' } })
+
+    expect(sendMail.mock.calls[0]![0].from).toEqual({ name: 'The "Comfy" Chair Co', address: 'hi@deskwell.co.uk' })
+  })
+})
+
+describe('the SMTP connection', () => {
+  it('uses implicit TLS on port 465 and STARTTLS otherwise', async () => {
+    const { createTransport } = await import('nodemailer')
+    vi.stubEnv('BREVO_API_KEY', '')
+    vi.stubEnv('SMTP_HOST', 'smtp.example.com')
+
+    const options = () => vi.mocked(createTransport).mock.calls.map((call) => (call as unknown[])[0])
+
+    vi.stubEnv('SMTP_PORT', '465')
+    await sendEmail(BASE)
+    expect(options()[0]).toMatchObject({ port: 465, secure: true })
+
+    vi.stubEnv('SMTP_PORT', '587')
+    await sendEmail(BASE)
+    expect(options()[1]).toMatchObject({ port: 587, secure: false })
   })
 })
 

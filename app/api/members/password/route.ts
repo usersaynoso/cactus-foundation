@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { deleteAllMemberSessions, getCurrentMemberSessionTokenHash, revokeAllMemberTrustedBrowsers } from '@/lib/members/session'
+import { deleteAllMemberSessions, getCurrentMemberSessionTokenHash, revokeAllMemberTrustedBrowsers, isCurrentMemberSessionFresh } from '@/lib/members/session'
 import { getMemberAuthFromRequest, getMemberFromRequest } from '@/lib/members/api-auth'
 import { requireStepUpGrant, spendStepUpGrant } from '@/lib/members/api-step-up'
 import { hashPassword, verifyPassword, validateNewPassword } from '@/lib/auth/password'
+import { checkAndRecord } from '@/lib/auth/rate-limit'
 import { getMembersConfig, isAuthMethodEnabled, isAuthMethodRequired } from '@/lib/members/config'
 import { notifyMemberSecurityAlert } from '@/lib/members/security-alerts'
 import { isEmailConfigured } from '@/lib/config/env'
@@ -56,9 +57,23 @@ export async function POST(request: NextRequest) {
   const { currentPassword, newPassword } = parsed.data
 
   const existing = await prisma.memberPassword.findUnique({ where: { memberId: member.id } })
+  // Adding a FIRST password plants a durable sign-in method, so it needs a
+  // recent sign-in, exactly like adding a passkey. An app caller has no browser
+  // session; its step-up grant above is its proof of a recent sign-in.
+  if (auth.via === 'cookie' && !existing && !(await isCurrentMemberSessionFresh())) {
+    return NextResponse.json(
+      { error: 'For your security, please sign in again before adding a password.', reauthRequired: true },
+      { status: 403 }
+    )
+  }
   if (existing) {
     if (!currentPassword) {
       return NextResponse.json({ error: 'Current password is required' }, { status: 400 })
+    }
+    // Guesses at the current password are counted, like any other step-up.
+    const limit = await checkAndRecord('step_up', ['member:' + member.id])
+    if (!limit.allowed) {
+      return NextResponse.json({ error: 'Too many attempts. Please wait a few minutes and try again.' }, { status: 429 })
     }
     const valid = await verifyPassword(currentPassword, existing.hash)
     if (!valid) {

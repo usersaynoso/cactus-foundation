@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { prismaGateFailureMeansUnconfigured } from '@/lib/proxy/gate-failure'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { resolveVercelTeamId } from '@/lib/vercel/deploy'
@@ -15,8 +16,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'deploymentId is required' }, { status: 400 })
   }
 
-  // During the setup wizard the database may not exist yet — a failed query
-  // means setup cannot be complete, not that the request should 500.
+  // During the setup wizard the database may not exist yet - a failed query that
+  // says so (no DATABASE_URL, no schema) means setup cannot be complete, not that
+  // the request should 500. Any other failure is an outage on what may well be a
+  // live site, and the pre-auth branch below hands out build logs read with the
+  // site's own hosting credential, so it refuses rather than guessing "not set up".
   let setupComplete = false
   try {
     const [cfg, userCount] = await Promise.all([
@@ -24,7 +28,10 @@ export async function GET(req: NextRequest) {
       prisma.user.count(),
     ])
     setupComplete = (cfg?.setupCompleted ?? false) && userCount > 0
-  } catch {
+  } catch (err) {
+    if (!prismaGateFailureMeansUnconfigured(err)) {
+      return NextResponse.json({ error: "The database isn't answering right now. Try again in a minute." }, { status: 503 })
+    }
     setupComplete = false
   }
 

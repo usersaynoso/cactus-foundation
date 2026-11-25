@@ -30,6 +30,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'This verification link is invalid or has expired' }, { status: 400 })
   }
 
+  // A token is good for a day, and the register and resend routes can each
+  // leave a spare one in the inbox. Only a member still waiting on verification
+  // is moved on by one: anyone else - already verified, suspended, deleted,
+  // turned down while awaiting approval - keeps the status an admin or an
+  // earlier link gave them, and is not signed in by a leftover link either
+  // (that would be a way round a password and second factor added since).
+  const current = await prisma.member.findUnique({
+    where: { id: result.memberId },
+    select: { status: true },
+  })
+  if (!current) {
+    return NextResponse.json({ error: 'This verification link is invalid or has expired' }, { status: 400 })
+  }
+  if (current.status !== 'PENDING_VERIFICATION') {
+    return NextResponse.json({ status: current.status, signedIn: false })
+  }
+
   const config = await getMembersConfig()
   const status = deriveActivatedStatus(config.registrationMode)
 

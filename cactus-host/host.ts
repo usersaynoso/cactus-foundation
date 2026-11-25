@@ -22,7 +22,7 @@
 //      the old one serving - nothing a visitor sees has changed;
 //   7. prune releases beyond the configured number.
 
-import { chownSync, cpSync, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, type WriteStream } from 'node:fs'
+import { chownSync, cpSync, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, type WriteStream } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import { join, relative } from 'node:path'
 import type { HostConfig } from './config.ts'
@@ -137,8 +137,25 @@ export class Host {
   /** Called once at start-up: a build cannot survive its service restarting. */
   recoverInterruptedBuilds(): void {
     for (const site of this.store.listSites()) {
+      // What the live slot actually points at. A restart that lands after the
+      // switch-over moved traffic, but before the build's own record caught up, leaves
+      // a "building" record for the release every visitor is being served from.
+      let serving: string | null = null
+      if (site.liveSlot) {
+        try {
+          serving = readlinkSync(this.store.paths(site.id).slot(site.liveSlot))
+        } catch {
+          serving = null
+        }
+      }
       for (const build of this.store.listBuilds(site.id)) {
         if (build.state !== 'queued' && build.state !== 'building') continue
+        if (build.releaseDir && !build.live && build.releaseDir === serving) {
+          const now = this.system.now()
+          this.store.saveBuild(site.id, { ...build, state: 'ready', live: true, slot: site.liveSlot, finishedAt: now, liveAt: now })
+          this.store.setLiveBuild(site.id, build.id)
+          continue
+        }
         if (build.releaseDir && !build.live) rmSync(build.releaseDir, { recursive: true, force: true })
         this.store.saveBuild(site.id, {
           ...build,
@@ -406,8 +423,16 @@ export class Host {
       this.prune(site.id, line)
     } catch (err) {
       const message = errorMessage(err)
+      if (build.live) {
+        // Already serving visitors: only the tidying after go-live failed. Recording it
+        // as a failed build with no release would leave the live release out of the
+        // next prune's keep list, which then deletes its static files and, later, it.
+        line(`Live, but tidying up old releases failed: ${message}`)
+        this.log(`[${site.id}] build ${build.id} is live; tidying up afterwards failed: ${message}`)
+        return
+      }
       line(`Failed: ${message}`)
-      if (build.releaseDir && !build.live) rmSync(build.releaseDir, { recursive: true, force: true })
+      if (build.releaseDir) rmSync(build.releaseDir, { recursive: true, force: true })
       save({ state: 'error', error: message, finishedAt: this.system.now(), releaseDir: null })
       this.log(`[${site.id}] build ${build.id} failed: ${message}`)
     } finally {
@@ -546,7 +571,14 @@ export class Host {
     this.store.saveSite(switched)
     line('Traffic switched')
 
-    await systemctl('Enabling the new version at boot', 'enable', '--quiet', paths.unit(next))
+    // Nothing from here on may throw. Traffic is already on the new release, so a
+    // throw would reach the caller's failure path: a build would delete the release
+    // that is now serving every visitor, and a rollback would swap the database back
+    // underneath it. Boot-time enabling is worth a loud line, not that.
+    const enabled = await this.system.run('systemctl', ['enable', '--quiet', paths.unit(next)])
+    if (enabled.code !== 0) {
+      line(`Warning: could not enable ${paths.unit(next)} at boot (exit ${enabled.code}); the site is live, but run \`systemctl enable ${paths.unit(next)}\` before the next reboot`)
+    }
     if (previous) {
       // A moment for Caddy's reload to finish handing over open connections, then
       // the old release gets its SIGTERM and stopTimeoutSeconds to finish its work.

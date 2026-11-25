@@ -82,16 +82,27 @@ async function readModulesJson(
   owner: string,
   repo: string
 ): Promise<{ content: ModulesJson; fileSha: string | null }> {
+  let data: Awaited<ReturnType<typeof octokit.rest.repos.getContent>>['data']
   try {
-    const { data } = await octokit.rest.repos.getContent({ owner, repo, path: 'modules.json' })
-    if ('content' in data) {
-      const parsed = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8')) as ModulesJson
-      return { content: parsed, fileSha: data.sha }
-    }
-  } catch {
-    // File doesn't exist yet
+    ;({ data } = await octokit.rest.repos.getContent({ owner, repo, path: 'modules.json' }))
+  } catch (err: unknown) {
+    // Only a 404 means "there is no modules.json yet". Anything else - a rate
+    // limit, a GitHub 5xx, a dropped connection - used to read as an empty
+    // registry too, and both writers then committed on top of it: the cron-tick
+    // write put back an EMPTY modules.json (the next build shipped with no
+    // modules at all), and the registry sync wrote the database's pins with the
+    // pin floor blind to what git really held.
+    if ((err as { status?: number }).status === 404) return { content: { modules: [] }, fileSha: null }
+    throw err
   }
-  return { content: { modules: [] }, fileSha: null }
+  if (!('content' in data)) return { content: { modules: [] }, fileSha: null }
+  // A file that is there but unreadable is not an empty registry either, for the
+  // same reason: throwing leaves it alone rather than overwriting it with nothing.
+  const parsed = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8')) as Partial<ModulesJson> | null
+  if (!parsed || !Array.isArray(parsed.modules)) {
+    throw new Error('modules.json in the repository is not a valid module registry')
+  }
+  return { content: { modules: parsed.modules }, fileSha: data.sha }
 }
 
 // Reads a small text file from the repo, or null when it isn't there yet.

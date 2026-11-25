@@ -129,6 +129,8 @@ describe('recognising our own addresses', () => {
     expect(ownTrackedDestination(`${SITE}/api/email/c/${token}`)).toBe('https://deskwell.co.uk/quote/7?x=1')
     expect(ownTrackedDestination('https://deskwell.co.uk/quote/7')).toBeNull()
     expect(ownTrackedDestination(`${SITE}/api/email/c/nonsense`)).toBeNull()
+    // A malformed escape, from anybody's email, is not ours rather than a crash.
+    expect(ownTrackedDestination('https://elsewhere.example/api/email/c/%E0%A4%A')).toBeNull()
   })
 })
 

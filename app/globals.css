@@ -647,8 +647,8 @@ a:hover {
   height: 14px;
   padding: 0 3px;
   border-radius: var(--radius-full);
-  background: #e53e3e;
-  color: #fff;
+  background: var(--color-destructive);
+  color: var(--color-on-destructive);
   font-size: 9px;
   font-weight: var(--font-semibold);
   line-height: 14px;
@@ -1238,7 +1238,7 @@ a:hover {
   text-decoration: none;
 }
 [data-theme="dark"] .admin-sidebar nav a:hover {
-  background: #252320;
+  background: var(--color-surface-raised);
   color: var(--color-text);
 }
 .admin-sidebar nav a.active {
@@ -2522,7 +2522,7 @@ a:hover {
   color: var(--color-text);
 }
 [data-theme="dark"] .admin-sidebar-toggle:hover {
-  background: #252320;
+  background: var(--color-surface-raised);
   color: var(--color-text);
 }
 .admin-sidebar-toggle-icon {
@@ -2717,16 +2717,19 @@ progress {
   outline-offset: 2px;
 }
 
+/* The text colour is the token the site's design works out against its own
+   primary (lib/design/tokens.ts) - white on a dark primary, dark on a pale one.
+   A hardcoded white put unreadable white-on-yellow buttons on a pale theme. */
 .btn-primary {
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-on-primary);
   border-color: var(--color-primary);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
   text-decoration: none;
-  color: #ffffff;
+  color: var(--color-on-primary);
 }
 
 .btn-secondary {
@@ -2755,7 +2758,7 @@ progress {
 .btn-destructive,
 .btn-danger {
   background: var(--color-destructive);
-  color: #ffffff;
+  color: var(--color-on-destructive);
   border-color: var(--color-destructive);
 }
 .btn-destructive:hover:not(:disabled),
@@ -2763,7 +2766,7 @@ progress {
   background: var(--color-destructive-hover);
   border-color: var(--color-destructive-hover);
   text-decoration: none;
-  color: #ffffff;
+  color: var(--color-on-destructive);
 }
 
 .btn-link {
@@ -3690,7 +3693,7 @@ tbody tr:hover {
 }
 .pagination .current {
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-on-primary);
   border-color: var(--color-primary);
 }
 
@@ -3819,7 +3822,7 @@ tbody tr:hover {
     background: var(--sand-200);
   }
   [data-theme="dark"] .admin-burger:hover {
-    background: #252320;
+    background: var(--color-surface-raised);
   }
   .admin-burger span {
     display: block;
@@ -3893,7 +3896,7 @@ tbody tr:hover {
     color: var(--color-text);
   }
   [data-theme="dark"] .admin-sidebar-close:hover {
-    background: #252320;
+    background: var(--color-surface-raised);
   }
 
   /* Rail-collapse is a desktop space-saving feature; the mobile drawer is

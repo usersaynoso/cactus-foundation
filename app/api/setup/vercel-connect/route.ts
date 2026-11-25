@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { setupClosedResponse } from '@/lib/setup/setup-gate'
 import { randomBytes } from 'crypto'
 import { upsertVercelEnvVars } from '@/lib/vercel/env'
 
@@ -32,20 +33,6 @@ function defaultRecord(name: string, apexName?: string): DnsRecord {
   return host === '@'
     ? { type: 'A', host: '@', value: '76.76.21.21' }
     : { type: 'CNAME', host, value: 'cname.vercel-dns.com' }
-}
-
-async function isSetupComplete(): Promise<boolean> {
-  if (!process.env.DATABASE_URL) return false
-  try {
-    const { prisma } = await import('@/lib/db/prisma')
-    const config = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { setupCompleted: true },
-    })
-    return config?.setupCompleted ?? false
-  } catch {
-    return false
-  }
 }
 
 type ProjectDomain = {
@@ -180,9 +167,8 @@ async function getDomainState(
 // action: 'configure'            — writes bootstrap env vars to the selected project
 //                                   and triggers a redeploy
 export async function POST(req: NextRequest) {
-  if (await isSetupComplete()) {
-    return NextResponse.json({ error: 'Setup is already complete' }, { status: 403 })
-  }
+  const closed = await setupClosedResponse()
+  if (closed) return closed
 
   let body: {
     action?: string

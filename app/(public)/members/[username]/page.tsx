@@ -8,6 +8,7 @@ import MemberAvatar from '@/components/members/MemberAvatar'
 import { resolveEffectiveAvatarChoice } from '@/lib/members/avatar'
 import { isHttpUrl } from '@/lib/utils'
 import { findMemberIdByPreviousUsername, findMemberIdByUsername } from '@/lib/members/username'
+import { getSiteTimezone } from '@/lib/config/timezone.server'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,6 +87,9 @@ export default async function MemberProfilePage({ params }: Props) {
     }
   }
   const sectionComponents = moduleExtensionPointComponents['members.profile-section'] ?? {}
+  // The server's clock is UTC: without the site's own zone, a member who joined
+  // late on the last evening of a month in summer was shown as joining the month before.
+  const timeZone = await getSiteTimezone()
 
   return (
     <div style={{ maxWidth: 600, margin: '3rem auto', padding: '0 1.5rem' }}>
@@ -116,7 +120,7 @@ export default async function MemberProfilePage({ params }: Props) {
       )}
       {visibility.showJoinDate && (
         <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', margin: 0 }}>
-          Joined {member.createdAt.toLocaleDateString('en-GB', { year: 'numeric', month: 'long' })}
+          Joined {member.createdAt.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', timeZone })}
         </p>
       )}
 

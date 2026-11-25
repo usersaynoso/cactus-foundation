@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { setupClosedResponse } from '@/lib/setup/setup-gate'
 import { randomBytes } from 'crypto'
 import type { SiteSummary } from '@/cactus-host/protocol'
 import { upsertHostEnvVars, type HostEnvVar } from '@/lib/hosting/env'
@@ -23,20 +24,6 @@ type DomainState = {
   verification: Array<{ type: string; domain: string; value: string; reason: string }>
   misconfigured: boolean
   recommended: DnsRecord
-}
-
-async function isSetupComplete(): Promise<boolean> {
-  if (!process.env.DATABASE_URL) return false
-  try {
-    const { prisma } = await import('@/lib/db/prisma')
-    const config = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { setupCompleted: true },
-    })
-    return config?.setupCompleted ?? false
-  } catch {
-    return false
-  }
 }
 
 function error(message: string, status = 400): NextResponse {
@@ -66,9 +53,8 @@ function toDomainState(name: string, serving: boolean, site: SiteSummary): Domai
 // action: 'domain-status'        - re-checks whether a domain reaches this site
 // action: 'configure'            - writes bootstrap env vars to the site's env file
 export async function POST(req: NextRequest) {
-  if (await isSetupComplete()) {
-    return error('Setup is already complete', 403)
-  }
+  const closed = await setupClosedResponse()
+  if (closed) return closed
 
   let body: { action?: string; token?: string; projectId?: string; neonApiKey?: string; domain?: string }
   try {

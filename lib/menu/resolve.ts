@@ -67,7 +67,18 @@ export const resolveMenu = cache(async (menuId: string, viewer: MenuViewer = ANO
   // therefore cost seven serial round trips on every page render, and the menu
   // is on every page. Resolved here, it is one query per kind - and the walk
   // that follows touches the database not at all.
-  const entities = await resolveMenuEntities(items, viewer)
+  // The page assigned as the homepage is served at /, and its own /<slug> answers
+  // with a permanent redirect there (app/(public)/[slug]/page.tsx). A menu link
+  // to it therefore cost every visitor a redirect, and - since the menu marks the
+  // current page by comparing hrefs with the path - the "Home" item never showed
+  // as current on the homepage. Only read when the menu has a page link at all;
+  // getSiteConfig is cache()d and already read on every public render.
+  const [entities, homepageId] = await Promise.all([
+    resolveMenuEntities(items, viewer),
+    items.some((i) => i.type === 'PAGE')
+      ? getSiteConfig().then((c) => c?.homepageId ?? null).catch(() => null)
+      : Promise.resolve(null),
+  ])
 
   function resolveItem(item: RawItem): PublicMenuItem | null {
     let label: string
@@ -81,7 +92,7 @@ export const resolveMenu = cache(async (menuId: string, viewer: MenuViewer = ANO
     if (item.type === 'PAGE') {
       if (!item.page || item.page.status !== 'published') return null
       label = item.label ?? item.page.title
-      href = `/${item.page.slug}`
+      href = homepageId && item.pageId === homepageId ? '/' : `/${item.page.slug}`
     } else if (item.type === 'MODULE_ENTITY') {
       if (!item.moduleId || !item.entityKind || !item.entityId) return null
       const resolved = entities.get(entityCacheKey(item.moduleId, item.entityKind, item.entityId))

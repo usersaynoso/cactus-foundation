@@ -46,7 +46,14 @@ export async function POST(request: NextRequest) {
     // (no compression artefacts on the hard edges and text logos tend to have) -
     // the downscale is what does the real weight-saving, and lossless WebP of a
     // resized logo is still typically a fraction of the original PNG/JPEG.
-    const optimised = await sharp(original, { animated: true })
+    // Turned upright first when an EXIF tag says the stored rows are not the way
+    // up the picture is drawn: sharp writes no orientation tag on output, so the
+    // copy would otherwise come out on its side. Only when tagged - an animated
+    // source never is, and a multi-frame rotate is not wanted.
+    const { orientation } = await sharp(original, { failOn: 'none' }).metadata()
+    const source = sharp(original, { animated: true })
+    if (typeof orientation === 'number' && orientation > 1) source.rotate()
+    const optimised = await source
       .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
       .webp({ lossless: true, effort: 6 })
       .toBuffer()

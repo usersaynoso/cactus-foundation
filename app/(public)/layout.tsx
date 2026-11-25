@@ -1,4 +1,5 @@
 import { after } from 'next/server'
+import { headers } from 'next/headers'
 import { prisma } from '@/lib/db/prisma'
 import { getSiteConfig as getSharedSiteConfig } from '@/lib/config/site'
 import { Render } from '@puckeditor/core/rsc'
@@ -36,6 +37,25 @@ function getSiteConfig() {
   return getSharedSiteConfig().catch(() => null)
 }
 
+// The address being rendered, for the header and footer display conditions.
+// Header and footer layouts offer "Homepage" and "URL path prefix" rules, and
+// both were resolved against an empty context, so neither could ever match: a
+// header meant for the homepage alone never appeared, and one excluding a section
+// showed there anyway. The proxy forwards the path as a request header (it
+// overwrites anything a visitor sends under that name); without it - a render the
+// proxy did not front - this is the empty context it always was.
+async function currentLayoutContext(): Promise<{ pathname?: string; isHomepage?: boolean }> {
+  let raw: string | null = null
+  try {
+    raw = (await headers()).get('x-cactus-path')
+  } catch {
+    return {}
+  }
+  if (!raw || !raw.startsWith('/')) return {}
+  const pathname = (raw.split(/[?#]/, 1)[0] ?? '/').replace(/\/+$/, '') || '/'
+  return { pathname, isHomepage: pathname === '/' }
+}
+
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   // Retire the old read-only starter rows after a core update (no-op once
   // stamped; see ensureLayoutsCurrent). It prunes the very table
@@ -56,7 +76,7 @@ export default async function PublicLayout({ children }: { children: React.React
   // importing it from here put the space planner, three.js, the cart and checkout
   // pages into the JavaScript of every page on the site.
   const siteUrl = resolveSiteUrl()
-  const [, config, user, member, modulePublicHead] = await Promise.all([
+  const [, config, user, member, modulePublicHead, layoutContext] = await Promise.all([
     ensureLayoutsCurrent(),
     getSiteConfig(),
     getSessionFromCookie().catch(() => null),
@@ -66,6 +86,7 @@ export default async function PublicLayout({ children }: { children: React.React
     // signed-in / signed-out audiences resolve correctly for members too.
     getMemberFromCookie().catch(() => null),
     siteUrl ? collectModulePublicHead(siteUrl).catch(() => null) : Promise.resolve(null),
+    currentLayoutContext(),
   ])
 
   // The media/privacy lookups need `config`; the layout reads need the prune
@@ -80,8 +101,8 @@ export default async function PublicLayout({ children }: { children: React.React
     config?.privacyPolicyPageId
       ? prisma.infoPage.findUnique({ where: { id: config.privacyPolicyPageId }, select: { slug: true } }).catch(() => null)
       : Promise.resolve(null),
-    resolveThemeLayout('header', {}),
-    resolveThemeLayout('footer', {}),
+    resolveThemeLayout('header', layoutContext),
+    resolveThemeLayout('footer', layoutContext),
   ])
 
   const isLoggedIn = !!user

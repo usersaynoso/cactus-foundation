@@ -127,7 +127,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 // Straight from storage (the provider's own API where it has one), not over the
 // public internet through the media host and its CDN.
 async function loadSource(icon: IconMedia): Promise<Buffer> {
-  const key = `${icon.id}:${icon.url}`
+  const key = `${icon.id}:${icon.url}:${icon.sizeBytes}`
   const hit = sources.get(key)
   if (hit) return hit
   const bytes = await withTimeout(downloadMedia(icon.provider, icon.key, icon.url), SOURCE_TIMEOUT_MS)

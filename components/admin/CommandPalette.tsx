@@ -163,7 +163,12 @@ export default function CommandPalette({ adminPath, sections, moduleSettingsTabs
       if (e.key === '?' && !isTyping(e.target)) {
         e.preventDefault()
         openPalette('help')
+        return
       }
+      // The search box handles Escape itself, but the shortcuts view has no box
+      // to type in, so without this Esc did nothing there and a keyboard user
+      // had no way out. Harmless when the palette is already shut.
+      if (e.key === 'Escape') close()
     }
     function onOpenEvent() {
       openPalette('search')
@@ -174,7 +179,7 @@ export default function CommandPalette({ adminPath, sections, moduleSettingsTabs
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('cactus:open-command-palette', onOpenEvent)
     }
-  }, [openPalette])
+  }, [openPalette, close])
 
   useEffect(() => {
     if (open && mode === 'search') inputRef.current?.focus()

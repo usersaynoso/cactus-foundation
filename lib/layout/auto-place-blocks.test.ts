@@ -27,6 +27,16 @@ describe('containsBlock', () => {
     expect(containsBlock(moved, 'GoogleTag')).toBe(true)
   })
 
+  it('finds a block the owner has moved into a slot, however deep', () => {
+    // Grid columns and Groups hold their children in slot props, not zones.
+    const moved = {
+      content: [{ type: 'Grid2', props: { id: 'g', col1: [], col2: [{ type: 'Group', props: { id: 'grp', items: [{ type: 'GoogleTag', props: {} }] } }] } }],
+      zones: {},
+    }
+    expect(containsBlock(moved, 'GoogleTag')).toBe(true)
+    expect(withBlockPlaced(moved, 'GoogleTag', { id: 'google-tag-auto' })).toBeNull()
+  })
+
   it('says no for a layout that has never had it', () => {
     expect(containsBlock(HEADER, 'GoogleTag')).toBe(false)
   })

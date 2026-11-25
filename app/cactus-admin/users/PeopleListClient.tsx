@@ -23,7 +23,7 @@ import {
 // Marketing columns appear only when a module that sells things says who its
 // customers are (core.people-customers), for a viewer allowed to see them.
 
-type Role = { id: string; name: string; isProtected: boolean }
+type Role = { id: string; name: string; isProtected: boolean; /** False when the signed-in user holds fewer permissions than this role grants. */ assignable?: boolean }
 
 type Person = {
   id: string

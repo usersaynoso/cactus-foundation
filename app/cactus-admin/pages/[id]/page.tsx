@@ -75,7 +75,13 @@ export default function EditPagePage() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/admin/pages/${id}`).then((r) => r.json()),
+      // A refusal or a missing page answers { error } - without the ok check that
+      // object became `page` and the builder opened blank, as if the page were empty.
+      fetch(`/api/admin/pages/${id}`).then(async (r) => {
+        const body = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error((body as { error?: string }).error ?? 'Failed to load page')
+        return body
+      }),
       fetch('/api/admin/pages/perms').then((r) => r.ok ? r.json() : { canPublish: false, canManageMenus: false }).catch(() => ({ canPublish: false, canManageMenus: false })),
     ]).then(async ([d, perms]) => {
       // If this page was in markdown mode, migrate it to builder silently
@@ -90,7 +96,7 @@ export default function EditPagePage() {
       setPage(d)
       setCanPublish(perms.canPublish ?? false)
       setCanManageMenus(perms.canManageMenus ?? false)
-    }).catch(() => setError('Failed to load page'))
+    }).catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load page'))
   }, [id])
 
   const handleDelete = useCallback(async () => {

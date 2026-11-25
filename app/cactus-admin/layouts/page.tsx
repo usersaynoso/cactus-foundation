@@ -168,11 +168,15 @@ export default function LayoutBuilderPage() {
     setError('')
     try {
       const res = await fetch(`/api/admin/layouts/${deleteTarget.id}`, { method: 'DELETE' })
+      setDeleteTarget(null)
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
+        // No reload here: reload() resets the error from its own answer, which
+        // wiped this message the moment it appeared and left a refused delete
+        // looking like nothing had been tried.
         setError(d.error ?? 'Failed to delete layout')
+        return
       }
-      setDeleteTarget(null)
       reload(activeType)
     } catch {
       setError('Failed to delete layout')

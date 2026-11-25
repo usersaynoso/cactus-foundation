@@ -23,15 +23,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const parsed = Body.safeParse(await request.json().catch(() => ({})))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
 
+  // A deleted member is not suspended over the top of it: that would take the
+  // row out of DELETED and, via unsuspend, back to ACTIVE.
   const member = await prisma.member.update({
-    where: { id },
+    where: { id, status: { not: 'DELETED' } },
     data: {
       status: 'SUSPENDED',
       suspensionReason: parsed.data.reason ?? null,
       suspendedUntil: parsed.data.until ? new Date(parsed.data.until) : null,
       suspensionNotified: false,
     },
-  })
+  }).catch(() => null)
+  if (!member) return NextResponse.json({ error: 'Member not found, or already deleted' }, { status: 404 })
 
   // Suspension invalidates any live sessions immediately.
   await prisma.memberSession.deleteMany({ where: { memberId: id } })

@@ -1076,6 +1076,8 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
         setGhError('Could not reach GitHub to complete the connection. Please try again.')
       } else if (reason === 'db') {
         setGhError('Failed to save the GitHub App credentials to the database. Check your database connection.')
+      } else if (reason === 'forbidden') {
+        setGhError('Your role is not allowed to change the GitHub connection. Ask someone who can manage settings.')
       } else {
         setGhError('Something went wrong during the GitHub connection. Please try again.')
       }
@@ -1230,7 +1232,14 @@ function ConfigPageInner({ moduleTabs, hostedSettingsSlots, hostedSettingsPanels
     // module's settings tab would collect five 403s and an error banner.
     if (!canManageConfig) return
     Promise.all([
-      fetch('/api/admin/config').then((r) => r.json()),
+      // A failed read answers { error }. Taken as the config, that drew every field
+      // blank with no banner, as though the site had no settings at all - so it is a
+      // load failure, not a config.
+      fetch('/api/admin/config').then(async (r) => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'Failed to load config')
+        return d
+      }),
       fetch('/api/admin/pages?perPage=100').then((r) => r.json()),
       fetch('/api/admin/env').then((r) => r.json()),
       fetch('/api/admin/menus').then((r) => r.ok ? r.json() : { menus: [] }).catch(() => ({ menus: [] })),

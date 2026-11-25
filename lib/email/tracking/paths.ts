@@ -90,7 +90,14 @@ export function ownTrackedDestination(href: string): string | null {
   } catch {
     return null
   }
-  const token = decodeURIComponent(path.slice(EMAIL_CLICK_PATH.length).split('/')[0] ?? '')
+  // Any host's /api/email/c/ address reaches here - including one in a
+  // stranger's email - so a malformed escape must not throw out of a render.
+  let token: string
+  try {
+    token = decodeURIComponent(path.slice(EMAIL_CLICK_PATH.length).split('/')[0] ?? '')
+  } catch {
+    return null
+  }
   const body = token.split('.')[1]
   if (!body) return null
   const json = decodeBase64Url(body)

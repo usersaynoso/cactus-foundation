@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { setupClosedResponse } from '@/lib/setup/setup-gate'
 import { randomBytes } from 'crypto'
 import { upsertHostEnvVars, type HostEnvVar } from '@/lib/hosting/env'
 import {
@@ -43,20 +44,6 @@ function recommendedRecord(name: string, site: NetlifySite): DnsRecord {
   return { type: 'CNAME', host: labels.slice(0, -2).join('.'), value: `${site.name}.netlify.app` }
 }
 
-async function isSetupComplete(): Promise<boolean> {
-  if (!process.env.DATABASE_URL) return false
-  try {
-    const { prisma } = await import('@/lib/db/prisma')
-    const config = await prisma.siteConfig.findUnique({
-      where: { id: 'singleton' },
-      select: { setupCompleted: true },
-    })
-    return config?.setupCompleted ?? false
-  } catch {
-    return false
-  }
-}
-
 // A Netlify domain is ready once Netlify holds a live certificate for it, which it
 // only issues after DNS points at the site. Netlify has no separate ownership
 // challenge for the common case, so `verified` follows readiness and the wizard's
@@ -84,9 +71,8 @@ function error(message: string, status = 400): NextResponse {
 // action: 'domain-status'        — re-checks whether a domain is serving the site
 // action: 'configure'            — writes bootstrap env vars to the selected site
 export async function POST(req: NextRequest) {
-  if (await isSetupComplete()) {
-    return error('Setup is already complete', 403)
-  }
+  const closed = await setupClosedResponse()
+  if (closed) return closed
 
   let body: { action?: string; token?: string; projectId?: string; neonApiKey?: string; domain?: string }
   try {

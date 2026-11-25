@@ -47,6 +47,19 @@ export async function createEmailChallenge(
   return code
 }
 
+// Spends the live challenge for this user and purpose without looking at a code,
+// and says whether there was one to spend. For the trusted-browser shortcut on
+// the admin sign-in: a trusted browser is excused the emailed code, never the
+// password, and a login_otp challenge only ever exists because
+// app/api/auth/login has just checked the password. Without this, a trusted
+// browser cookie plus the account's id was a session, password unasked.
+export async function consumeLiveEmailChallenge(userId: string, purpose: ChallengePurpose): Promise<boolean> {
+  const { count } = await prisma.emailChallenge.deleteMany({
+    where: { userId, purpose, expiresAt: { gt: new Date() }, attempts: { lt: MAX_ATTEMPTS } },
+  })
+  return count > 0
+}
+
 export type ChallengeVerifyResult =
   // `pendingEmail` is returned because verifying consumes (deletes) the row, so
   // this is the caller's only chance to learn which address was being confirmed.

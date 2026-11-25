@@ -15,6 +15,7 @@ import {
 } from '@/lib/members/account-layout'
 import { getMemberAccountNavExtras } from '@/lib/members/account-nav'
 import { isMemberContactDetailsWanted } from '@/lib/members/contact-details'
+import { getSiteTimezone } from '@/lib/config/timezone.server'
 import MemberAvatar from '@/components/members/MemberAvatar'
 import VerifyEmailNudge from '@/components/members/account/VerifyEmailNudge'
 import ContactDetailsCard from '@/components/members/account/ContactDetailsCard'
@@ -88,7 +89,7 @@ export default async function AccountIndexPage() {
 
   // One round of queries rather than a waterfall: this is the page every
   // signed-in member lands on, so it is the one worth not making them wait for.
-  const [config, record, passkeyCount, sessionCount, twoFactorCount, recentActivity, extensionModules, notificationsAvailable, navExtras, contactDetailsWanted] =
+  const [config, record, passkeyCount, sessionCount, twoFactorCount, recentActivity, extensionModules, notificationsAvailable, navExtras, contactDetailsWanted, timeZone] =
     await Promise.all([
       getMembersConfig(),
       prisma.member.findUnique({
@@ -119,6 +120,8 @@ export default async function AccountIndexPage() {
       // those tabs point at, and in the same order.
       getMemberAccountNavExtras({ id: member.id, email: member.email, emailVerified: member.emailVerified }),
       isMemberContactDetailsWanted(),
+      // The server's clock is UTC; dates below are the member's, in the site's zone.
+      getSiteTimezone(),
     ])
 
   // Modules can append content here via the "members.account-section"
@@ -222,7 +225,7 @@ export default async function AccountIndexPage() {
           <p style={{ color: 'var(--color-text-muted)', margin: '0.25rem 0 0', fontSize: 'var(--text-sm)' }}>
             {member.email}
             {record?.createdAt && (
-              <> · Member since {record.createdAt.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</>
+              <> · Member since {record.createdAt.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone })}</>
             )}
           </p>
         </div>
@@ -296,7 +299,7 @@ export default async function AccountIndexPage() {
             ) : (
               recentActivity.map((event) => (
                 <span key={event.id}>
-                  {activityLabel(event)} · {event.createdAt.toLocaleDateString('en-GB')}
+                  {activityLabel(event)} · {event.createdAt.toLocaleDateString('en-GB', { timeZone })}
                 </span>
               ))
             )}

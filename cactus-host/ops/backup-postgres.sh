@@ -45,6 +45,9 @@ find "$DIR" -name '*.dump' -mtime +7 -delete
 for db in $dbs; do
   own=$(cactus-host db destination "$db" 2>/dev/null || true)
   target="${own:-b2:$DEST}"
-  rclone copy --transfers 2 --include "$db-*.dump" "$DIR" "$target"
+  # The stamp's exact shape, not "$db-*": that also matched every other database
+  # whose name merely starts with "$db-" (acme and acme-shop), and copied the other
+  # business's dumps into this one's destination.
+  rclone copy --transfers 2 --include "$db-????????T??????Z.dump" "$DIR" "$target"
   echo "copied $db to $target"
 done

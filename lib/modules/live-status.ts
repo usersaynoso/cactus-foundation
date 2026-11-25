@@ -76,19 +76,32 @@ export const getInstalledModules = cache(() =>
 // A rejected read clears the slot so the next call retries rather than caching
 // the failure. Callers keep their own error handling.
 const MANIFEST_TTL_MS = 30_000
-let manifestSlot: { promise: Promise<{ manifest: unknown }[]>; at: number } | null = null
+let manifestSlot: { promise: Promise<{ name: string; manifest: unknown }[]>; at: number } | null = null
 
-export function getInstalledManifests(): Promise<{ manifest: unknown }[]> {
+export function getInstalledManifests(): Promise<{ name: string; manifest: unknown }[]> {
   const now = Date.now()
   if (manifestSlot && now - manifestSlot.at < MANIFEST_TTL_MS) return manifestSlot.promise
   const promise = prisma.module.findMany({
     where: { ...INSTALLED_MODULE_WHERE },
-    select: { manifest: true },
+    select: { name: true, manifest: true },
   })
   const mine = { promise, at: now }
   manifestSlot = mine
   promise.catch(() => { if (manifestSlot === mine) manifestSlot = null })
   return promise
+}
+
+/**
+ * Names of the modules switched on for this site, from the same memo as above (no
+ * extra query). Used to stop a disabled module answering requests: its code stays
+ * in the build until the next deploy, so the router has to ask.
+ *
+ * Rejects when the read fails; the caller decides what that means (the router
+ * fails open - see lib/modules/live-gate.ts).
+ */
+export async function getInstalledModuleNames(): Promise<ReadonlySet<string>> {
+  const rows = await getInstalledManifests()
+  return new Set(rows.map((r) => r.name))
 }
 
 /** Drop the memo above. Call after anything that installs or removes a module. */

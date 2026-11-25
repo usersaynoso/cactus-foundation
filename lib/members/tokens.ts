@@ -35,11 +35,13 @@ export async function consumeVerificationToken(
   const record = await prisma.memberVerificationToken.findUnique({ where: { tokenHash } })
   if (!record || record.usedAt || record.expiresAt < new Date()) return null
 
-  await prisma.memberVerificationToken.update({
-    where: { id: record.id },
+  // Conditional on still being unused, so two requests racing with the same
+  // link cannot both spend it.
+  const { count } = await prisma.memberVerificationToken.updateMany({
+    where: { id: record.id, usedAt: null },
     data: { usedAt: new Date() },
   })
-  return { memberId: record.memberId }
+  return count > 0 ? { memberId: record.memberId } : null
 }
 
 // Throttles resend requests per-member regardless of whether earlier tokens

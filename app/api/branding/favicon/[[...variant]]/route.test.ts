@@ -39,7 +39,7 @@ function branding(over: Partial<ResolvedBranding>): ResolvedBranding {
 }
 
 function media(id: string, mimeType: string): IconMedia {
-  return { id, url: `https://media.example/${id}`, key: id, mimeType, provider: 'B2' }
+  return { id, url: `https://media.example/${id}`, key: id, mimeType, provider: 'B2', sizeBytes: 1024 }
 }
 
 async function get(path: string, segment?: string) {

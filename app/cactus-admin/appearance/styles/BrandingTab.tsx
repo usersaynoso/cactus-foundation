@@ -89,10 +89,19 @@ export function useBrandingState(): BrandingState {
   // Baseline for unsaved-change detection: set on load and after each save.
   const savedFingerprint = useRef<string>(JSON.stringify(EMPTY_BRANDING))
   const [dirty, setDirty] = useState(false)
+  // Save sends every branding field, so saving over a load that never arrived would
+  // write the empty defaults over the real logo, icons and app identity.
+  const loadedRef = useRef(false)
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/admin/config').then((r) => r.json()),
+      // A failed read answers { error }, which used to be taken as a config with no
+      // branding in it - the same blank form, and the same wipe on save.
+      fetch('/api/admin/config').then(async (r) => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'Failed to load branding')
+        return d
+      }),
       fetch('/api/admin/env').then((r) => r.json()),
     ]).then(([cfg, envData]) => {
       const c = cfg as Record<string, unknown>
@@ -114,6 +123,7 @@ export function useBrandingState(): BrandingState {
       }
       setConfig(next)
       savedFingerprint.current = JSON.stringify(next)
+      loadedRef.current = true
       setSiteName((c.siteName as string | null) ?? '')
       setMediaProvider((c.mediaProvider as MediaProviderType | null) ?? null)
       setPreviews({
@@ -232,6 +242,10 @@ export function useBrandingState(): BrandingState {
   }, [config.appIconMediaId, config.faviconMediaId, generateIcons])
 
   const save = useCallback(async (): Promise<boolean> => {
+    if (!loadedRef.current) {
+      setError('Branding did not load, so saving now would blank it. Reload the page and try again.')
+      return false
+    }
     setSaving(true)
     setError('')
     setSaved(false)

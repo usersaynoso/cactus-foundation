@@ -1,5 +1,5 @@
 import { randomInt } from 'crypto'
-import { prisma } from '@/lib/db/prisma'
+import { prisma, type PrismaTransactionClient } from '@/lib/db/prisma'
 import { isUsernameFormatValid, isUsernameAvailable } from '@/lib/members/username'
 import { hashMemberToken, createVerificationToken } from '@/lib/members/tokens'
 import { getMemberAreaPath } from '@/lib/members/paths'
@@ -83,11 +83,22 @@ export async function validateInviteToken(
   return { id: invite.id }
 }
 
-export async function consumeInviteToken(inviteId: string, memberId: string): Promise<void> {
-  await prisma.memberInvite.update({
-    where: { id: inviteId },
-    data: { usedAt: new Date(), usedByMemberId: memberId },
+// Spends an invite on the member it let in. Conditional on the invite still
+// being usable, and false when it is not: two sign-ups racing with one invite
+// both pass validateInviteToken, and only one of them may have it. Takes the
+// transaction the member is created in, so the loser's account is rolled back
+// with its claim.
+export async function consumeInviteToken(
+  inviteId: string,
+  memberId: string,
+  db: PrismaTransactionClient = prisma
+): Promise<boolean> {
+  const now = new Date()
+  const { count } = await db.memberInvite.updateMany({
+    where: { id: inviteId, usedAt: null, revokedAt: null, expiresAt: { gt: now } },
+    data: { usedAt: now, usedByMemberId: memberId },
   })
+  return count > 0
 }
 
 // Issues a fresh verification token and emails the link. Shared by the

@@ -1,6 +1,7 @@
 import { publicUrl } from '@/lib/security/public-origin'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
+import { hasPermission } from '@/lib/permissions/check'
 import { prisma } from '@/lib/db/prisma'
 import { encryptSecret } from '@/lib/crypto/secrets'
 import path from 'path'
@@ -22,6 +23,20 @@ export async function GET(request: NextRequest) {
   const user = await getSessionFromCookie()
   if (!user) {
     return NextResponse.redirect(publicUrl(request, '/'))
+  }
+  // Replacing the GitHub App connection is a config.manage action everywhere else
+  // (start/install/disconnect); the state cookie alone proves only that this
+  // browser started a flow, not that the person now signed in may finish one.
+  if (!await hasPermission(user, 'config.manage')) {
+    const config = await prisma.siteConfig.findUnique({
+      where: { id: 'singleton' },
+      select: { adminPath: true },
+    })
+    const res = NextResponse.redirect(
+      publicUrl(request, `/${config?.adminPath ?? ''}/config?tab=integrations&github=error&reason=forbidden`)
+    )
+    res.cookies.delete('cactus_github_app_state')
+    return res
   }
 
   const { searchParams } = request.nextUrl

@@ -68,9 +68,11 @@ export async function consumeMagicLink(token: string): Promise<{ memberId: strin
   const record = await prisma.memberMagicLink.findUnique({ where: { tokenHash } })
   if (!record || record.usedAt || record.expiresAt < new Date()) return null
 
-  await prisma.memberMagicLink.update({
-    where: { id: record.id },
+  // Conditional on still being unused: two requests racing with the same link
+  // (a mail scanner and the member, say) must not both get a session from it.
+  const { count } = await prisma.memberMagicLink.updateMany({
+    where: { id: record.id, usedAt: null },
     data: { usedAt: new Date() },
   })
-  return { memberId: record.memberId }
+  return count > 0 ? { memberId: record.memberId } : null
 }

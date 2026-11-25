@@ -56,6 +56,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return errorResponse('Use the Publish button in the page editor to publish a page', 400)
   }
 
+  // Taking a live page down is the other half of pages.publish ("Publish and
+  // unpublish info pages"). Without this, pages.write alone could unpublish any
+  // page the publisher had put live.
+  if (status === 'draft' && page.status === 'published' && !await hasPermission(user, 'pages.publish')) {
+    return errorResponse('You do not have permission to unpublish pages', 403)
+  }
+
   if (slug && slug !== page.slug) {
     const exists = await prisma.infoPage.findUnique({ where: { slug } })
     if (exists) return errorResponse(`Slug "${slug}" is already in use`, 409)

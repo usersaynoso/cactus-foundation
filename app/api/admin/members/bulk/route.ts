@@ -40,11 +40,13 @@ export async function POST(request: NextRequest) {
     try {
       switch (action) {
         case 'suspend':
-          await prisma.member.update({ where: { id }, data: { status: 'SUSPENDED', suspensionNotified: false } })
+          await prisma.member.update({ where: { id, status: { not: 'DELETED' } }, data: { status: 'SUSPENDED', suspensionNotified: false } })
           await prisma.memberSession.deleteMany({ where: { memberId: id } })
           break
         case 'unsuspend':
-          await prisma.member.update({ where: { id }, data: { status: 'ACTIVE', suspensionReason: null, suspendedUntil: null } })
+          // Suspended members only: a pending or deleted member caught up in a
+          // bulk selection must not be waved through to ACTIVE.
+          await prisma.member.update({ where: { id, status: 'SUSPENDED' }, data: { status: 'ACTIVE', suspensionReason: null, suspendedUntil: null, suspensionNotified: false } })
           break
         case 'approve':
           await prisma.member.update({ where: { id, status: 'PENDING_APPROVAL' }, data: { status: 'ACTIVE' } })

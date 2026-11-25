@@ -5,6 +5,7 @@ import { createRegistrationChallenge } from '@/lib/auth/passkey'
 import { getSessionFromCookie, isCurrentSessionFresh } from '@/lib/auth/session'
 import { isSetupBootstrapOpen } from '@/lib/auth/setup-window'
 import { getWebAuthnOrigin } from '@/lib/config/env'
+import { mayActOnSetupUser, SETUP_LOCKED_OUT_MESSAGE } from '@/lib/setup/bootstrap-cookie'
 
 const Body = z.object({
   // Only honoured during the first-run setup wizard, where no session exists yet.
@@ -48,6 +49,11 @@ export async function POST(request: NextRequest) {
   if (await isSetupBootstrapOpen()) {
     const claimed = parsed.data.userId
     if (claimed) {
+      // A claimed userId needs the setup-bootstrap cookie for that user (or a session
+      // as them): knowing who the admin is must not be enough to enrol on it.
+      if (!(await mayActOnSetupUser(claimed))) {
+        return NextResponse.json({ error: SETUP_LOCKED_OUT_MESSAGE }, { status: 403 })
+      }
       userId = claimed
     } else {
       const user = await getSessionFromCookie()

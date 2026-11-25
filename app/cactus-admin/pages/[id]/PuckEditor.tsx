@@ -246,7 +246,9 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
     }
   }, [])
 
-  const doAutosave = useCallback(async (data: Data) => {
+  // Resolves true only when the server took the save, so callers never treat a
+  // refused or dropped save as done.
+  const doAutosave = useCallback(async (data: Data): Promise<boolean> => {
     setSaveError('')
     setSaving(true)
     try {
@@ -261,13 +263,15 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
         body: JSON.stringify({ data, ...(menuIds !== undefined ? { menuIds } : {}) }),
       })
       if (!res.ok) {
-        const d = await res.json()
-        setSaveError(d.error ?? 'Autosave failed')
-      } else {
-        setLastSaved(new Date())
+        const d = await res.json().catch(() => ({}))
+        setSaveError((d as { error?: string }).error ?? 'Autosave failed')
+        return false
       }
+      setLastSaved(new Date())
+      return true
     } catch {
       setSaveError('Autosave failed — check your connection')
+      return false
     } finally {
       setSaving(false)
     }
@@ -306,8 +310,9 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
           setIsPublished(false)
           setPublishedSlug(null)
         }
-        await doAutosave(data)
-        setHasUnsavedChanges(false)
+        // A failed save keeps the edits marked unsaved, so Update stays live and
+        // the leave-page warning still guards them.
+        if (await doAutosave(data)) setHasUnsavedChanges(false)
       } else {
         const res = await fetch(`/api/admin/pages/${pageId}/publish`, {
           method: 'POST',
@@ -354,7 +359,9 @@ export default function PuckEditor({ pageId, initialData, canPublish, canManageM
       // Update the ref and persist the restored content immediately, since the
       // page reload right below would otherwise discard it unsaved.
       currentDataRef.current = restoredData
-      await doAutosave(restoredData)
+      // Reloading after a failed save would throw the restored version away and
+      // wipe the error with it - stay put so the save error is seen.
+      if (!(await doAutosave(restoredData))) return
 
       // Reload the page so Puck re-initialises with the restored data
       window.location.reload()

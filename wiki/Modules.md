@@ -68,9 +68,9 @@ Some modules need extra credentials - for example, a contact form module might n
 
 ## Enabling and disabling modules
 
-You can switch a module off without removing it. A disabled module's features are hidden from visitors and its admin pages disappear from the sidebar - but all its data is preserved and ready to go if you enable it again.
+You can switch a module off without removing it. A disabled module's features are hidden from visitors and its admin pages disappear from the sidebar - but all its data is preserved and ready to go if you enable it again. Hiding happens straight away (give it up to half a minute), without waiting for the next deploy: the module's pages and addresses answer "not found", a disabled contact form stops taking messages, and it drops out of the sitemap and robots file.
 
-To switch a module off, open its card's **…** menu on the **Installed** tab and choose **Turn off**. A module that is off shows a **Disabled** badge and its card offers **Enable** as its main button, so switching it back on is a single click.
+To switch a module off, open its card's **…** menu on the **Installed** tab and choose **Turn off**. Cactus won't let you turn off a module another installed module depends on (switch that one off first), or one that is partway through installing or updating. Likewise, switching one back on needs any modules it relies on to be installed. A module that is off shows a **Disabled** badge and its card offers **Enable** as its main button, so switching it back on is a single click.
 
 ---
 

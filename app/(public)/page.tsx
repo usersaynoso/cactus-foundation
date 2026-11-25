@@ -38,7 +38,7 @@ const getHomepage = cache((id: string) =>
     .findUnique({
       where: { id },
       select: {
-        id: true, title: true, body: true, bodyFormat: true,
+        id: true, slug: true, title: true, body: true, bodyFormat: true,
         builderData: true, publishedData: true, status: true,
         metaDescription: true, ogImageId: true,
       },
@@ -101,6 +101,9 @@ export default async function RootPage() {
     const page = await getHomepage(config.homepageId)
 
     if (page) {
+      // Rendered with its own slug, not a stand-in: a page layout's "Specific
+      // page (by slug)" rule names the real one, and since /<slug> now redirects
+      // here, this is the only place that rule can ever match the page.
       const isDraft = page.status === 'draft'
 
       if (isDraft) {
@@ -113,10 +116,10 @@ export default async function RootPage() {
               Draft — not visible to the public
             </div>
           )
-          return renderInfoPageContent({ ...page, slug: 'home' }, { draftBanner, isHomepage: true })
+          return renderInfoPageContent(page, { draftBanner, isHomepage: true })
         }
       } else {
-        return renderInfoPageContent({ ...page, slug: 'home' }, { isHomepage: true })
+        return renderInfoPageContent(page, { isHomepage: true })
       }
     }
   }

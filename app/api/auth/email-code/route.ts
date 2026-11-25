@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { verifyEmailChallenge } from '@/lib/auth/email-challenge'
+import { consumeLiveEmailChallenge, verifyEmailChallenge } from '@/lib/auth/email-challenge'
 import { createSession, setSessionCookie, createTrustedDevice, setTrustedDeviceCookie, isTrustedDevice } from '@/lib/auth/session'
 import { checkAndRecord, getClientIp } from '@/lib/auth/rate-limit'
 import { noteSuccessfulSignIn } from '@/lib/auth/sign-in-alerts'
@@ -39,11 +39,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Account suspended' }, { status: 403 })
   }
 
-  // Check if device is already trusted — skip OTP if so
+  // A trusted device skips the code, not the password. The challenge is the
+  // proof the password step happened (app/api/auth/login only mints one after
+  // checking it), so it still has to be there to spend - otherwise a trusted
+  // browser cookie and the account's id were enough for a session.
   const trusted = await isTrustedDevice(userId)
 
-  let verified = trusted
-  if (!trusted) {
+  let verified = false
+  if (trusted) {
+    if (!(await consumeLiveEmailChallenge(userId, 'login_otp'))) {
+      return NextResponse.json({ error: 'Code has expired. Please log in again.' }, { status: 401 })
+    }
+    verified = true
+  } else {
     const result = await verifyEmailChallenge(userId, 'login_otp', code)
     if (!result.success) {
       const message =

@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
-import { verifyMemberEmailChallenge } from '@/lib/members/email-challenge'
+import { clearMemberChallenges, hasLiveMemberChallenge, verifyMemberEmailChallenge } from '@/lib/members/email-challenge'
 import { verifyTotpCode } from '@/lib/auth/totp'
 import { tryDecryptSecret } from '@/lib/crypto/secrets'
 import { loginRejectionForStatus } from '@/lib/members/registration'
@@ -64,6 +64,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status: 401 })
     }
   } else {
+    // The email and text codes above are themselves the proof the password step
+    // happened - they are only ever minted after it. An authenticator code is
+    // not, so the challenge the password step leaves behind has to be there.
+    if (!(await hasLiveMemberChallenge(memberId, 'login_2fa'))) {
+      return NextResponse.json({ error: 'Code has expired. Please sign in again.' }, { status: 401 })
+    }
     // A secret this site's ENCRYPTION_KEY cannot read came from another install
     // (restored backup, rotated key) and no code will ever match it. Same answer
     // as no enrolment at all, rather than a 500 full of OpenSSL.
@@ -79,6 +85,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 })
     }
     await prisma.memberTwoFactor.update({ where: { id: twoFactor.id }, data: { lastStep: result.step } })
+    await clearMemberChallenges(memberId, 'login_2fa')
   }
 
   const rejection = loginRejectionForStatus(member.status)

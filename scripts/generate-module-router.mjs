@@ -223,6 +223,12 @@ for (const moduleName of moduleNames) {
 // back - guarded by lib/modules/router-split.test.ts.
 // ---------------------------------------------------------------------------
 
+// Every lookup below that is keyed by a URL segment goes through Object.hasOwn.
+// The tables are plain object literals, so a bare TABLE[key] for /constructor,
+// /toString or /api/m/__proto__/x reached Object.prototype instead of missing:
+// the index loader "loaded" Object() and rendered an undefined component, and the
+// route tables were iterated as if a function were an array. Both were a 500 where
+// a 404 belonged.
 const MATCH_PATTERN = [
   `function matchPattern(pattern: string[], actual: string[]): Record<string, string> | null {`,
   `  if (pattern.length !== actual.length) return null`,
@@ -279,6 +285,7 @@ const admin = banner([
 ])
 
 admin.push(`import { applyModuleApiCache } from '@/lib/cache/module-api-cache'`)
+admin.push(`import { isModuleLive } from '@/lib/modules/live-gate'`)
 admin.push(``)
 admin.push(...SHARED_TYPES)
 admin.push(``)
@@ -312,8 +319,10 @@ admin.push(`  req: Request,`)
 admin.push(`  ctx: { params: Promise<{ module: string; path: string[] }> }`)
 admin.push(`): Promise<Response> {`)
 admin.push(`  const { module, path } = await ctx.params`)
-admin.push(`  const routes = API_ROUTES[module]`)
+admin.push(`  const routes = Object.hasOwn(API_ROUTES, module) ? API_ROUTES[module] : undefined`)
 admin.push(`  if (!routes) return new Response('Module not found', { status: 404 })`)
+// A switched-off module answers exactly like an unknown one. Fails open: see live-gate.ts.
+admin.push(`  if (!(await isModuleLive(module))) return new Response('Module not found', { status: 404 })`)
 admin.push(``)
 admin.push(`  for (const route of routes) {`)
 admin.push(`    const extracted = matchPattern(route.pattern, path)`)
@@ -335,8 +344,9 @@ admin.push(`export async function resolveModulePage(`)
 admin.push(`  module: string,`)
 admin.push(`  path: string[]`)
 admin.push(`): Promise<{ Component: React.ComponentType<any>; metadata?: unknown; generateMetadata?: (...args: any[]) => any; mappedParams: Record<string, string> } | null> {`)
-admin.push(`  const loaders = PAGE_LOADERS[module]`)
+admin.push(`  const loaders = Object.hasOwn(PAGE_LOADERS, module) ? PAGE_LOADERS[module] : undefined`)
 admin.push(`  if (!loaders) return null`)
+admin.push(`  if (!(await isModuleLive(module))) return null`)
 admin.push(``)
 admin.push(`  for (const [patternStr, loader] of Object.entries(loaders)) {`)
 admin.push(`    const pattern = patternStr ? patternStr.split('/') : []`)
@@ -376,6 +386,7 @@ const pub = banner([
 // of the shared type aliases so the file still opens with its imports. The
 // shape belongs to the serialiser that consumes it, not to the generator.
 pub.push(`import type { RobotsGroup } from '@/lib/seo/robots-txt'`)
+pub.push(`import { isModuleLive } from '@/lib/modules/live-gate'`)
 pub.push(``)
 // Re-exported so anything that already reads the head collector from here keeps
 // working. The dependency only runs this way round: public-head.ts must never
@@ -415,6 +426,9 @@ pub.push(``)
 
 pub.push(`const PUBLIC_BASES: string[] = ${JSON.stringify([...publicBases.keys()])}`)
 pub.push(``)
+pub.push(`// Which module owns each public base, so a switched-off module's pages and feeds can be refused.`)
+pub.push(`const PUBLIC_BASE_MODULES: Record<string, string> = ${JSON.stringify(Object.fromEntries(publicBases))}`)
+pub.push(``)
 
 pub.push(...MATCH_PATTERN)
 pub.push(``)
@@ -422,8 +436,9 @@ pub.push(`export async function resolveModulePublicPage(`)
 pub.push(`  base: string,`)
 pub.push(`  path: string[]`)
 pub.push(`): Promise<{ Component: React.ComponentType<any>; generateMetadata?: (...args: any[]) => any; mappedParams: Record<string, string> } | null> {`)
-pub.push(`  const loaders = PUBLIC_PAGE_LOADERS[base]`)
+pub.push(`  const loaders = Object.hasOwn(PUBLIC_PAGE_LOADERS, base) ? PUBLIC_PAGE_LOADERS[base] : undefined`)
 pub.push(`  if (!loaders) return null`)
+pub.push(`  if (!(await isModuleLive(PUBLIC_BASE_MODULES[base]!))) return null`)
 pub.push(``)
 pub.push(`  for (const [patternStr, loader] of Object.entries(loaders)) {`)
 pub.push(`    const pattern = patternStr ? patternStr.split('/') : []`)
@@ -442,8 +457,9 @@ pub.push(`  path: string[],`)
 pub.push(`  method: string,`)
 pub.push(`  req: Request`)
 pub.push(`): Promise<Response | null> {`)
-pub.push(`  const routes = PUBLIC_ROUTE_HANDLERS[base]`)
+pub.push(`  const routes = Object.hasOwn(PUBLIC_ROUTE_HANDLERS, base) ? PUBLIC_ROUTE_HANDLERS[base] : undefined`)
 pub.push(`  if (!routes) return null`)
+pub.push(`  if (!(await isModuleLive(PUBLIC_BASE_MODULES[base]!))) return null`)
 pub.push(``)
 pub.push(`  for (const route of routes) {`)
 pub.push(`    const extracted = matchPattern(route.pattern, path)`)
@@ -468,11 +484,13 @@ if (sitemapModules.length === 0) {
   pub.push(`  void siteUrl`)
 }
 for (const { moduleName, importPath } of sitemapModules) {
+  pub.push(`  if (await isModuleLive('${moduleName}')) {`)
   pub.push(`  try {`)
   pub.push(`    const mod = await import('${importPath}')`)
   pub.push(`    entries.push(...await mod.getPublicSitemapEntries(siteUrl))`)
   pub.push(`  } catch (err) {`)
   pub.push(`    console.error('[collectModuleSitemapEntries] ${moduleName} failed:', err)`)
+  pub.push(`  }`)
   pub.push(`  }`)
 }
 pub.push(`  return entries`)
@@ -481,11 +499,13 @@ pub.push(``)
 pub.push(`export async function collectModuleRobotsDisallow(): Promise<string[]> {`)
 pub.push(`  const paths: string[] = []`)
 for (const { moduleName, importPath } of robotsModules) {
+  pub.push(`  if (await isModuleLive('${moduleName}')) {`)
   pub.push(`  try {`)
   pub.push(`    const mod = await import('${importPath}')`)
   pub.push(`    paths.push(...await mod.getPublicRobotsDisallow())`)
   pub.push(`  } catch (err) {`)
   pub.push(`    console.error('[collectModuleRobotsDisallow] ${moduleName} failed:', err)`)
+  pub.push(`  }`)
   pub.push(`  }`)
 }
 pub.push(`  return paths`)
@@ -499,6 +519,7 @@ pub.push(``)
 pub.push(`export async function collectModuleRobotsGroups(): Promise<RobotsGroup[]> {`)
 pub.push(`  const groups: RobotsGroup[] = []`)
 for (const { moduleName, importPath } of robotsModules) {
+  pub.push(`  if (await isModuleLive('${moduleName}')) {`)
   pub.push(`  try {`)
   // Read through an index type rather than the module's own: a module that
   // does not export this - which is every module written before it existed -
@@ -512,6 +533,7 @@ for (const { moduleName, importPath } of robotsModules) {
   pub.push(`  } catch (err) {`)
   pub.push(`    console.error('[collectModuleRobotsGroups] ${moduleName} failed:', err)`)
   pub.push(`  }`)
+  pub.push(`  }`)
 }
 pub.push(`  return groups`)
 pub.push(`}`)
@@ -519,6 +541,7 @@ pub.push(``)
 pub.push(`export async function collectModuleRobotsExtraLines(): Promise<string[]> {`)
 pub.push(`  const lines: string[] = []`)
 for (const { moduleName, importPath } of robotsModules) {
+  pub.push(`  if (await isModuleLive('${moduleName}')) {`)
   pub.push(`  try {`)
   pub.push(`    const mod: Record<string, unknown> = await import('${importPath}')`)
   pub.push(`    const fn = mod.getPublicRobotsExtraLines`)
@@ -527,6 +550,7 @@ for (const { moduleName, importPath } of robotsModules) {
   pub.push(`    }`)
   pub.push(`  } catch (err) {`)
   pub.push(`    console.error('[collectModuleRobotsExtraLines] ${moduleName} failed:', err)`)
+  pub.push(`  }`)
   pub.push(`  }`)
 }
 pub.push(`  return lines`)
@@ -560,6 +584,8 @@ const head = banner([
   `// module's public page, and everything those pages import, on every page.`,
   `// Nothing may be added to this file that loads a page.`,
 ])
+head.push(`import { isModuleLive } from '@/lib/modules/live-gate'`)
+head.push(``)
 head.push(`export type ModulePublicHead = {`)
 head.push(`  jsonLd: object[]`)
 head.push(`  meta: Array<{ name?: string; property?: string; content: string }>`)
@@ -589,6 +615,7 @@ if (headModules.length === 0) {
   head.push(`  void siteUrl`)
 }
 for (const { moduleName, importPath } of headModules) {
+  head.push(`  if (await isModuleLive('${moduleName}')) {`)
   head.push(`  try {`)
   head.push(`    const mod = await import('${importPath}')`)
   head.push(`    const part: ModulePublicHeadPart = await mod.getPublicHead(siteUrl)`)
@@ -602,6 +629,7 @@ for (const { moduleName, importPath } of headModules) {
   head.push(`    }`)
   head.push(`  } catch (err) {`)
   head.push(`    console.error('[collectModulePublicHead] ${moduleName} failed:', err)`)
+  head.push(`  }`)
   head.push(`  }`)
 }
 head.push(`  return { jsonLd, meta, links, scripts }`)
@@ -636,6 +664,8 @@ const slugRouter = banner([
   `// checkout's JavaScript on every product page. Deeper pages belong to`,
   `// router.public.ts and the catch-all route. This file must never import it.`,
 ])
+slugRouter.push(`import { isModuleLive } from '@/lib/modules/live-gate'`)
+slugRouter.push(``)
 slugRouter.push(`type PageModule = () => Promise<{ default: React.ComponentType<any>; metadata?: unknown; generateMetadata?: (...args: any[]) => any }>`)
 slugRouter.push(`type ResolvedModulePage = { Component: React.ComponentType<any>; generateMetadata?: (...args: any[]) => any; mappedParams: Record<string, string> }`)
 slugRouter.push(``)
@@ -662,16 +692,26 @@ for (const { moduleName, pageImport, claimImport, claimExport } of rootSlugClaim
 }
 slugRouter.push(`]`)
 slugRouter.push(``)
+slugRouter.push(`// Which module owns each index page, so a switched-off module's index answers as unknown.`)
+slugRouter.push(`const PUBLIC_INDEX_MODULES: Record<string, string> = {`)
+for (const [base, loaders] of Object.entries(publicPageLoaders)) {
+  if (loaders[''] === undefined) continue
+  slugRouter.push(`  '${base}': '${publicBases.get(base)}',`)
+}
+slugRouter.push(`}`)
+slugRouter.push(``)
 slugRouter.push(`/** The page a module serves at its bare base (/boards), or null when it has none. */`)
 slugRouter.push(`export async function resolveModuleIndexPage(base: string): Promise<ResolvedModulePage | null> {`)
-slugRouter.push(`  const loader = PUBLIC_INDEX_PAGE_LOADERS[base]`)
+slugRouter.push(`  const loader = Object.hasOwn(PUBLIC_INDEX_PAGE_LOADERS, base) ? PUBLIC_INDEX_PAGE_LOADERS[base] : undefined`)
 slugRouter.push(`  if (!loader) return null`)
+slugRouter.push(`  if (!(await isModuleLive(PUBLIC_INDEX_MODULES[base]!))) return null`)
 slugRouter.push(`  const mod = await loader()`)
 slugRouter.push(`  return { Component: mod.default, generateMetadata: mod.generateMetadata, mappedParams: {} }`)
 slugRouter.push(`}`)
 slugRouter.push(``)
 slugRouter.push(`export async function resolveModuleRootSlugPage(slug: string): Promise<ResolvedModulePage | null> {`)
 slugRouter.push(`  for (const entry of PUBLIC_ROOT_SLUG_CLAIMS) {`)
+slugRouter.push(`    if (!(await isModuleLive(entry.module))) continue`)
 slugRouter.push(`    const claimModule = await entry.loadClaim()`)
 slugRouter.push(`    const claim = claimModule[entry.claimExport]`)
 slugRouter.push(`    if (!claim || !(await claim(slug))) continue`)

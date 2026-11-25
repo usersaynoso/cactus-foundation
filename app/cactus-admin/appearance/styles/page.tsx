@@ -151,10 +151,21 @@ export default function StylesPage() {
     return () => { el.removeEventListener('scroll', check); window.removeEventListener('resize', check) }
   }, [loading, activeTab])
 
+  // Save writes the whole token set. Saving over a load that never arrived would
+  // replace the site's real design with the defaults this form starts on.
+  const tokensLoadedRef = useRef(false)
+
   useEffect(() => {
     fetch('/api/admin/appearance')
-      .then(r => r.json())
+      // A failed read answers { error }, which used to fall through as "no saved
+      // tokens" and leave the defaults on screen ready to be saved over the real ones.
+      .then(async r => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'Failed to load styles')
+        return d
+      })
       .then(d => {
+        tokensLoadedRef.current = true
         if (d.designTokens?.version === 2) {
           const loaded = d.designTokens as DesignTokens
           const dsp = DEFAULT_DESIGN_TOKENS.themeStyle.spacing!
@@ -176,10 +187,14 @@ export default function StylesPage() {
         }
         setLoading(false)
       })
-      .catch(() => { setError('Failed to load styles'); setLoading(false) })
+      .catch((err: unknown) => { setError(err instanceof Error ? err.message : 'Failed to load styles'); setLoading(false) })
   }, [])
 
   const handleSave = useCallback(async (): Promise<boolean> => {
+    if (!tokensLoadedRef.current) {
+      setError('Your styles did not load, so saving now would replace them with the defaults. Reload the page and try again.')
+      return false
+    }
     setSaving(true); setSaved(false); setError('')
     try {
       const res = await fetch('/api/admin/appearance', {
