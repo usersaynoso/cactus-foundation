@@ -37,6 +37,29 @@ So this module separates the two:
   band has a from and an up-to figure (either end can be left open) and matches against
   the price the product card actually shows - the "From £..." figure where there is one.
   Price bands work for products with no variations at all.
+- A price group can show as a **range slider** instead of a tick per band: set its
+  "How shoppers pick" to *Range slider*. Shoppers get two handles on one track with
+  a Min and a Max box underneath for typing a figure. The slider's ends come from the
+  cheapest and dearest products on that page (rounded to a sensible step), both ends
+  are inclusive, and it compares against the same printed price as the bands. The
+  chosen range rides on the address as `?price=100-500` (`100-` and `-500` for an open
+  end) and shows as a removable chip. The group's bands stay useful: a filter
+  collection page built on "Under £200" opens the slider on that band.
+- With a delivery-timing module installed (Advanced Shipping), the picker also offers
+  two **delivery** sections:
+  - **Delivery service** - every service label the shop offers ("Flat-Pack",
+    "Made To Order Flat-Pack", "Pre-Assembled", "Installation", ...). One filter can
+    stand for several, so "Flat-pack" can tick both flat-pack services and leave the
+    express ones out entirely.
+  - **Delivery lead time** - the working-day counts the services actually take
+    (dispatch lead plus the service's courier days, after any minimum lead). A
+    lead-time filter means "can arrive *within* this many working days": ticking
+    "6 working days" keeps the desk that can come in three.
+
+  Delivery filters are listing-wide, like price bands: a listing offers a service if
+  any of its variations does, and its lead time is the quickest any of them manages.
+  The answers are read for the whole catalogue at once and held for ten minutes, so a
+  change to the delivery settings takes up to ten minutes to reach the filters.
 - The panel also offers a **Category** section automatically, and it leads the panel.
   On a category page its ticks are that page's own sub-categories, so a shopper can
   narrow a parent category's rolled-up grid to one branch without leaving the page. On
@@ -283,6 +306,12 @@ ticks at once. Filters that belong to the whole listing rather than to any one
 variation stay listing-wide: a price band, a sub-category, and a spec stamped on the
 parent product rather than on its variations. Those never rule a listing out on the
 grounds that some other variation carries them.
+
+Delivery rules (source DELIVERY) are answered in code rather than SQL, from the
+`shop.product-delivery-timing` extension point: a service rule matches a service label
+exactly (case aside), a lead-time rule takes the leading number of its value
+("6 working days" -> 6) and matches a listing whose quickest service is at most that.
+A grid only asks for delivery facts when some filter carries a delivery rule.
 
 Because rules match by name and label, they survive re-imports that recreate option rows.
 The flip side: rename an option value everywhere and the filter stops covering it until
