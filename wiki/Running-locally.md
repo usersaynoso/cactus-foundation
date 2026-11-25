@@ -105,6 +105,54 @@ project to write env vars to and no redeploy mechanism, several admin features c
 Everything else - content, pages, layouts, menus, the visual editors, roles and
 permissions, passkeys - works exactly as it does on Vercel.
 
+## Before you commit: the secret scan
+
+Credentials never go in a tracked file. They belong in the deployment
+environment (`.env.local` locally, which git ignores) or in the encrypted
+settings the admin stores in the database. Cactus checks this in three places:
+
+- **On every commit**, once you switch the hook on for your checkout:
+
+  ```bash
+  npm run hooks:install
+  ```
+
+  The pre-commit hook scans exactly what you are about to commit and refuses
+  the commit if it finds a token, a private key, a password inside a URL, or a
+  file that should never be tracked (`.env`, `.env.local`, Claude Code's
+  `.claude/settings.json` and `.claude/settings.local.json`, SSH private keys).
+- **In `npm test`**, which scans every tracked file, so a key already in the
+  tree fails the suite.
+- **By hand**, whenever you like:
+
+  ```bash
+  npm run check:secrets
+  ```
+
+  `node scripts/check-secrets.mjs --history` scans every line ever added to the
+  repository, and `--root <dir>` points it at another repository, such as a
+  module's own checkout.
+
+The scan never prints the value it found, only a short redacted preview.
+
+GitHub provides a fourth check, on its side of the push. Secret scanning and
+push protection are switched on for the core repository and for every
+repository in the `cactus-foundation-modules` organisation, new ones included,
+so a push that contains a recognised provider token is refused even if it got
+past everything here.
+
+If it flags a real credential, take it out, and **rotate it**: once something
+has been committed, assume it has been seen. If it flags a deliberate fake (a
+published test vector, a dummy key in a test fixture), put the marker
+`secret-scan: allow` in a comment on that line or the line above, so that the
+exception is visible in review. There is no switch that turns the scan off.
+
+Watch out for Claude Code in particular. Its "always allow" permission rules
+save the entire command line, so running `SOME_TOKEN=... some-command` once
+leaves the token sitting in `.claude/settings.json`. Both settings files are in
+`.gitignore` for that reason. Read credentials from a file or the environment
+inside the command rather than typing them on it.
+
 ## Not a self-hosting target
 
 Local mode is a development convenience. It does not write `.env.local` at runtime,

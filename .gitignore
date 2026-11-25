@@ -14,6 +14,11 @@ build/
 .env.*
 !.env.example
 
+# Claude Code settings: "always allow" rules save whole command lines, and a
+# command line can hold a token. One did, on 2026-06-29. Never track these.
+.claude/settings.json
+.claude/settings.local.json
+
 # Prisma
 prisma/dev.db
 prisma/dev.db-journal

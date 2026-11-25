@@ -1,0 +1,15 @@
+#!/bin/sh
+# Refuses a commit that carries a credential. See scripts/check-secrets.mjs for
+# why this exists (a Vercel token committed on 2026-06-29) and what it looks for.
+#
+# Switched on per checkout with `npm run hooks:install`. Under `git commit -- paths`
+# git points GIT_INDEX_FILE at a temporary index holding only those paths, so this
+# scans exactly what is being committed and not what other agents have staged.
+#
+# A deliberate fake (published test vector, fixture) takes the marker
+# "secret-scan: allow" on its line. There is no bypass flag: `git commit
+# --no-verify` exists, and using it to get a real key past this is the incident
+# this hook was written after.
+root="$(git rev-parse --show-toplevel)" || exit 1
+command -v node >/dev/null 2>&1 || { echo "pre-commit: node not found - cannot scan for secrets, refusing the commit" >&2; exit 1; }
+exec node "$root/scripts/check-secrets.mjs" --staged

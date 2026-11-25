@@ -1,6 +1,6 @@
 {
   "name": "cactus",
-  "version": "0.5.1981",
+  "version": "0.5.1982",
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-all.mjs && next dev --webpack",
@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "node scripts/generate-all.mjs && node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "hooks:install": "git config core.hooksPath scripts/git-hooks",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:backup-roundtrip": "RUN_BACKUP_ROUNDTRIP=1 vitest run lib/backup/roundtrip.test.ts",
