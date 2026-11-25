@@ -56,8 +56,10 @@ So this module separates the two:
     lead-time filter means "can arrive *within* this many working days": ticking
     "6 working days" keeps the desk that can come in three.
 
-    On the storefront a lead-time filter shows as a **date** rather than a count:
-    "Within 6 working days" reads "By Tuesday the 1st of December". The date is
+    On the storefront a lead-time filter shows as a **date** rather than a count,
+    and says only as much as it needs to: "By Friday" within the next six days,
+    "By Friday the 27th" later the same month, and "By Tuesday the 7th of Dec"
+    for another month (short month names; the year is added when that changes too). The date is
     counted the way the delivery estimate counts it - an order before the cut-off on
     a working day clears that day, otherwise the next one - skipping weekends (or
     whatever days the shop does not ship), bank holidays and the shop's own closures
@@ -161,7 +163,11 @@ So this module separates the two:
 
 ## Setting it up
 
-1. **Admin > Shop > Catalogue > Filters.** Add a group (Colour), choose whether it filters by
+1. **Admin > Shop > Catalogue > Filters.** Each group has a **Show counts** tick beside
+   its "how shoppers pick" choice. Untick it to drop the product counts from that one
+   group (handy for delivery groups, where "Within 6 working days (183)" reads oddly);
+   the grid block's own "Show counts" setting still switches them off everywhere.
+   Add a group (Colour), choose whether it filters by
    product values or price bands, pick how shoppers choose from it (colour swatches,
    say), then add a filter (Blue). Filters in a price-band group get from/up-to boxes
    instead of a value picker; the up-to figure is exclusive, so neighbouring bands
