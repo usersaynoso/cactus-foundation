@@ -82,7 +82,7 @@ Four things worth knowing:
 
 #### Click a part to open it
 
-Some products open one bit at a time: a filing cabinet's drawers, say. For those your 3D person can mark each moving part's handle in the file, and the viewer drops the button altogether. The shopper clicks a handle and that drawer slides out; clicks it again and it goes back. Only one drawer in a set opens at once, so opening the second sends the first home at the same moment, both moving together - which is also how a real filing cabinet prefers to be treated.
+Some products open one bit at a time: a filing cabinet's drawers, say. For those your 3D person can mark each moving part's handle in the file, and the viewer drops the button altogether. The shopper clicks a handle and that drawer slides out; clicks it again and it goes back. Only one drawer in a set is open at a time, and they take turns: click a second drawer and the first one closes, then the second slides out once it has shut. (Click the waiting drawer again to cancel it, or another to swap it; with reduced motion on, everything simply jumps.) Which is also how a real filing cabinet prefers to be treated.
 
 - **Hover a handle with a mouse** and the pointer changes, with a small "Open" or "Close" tag beside it saying what a click will do. Touch screens have no hover, so a tap simply does it.
 - **Dragging to turn the model never opens anything.** A click only counts if the pointer barely moved.
@@ -92,7 +92,7 @@ Some products open one bit at a time: a filing cabinet's drawers, say. For those
 
 The marking lives in the file, so this is a conversation with your 3D person rather than a setting here. Files without the marks - every cupboard with its one "Open the doors" button - carry on exactly as they did.
 
-**For your 3D person:** one animation per part (for example `Drawer1Open`), each running that part from shut to open. One animation may move several pieces at once - a drawer and the runner rails that slide half as far with it, say - and they all travel together. Give the node holding the handle the glTF extras `{ "p3dClip": "Drawer1Open", "p3dGroup": "drawers" }`; parts sharing a `p3dGroup` open one at a time, and a part with no group opens on its own. Optionally mark the moving drawer itself with `{ "p3dDrawer": 1 }` (1 is the top) and the buttons name it by position. Save the file with everything shut.
+**For your 3D person:** one animation per part (for example `Drawer1Open`), each running that part from shut to open. One animation may move several pieces at once - a drawer and the runner rails that slide half as far with it, say - and they all travel together. Give the node holding the handle the glTF extras `{ "p3dClip": "Drawer1Open", "p3dGroup": "drawers" }`; parts sharing a `p3dGroup` open one after another (the open one closes first, then the next opens - the viewer does the waiting, nothing in the file), and a part with no group opens on its own. Optionally mark the moving drawer itself with `{ "p3dDrawer": 1 }` (1 is the top) and the buttons name it by position. Save the file with everything shut.
 
 One thing to weigh up with your 3D person: a model that opens usually has to carry the bits that only matter once it is open - hinges, runners, the inside of the lock - so it is a bigger file than the same product modelled shut. Worth it for a cupboard whose selling point is what fits inside. Less obviously worth it for something whose doors are the least interesting thing about it.
 
