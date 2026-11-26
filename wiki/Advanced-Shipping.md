@@ -18,7 +18,10 @@ It needs the **Shop** and **Product Attributes** modules installed.
   literally the same picker, so what each service costs and when each one lands
   is answered on the page the shopper is already reading. It carries a heading
   you can rename or empty, and it follows whichever basket picker style is set in
-  Delivery settings. A choice made here is remembered for that product for the
+  Delivery settings. A link that names a service (the `delivery-service` part
+  of a product link, as the chat assistant's product cards and emailed notes
+  write it) opens the page with that service already picked, if the product
+  offers it. A choice made here is remembered for that product for the
   rest of the visit (a reload or a trip away and back still adds it to the
   basket, not just shows it), moves that product's basket line straight away if it is
   already in the basket, and otherwise rides along onto the line the next
