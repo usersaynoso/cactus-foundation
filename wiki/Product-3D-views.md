@@ -80,6 +80,20 @@ Four things worth knowing:
 - **Only the full viewer has the button.** Thumbnails stay still, which is rather the point of a thumbnail.
 - **A shopper who has asked their device for less on-screen movement still gets the button.** Pressing it shows them the open cupboard straight away rather than a performance of it opening. Their setting is about motion, not about being shut out of seeing inside the product.
 
+#### Click a part to open it
+
+Some products open one bit at a time: a filing cabinet's drawers, say. For those your 3D person can mark each moving part's handle in the file, and the viewer drops the button altogether. The shopper clicks a handle and that drawer slides out; clicks it again and it goes back. Only one drawer in a set opens at once, so opening the second sends the first home at the same moment, both moving together - which is also how a real filing cabinet prefers to be treated.
+
+- **Hover a handle with a mouse** and the pointer changes, with a small "Open" or "Close" tag beside it saying what a click will do. Touch screens have no hover, so a tap simply does it.
+- **Dragging to turn the model never opens anything.** A click only counts if the pointer barely moved.
+- **Keyboard and screen reader users get real buttons** - "Open the top drawer", "Open the bottom drawer" and so on - which appear in the top corner the moment they tab into the viewer, and stay in step with whatever a mouse has done.
+- **Less on-screen movement** is honoured as before: the drawer is simply open, and the one it closes is simply shut.
+- **The zoom makes room** for the biggest single open drawer, rather than for every drawer open at once, which no shopper can manage anyway.
+
+The marking lives in the file, so this is a conversation with your 3D person rather than a setting here. Files without the marks - every cupboard with its one "Open the doors" button - carry on exactly as they did.
+
+**For your 3D person:** one animation per part (for example `Drawer1Open`), each running that part from shut to open. Give the node holding the handle the glTF extras `{ "p3dClip": "Drawer1Open", "p3dGroup": "drawers" }`; parts sharing a `p3dGroup` open one at a time, and a part with no group opens on its own. Optionally mark the moving drawer itself with `{ "p3dDrawer": 1 }` (1 is the top) and the buttons name it by position. Save the file with everything shut.
+
 One thing to weigh up with your 3D person: a model that opens usually has to carry the bits that only matter once it is open - hinges, runners, the inside of the lock - so it is a bigger file than the same product modelled shut. Worth it for a cupboard whose selling point is what fits inside. Less obviously worth it for something whose doors are the least interesting thing about it.
 
 ### DWG and USDZ are not accepted
