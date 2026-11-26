@@ -7,6 +7,7 @@ import {
   isProxied,
 } from '@/lib/media/providers'
 import { isEncryptionKeyUsable, rawCurrentEnvKey } from '@/lib/crypto/keyring'
+import { getDirectHosts } from '@/lib/config/direct-hosts'
 import {
   detectHostingProvider,
   getHostingCredentials,
@@ -450,6 +451,27 @@ export function getWebAuthnOrigin(): string {
   const siteUrl = process.env.SITE_URL
   if (!siteUrl) throw new Error('SITE_URL is required for WebAuthn')
   return siteUrl.replace(/\/$/, '')
+}
+
+/**
+ * Every origin an admin passkey ceremony may legitimately come from: SITE_URL,
+ * plus each cactus-host direct domain that sits under the passkey's RP ID.
+ *
+ * A direct domain (books.example.co.uk for the bookkeeping screens, so HMRC get
+ * the browser's real source port) is a subdomain of the RP ID, so the browser
+ * happily offers the site's passkeys there - and the server then refused the
+ * answer with "Unexpected authentication response origin". A direct domain NOT
+ * under the RP ID is left out: the browser would never sign for it anyway.
+ */
+export function getWebAuthnOrigins(): string[] {
+  const origin = getWebAuthnOrigin()
+  if (process.env.NODE_ENV === 'development') return [origin]
+  const rpId = getWebAuthnRpId()
+  const extra = getDirectHosts()
+    .filter((host) => host === rpId || host.endsWith(`.${rpId}`))
+    .map((host) => `https://${host}`)
+    .filter((o) => o !== origin)
+  return [origin, ...extra]
 }
 
 export function getSessionSecret(): string {

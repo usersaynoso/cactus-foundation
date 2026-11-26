@@ -7,7 +7,7 @@ import type {
 } from '@simplewebauthn/server'
 import type { Member } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
-import { getWebAuthnOrigin, getWebAuthnRpId } from '@/lib/config/env'
+import { getWebAuthnOrigins, getWebAuthnRpId } from '@/lib/config/env'
 import type { MembersConfig } from '@/lib/members/config'
 import { decideLinkedMember, isLinkedAdminPasskeyEnabled, normaliseLinkEmail } from '@/lib/members/admin-passkey-link'
 
@@ -126,7 +126,7 @@ export async function verifyAdminStepUp(memberId: string, userId: string, respon
     const verification = await verifyAuthenticationResponse({
       response,
       expectedChallenge: challenge,
-      expectedOrigin: getWebAuthnOrigin(),
+      expectedOrigin: getWebAuthnOrigins(),
       expectedRPID: getWebAuthnRpId(),
       credential: {
         id: passkey.credentialId,

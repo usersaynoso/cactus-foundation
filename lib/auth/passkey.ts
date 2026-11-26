@@ -11,7 +11,7 @@ import type {
   AuthenticatorTransportFuture,
 } from '@simplewebauthn/server'
 import { prisma } from '@/lib/db/prisma'
-import { getWebAuthnRpId, getWebAuthnOrigin } from '@/lib/config/env'
+import { getWebAuthnRpId, getWebAuthnOrigins } from '@/lib/config/env'
 
 const RP_NAME = 'Cactus Foundation'
 const CHALLENGE_TTL_MS = 5 * 60 * 1000 // 5 minutes
@@ -85,7 +85,7 @@ export async function verifyRegistration(
   const verification = await verifyRegistrationResponse({
     response,
     expectedChallenge: challenge,
-    expectedOrigin: getWebAuthnOrigin(),
+    expectedOrigin: getWebAuthnOrigins(),
     expectedRPID: getWebAuthnRpId(),
     requireUserVerification: true,
   } satisfies VerifyRegistrationResponseOpts)
@@ -202,7 +202,7 @@ export async function verifyAuthentication(
   const verification = await verifyAuthenticationResponse({
     response,
     expectedChallenge: challenge,
-    expectedOrigin: getWebAuthnOrigin(),
+    expectedOrigin: getWebAuthnOrigins(),
     expectedRPID: getWebAuthnRpId(),
     credential: {
       id: passkey.credentialId,

@@ -1,4 +1,5 @@
 import { resolveSiteUrl } from '@/lib/seo/site-url'
+import { getDirectHosts } from '@/lib/config/direct-hosts'
 
 /**
  * The address the visitor actually used, decided in ONE place.
@@ -61,10 +62,7 @@ function isSiteHost(hostname: string, siteHostname: string): boolean {
  * so it is no more a request's to name than SITE_URL is.
  */
 function directHosts(): string[] {
-  return (process.env.CACTUS_HOST_DIRECT_HOSTS ?? '')
-    .split(',')
-    .map((h) => h.trim().toLowerCase())
-    .filter(Boolean)
+  return getDirectHosts()
 }
 
 export function publicOrigin(request: RequestLike): string {

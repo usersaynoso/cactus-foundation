@@ -5,7 +5,7 @@ import type {
 } from '@simplewebauthn/server'
 import type { Member, MemberStatus } from '@prisma/client'
 import { prisma } from '@/lib/db/prisma'
-import { getWebAuthnRpId, getWebAuthnOrigin } from '@/lib/config/env'
+import { getWebAuthnRpId, getWebAuthnOrigins } from '@/lib/config/env'
 import { isAuthMethodEnabled, type MembersConfig } from '@/lib/members/config'
 
 // "Admins can use their admin passkey to sign in to their member account".
@@ -183,7 +183,7 @@ export async function verifyLinkedAdminPasskey(
     verification = await verifyAuthenticationResponse({
       response,
       expectedChallenge: challenge,
-      expectedOrigin: getWebAuthnOrigin(),
+      expectedOrigin: getWebAuthnOrigins(),
       expectedRPID: getWebAuthnRpId(),
       credential: {
         id: passkey.credentialId,
