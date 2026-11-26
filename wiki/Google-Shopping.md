@@ -806,6 +806,7 @@ The fields:
 |---|---|
 | Supplier | The variation's own, else its product's |
 | Brand (as the feed sends it) | The variation's own |
+| SKU - the item's own code; a product with no variations answers with its own | The variation's own, **never** its product's |
 | Category - matches the category itself **and anything under it** | The product's (every category it is filed in) |
 | Range - whichever attribute you pick as your range at the top of the tab | The variation's own, else its product's |
 | Every product attribute | The variation's own, else its product's |
@@ -813,7 +814,9 @@ The fields:
 | Stock quantity, stock status, price, sale price, has a photo, has a barcode | The variation's own |
 | Product status | The product's |
 
-The field picker labels each one **Listing**, **Each variation** or **Variation, else listing**, so you can tell which answer a rule is reading. Comparisons: is, is not, contains, does not contain, is empty, is not empty, is more than, is less than, and is any of (a list). Text is compared without regard to capitals or stray spaces; prices can be typed with a pound sign or commas. "Is empty" means there is no answer at all - zero stock is an answer, an untracked stock count is not.
+The field picker labels each one **Listing**, **Each variation** or **Variation, else listing**, so you can tell which answer a rule is reading. Comparisons: is, is not, contains, does not contain, is empty, is not empty, is more than, is less than, and is any of (a list, one value per line - paste a column straight from a spreadsheet; up to 500 values, repeats and blank lines are tidied away on save). Text is compared without regard to capitals or stray spaces; prices can be typed with a pound sign or commas. "Is empty" means there is no answer at all - zero stock is an answer, an untracked stock count is not.
+
+**Picking out single variations.** A brand typed on a product is stored once for the whole listing, so every variation copies it. To give some variations a different brand, add a rule "SKU is any of [your list] -> send the brand as X" and drag it **above** any broader brand rule (say "Supplier is Y -> brand Z"): the first matching rule wins the brand, so the listed SKUs take X and everything else from that supplier still takes Z.
 
 ### Who wins
 
