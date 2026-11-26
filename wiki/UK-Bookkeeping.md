@@ -1255,9 +1255,20 @@ not.
 A site on its own server can send it. Give the bookkeeping screens a hostname that
 browsers reach directly, with Cloudflare's proxy switched off (grey cloud), added with
 `cactus-host domain add <site> <name> --direct`. The server then sees your browser's own
-connection and passes the port on. Use that hostname for the HMRC calls. The Government
-Gateway sign-in itself still has to be made from the main site address, since HMRC send
-you back to the one address registered with them.
+connection and passes the port on. The Government Gateway sign-in itself still has to be
+made from the main site address, since HMRC send you back to the one address registered
+with them.
+
+Once a site has a direct hostname, the module makes sure it is the one used - nobody has
+to remember. Opening **Bookkeeping → VAT returns** (or any single return) on the main
+address takes you straight to the same page on the direct hostname, and anything that
+talks to HMRC - filing, refreshing obligations, what you owe and have paid - refuses to
+run from anywhere else, says why, and gives you a button to the right place. Nothing is
+sent when it refuses. Leave the VAT returns pages - the sidebar, another part of the
+bookkeeping, the back button - and you are taken back to the main address on your way,
+so the rest of the admin carries on where it normally lives. The first visit to the direct hostname asks you to sign in once,
+because your sign-in on the main address does not carry over to a different one. A site
+with no direct hostname carries on exactly as before.
 
 Where it genuinely cannot be sent, HMRC allow for this and ask to be told why. Say this in
 your application:
