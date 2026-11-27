@@ -17,7 +17,7 @@ It needs the **Shop** module installed and up to date. Once both are in, every p
 4. Add as many options as you need. Two options - say Size and Colour - give you every combination of the two.
 5. Click **Generate variants**. Cactus creates one behind-the-scenes product for each combination, so the cart, checkout, stock and refunds all just work.
 
-Changed your mind about how an option looks? Every option on the list has its own **Dropdown / Pills / Colour swatch / Image swatch** picker beside its name, so a Size you set up as a dropdown two months ago can become a row of pills this afternoon without deleting it and typing the values back in. Nothing else moves: the values, their order, and any colours or pictures already given to them are kept, so you can switch to pills and back to swatches and find your colours exactly where you left them.
+Changed your mind about how an option looks? Every option on the list has its own **Dropdown / Pills / Colour swatch / Image swatch / Tick box / RAL colour** picker beside its name, so a Size you set up as a dropdown two months ago can become a row of pills this afternoon without deleting it and typing the values back in. Nothing else moves: the values, their order, and any colours or pictures already given to them are kept, so you can switch to pills and back to swatches and find your colours exactly where you left them.
 
 You'll then get a grid with one row per combination. Set each one's price, stock, SKU and photo, or use the **Fill every row** boxes above the grid to do the lot in one go. Untick the **On sale** box to take that combination off sale without deleting it, tick **Image up front** or **3D up front** to put its photo or its model on the product page before anyone has chosen anything (see [below](#showing-off-a-finish-before-anyone-has-chosen)), or use the **Delete** button at the end of the row to be rid of it for good. Click a combination's name (or the little arrow beside it) to open the row up and see every photo on it at a decent size - from there you can pick which ones go up front, make a different one its main photo, or take a single photo off without clearing the lot - handy when a big pile of options throws up combinations you'll never actually sell. To clear out a whole batch at once, tick the box at the start of each row you want gone (or the box in the header to select the lot), then press **Delete selected** - rather than working down the list one Delete at a time. When there are more columns than fit, the grid scrolls sideways and the first column, the one naming each combination, stays put so you never lose track of which row you're on.
 
@@ -168,6 +168,37 @@ The first option never gets the tickbox, since there's nothing before it to wait
 ### Changing a swatch colour
 
 Picked a red, then found out the actual red? Click the coloured dot next to any swatch value. The picker and the hex box both open, so you can nudge it by eye or paste in the code you were given. The tick saves it, Enter does the same, and Escape leaves it as it was. A value that never got a colour shows a dotted outline instead of a dot - click that to give it one.
+
+### Tick boxes
+
+Some extras are a plain take-it-or-leave-it: a power module under a desk, a headrest on a chair. A pair of pills saying **Yes** and **No** makes the customer answer a question they never asked, so pick **Tick box** as the option's type instead.
+
+A tick box needs exactly two values - one meaning *without* and the extra itself. Cactus works out which is which from the names: anything starting "No", "None", "Without" or "Not" is the unticked one, wherever it sits in the list, and failing that the first value is. The option card says plainly which way round it has read them, so there are no surprises on the product page.
+
+On the product page the customer sees a single box with the extra's name beside it (rename the value from "Yes" to "Add a power module" if you want the box to read that way) and, where it changes the price, what ticking it adds. Leaving it unticked is a perfectly good answer: the *without* value is chosen for them from the start, so nobody is told to "choose power module" before they can buy. Tick it, untick it, tick it again - each one simply swaps between the two variations, prices, stock and photos included.
+
+Where the combination chosen above doesn't come with the extra, the box can't be ticked and says why; where every remaining variation carries it, the box arrives ticked and stays that way. Give a tick box anything other than two values and the product page quietly shows ordinary pills until you've tidied it up.
+
+### RAL colours
+
+For anything sprayed to order - desk frames, cabinets, legs - pick **RAL colour** as the option's type. Instead of typing values in, use the **Add a RAL colour** box: type a code (`7016`) or part of a name (`anthracite`) and pick from the list. Each one is added the chart's way, as "RAL 7016 Anthracite grey", with its colour filled in for you, so it also shows as a proper colour dot on product cards.
+
+These are your **suggested colours**: the handful you'd like most customers to pick, shown first on the product page as chips with the code over the name.
+
+Tick **Add a Custom RAL choice at the end** and a seventh chip, **Custom RAL**, sits after them. Choosing it opens a panel with two ways to name any other RAL Classic colour:
+
+- a box to type the code straight off their chart, which shows the colour and its name the moment it recognises one, and says so plainly if it doesn't;
+- the whole chart, a family at a time (yellows, reds, greys and so on), to click through for anyone who hasn't got a code in hand.
+
+Your suggested colours are left off the chart and refused in the box, so nobody pays the custom price for a colour you already sell at the normal one. The add to basket button stays locked until a colour is actually chosen, and the colour then goes on the basket line, the order, the invoice and the emails as, say, "Frame colour: RAL 5015 Sky blue (custom)".
+
+**Custom RAL** is a value like any other, so it gets variations of its own: set the extra charge on those in the variations list, as you would for any dearer option. The **Note shown with it** box is for anything else the customer ought to know - "adds 5 working days" is the obvious one - and appears beside the price in the panel.
+
+#### When the colour is optional
+
+Some products come in a standard finish unless someone asks for paint. Tick **Optional** on the RAL option and a "No RAL colour" value is added. The product page then shows a single **Choose a RAL colour** tick box: left alone, the customer gets the *No RAL colour* variations (price those as the standard finish); ticked, the suggested colours and Custom RAL appear and one has to be chosen before it can go in the basket. Unticking it again puts things back as they were.
+
+Screen colours are an approximation - RAL publishes no official screen values and no monitor is a paint chip - and the product page says as much under the chart.
 
 ### Image swatches
 
