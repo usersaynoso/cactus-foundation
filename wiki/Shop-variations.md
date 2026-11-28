@@ -177,7 +177,11 @@ A tick box needs exactly two values - one meaning *without* and the extra itself
 
 On the product page the customer sees a single box with the extra's name beside it (rename the value from "Yes" to "Add a power module" if you want the box to read that way) and, where it changes the price, what ticking it adds. Leaving it unticked is a perfectly good answer: the *without* value is chosen for them from the start, so nobody is told to "choose power module" before they can buy. Tick it, untick it, tick it again - each one simply swaps between the two variations, prices, stock and photos included.
 
-Where the combination chosen above doesn't come with the extra, the box can't be ticked and says why; where every remaining variation carries it, the box arrives ticked and stays that way. Give a tick box anything other than two values and the product page quietly shows ordinary pills until you've tidied it up.
+#### A tick box with a choice behind it
+
+Sometimes the extra comes in more than one flavour - a power module in white or black, say - but only one can be had. Give the option a *without* value plus each flavour (`No Module, White, Black`) and pick **Tick box**. Customers then see a single **Add Power Data Module** box (the option's own name after "Add"). Left unticked, they get *No Module*. Ticked, White and Black appear underneath, with their pictures if they had them, and one must be chosen before it goes in the basket. Unticking puts *No Module* back.
+
+Where the combination chosen above doesn't come with the extra, the box can't be ticked and says why; where every remaining variation carries it, the box arrives ticked and stays that way. Give a tick box no *without* value at all and the product page quietly shows ordinary pills until you've tidied it up.
 
 ### RAL colours
 
